@@ -1,0 +1,21 @@
+[package]
+name = "clippie"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "clippie"
+path = "src/lib.rs"
+
+[[bin]]
+name = "clippie"
+path = "bin/bin.rs"
+
+[dependencies]
+color-eyre = "0.6"
+regex = "1"
+yy-boss = { path = "../yy-boss" }
+pretty_env_logger = "0.4"
+log = "0.4"
+enum-map = "2.0"
+colored = "2"
