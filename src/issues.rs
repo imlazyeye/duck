@@ -10,6 +10,10 @@ pub enum ClippieIssue {
     MissingCaseMembers,
     MissingDefaultCase,
     UnrecognizedEnum,
+    AndKeyword,
+    OrKeyword,
+    NonScreamCase,
+    NonPascalCase,
 }
 impl ClippieIssue {
     pub fn code_tag(&self) -> &str {
@@ -17,6 +21,10 @@ impl ClippieIssue {
             ClippieIssue::MissingCaseMembers => "missing_case_members",
             ClippieIssue::MissingDefaultCase => "missing_default_case",
             ClippieIssue::UnrecognizedEnum => "unrecognized_enum",
+            ClippieIssue::AndKeyword => "and_keyword",
+            ClippieIssue::OrKeyword => "or_keyword",
+            ClippieIssue::NonScreamCase => "non_scream_case",
+            ClippieIssue::NonPascalCase => "non_pascal_case",
         }
     }
 
@@ -25,6 +33,10 @@ impl ClippieIssue {
             "missing_case_members" => Some(ClippieIssue::MissingCaseMembers),
             "missing_default_case" => Some(ClippieIssue::MissingDefaultCase),
             "unrecognized_enum" => Some(ClippieIssue::UnrecognizedEnum),
+            "and_keyword" => Some(ClippieIssue::AndKeyword),
+            "or_keyword" => Some(ClippieIssue::OrKeyword),
+            "non_scream_case" => Some(ClippieIssue::NonScreamCase),
+            "non_pascal_case" => Some(ClippieIssue::NonPascalCase),
             _ => None,
         }
     }
@@ -34,6 +46,10 @@ impl ClippieIssue {
             ClippieIssue::MissingCaseMembers => "Missing required members in switch statement.",
             ClippieIssue::MissingDefaultCase => "Missing default case in switch statement.",
             ClippieIssue::UnrecognizedEnum => "Unrecognized enum name to check against.",
+            ClippieIssue::AndKeyword => "Use of illegal character: `and`",
+            ClippieIssue::OrKeyword => "Use of illegal character: `or`",
+            ClippieIssue::NonScreamCase => "Identifier should be SCREAM_CASE",
+            ClippieIssue::NonPascalCase => "Identifier should be PascalCase",
         }
         .into()
     }
@@ -47,6 +63,10 @@ impl ClippieIssue {
     }
 
     pub fn hint_message(&self) -> String {
+        let final_suggestion = format!(
+            "   3. Ignore this by placing `// #[allow({})]` above the switch statement",
+            self.code_tag()
+        );
         match self {
             #[allow(clippy::format_in_format_args)]
             ClippieIssue::MissingCaseMembers => format!(
@@ -54,30 +74,35 @@ impl ClippieIssue {
                 "You can resolve this by doing one of the following:",
                 "   1. Add cases for the missing members",
                 "   2. Remove the imtentional crash from your default case",
-                format!(
-                    "   3. Ignore this by placing `// #[allow({})]` above the switch statement",
-                    self.code_tag()
-                ),
+                final_suggestion
             ),
             #[allow(clippy::format_in_format_args)]
             ClippieIssue::MissingDefaultCase => format!(
                 "{}\n{}\n{}",
                 "You can resolve this by doing one of the following:",
                 "   1. Add a default case to the switch statement",
-                format!(
-                    "   2. Ignore this by placing `// #[allow({})]` above the switch statement",
-                    self.code_tag()
-                ),
+                final_suggestion
             ),
             #[allow(clippy::format_in_format_args)]
             ClippieIssue::UnrecognizedEnum => format!(
                 "{}\n{}\n{}",
                 "You can resolve this by doing one of the following:",
                 "   1. Correct the name in the default case to the correct enum",
-                format!(
-                    "   2. Ignore this by placing `// #[allow({})]` above the switch statement",
-                    self.code_tag()
-                ),
+                final_suggestion
+            ),
+            #[allow(clippy::format_in_format_args)]
+            ClippieIssue::AndKeyword | ClippieIssue::OrKeyword => format!(
+                "{}\n{}\n{}",
+                "You can resolve this by doing one of the following:",
+                "   1. Use the suggested symbol",
+                final_suggestion
+            ),
+            #[allow(clippy::format_in_format_args)]
+            ClippieIssue::NonScreamCase | ClippieIssue::NonPascalCase => format!(
+                "{}\n{}\n{}",
+                "You can resolve this by doing one of the following:",
+                "   1. Use the suggested casing",
+                final_suggestion
             ),
         }
     }

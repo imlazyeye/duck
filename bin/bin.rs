@@ -1,6 +1,7 @@
 use clippie::{Clippie, ClippieIssue, ClippieLevel, GmlSwitchStatementDefault};
 use colored::Colorize;
 use enum_map::{enum_map, EnumMap};
+use heck::{ToShoutySnakeCase, ToUpperCamelCase};
 extern crate log;
 
 fn main() {
@@ -25,7 +26,7 @@ fn main() {
                 if let Some(gml_enum) = clippie.find_enum_by_name(type_name) {
                     let mut missing_members = vec![];
                     for member in gml_enum.iter_constructed_names() {
-                        if member.contains(".Len") {
+                        if member.contains(".Len") || member.contains(".LEN") {
                             // A special case...
                             continue;
                         }
@@ -37,7 +38,7 @@ fn main() {
                     if !missing_members.is_empty() {
                         clippie.raise_issue(
                             ClippieIssue::MissingCaseMembers,
-                            switch.resource_path(),
+                            &switch.position(),
                             missing_members.join(", "),
                             &mut lint_counts,
                         );
@@ -45,7 +46,7 @@ fn main() {
                 } else {
                     clippie.raise_issue(
                         ClippieIssue::UnrecognizedEnum,
-                        switch.resource_path(),
+                        &switch.position(),
                         type_name.clone(),
                         &mut lint_counts,
                     );
@@ -54,12 +55,58 @@ fn main() {
             GmlSwitchStatementDefault::None => {
                 clippie.raise_issue(
                     ClippieIssue::MissingDefaultCase,
-                    switch.resource_path(),
+                    &switch.position(),
                     "".into(),
                     &mut lint_counts,
                 );
             }
             GmlSwitchStatementDefault::Some => {}
+        }
+    }
+
+    // Yell about illegal characters
+    for illegal_char in clippie.illegal_characters() {
+        match illegal_char {
+            clippie::IllegalGmlCharacter::And(position) => clippie.raise_issue(
+                ClippieIssue::AndKeyword,
+                position,
+                "`and` should be `&&`".to_string(),
+                &mut lint_counts,
+            ),
+            clippie::IllegalGmlCharacter::Or(position) => clippie.raise_issue(
+                ClippieIssue::OrKeyword,
+                position,
+                "`or` should be `||`".to_string(),
+                &mut lint_counts,
+            ),
+        };
+    }
+
+    // Yell about improper macros
+    for mac in clippie.macros() {
+        let name = mac.name();
+        let ideal_name = name.to_shouty_snake_case();
+        if name != ideal_name {
+            clippie.raise_issue(
+                ClippieIssue::NonScreamCase,
+                mac.position(),
+                format!("`{name}` should be `{ideal_name}`"),
+                &mut lint_counts,
+            );
+        }
+    }
+
+    // Yell about improper enums
+    for e in clippie.enums() {
+        let name = e.name();
+        let ideal_name = name.to_upper_camel_case();
+        if name != ideal_name {
+            clippie.raise_issue(
+                ClippieIssue::NonPascalCase,
+                e.position(),
+                format!("`{name}` should be `{ideal_name}`"),
+                &mut lint_counts,
+            );
         }
     }
 

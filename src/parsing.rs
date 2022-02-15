@@ -1,6 +1,8 @@
 use crate::gml::GmlEnum;
 use crate::gml::GmlSwitchStatement;
 use crate::gml::GmlSwitchStatementDefault;
+use crate::GmlMacro;
+use crate::IllegalGmlCharacter;
 use std::path::PathBuf;
 use std::{
     iter::{Enumerate, Peekable},
@@ -24,7 +26,10 @@ pub enum Token {
     RightParenthesis,
     Default,
     Comma,
+    AndKeyword,
+    OrKeyword,
     Equals,
+    Macro,
     Identifier(String),
     Real(f32),
     StringLiteral(String),
@@ -88,8 +93,23 @@ impl<'a> Lexer<'a> {
                     return self.lex();
                 }
 
-                // We currently discard regions and macros, since we have no use for them.
+                // Regions / Macros
                 '#' => {
+                    let mut lexeme = String::from(chr);
+                    while let Some(chr) = self.peek() {
+                        match chr {
+                            '_' | 'A'..='Z' | 'a'..='z' | '0'..='9' => {
+                                lexeme.push(self.take().unwrap().1);
+                                if lexeme == "#macro" {
+                                    return (start_index, Token::Macro);
+                                }
+                            }
+                            _ => {
+                                // It's not a macro -- discard it as a region
+                                return self.lex();
+                            }
+                        }
+                    }
                     while self
                         .peek()
                         .map(|chr| chr != '\r' && chr != '\n')
@@ -156,6 +176,8 @@ impl<'a> Lexer<'a> {
                         "return" => Some(Token::Return),
                         "default" => Some(Token::Default),
                         "enum" => Some(Token::Enum),
+                        "and" => Some(Token::AndKeyword),
+                        "or" => Some(Token::OrKeyword),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
@@ -372,13 +394,14 @@ impl<'a> Parser<'a> {
         Ok(collection)
     }
 
-    pub fn collect_gml_enums_from_gml(&mut self) -> Result<Vec<GmlEnum>, ClippieParseError> {
+    pub fn collect_gml_enums(&mut self) -> Result<Vec<GmlEnum>, ClippieParseError> {
         let mut collection = vec![];
         while let Ok(token) = self.take() {
             if token == Token::Enum {
                 match self.take()? {
                     Token::Identifier(name) => {
-                        let mut gml_enum = GmlEnum::new(name.to_string());
+                        let mut gml_enum =
+                            GmlEnum::new(name.to_string(), self.resource_path.clone());
                         self.require(Token::LeftBrace)?;
                         'member_reader: loop {
                             match self.take()? {
@@ -414,6 +437,44 @@ impl<'a> Parser<'a> {
                         ))
                     }
                 }
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn collect_gml_macros(&mut self) -> Result<Vec<GmlMacro>, ClippieParseError> {
+        let mut collection = vec![];
+        while let Ok(token) = self.take() {
+            if token == Token::Macro {
+                match self.take()? {
+                    Token::Identifier(name) => {
+                        collection.push(GmlMacro::new(name, self.resource_path.clone()));
+                    }
+                    token => {
+                        return Err(ClippieParseError::UnexpectedToken(
+                            token,
+                            self.create_error_path(),
+                        ))
+                    }
+                }
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn collect_illegal_keywords_from_gml(
+        &mut self,
+    ) -> Result<Vec<IllegalGmlCharacter>, ClippieParseError> {
+        let mut collection = vec![];
+        while let Ok(token) = self.take() {
+            match token {
+                Token::AndKeyword => collection.push(IllegalGmlCharacter::And(
+                    self.resource_path.to_str().unwrap().to_string(),
+                )),
+                Token::OrKeyword => collection.push(IllegalGmlCharacter::Or(
+                    self.resource_path.to_str().unwrap().to_string(),
+                )),
+                _ => {}
             }
         }
         Ok(collection)

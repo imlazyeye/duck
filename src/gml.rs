@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Default)]
-pub struct GmlEnum(String, Vec<GmlEnumMember>);
+pub struct GmlEnum(String, Vec<GmlEnumMember>, PathBuf);
 impl GmlEnum {
     /// Creates a new GmlEnum.
-    pub fn new(name: String) -> Self {
-        Self(name, vec![])
+    pub fn new(name: String, position: PathBuf) -> Self {
+        Self(name, vec![], position)
     }
 
     /// Adds a new member with the given name to the enum.
@@ -27,6 +27,10 @@ impl GmlEnum {
     /// Returns a reference to the enum's name.
     pub fn name(&self) -> &str {
         &self.0
+    }
+
+    pub fn position(&self) -> &str {
+        self.2.to_str().unwrap()
     }
 }
 
@@ -72,9 +76,8 @@ impl GmlSwitchStatement {
         self.cases.as_ref()
     }
 
-    /// Get a reference to the gml switch statement's parent resource name.
-    pub fn resource_path(&self) -> &Path {
-        &self.resource_path
+    pub fn position(&self) -> String {
+        self.resource_path.to_str().unwrap().to_string()
     }
 
     /// Get a reference to the gml switch statement's default case.
@@ -88,4 +91,23 @@ pub enum GmlSwitchStatementDefault {
     None,
     Some,
     TypeAssert(String),
+}
+
+pub enum IllegalGmlCharacter {
+    And(String),
+    Or(String),
+}
+
+#[derive(Debug)]
+pub struct GmlMacro(String, PathBuf);
+impl GmlMacro {
+    pub fn new(name: String, resource_path: PathBuf) -> Self {
+        GmlMacro(name, resource_path)
+    }
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+    pub fn position(&self) -> &str {
+        self.1.to_str().unwrap()
+    }
 }
