@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Default)]
 pub struct GmlEnum(String, Vec<GmlEnumMember>, PathBuf);
@@ -93,7 +93,7 @@ pub enum GmlSwitchStatementDefault {
     TypeAssert(String),
 }
 
-pub enum IllegalGmlCharacter {
+pub enum GmlKeywords {
     And(String),
     Or(String),
 }
@@ -106,6 +106,23 @@ impl GmlMacro {
     }
     pub fn name(&self) -> &str {
         &self.0
+    }
+    pub fn position(&self) -> &str {
+        self.1.to_str().unwrap()
+    }
+}
+
+#[derive(Debug)]
+pub struct GmlConstructor(Option<String>, PathBuf);
+impl GmlConstructor {
+    pub fn new(name: Option<String>, resource_path: PathBuf) -> Self {
+        GmlConstructor(name, resource_path)
+    }
+    pub fn is_anonymous(&self) -> bool {
+        self.0.is_none()
+    }
+    pub fn name(&self) -> Option<&String> {
+        self.0.as_ref()
     }
     pub fn position(&self) -> &str {
         self.1.to_str().unwrap()

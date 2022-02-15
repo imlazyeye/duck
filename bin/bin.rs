@@ -1,23 +1,69 @@
 use clippie::{Clippie, ClippieIssue, ClippieLevel, GmlSwitchStatementDefault};
 use colored::Colorize;
 use enum_map::{enum_map, EnumMap};
-use heck::{ToShoutySnakeCase, ToUpperCamelCase};
+use yy_boss::{Resource, YyResource, YypBoss};
+
+#[macro_use]
 extern crate log;
 
 fn main() {
-    pretty_env_logger::formatted_builder()
-        .format_module_path(true)
-        .filter(None, log::LevelFilter::Trace)
-        .init();
+    let boss = YypBoss::with_startup_injest(
+        "../SwordAndField/FieldsOfMistria.yyp",
+        &[Resource::Script, Resource::Object],
+    )
+    .unwrap();
 
-    color_eyre::install().unwrap();
-
-    let clippie = Clippie::new("../SwordAndField/FieldsOfMistria.yyp");
+    let mut clippie = Clippie::new();
     let mut lint_counts: EnumMap<ClippieLevel, usize> = enum_map! {
         ClippieLevel::Allow => 0,
         ClippieLevel::Warn => 0,
         ClippieLevel::Deny => 0,
     };
+
+    // Parse it all
+    let gml = boss
+        .scripts
+        .into_iter()
+        .map(|script| {
+            (
+                script.associated_data.clone().unwrap(),
+                script
+                    .yy_resource
+                    .relative_yy_directory()
+                    .join(format!("{}.gml", &script.yy_resource.resource_data.name)),
+            )
+        })
+        .chain(boss.objects.into_iter().flat_map(|object| {
+            object
+                .associated_data
+                .as_ref()
+                .unwrap()
+                .iter()
+                .map(|(event_type, gml_content)| {
+                    (
+                        gml_content.to_string(),
+                        object
+                            .yy_resource
+                            .relative_yy_directory()
+                            .join(format!("{}.gml", event_type.filename_simple())),
+                    )
+                })
+        }));
+    for (gml_file, path) in gml {
+        if let Err(error) = clippie.parse_gml(gml_file, path.clone()) {
+            match error {
+                clippie::ClippieParseError::UnexpectedToken(token, position) => {
+                    error!(target: &position, "Unexpected token: {:?}", token)
+                }
+                clippie::ClippieParseError::ExpectedToken(token) => {
+                    error!("Expected token: {:?}", token)
+                }
+                clippie::ClippieParseError::UnexpectedEnd => {
+                    error!(target: path.to_str().unwrap(), "Unexpected end.")
+                }
+            }
+        }
+    }
 
     // Validate every switch statement
     for switch in clippie.switches() {
@@ -65,15 +111,15 @@ fn main() {
     }
 
     // Yell about illegal characters
-    for illegal_char in clippie.illegal_characters() {
+    for illegal_char in clippie.keywords() {
         match illegal_char {
-            clippie::IllegalGmlCharacter::And(position) => clippie.raise_issue(
+            clippie::GmlKeywords::And(position) => clippie.raise_issue(
                 ClippieIssue::AndKeyword,
                 position,
                 "`and` should be `&&`".to_string(),
                 &mut lint_counts,
             ),
-            clippie::IllegalGmlCharacter::Or(position) => clippie.raise_issue(
+            clippie::GmlKeywords::Or(position) => clippie.raise_issue(
                 ClippieIssue::OrKeyword,
                 position,
                 "`or` should be `||`".to_string(),
@@ -85,7 +131,7 @@ fn main() {
     // Yell about improper macros
     for mac in clippie.macros() {
         let name = mac.name();
-        let ideal_name = name.to_shouty_snake_case();
+        let ideal_name = Clippie::scream_case(name);
         if name != ideal_name {
             clippie.raise_issue(
                 ClippieIssue::NonScreamCase,
@@ -99,7 +145,7 @@ fn main() {
     // Yell about improper enums
     for e in clippie.enums() {
         let name = e.name();
-        let ideal_name = name.to_upper_camel_case();
+        let ideal_name = Clippie::pascal_case(name);
         if name != ideal_name {
             clippie.raise_issue(
                 ClippieIssue::NonPascalCase,
@@ -107,6 +153,29 @@ fn main() {
                 format!("`{name}` should be `{ideal_name}`"),
                 &mut lint_counts,
             );
+        }
+    }
+
+    // Yell about improper constructors
+    for constructor in clippie.constructors() {
+        if constructor.is_anonymous() {
+            clippie.raise_issue(
+                ClippieIssue::AnonymousConstructor,
+                constructor.position(),
+                "".into(),
+                &mut lint_counts,
+            );
+        } else {
+            let name = constructor.name().unwrap();
+            let ideal_name = Clippie::pascal_case(name);
+            if name != &ideal_name {
+                clippie.raise_issue(
+                    ClippieIssue::NonPascalCase,
+                    constructor.position(),
+                    format!("`{name}` should be `{ideal_name}`"),
+                    &mut lint_counts,
+                );
+            }
         }
     }
 

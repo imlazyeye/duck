@@ -1,35 +1,40 @@
-use std::path::{Path, PathBuf};
-
-use enum_map::{enum_map, EnumMap};
-use yy_boss::{Resource, YyResource, YypBoss};
-
 use colored::*;
+use enum_map::{enum_map, EnumMap};
+use heck::{ToShoutySnakeCase, ToUpperCamelCase};
+use std::path::PathBuf;
 
 use crate::{
     gml::{GmlEnum, GmlSwitchStatement},
     issues::{ClippieIssue, ClippieLevel},
     parsing::{ClippieParseError, Parser},
-    GmlMacro, IllegalGmlCharacter,
+    GmlConstructor, GmlKeywords, GmlMacro,
 };
 
 pub struct Clippie {
-    boss: YypBoss,
     enums: Vec<GmlEnum>,
     macros: Vec<GmlMacro>,
+    constructors: Vec<GmlConstructor>,
     switches: Vec<GmlSwitchStatement>,
-    illegal_characters: Vec<IllegalGmlCharacter>,
+    keywords: Vec<GmlKeywords>,
     levels: EnumMap<ClippieIssue, ClippieLevel>,
 }
 
 impl Clippie {
-    pub fn new(yyp_path: &str) -> Self {
-        let mut clippie = Self {
-            boss: YypBoss::with_startup_injest(yyp_path, &[Resource::Script, Resource::Object])
-                .unwrap(),
+    #[allow(clippy::new_without_default)]
+    /// Creates a new, blank Clippie. Use `Clippie::parse_gml` to start collecting data.
+    pub fn new() -> Self {
+        pretty_env_logger::formatted_builder()
+            .format_module_path(true)
+            .filter(None, log::LevelFilter::Trace)
+            .init();
+
+        color_eyre::install().unwrap();
+        Self {
             enums: vec![],
             macros: vec![],
+            constructors: vec![],
             switches: vec![],
-            illegal_characters: vec![],
+            keywords: vec![],
             levels: enum_map! {
                 ClippieIssue::MissingCaseMembers => ClippieLevel::Allow,
                 ClippieIssue::MissingDefaultCase => ClippieLevel::Allow,
@@ -38,62 +43,26 @@ impl Clippie {
                 ClippieIssue::OrKeyword => ClippieLevel::Allow,
                 ClippieIssue::NonScreamCase => ClippieLevel::Warn,
                 ClippieIssue::NonPascalCase => ClippieLevel::Warn,
+                ClippieIssue::AnonymousConstructor => ClippieLevel::Warn,
             },
-        };
+        }
+    }
 
-        // We must get all enums first
-        Self::iterate_gml_files(&clippie.boss, |data| {
-            let mut parser = Parser::new(data.gml_content, data.resource_path.to_path_buf());
-            match parser.collect_gml_enums() {
-                Ok(mut enums) => clippie.enums.append(&mut enums),
-                Err(e) => match e {
-                    ClippieParseError::UnexpectedToken(token, target) => {
-                        error!(target: &target, "Unexpected token: {:?}", token)
-                    }
-                    e => error!(target: "Location Unknown", "{:?}", e),
-                },
-            }
-        });
-
-        // The rest can happen side by side
-        Self::iterate_gml_files(&clippie.boss, |data| {
-            let mut parser = Parser::new(data.gml_content, data.resource_path.to_path_buf());
-            match parser.collect_gml_switch_statements() {
-                Ok(mut switches) => clippie.switches.append(&mut switches),
-                Err(e) => match e {
-                    ClippieParseError::UnexpectedToken(token, target) => {
-                        error!(target: &target, "Unexpected token: {:?}", token)
-                    }
-                    e => error!(target: "Location Unknown", "{:?}", e),
-                },
-            }
-
-            let mut parser = Parser::new(data.gml_content, data.resource_path.to_path_buf());
-            match parser.collect_illegal_keywords_from_gml() {
-                Ok(mut illegal_characters) => {
-                    clippie.illegal_characters.append(&mut illegal_characters)
-                }
-                Err(e) => match e {
-                    ClippieParseError::UnexpectedToken(token, target) => {
-                        error!(target: &target, "Unexpected token: {:?}", token)
-                    }
-                    e => error!(target: "Location Unknown", "{:?}", e),
-                },
-            }
-
-            let mut parser = Parser::new(data.gml_content, data.resource_path.to_path_buf());
-            match parser.collect_gml_macros() {
-                Ok(mut macros) => clippie.macros.append(&mut macros),
-                Err(e) => match e {
-                    ClippieParseError::UnexpectedToken(token, target) => {
-                        error!(target: &target, "Unexpected token: {:?}", token)
-                    }
-                    e => error!(target: "Location Unknown", "{:?}", e),
-                },
-            }
-        });
-
-        clippie
+    /// Parses the given String of GML, collecting data for Clippie.
+    pub fn parse_gml(
+        &mut self,
+        source_code: String,
+        path: PathBuf,
+    ) -> Result<(), ClippieParseError> {
+        let mut parser = Parser::new(source_code, path);
+        self.enums.append(&mut parser.collect_gml_enums()?);
+        self.macros.append(&mut parser.collect_gml_macros()?);
+        self.constructors
+            .append(&mut parser.collect_gml_constructors()?);
+        self.keywords.append(&mut parser.collect_gml_keywords()?);
+        self.switches
+            .append(&mut parser.collect_gml_switch_statements()?);
+        Ok(())
     }
 
     pub fn raise_issue(
@@ -121,13 +90,13 @@ impl Clippie {
             ClippieIssue::UnrecognizedEnum => {
                 format!("\n\n Missing enum: {}", additional_information)
             }
-            ClippieIssue::MissingDefaultCase => "".into(),
             ClippieIssue::AndKeyword
             | ClippieIssue::OrKeyword
             | ClippieIssue::NonPascalCase
             | ClippieIssue::NonScreamCase => {
                 format!("\n\n {additional_information}")
             }
+            ClippieIssue::MissingDefaultCase | ClippieIssue::AnonymousConstructor => "".into(),
         };
         let show_suggestions = true;
         let suggestion_message = if show_suggestions {
@@ -152,45 +121,6 @@ impl Clippie {
         self.enums.iter().find(|v| v.name() == name)
     }
 
-    fn iterate_gml_files<P: FnMut(GmlFileIteration)>(boss: &YypBoss, predicate: P) {
-        // Check all scripts...
-        let scripts = boss.scripts.into_iter().map(|v| GmlFileIteration {
-            resource_path: v
-                .yy_resource
-                .relative_yy_directory()
-                .join(format!("{}.gml", &v.yy_resource.resource_data.name)),
-            gml_content: v.associated_data.as_ref().unwrap(),
-        });
-
-        // Check all objects...
-        let objects = boss
-            .objects
-            .into_iter()
-            .flat_map(|object| {
-                object
-                    .associated_data
-                    .as_ref()
-                    .unwrap()
-                    .values()
-                    .map(|gml_content| {
-                        (
-                            object
-                                .yy_resource
-                                .relative_yy_directory()
-                                .join(format!("{}.gml", &object.yy_resource.resource_data.name)),
-                            gml_content,
-                        )
-                    })
-            })
-            .map(|(resource_path, gml_content)| GmlFileIteration {
-                resource_path,
-                gml_content,
-            });
-
-        // Run them
-        scripts.chain(objects).for_each(predicate);
-    }
-
     /// Get an iterator to the clippie's switches.
     pub fn switches(&self) -> &[GmlSwitchStatement] {
         self.switches.as_ref()
@@ -201,23 +131,45 @@ impl Clippie {
         self.enums.as_ref()
     }
 
+    /// Get a reference to the collected keywords.
+    pub fn keywords(&self) -> &[GmlKeywords] {
+        self.keywords.as_ref()
+    }
+
+    /// Get a reference to the collected macros.
+    pub fn macros(&self) -> &[GmlMacro] {
+        self.macros.as_ref()
+    }
+
+    /// Get a reference to the the collected constructors.
+    pub fn constructors(&self) -> &[GmlConstructor] {
+        self.constructors.as_ref()
+    }
+
     /// Gets the global level for the given issue
     pub fn issue_level(&self, issue: ClippieIssue) -> &ClippieLevel {
         &self.levels[issue]
     }
 
-    /// Get a reference to the clippie's illegal character.
-    pub fn illegal_characters(&self) -> &[IllegalGmlCharacter] {
-        self.illegal_characters.as_ref()
+    /// Returns the given string under Clippie's definition of PascalCase.
+    pub fn pascal_case(string: &str) -> String {
+        let output = string.to_upper_camel_case();
+        let mut prefix = String::new();
+        let mut chars = string.chars();
+        while let Some('_') = chars.next() {
+            prefix.push('_');
+        }
+        prefix + &output
     }
 
-    /// Get a reference to the clippie's macros.
-    pub fn macros(&self) -> &[GmlMacro] {
-        self.macros.as_ref()
+    /// Returns the given string under Clippie's definition of SCREAM_CASE.
+    pub fn scream_case(string: &str) -> String {
+        let output = string.to_shouty_snake_case();
+        let mut prefix = String::new();
+        let mut chars = string.chars();
+        while let Some('_') = chars.next() {
+            prefix.push('_');
+        }
+        prefix + &output
     }
-}
-
-struct GmlFileIteration<'a> {
-    resource_path: PathBuf,
-    gml_content: &'a String,
 }

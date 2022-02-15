@@ -1,9 +1,11 @@
 use crate::gml::GmlEnum;
 use crate::gml::GmlSwitchStatement;
 use crate::gml::GmlSwitchStatementDefault;
+use crate::GmlConstructor;
+use crate::GmlKeywords;
 use crate::GmlMacro;
-use crate::IllegalGmlCharacter;
 use std::path::PathBuf;
+use std::vec::IntoIter;
 use std::{
     iter::{Enumerate, Peekable},
     str::Chars,
@@ -30,10 +32,22 @@ pub enum Token {
     OrKeyword,
     Equals,
     Macro,
+    Function,
+    Constructor,
     Identifier(String),
     Real(f32),
     StringLiteral(String),
     Eof,
+}
+
+impl Token {
+    pub fn as_identifier(&self) -> Option<&String> {
+        if let Self::Identifier(v) = self {
+            Some(v)
+        } else {
+            None
+        }
+    }
 }
 
 /// Takes a mist source file and converts it into tokens
@@ -43,7 +57,7 @@ struct Lexer<'a> {
     cursor: usize,
 }
 impl<'a> Lexer<'a> {
-    /// Creates a new Lexer, taking a string of mist source.
+    /// Creates a new Lexer, taking a string of gml source.
     pub fn new(content: &'a str) -> Self {
         Lexer {
             input_characters: content.chars().enumerate().peekable(),
@@ -83,13 +97,7 @@ impl<'a> Lexer<'a> {
 
                 // Single line comments
                 '/' if self.match_take('/') => {
-                    while self
-                        .peek()
-                        .map(|chr| chr != '\r' && chr != '\n')
-                        .unwrap_or(false)
-                    {
-                        self.take();
-                    }
+                    self.discard_rest_of_line();
                     return self.lex();
                 }
 
@@ -102,10 +110,13 @@ impl<'a> Lexer<'a> {
                                 lexeme.push(self.take().unwrap().1);
                                 if lexeme == "#macro" {
                                     return (start_index, Token::Macro);
+                                } else if lexeme == "#region" {
+                                    self.discard_rest_of_line();
+                                    return self.lex();
                                 }
                             }
                             _ => {
-                                // It's not a macro -- discard it as a region
+                                // Perhaps grid access? either way, we don't care
                                 return self.lex();
                             }
                         }
@@ -178,6 +189,8 @@ impl<'a> Lexer<'a> {
                         "enum" => Some(Token::Enum),
                         "and" => Some(Token::AndKeyword),
                         "or" => Some(Token::OrKeyword),
+                        "function" => Some(Token::Function),
+                        "constructor" => Some(Token::Constructor),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
@@ -196,6 +209,17 @@ impl<'a> Lexer<'a> {
                 0, // a lie, for the good of the people
                 Token::Eof,
             )
+        }
+    }
+
+    /// Used for comments.
+    fn discard_rest_of_line(&mut self) {
+        while self
+            .peek()
+            .map(|chr| chr != '\r' && chr != '\n')
+            .unwrap_or(false)
+        {
+            self.take();
         }
     }
 
@@ -233,269 +257,24 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-pub struct Parser<'a> {
-    source_code: String,
-    lexer: Peekable<Lexer<'a>>,
-    resource_path: PathBuf,
+struct GmlTokens {
+    tokens: Peekable<IntoIter<(usize, Token)>>,
 }
-impl<'a> Parser<'a> {
-    pub fn new(source_code: &'a str, resource_path: PathBuf) -> Self {
+impl GmlTokens {
+    pub fn new(source_code: String) -> Self {
         Self {
-            source_code: source_code.to_string(),
-            lexer: Lexer::new(source_code).peekable(),
-            resource_path,
+            tokens: Lexer::new(&source_code)
+                .collect::<Vec<(usize, Token)>>()
+                .into_iter()
+                .peekable(),
         }
     }
-
-    pub fn collect_gml_switch_statements(
-        &mut self,
-    ) -> Result<Vec<GmlSwitchStatement>, ClippieParseError> {
-        let mut collection = vec![];
-        while let Ok(token) = self.take() {
-            if token == Token::Switch {
-                // Nom nom until we get the right brace
-                self.take_through(&[Token::LeftBrace])?;
-
-                // We need to keep track of any right braces we encounter so that
-                // we can accurately know which left brace is ours
-                let mut extra_brace_counter = 0;
-
-                // Now we loop over all our case statements
-                let mut cases: Vec<String> = vec![];
-                let mut default_case = GmlSwitchStatementDefault::None;
-                loop {
-                    match self.take()? {
-                        Token::Case => {
-                            // Fetch the thing being matched over...
-                            match self.take()? {
-                                Token::Real(real) => {
-                                    cases.push(real.to_string());
-                                }
-                                Token::StringLiteral(lexeme) => {
-                                    cases.push(lexeme.clone());
-                                }
-                                Token::Identifier(lexeme) => {
-                                    // Is it an enum?
-                                    if self.match_take(Token::Dot).is_some() {
-                                        match self.take()? {
-                                            Token::Identifier(suffix) => {
-                                                cases.push(format!("{}.{}", lexeme, suffix));
-                                            }
-                                            token => {
-                                                return Err(ClippieParseError::UnexpectedToken(
-                                                    token,
-                                                    self.create_error_path(),
-                                                ))
-                                            }
-                                        }
-                                    } else {
-                                        // Okay it's just some thing
-                                        cases.push(lexeme.clone());
-                                    }
-                                }
-                                token => {
-                                    return Err(ClippieParseError::UnexpectedToken(
-                                        token,
-                                        self.create_error_path(),
-                                    ))
-                                }
-                            }
-
-                            // Grab the colon...
-                            self.require(Token::Colon)?;
-
-                            // Now consume this whole block until we're done with this case...
-                            loop {
-                                // Breaks and returns don't actually mean much to us here -- they could be internal
-                                // ie:
-                                // ```gml
-                                // switch foo {
-                                //    case bar:
-                                //        if buzz break;
-                                //        // more logic
-                                //        break;
-                                // }
-                                // ```
-                                // The only things that actually demonstrate a case ending in GML are
-                                // 1. Another case declaration
-                                // 2. A default decalaration
-                                // 3. A right brace, if it is this switch's right brace
-                                match self.peek()? {
-                                    // Case fall through. Leave these for the next case iteration
-                                    Token::Case => break,
-                                    Token::Default => break,
-                                    // If we find a left brace, take it, and log it so we don't mistake the
-                                    // next right brace as our own
-                                    Token::LeftBrace => {
-                                        self.take()?;
-                                        extra_brace_counter += 1;
-                                    }
-                                    // If we find a right brace, check if its ours, and break if it is. Otherwise, eat
-                                    Token::RightBrace => {
-                                        if extra_brace_counter == 0 {
-                                            break;
-                                        } else {
-                                            extra_brace_counter -= 1;
-                                            self.take()?;
-                                        }
-                                    }
-                                    // Continue to eat the block
-                                    _ => {
-                                        self.take()?;
-                                    }
-                                }
-                            }
-                        }
-                        Token::Default => {
-                            // Take the colon
-                            self.require(Token::Colon)?;
-
-                            // Update our default case
-                            default_case = GmlSwitchStatementDefault::Some;
-
-                            // Check for a clippie style default case. If we don't find it, we continue.
-                            if self
-                                .match_take(Token::Identifier("IMPOSSIBLE".to_string()))
-                                .is_some()
-                                && self.match_take(Token::LeftParenthesis).is_some()
-                            {
-                                if let Token::StringLiteral(error_message) = self.take()? {
-                                    let re = Regex::new(r"Unexpected (\w+):").unwrap();
-                                    if let Some(capture) = re.captures(&error_message) {
-                                        default_case = GmlSwitchStatementDefault::TypeAssert(
-                                            capture.get(1).map(|v| v.as_str().to_string()).unwrap(),
-                                        );
-                                    }
-                                }
-                            }
-
-                            // Now just keep consuming until we get to the right brace, then leave
-                            self.take_until(&[Token::RightBrace])?;
-                        }
-                        Token::RightBrace => {
-                            // We are now done. Collect the finished switch!
-                            collection.push(GmlSwitchStatement::new(
-                                default_case,
-                                self.resource_path.to_path_buf(),
-                                cases,
-                            ));
-                            break;
-                        }
-                        token => {
-                            return Err(ClippieParseError::UnexpectedToken(
-                                token,
-                                self.create_error_path(),
-                            ))
-                        }
-                    }
-                }
-            }
-        }
-        Ok(collection)
-    }
-
-    pub fn collect_gml_enums(&mut self) -> Result<Vec<GmlEnum>, ClippieParseError> {
-        let mut collection = vec![];
-        while let Ok(token) = self.take() {
-            if token == Token::Enum {
-                match self.take()? {
-                    Token::Identifier(name) => {
-                        let mut gml_enum =
-                            GmlEnum::new(name.to_string(), self.resource_path.clone());
-                        self.require(Token::LeftBrace)?;
-                        'member_reader: loop {
-                            match self.take()? {
-                                Token::Identifier(name) => {
-                                    gml_enum.add_member(name);
-                                    // If there's an equal sign, nom nom anything that isn't a comma or right brace
-                                    if self.match_take(Token::Equals).is_some() {
-                                        self.take_through(&[Token::Comma, Token::RightBrace])?;
-                                    }
-                                    // They *might* have a comma, but GML doesn't require trailing commas,
-                                    // so this is optional
-                                    self.match_take(Token::Comma);
-
-                                    // If there's a right brace, we're done!
-                                    if self.match_take(Token::RightBrace).is_some() {
-                                        break 'member_reader;
-                                    }
-                                }
-                                token => {
-                                    return Err(ClippieParseError::UnexpectedToken(
-                                        token,
-                                        self.create_error_path(),
-                                    ))
-                                }
-                            }
-                        }
-                        collection.push(gml_enum);
-                    }
-                    token => {
-                        return Err(ClippieParseError::UnexpectedToken(
-                            token,
-                            self.create_error_path(),
-                        ))
-                    }
-                }
-            }
-        }
-        Ok(collection)
-    }
-
-    pub fn collect_gml_macros(&mut self) -> Result<Vec<GmlMacro>, ClippieParseError> {
-        let mut collection = vec![];
-        while let Ok(token) = self.take() {
-            if token == Token::Macro {
-                match self.take()? {
-                    Token::Identifier(name) => {
-                        collection.push(GmlMacro::new(name, self.resource_path.clone()));
-                    }
-                    token => {
-                        return Err(ClippieParseError::UnexpectedToken(
-                            token,
-                            self.create_error_path(),
-                        ))
-                    }
-                }
-            }
-        }
-        Ok(collection)
-    }
-
-    pub fn collect_illegal_keywords_from_gml(
-        &mut self,
-    ) -> Result<Vec<IllegalGmlCharacter>, ClippieParseError> {
-        let mut collection = vec![];
-        while let Ok(token) = self.take() {
-            match token {
-                Token::AndKeyword => collection.push(IllegalGmlCharacter::And(
-                    self.resource_path.to_str().unwrap().to_string(),
-                )),
-                Token::OrKeyword => collection.push(IllegalGmlCharacter::Or(
-                    self.resource_path.to_str().unwrap().to_string(),
-                )),
-                _ => {}
-            }
-        }
-        Ok(collection)
-    }
-
-    pub fn create_error_path(&mut self) -> String {
-        format!(
-            "{}:{}:0",
-            self.resource_path.to_str().unwrap(),
-            self.source_code[..self.lexer.peek().unwrap_or(&(0, Token::Eof)).0]
-                .chars()
-                .filter(|x| x == &'\n')
-                .count()
-                + 1
-        )
-    }
-
+}
+impl GmlTokens {
     /// Returns the type of the next Token, or returns an error if there
     /// is none.
     fn peek(&mut self) -> Result<&Token, ClippieParseError> {
-        if let Some((_, token)) = self.lexer.peek() {
+        if let Some((_, token)) = self.tokens.peek() {
             Ok(token)
         } else {
             Err(ClippieParseError::UnexpectedEnd)
@@ -514,11 +293,11 @@ impl<'a> Parser<'a> {
     /// Returns the next Token, returning an error if there is none, or if it is
     /// not of the required type.
     fn require(&mut self, token: Token) -> Result<Token, ClippieParseError> {
-        if let Some((_, found_token)) = self.lexer.next() {
+        if let Some((_, found_token)) = self.tokens.next() {
             if found_token == token {
                 Ok(found_token)
             } else {
-                Err(ClippieParseError::ExpectedTokenType(token))
+                Err(ClippieParseError::ExpectedToken(token))
             }
         } else {
             Err(ClippieParseError::UnexpectedEnd)
@@ -527,7 +306,7 @@ impl<'a> Parser<'a> {
 
     /// Returns the next Token, returning an error if there is none.
     fn take(&mut self) -> Result<Token, ClippieParseError> {
-        if let Some((_, token)) = self.lexer.next() {
+        if let Some((_, token)) = self.tokens.next() {
             Ok(token)
         } else {
             Err(ClippieParseError::UnexpectedEnd)
@@ -561,9 +340,328 @@ impl<'a> Parser<'a> {
     }
 }
 
+pub struct Parser {
+    source_code: String,
+    resource_path: PathBuf,
+}
+impl Parser {
+    pub fn new(source_code: String, resource_path: PathBuf) -> Self {
+        Self {
+            source_code,
+            resource_path,
+        }
+    }
+
+    pub fn collect_gml_switch_statements(
+        &mut self,
+    ) -> Result<Vec<GmlSwitchStatement>, ClippieParseError> {
+        let mut collection = vec![];
+        let mut gml = GmlTokens::new(self.source_code.clone());
+        while let Ok(token) = gml.take() {
+            if token == Token::Switch {
+                // Nom nom until we get the right brace
+                gml.take_through(&[Token::LeftBrace])?;
+
+                // We need to keep track of any right braces we encounter so that
+                // we can accurately know which left brace is ours
+                let mut extra_brace_counter = 0;
+
+                // Now we loop over all our case statements
+                let mut cases: Vec<String> = vec![];
+                let mut default_case = GmlSwitchStatementDefault::None;
+                loop {
+                    match gml.take()? {
+                        Token::Case => {
+                            // Fetch the thing being matched over...
+                            match gml.take()? {
+                                Token::Real(real) => {
+                                    cases.push(real.to_string());
+                                }
+                                Token::StringLiteral(lexeme) => {
+                                    cases.push(lexeme.clone());
+                                }
+                                Token::Identifier(lexeme) => {
+                                    // Is it an enum?
+                                    if gml.match_take(Token::Dot).is_some() {
+                                        match gml.take()? {
+                                            Token::Identifier(suffix) => {
+                                                cases.push(format!("{}.{}", lexeme, suffix));
+                                            }
+                                            token => {
+                                                return Err(ClippieParseError::UnexpectedToken(
+                                                    token,
+                                                    self.create_error_path(),
+                                                ));
+                                            }
+                                        }
+                                    } else {
+                                        // Okay it's just some thing
+                                        cases.push(lexeme.clone());
+                                    }
+                                }
+                                token => {
+                                    return Err(ClippieParseError::UnexpectedToken(
+                                        token,
+                                        self.create_error_path(),
+                                    ));
+                                }
+                            }
+
+                            // Grab the colon...
+                            gml.require(Token::Colon)?;
+
+                            // Now consume this whole block until we're done with this case...
+                            loop {
+                                // Breaks and returns don't actually mean much to us here -- they could be internal
+                                // ie:
+                                // ```gml
+                                // switch foo {
+                                //    case bar:
+                                //        if buzz break;
+                                //        // more logic
+                                //        break;
+                                // }
+                                // ```
+                                // The only things that actually demonstrate a case ending in GML are
+                                // 1. Another case declaration
+                                // 2. A default decalaration
+                                // 3. A right brace, if it is this switch's right brace
+                                match gml.peek()? {
+                                    // Case fall through. Leave these for the next case iteration
+                                    Token::Case => break,
+                                    Token::Default => break,
+                                    // If we find a left brace, take it, and log it so we don't mistake the
+                                    // next right brace as our own
+                                    Token::LeftBrace => {
+                                        gml.take()?;
+                                        extra_brace_counter += 1;
+                                    }
+                                    // If we find a right brace, check if its ours, and break if it is. Otherwise, eat
+                                    Token::RightBrace => {
+                                        if extra_brace_counter == 0 {
+                                            break;
+                                        } else {
+                                            extra_brace_counter -= 1;
+                                            gml.take()?;
+                                        }
+                                    }
+                                    // Continue to eat the block
+                                    _ => {
+                                        gml.take()?;
+                                    }
+                                }
+                            }
+                        }
+                        Token::Default => {
+                            // Take the colon
+                            gml.require(Token::Colon)?;
+
+                            // Update our default case
+                            default_case = GmlSwitchStatementDefault::Some;
+
+                            // Check for a clippie style default case. If we don't find it, we continue.
+                            if gml
+                                .match_take(Token::Identifier("IMPOSSIBLE".to_string()))
+                                .is_some()
+                                && gml.match_take(Token::LeftParenthesis).is_some()
+                            {
+                                if let Token::StringLiteral(error_message) = gml.take()? {
+                                    let re = Regex::new(r"Unexpected (\w+):").unwrap();
+                                    if let Some(capture) = re.captures(&error_message) {
+                                        default_case = GmlSwitchStatementDefault::TypeAssert(
+                                            capture.get(1).map(|v| v.as_str().to_string()).unwrap(),
+                                        );
+                                    }
+                                }
+                            }
+
+                            // Now just keep consuming until we get to the right brace, then leave
+                            gml.take_until(&[Token::RightBrace])?;
+                        }
+                        Token::RightBrace => {
+                            // We are now done. Collect the finished switch!
+                            collection.push(GmlSwitchStatement::new(
+                                default_case,
+                                self.resource_path.to_path_buf(),
+                                cases,
+                            ));
+                            break;
+                        }
+                        token => {
+                            return Err(ClippieParseError::UnexpectedToken(
+                                token,
+                                self.create_error_path(),
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn collect_gml_enums(&mut self) -> Result<Vec<GmlEnum>, ClippieParseError> {
+        let mut collection = vec![];
+        let mut gml = GmlTokens::new(self.source_code.clone());
+        while let Ok(token) = gml.take() {
+            if token == Token::Enum {
+                match gml.take()? {
+                    Token::Identifier(name) => {
+                        let mut gml_enum =
+                            GmlEnum::new(name.to_string(), self.resource_path.clone());
+                        gml.require(Token::LeftBrace)?;
+                        'member_reader: loop {
+                            match gml.take()? {
+                                Token::Identifier(name) => {
+                                    gml_enum.add_member(name);
+                                    // If there's an equal sign, nom nom anything that isn't a comma or right brace
+                                    if gml.match_take(Token::Equals).is_some() {
+                                        gml.take_until(&[Token::Comma, Token::RightBrace])?;
+                                    }
+                                    // They *might* have a comma, but GML doesn't require trailing commas,
+                                    // so this is optional
+                                    gml.match_take(Token::Comma);
+
+                                    // If there's a right brace, we're done!
+                                    if gml.match_take(Token::RightBrace).is_some() {
+                                        break 'member_reader;
+                                    }
+                                }
+                                token => {
+                                    return Err(ClippieParseError::UnexpectedToken(
+                                        token,
+                                        self.create_error_path(),
+                                    ))
+                                }
+                            }
+                        }
+                        collection.push(gml_enum);
+                    }
+                    token => {
+                        return Err(ClippieParseError::UnexpectedToken(
+                            token,
+                            self.create_error_path(),
+                        ))
+                    }
+                }
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn collect_gml_macros(&mut self) -> Result<Vec<GmlMacro>, ClippieParseError> {
+        let mut collection = vec![];
+        let mut gml = GmlTokens::new(self.source_code.clone());
+        while let Ok(token) = gml.take() {
+            if token == Token::Macro {
+                match gml.take()? {
+                    Token::Identifier(name) => {
+                        collection.push(GmlMacro::new(name, self.resource_path.clone()));
+                    }
+                    token => {
+                        return Err(ClippieParseError::UnexpectedToken(
+                            token,
+                            self.create_error_path(),
+                        ))
+                    }
+                }
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn collect_gml_constructors(&mut self) -> Result<Vec<GmlConstructor>, ClippieParseError> {
+        let mut collection = vec![];
+        let mut gml = GmlTokens::new(self.source_code.clone());
+        while let Ok(token) = gml.take() {
+            if token == Token::Function {
+                // If the next token is a parenthesis, this is anonymous
+                let constructor_name = if gml.match_take(Token::LeftParenthesis).is_some() {
+                    None
+                } else {
+                    // Otherwise, it must be a name
+                    let name = match gml.take()? {
+                        Token::Identifier(name) => name,
+                        token => {
+                            return Err(ClippieParseError::UnexpectedToken(
+                                token,
+                                self.create_error_path(),
+                            ))
+                        }
+                    };
+
+                    // Eat the left parenthesis
+                    gml.require(Token::LeftParenthesis)?;
+                    Some(name)
+                };
+
+                // Om nom nom until the right parenthesis
+                loop {
+                    if let Token::RightParenthesis = gml.take()? {
+                        // There might be inheritance -- if there is, eat the start of it and continue looping
+                        if gml.match_take(Token::Colon).is_some() {
+                            // Okay, eat the name of it
+                            match gml.take()? {
+                                Token::Identifier(_) => {}
+                                token => {
+                                    return Err(ClippieParseError::UnexpectedToken(
+                                        token,
+                                        self.create_error_path(),
+                                    ))
+                                }
+                            }
+                            // Now eat its opening paren...
+                            gml.require(Token::LeftParenthesis)?;
+
+                            // Now we're back where we started -- continue the loop
+                            // Note: This allows `foo() : foo() : foo()`, but it's not our job to asser the validity of gml!
+                            continue;
+                        } else {
+                            // Okay, we reached the end -- is `constructor` next?
+                            if gml.match_take(Token::Constructor).is_some() {
+                                // This is a constructor!
+                                collection.push(GmlConstructor::new(
+                                    constructor_name,
+                                    self.resource_path.clone(),
+                                ));
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn collect_gml_keywords(&mut self) -> Result<Vec<GmlKeywords>, ClippieParseError> {
+        let mut collection = vec![];
+        let mut gml = GmlTokens::new(self.source_code.clone());
+        while let Ok(token) = gml.take() {
+            match token {
+                Token::AndKeyword => collection.push(GmlKeywords::And(
+                    self.resource_path.to_str().unwrap().to_string(),
+                )),
+                Token::OrKeyword => collection.push(GmlKeywords::Or(
+                    self.resource_path.to_str().unwrap().to_string(),
+                )),
+                _ => {}
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn create_error_path(&mut self) -> String {
+        format!(
+            "{}:[GABE BROKE LINE NUMEBERS]",
+            self.resource_path.to_str().unwrap(),
+        )
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum ClippieParseError {
     UnexpectedToken(Token, String),
-    ExpectedTokenType(Token),
+    ExpectedToken(Token),
     UnexpectedEnd,
 }
