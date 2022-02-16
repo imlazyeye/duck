@@ -50,16 +50,37 @@ fn main() {
                 })
         }));
     for (gml_file, path) in gml {
-        if let Err(error) = clippie.parse_gml(gml_file, path.clone()) {
+        if let Err(error) = clippie.parse_gml(&gml_file, &path) {
             match error {
-                clippie::ClippieParseError::UnexpectedToken(token, position) => {
-                    error!(target: &position, "Unexpected token: {:?}", token)
+                clippie::ClippieParseError::UnexpectedToken(cursor, token) => {
+                    let target = Clippie::create_file_position_string(
+                        &gml_file,
+                        path.to_str().unwrap(),
+                        cursor,
+                    );
+                    error!(target: &target.file_string, "Unexpected token: {:?}", token)
                 }
                 clippie::ClippieParseError::ExpectedToken(token) => {
                     error!("Expected token: {:?}", token)
                 }
                 clippie::ClippieParseError::UnexpectedEnd => {
                     error!(target: path.to_str().unwrap(), "Unexpected end.")
+                }
+                clippie::ClippieParseError::InvalidClippieLevel(cursor, level) => {
+                    let target = Clippie::create_file_position_string(
+                        &gml_file,
+                        path.to_str().unwrap(),
+                        cursor,
+                    );
+                    error!(target: &target.file_string, "Invalid Clippie level: {:?}", level)
+                }
+                clippie::ClippieParseError::InvalidClippieIssue(cursor, level) => {
+                    let target = Clippie::create_file_position_string(
+                        &gml_file,
+                        path.to_str().unwrap(),
+                        cursor,
+                    );
+                    error!(target: &target.file_string, "Invalid Clippie issue: {:?}", level)
                 }
             }
         }
@@ -84,7 +105,7 @@ fn main() {
                     if !missing_members.is_empty() {
                         clippie.raise_issue(
                             ClippieIssue::MissingCaseMembers,
-                            &switch.position(),
+                            switch.position(),
                             missing_members.join(", "),
                             &mut lint_counts,
                         );
@@ -92,7 +113,7 @@ fn main() {
                 } else {
                     clippie.raise_issue(
                         ClippieIssue::UnrecognizedEnum,
-                        &switch.position(),
+                        switch.position(),
                         type_name.clone(),
                         &mut lint_counts,
                     );
@@ -101,7 +122,7 @@ fn main() {
             GmlSwitchStatementDefault::None => {
                 clippie.raise_issue(
                     ClippieIssue::MissingDefaultCase,
-                    &switch.position(),
+                    switch.position(),
                     "".into(),
                     &mut lint_counts,
                 );
@@ -175,6 +196,27 @@ fn main() {
                     format!("`{name}` should be `{ideal_name}`"),
                     &mut lint_counts,
                 );
+            }
+        }
+    }
+
+    // Yell about comments
+    for comment in clippie.comments() {
+        // Seek out that space
+        for c in comment.body().chars() {
+            match c {
+                '/' | '*' => {}
+                ' ' => {
+                    break;
+                }
+                _ => {
+                    clippie.raise_issue(
+                        ClippieIssue::NoSpaceAtStartOfComment,
+                        comment.position(),
+                        "".into(),
+                        &mut lint_counts,
+                    );
+                }
             }
         }
     }

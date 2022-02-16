@@ -1,9 +1,15 @@
 use crate::gml::GmlEnum;
 use crate::gml::GmlSwitchStatement;
 use crate::gml::GmlSwitchStatementDefault;
+use crate::Clippie;
+use crate::ClippieIssue;
+use crate::ClippieIssueTag;
+use crate::ClippieLevel;
+use crate::GmlComment;
 use crate::GmlConstructor;
 use crate::GmlKeywords;
 use crate::GmlMacro;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::vec::IntoIter;
 use std::{
@@ -13,7 +19,7 @@ use std::{
 
 use regex::Regex;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Switch,
     Case,
@@ -26,6 +32,8 @@ pub enum Token {
     RightBrace,
     LeftParenthesis,
     RightParenthesis,
+    LeftSquareBracket,
+    RightSquareBracket,
     Default,
     Comma,
     AndKeyword,
@@ -34,20 +42,12 @@ pub enum Token {
     Macro,
     Function,
     Constructor,
+    Comment(String),
     Identifier(String),
     Real(f32),
     StringLiteral(String),
+    ClippieIssueTag(String),
     Eof,
-}
-
-impl Token {
-    pub fn as_identifier(&self) -> Option<&String> {
-        if let Self::Identifier(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
 }
 
 /// Takes a mist source file and converts it into tokens
@@ -76,6 +76,8 @@ impl<'a> Lexer<'a> {
                 '}' => Some(Token::RightBrace),
                 '(' => Some(Token::LeftParenthesis),
                 ')' => Some(Token::RightParenthesis),
+                '[' => Some(Token::LeftSquareBracket),
+                ']' => Some(Token::RightSquareBracket),
                 ',' => Some(Token::Comma),
                 '=' => Some(Token::Equals),
                 '"' => {
@@ -95,47 +97,49 @@ impl<'a> Lexer<'a> {
                     Some(Token::StringLiteral(lexeme))
                 }
 
-                // Single line comments
-                '/' if self.match_take('/') => {
-                    self.discard_rest_of_line();
-                    return self.lex();
-                }
-
                 // Regions / Macros
                 '#' => {
-                    let mut lexeme = String::from(chr);
-                    while let Some(chr) = self.peek() {
-                        match chr {
-                            '_' | 'A'..='Z' | 'a'..='z' | '0'..='9' => {
-                                lexeme.push(self.take().unwrap().1);
-                                if lexeme == "#macro" {
-                                    return (start_index, Token::Macro);
-                                } else if lexeme == "#region" {
-                                    self.discard_rest_of_line();
-                                    return self.lex();
-                                }
-                            }
-                            _ => {
-                                // Perhaps grid access? either way, we don't care
-                                return self.lex();
-                            }
+                    let mut lexeme = chr.into();
+                    self.try_construct_word(&mut lexeme);
+                    return match lexeme.as_ref() {
+                        "#macro" => (start_index, Token::Macro),
+                        "#region" => {
+                            self.discard_rest_of_line();
+                            self.lex()
                         }
+                        _ => self.lex(),
+                    };
+                }
+
+                // Single line comments or issue tags
+                '/' if self.match_take('/') => {
+                    // Eat up the whitespace first...
+                    let mut comment_lexeme = String::from("//");
+                    self.consume_whitespace(&mut comment_lexeme);
+
+                    // See if this is an issue tag...
+                    if self.match_take('#') && self.match_take('[') {
+                        // Looking promising!!
+                        let mut lexeme = String::new();
+                        self.try_construct_word(&mut lexeme);
+                        match lexeme.as_ref() {
+                            "allow" | "warn" | "deny" => Some(Token::ClippieIssueTag(lexeme)),
+                            _ => return self.lex(),
+                        }
+                    } else {
+                        // It's just a comment -- eat it up
+                        self.consume_rest_of_line(&mut comment_lexeme);
+                        Some(Token::Comment(comment_lexeme))
                     }
-                    while self
-                        .peek()
-                        .map(|chr| chr != '\r' && chr != '\n')
-                        .unwrap_or(false)
-                    {
-                        self.take();
-                    }
-                    return self.lex();
                 }
 
                 // Multi line comments
                 '/' if self.match_take('*') => {
+                    let mut comment_lexeme = String::from("//");
                     loop {
                         match self.take() {
                             Some((_, chr)) => {
+                                comment_lexeme.push(chr);
                                 if chr == '*' && self.match_take('/') {
                                     break;
                                 }
@@ -143,7 +147,7 @@ impl<'a> Lexer<'a> {
                             None => return (start_index, Token::Eof),
                         }
                     }
-                    return self.lex();
+                    Some(Token::Comment(comment_lexeme))
                 }
 
                 // Check for whitespace
@@ -167,17 +171,8 @@ impl<'a> Lexer<'a> {
 
                 // Check for keywords / identifiers
                 id if id.is_alphabetic() || id == '_' => {
-                    let mut lexeme = String::from(chr);
-                    while let Some(chr) = self.peek() {
-                        match chr {
-                            '_' | 'A'..='Z' | 'a'..='z' | '0'..='9' => {
-                                lexeme.push(self.take().unwrap().1)
-                            }
-                            _ => {
-                                break;
-                            }
-                        }
-                    }
+                    let mut lexeme = chr.into();
+                    self.try_construct_word(&mut lexeme);
 
                     // Now let's check for keywords
                     match lexeme.as_ref() {
@@ -212,7 +207,18 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Used for comments.
+    /// Consumes the rest of the line into the stirng.
+    fn consume_rest_of_line(&mut self, lexeme: &mut String) {
+        while self
+            .peek()
+            .map(|chr| chr != '\r' && chr != '\n')
+            .unwrap_or(false)
+        {
+            lexeme.push(self.take().unwrap().1);
+        }
+    }
+
+    /// Discards the remainder of the line.
     fn discard_rest_of_line(&mut self) {
         while self
             .peek()
@@ -220,6 +226,19 @@ impl<'a> Lexer<'a> {
             .unwrap_or(false)
         {
             self.take();
+        }
+    }
+
+    /// Will keep eating characters into the given string until it reaches a charcter that
+    /// can't be used in an identifier.
+    fn try_construct_word(&mut self, lexeme: &mut String) {
+        while let Some(chr) = self.peek() {
+            match chr {
+                '_' | 'A'..='Z' | 'a'..='z' | '0'..='9' => {
+                    lexeme.push(self.take().unwrap().1);
+                }
+                _ => break,
+            }
         }
     }
 
@@ -234,12 +253,26 @@ impl<'a> Lexer<'a> {
     }
 
     /// Consumes the next character in the source code if it matches the given character.
+    /// Returns if it succeeds.
     fn match_take(&mut self, chr: char) -> bool {
         if self.peek() == Some(chr) {
             self.take();
             return true;
         }
         false
+    }
+
+    /// Consumes the next character in the source code if it matches the given character.
+    #[allow(dead_code)]
+    fn optional_take(&mut self, chr: char) {
+        self.match_take(chr);
+    }
+
+    /// Consumes all upcoming characters that are whitespace into the string.
+    fn consume_whitespace(&mut self, lexeme: &mut String) {
+        while self.peek().filter(|c| c.is_whitespace()).is_some() {
+            lexeme.push(self.take().unwrap().1);
+        }
     }
 }
 
@@ -257,17 +290,13 @@ impl<'a> Iterator for Lexer<'a> {
     }
 }
 
-struct GmlTokens {
+pub struct GmlTokens {
     tokens: Peekable<IntoIter<(usize, Token)>>,
+    cursor: usize,
 }
 impl GmlTokens {
-    pub fn new(source_code: String) -> Self {
-        Self {
-            tokens: Lexer::new(&source_code)
-                .collect::<Vec<(usize, Token)>>()
-                .into_iter()
-                .peekable(),
-        }
+    pub fn new(tokens: Peekable<IntoIter<(usize, Token)>>) -> Self {
+        Self { tokens, cursor: 0 }
     }
 }
 impl GmlTokens {
@@ -293,20 +322,28 @@ impl GmlTokens {
     /// Returns the next Token, returning an error if there is none, or if it is
     /// not of the required type.
     fn require(&mut self, token: Token) -> Result<Token, ClippieParseError> {
-        if let Some((_, found_token)) = self.tokens.next() {
-            if found_token == token {
-                Ok(found_token)
-            } else {
-                Err(ClippieParseError::ExpectedToken(token))
-            }
+        let found_token = self.take()?;
+        if found_token == token {
+            Ok(found_token)
         } else {
-            Err(ClippieParseError::UnexpectedEnd)
+            Err(ClippieParseError::ExpectedToken(token))
+        }
+    }
+
+    /// Returns the inner field of the next Token, requiring it to be an Identifier.
+    fn require_identifier(&mut self) -> Result<String, ClippieParseError> {
+        let next = self.take()?;
+        if let Token::Identifier(v) = next {
+            Ok(v)
+        } else {
+            Err(ClippieParseError::UnexpectedToken(self.cursor, next))
         }
     }
 
     /// Returns the next Token, returning an error if there is none.
     fn take(&mut self) -> Result<Token, ClippieParseError> {
-        if let Some((_, token)) = self.tokens.next() {
+        if let Some((position, token)) = self.tokens.next() {
+            self.cursor = position;
             Ok(token)
         } else {
             Err(ClippieParseError::UnexpectedEnd)
@@ -342,23 +379,83 @@ impl GmlTokens {
 
 pub struct Parser {
     source_code: String,
+    tokens: Vec<(usize, Token)>,
     resource_path: PathBuf,
 }
 impl Parser {
     pub fn new(source_code: String, resource_path: PathBuf) -> Self {
+        let tokens = Lexer::new(&source_code).collect::<Vec<(usize, Token)>>();
         Self {
             source_code,
+            tokens,
             resource_path,
         }
+    }
+
+    pub fn gml_tokens(&self) -> GmlTokens {
+        GmlTokens::new(
+            // THIS SUCKS
+            self.tokens
+                .clone()
+                .into_iter()
+                .filter(|(_, t)| !matches!(t, Token::Comment(_)))
+                .collect::<Vec<(usize, Token)>>()
+                .into_iter()
+                .peekable(),
+        )
+    }
+
+    pub fn gml_tokens_with_comments_included(&self) -> GmlTokens {
+        GmlTokens::new(self.tokens.clone().into_iter().peekable())
+    }
+
+    pub fn collect_issue_tags(
+        &mut self,
+    ) -> Result<HashMap<(String, usize), ClippieIssueTag>, ClippieParseError> {
+        let mut collection = HashMap::new();
+        let mut gml = self.gml_tokens();
+        while let Ok(token) = gml.take() {
+            if let Token::ClippieIssueTag(tag) = &token {
+                let level = ClippieLevel::from_str(tag).ok_or_else(|| {
+                    ClippieParseError::InvalidClippieLevel(gml.cursor, tag.to_string())
+                })?;
+                gml.require(Token::LeftParenthesis)?;
+                let issue_name = gml.require_identifier()?;
+                let issue = ClippieIssue::from_str(&issue_name).ok_or_else(|| {
+                    ClippieParseError::InvalidClippieIssue(gml.cursor, issue_name.to_string())
+                })?;
+                gml.require(Token::RightParenthesis)?;
+                gml.require(Token::RightSquareBracket)?;
+                let position = Clippie::create_file_position_string(
+                    &self.source_code,
+                    self.resource_path.to_str().unwrap(),
+                    gml.cursor,
+                );
+
+                // Register this tag for the line BELOW this line...
+                collection.insert(
+                    (position.file_name, position.line + 1),
+                    ClippieIssueTag(issue, level),
+                );
+            }
+        }
+        Ok(collection)
     }
 
     pub fn collect_gml_switch_statements(
         &mut self,
     ) -> Result<Vec<GmlSwitchStatement>, ClippieParseError> {
         let mut collection = vec![];
-        let mut gml = GmlTokens::new(self.source_code.clone());
+        let mut gml = self.gml_tokens();
         while let Ok(token) = gml.take() {
             if token == Token::Switch {
+                // Get the position
+                let switch_position = Clippie::create_file_position_string(
+                    &self.source_code,
+                    self.resource_path.to_str().unwrap(),
+                    gml.cursor,
+                );
+
                 // Nom nom until we get the right brace
                 gml.take_through(&[Token::LeftBrace])?;
 
@@ -389,8 +486,7 @@ impl Parser {
                                             }
                                             token => {
                                                 return Err(ClippieParseError::UnexpectedToken(
-                                                    token,
-                                                    self.create_error_path(),
+                                                    gml.cursor, token,
                                                 ));
                                             }
                                         }
@@ -401,8 +497,7 @@ impl Parser {
                                 }
                                 token => {
                                     return Err(ClippieParseError::UnexpectedToken(
-                                        token,
-                                        self.create_error_path(),
+                                        gml.cursor, token,
                                     ));
                                 }
                             }
@@ -482,16 +577,13 @@ impl Parser {
                             // We are now done. Collect the finished switch!
                             collection.push(GmlSwitchStatement::new(
                                 default_case,
-                                self.resource_path.to_path_buf(),
                                 cases,
+                                switch_position,
                             ));
                             break;
                         }
                         token => {
-                            return Err(ClippieParseError::UnexpectedToken(
-                                token,
-                                self.create_error_path(),
-                            ));
+                            return Err(ClippieParseError::UnexpectedToken(gml.cursor, token));
                         }
                     }
                 }
@@ -502,13 +594,19 @@ impl Parser {
 
     pub fn collect_gml_enums(&mut self) -> Result<Vec<GmlEnum>, ClippieParseError> {
         let mut collection = vec![];
-        let mut gml = GmlTokens::new(self.source_code.clone());
+        let mut gml = self.gml_tokens();
         while let Ok(token) = gml.take() {
             if token == Token::Enum {
                 match gml.take()? {
                     Token::Identifier(name) => {
-                        let mut gml_enum =
-                            GmlEnum::new(name.to_string(), self.resource_path.clone());
+                        let mut gml_enum = GmlEnum::new(
+                            name.to_string(),
+                            Clippie::create_file_position_string(
+                                &self.source_code,
+                                self.resource_path.to_str().unwrap(),
+                                gml.cursor,
+                            ),
+                        );
                         gml.require(Token::LeftBrace)?;
                         'member_reader: loop {
                             match gml.take()? {
@@ -529,21 +627,33 @@ impl Parser {
                                 }
                                 token => {
                                     return Err(ClippieParseError::UnexpectedToken(
-                                        token,
-                                        self.create_error_path(),
+                                        gml.cursor, token,
                                     ))
                                 }
                             }
                         }
                         collection.push(gml_enum);
                     }
-                    token => {
-                        return Err(ClippieParseError::UnexpectedToken(
-                            token,
-                            self.create_error_path(),
-                        ))
-                    }
+                    token => return Err(ClippieParseError::UnexpectedToken(gml.cursor, token)),
                 }
+            }
+        }
+        Ok(collection)
+    }
+
+    pub fn collect_gml_comments(&mut self) -> Result<Vec<GmlComment>, ClippieParseError> {
+        let mut collection = vec![];
+        let mut gml = self.gml_tokens_with_comments_included();
+        while let Ok(token) = gml.take() {
+            if let Token::Comment(lexeme) = token {
+                collection.push(GmlComment::new(
+                    lexeme,
+                    Clippie::create_file_position_string(
+                        &self.source_code,
+                        self.resource_path.to_str().unwrap(),
+                        gml.cursor,
+                    ),
+                ));
             }
         }
         Ok(collection)
@@ -551,19 +661,21 @@ impl Parser {
 
     pub fn collect_gml_macros(&mut self) -> Result<Vec<GmlMacro>, ClippieParseError> {
         let mut collection = vec![];
-        let mut gml = GmlTokens::new(self.source_code.clone());
+        let mut gml = self.gml_tokens();
         while let Ok(token) = gml.take() {
             if token == Token::Macro {
                 match gml.take()? {
                     Token::Identifier(name) => {
-                        collection.push(GmlMacro::new(name, self.resource_path.clone()));
+                        collection.push(GmlMacro::new(
+                            name,
+                            Clippie::create_file_position_string(
+                                &self.source_code,
+                                self.resource_path.to_str().unwrap(),
+                                gml.cursor,
+                            ),
+                        ));
                     }
-                    token => {
-                        return Err(ClippieParseError::UnexpectedToken(
-                            token,
-                            self.create_error_path(),
-                        ))
-                    }
+                    token => return Err(ClippieParseError::UnexpectedToken(gml.cursor, token)),
                 }
             }
         }
@@ -572,7 +684,7 @@ impl Parser {
 
     pub fn collect_gml_constructors(&mut self) -> Result<Vec<GmlConstructor>, ClippieParseError> {
         let mut collection = vec![];
-        let mut gml = GmlTokens::new(self.source_code.clone());
+        let mut gml = self.gml_tokens();
         while let Ok(token) = gml.take() {
             if token == Token::Function {
                 // If the next token is a parenthesis, this is anonymous
@@ -582,12 +694,7 @@ impl Parser {
                     // Otherwise, it must be a name
                     let name = match gml.take()? {
                         Token::Identifier(name) => name,
-                        token => {
-                            return Err(ClippieParseError::UnexpectedToken(
-                                token,
-                                self.create_error_path(),
-                            ))
-                        }
+                        token => return Err(ClippieParseError::UnexpectedToken(gml.cursor, token)),
                     };
 
                     // Eat the left parenthesis
@@ -605,8 +712,7 @@ impl Parser {
                                 Token::Identifier(_) => {}
                                 token => {
                                     return Err(ClippieParseError::UnexpectedToken(
-                                        token,
-                                        self.create_error_path(),
+                                        gml.cursor, token,
                                     ))
                                 }
                             }
@@ -622,7 +728,11 @@ impl Parser {
                                 // This is a constructor!
                                 collection.push(GmlConstructor::new(
                                     constructor_name,
-                                    self.resource_path.clone(),
+                                    Clippie::create_file_position_string(
+                                        &self.source_code,
+                                        self.resource_path.to_str().unwrap(),
+                                        gml.cursor,
+                                    ),
                                 ));
                             }
                             break;
@@ -636,32 +746,35 @@ impl Parser {
 
     pub fn collect_gml_keywords(&mut self) -> Result<Vec<GmlKeywords>, ClippieParseError> {
         let mut collection = vec![];
-        let mut gml = GmlTokens::new(self.source_code.clone());
+        let mut gml = self.gml_tokens();
         while let Ok(token) = gml.take() {
             match token {
-                Token::AndKeyword => collection.push(GmlKeywords::And(
-                    self.resource_path.to_str().unwrap().to_string(),
-                )),
-                Token::OrKeyword => collection.push(GmlKeywords::Or(
-                    self.resource_path.to_str().unwrap().to_string(),
-                )),
+                Token::AndKeyword => {
+                    collection.push(GmlKeywords::And(Clippie::create_file_position_string(
+                        &self.source_code,
+                        self.resource_path.to_str().unwrap(),
+                        gml.cursor,
+                    )))
+                }
+                Token::OrKeyword => {
+                    collection.push(GmlKeywords::Or(Clippie::create_file_position_string(
+                        &self.source_code,
+                        self.resource_path.to_str().unwrap(),
+                        gml.cursor,
+                    )))
+                }
                 _ => {}
             }
         }
         Ok(collection)
     }
-
-    pub fn create_error_path(&mut self) -> String {
-        format!(
-            "{}:[GABE BROKE LINE NUMEBERS]",
-            self.resource_path.to_str().unwrap(),
-        )
-    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum ClippieParseError {
-    UnexpectedToken(Token, String),
+    UnexpectedToken(usize, Token),
     ExpectedToken(Token),
+    InvalidClippieLevel(usize, String),
+    InvalidClippieIssue(usize, String),
     UnexpectedEnd,
 }

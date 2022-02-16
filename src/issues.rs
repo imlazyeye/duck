@@ -4,8 +4,19 @@ pub enum ClippieLevel {
     Warn,
     Deny,
 }
+impl ClippieLevel {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "allow" => Some(Self::Allow),
+            "warn" => Some(Self::Warn),
+            "deny" => Some(Self::Deny),
+            _ => None,
+        }
+    }
+}
 
-#[derive(Debug, Copy, Clone, enum_map::Enum)]
+#[derive(Debug, Copy, PartialEq, Eq, Clone, enum_map::Enum)]
 pub enum ClippieIssue {
     MissingCaseMembers,
     MissingDefaultCase,
@@ -15,9 +26,10 @@ pub enum ClippieIssue {
     NonScreamCase,
     NonPascalCase,
     AnonymousConstructor,
+    NoSpaceAtStartOfComment,
 }
 impl ClippieIssue {
-    pub fn code_tag(&self) -> &str {
+    pub fn to_str(&self) -> &str {
         match self {
             ClippieIssue::MissingCaseMembers => "missing_case_members",
             ClippieIssue::MissingDefaultCase => "missing_default_case",
@@ -27,10 +39,12 @@ impl ClippieIssue {
             ClippieIssue::NonScreamCase => "non_scream_case",
             ClippieIssue::NonPascalCase => "non_pascal_case",
             ClippieIssue::AnonymousConstructor => "anonymous_constructor",
+            ClippieIssue::NoSpaceAtStartOfComment => "no_space_at_start_of_comment",
         }
     }
 
-    pub fn from_code_tag(tag: &str) -> Option<Self> {
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(tag: &str) -> Option<Self> {
         match tag {
             "missing_case_members" => Some(ClippieIssue::MissingCaseMembers),
             "missing_default_case" => Some(ClippieIssue::MissingDefaultCase),
@@ -40,6 +54,7 @@ impl ClippieIssue {
             "non_scream_case" => Some(ClippieIssue::NonScreamCase),
             "non_pascal_case" => Some(ClippieIssue::NonPascalCase),
             "anonymous_constructor" => Some(ClippieIssue::AnonymousConstructor),
+            "no_space_at_start_of_comment" => Some(ClippieIssue::NoSpaceAtStartOfComment),
             _ => None,
         }
     }
@@ -53,18 +68,17 @@ impl ClippieIssue {
             ClippieIssue::OrKeyword => "Use of illegal character: `or`.",
             ClippieIssue::NonScreamCase => "Identifier should be SCREAM_CASE.",
             ClippieIssue::NonPascalCase => "Identifier should be PascalCase.",
-            &ClippieIssue::AnonymousConstructor => {
-                "Anonymous functions should not be constructors."
-            }
+            ClippieIssue::AnonymousConstructor => "Anonymous functions should not be constructors.",
+            ClippieIssue::NoSpaceAtStartOfComment => "Comments should begin with a space.",
         }
         .into()
     }
 
     pub fn explanation_message(&self, level: ClippieLevel) -> String {
         match level {
-            ClippieLevel::Allow => format!("`#[allow({})]` on by default", self.code_tag()),
-            ClippieLevel::Warn => format!("`#[warn({})]` on by default", self.code_tag()),
-            ClippieLevel::Deny => format!("`#[deny({})]` on by default", self.code_tag()),
+            ClippieLevel::Allow => format!("`#[allow({})]` on by default", self.to_str()),
+            ClippieLevel::Warn => format!("`#[warn({})]` on by default", self.to_str()),
+            ClippieLevel::Deny => format!("`#[deny({})]` on by default", self.to_str()),
         }
     }
 
@@ -86,12 +100,15 @@ impl ClippieIssue {
                 "Change this into a named function",
                 "Change this into a standard function that returns a struct literal",
             ],
+            ClippieIssue::NoSpaceAtStartOfComment => {
+                vec!["Add a space after the start of the comment"]
+            }
         };
 
         let mut suggestions: Vec<String> = suggestions.into_iter().map(|s| s.to_string()).collect();
         suggestions.push(format!(
             "Ignore this by placing `// #[allow({})]` above this code",
-            self.code_tag()
+            self.to_str()
         ));
 
         format!(
@@ -104,3 +121,6 @@ impl ClippieIssue {
         )
     }
 }
+
+#[derive(Debug)]
+pub struct ClippieIssueTag(pub ClippieIssue, pub ClippieLevel);

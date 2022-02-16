@@ -11,4 +11,6 @@ pub use gml::*;
 mod parsing;
 pub use parsing::ClippieParseError;
 
+#[allow(unused_imports)]
+#[macro_use]
 extern crate log;

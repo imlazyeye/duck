@@ -1,10 +1,10 @@
-use std::path::PathBuf;
+use crate::ClippiePosition;
 
-#[derive(Debug, Default)]
-pub struct GmlEnum(String, Vec<GmlEnumMember>, PathBuf);
+#[derive(Debug)]
+pub struct GmlEnum(String, Vec<GmlEnumMember>, ClippiePosition);
 impl GmlEnum {
     /// Creates a new GmlEnum.
-    pub fn new(name: String, position: PathBuf) -> Self {
+    pub fn new(name: String, position: ClippiePosition) -> Self {
         Self(name, vec![], position)
     }
 
@@ -29,8 +29,8 @@ impl GmlEnum {
         &self.0
     }
 
-    pub fn position(&self) -> &str {
-        self.2.to_str().unwrap()
+    pub fn position(&self) -> &ClippiePosition {
+        &self.2
     }
 }
 
@@ -52,18 +52,18 @@ pub struct GmlSwitchStatement {
     cases: Vec<String>,
 
     /// The path this switch comes from.
-    resource_path: PathBuf,
+    position: ClippiePosition,
 }
 impl GmlSwitchStatement {
     pub fn new(
         default_case: GmlSwitchStatementDefault,
-        resource_path: PathBuf,
         cases: Vec<String>,
+        position: ClippiePosition,
     ) -> Self {
         Self {
             default_case,
             cases,
-            resource_path,
+            position,
         }
     }
 
@@ -76,8 +76,8 @@ impl GmlSwitchStatement {
         self.cases.as_ref()
     }
 
-    pub fn position(&self) -> String {
-        self.resource_path.to_str().unwrap().to_string()
+    pub fn position(&self) -> &ClippiePosition {
+        &self.position
     }
 
     /// Get a reference to the gml switch statement's default case.
@@ -94,29 +94,29 @@ pub enum GmlSwitchStatementDefault {
 }
 
 pub enum GmlKeywords {
-    And(String),
-    Or(String),
+    And(ClippiePosition),
+    Or(ClippiePosition),
 }
 
 #[derive(Debug)]
-pub struct GmlMacro(String, PathBuf);
+pub struct GmlMacro(String, ClippiePosition);
 impl GmlMacro {
-    pub fn new(name: String, resource_path: PathBuf) -> Self {
-        GmlMacro(name, resource_path)
+    pub fn new(name: String, position: ClippiePosition) -> Self {
+        GmlMacro(name, position)
     }
     pub fn name(&self) -> &str {
         &self.0
     }
-    pub fn position(&self) -> &str {
-        self.1.to_str().unwrap()
+    pub fn position(&self) -> &ClippiePosition {
+        &self.1
     }
 }
 
 #[derive(Debug)]
-pub struct GmlConstructor(Option<String>, PathBuf);
+pub struct GmlConstructor(Option<String>, ClippiePosition);
 impl GmlConstructor {
-    pub fn new(name: Option<String>, resource_path: PathBuf) -> Self {
-        GmlConstructor(name, resource_path)
+    pub fn new(name: Option<String>, position: ClippiePosition) -> Self {
+        GmlConstructor(name, position)
     }
     pub fn is_anonymous(&self) -> bool {
         self.0.is_none()
@@ -124,7 +124,21 @@ impl GmlConstructor {
     pub fn name(&self) -> Option<&String> {
         self.0.as_ref()
     }
-    pub fn position(&self) -> &str {
-        self.1.to_str().unwrap()
+    pub fn position(&self) -> &ClippiePosition {
+        &self.1
+    }
+}
+
+#[derive(Debug)]
+pub struct GmlComment(String, ClippiePosition);
+impl GmlComment {
+    pub fn new(body: String, position: ClippiePosition) -> Self {
+        GmlComment(body, position)
+    }
+    pub fn body(&self) -> &str {
+        &self.0
+    }
+    pub fn position(&self) -> &ClippiePosition {
+        &self.1
     }
 }
