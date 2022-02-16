@@ -38,7 +38,7 @@ fn collect_gml_switch_statements_from_gml_regex(
     fn collect_switches(
         contents: &str,
         switch_finder: &Regex,
-        clippie_style_default_finder: &Regex,
+        duck_style_default_finder: &Regex,
         resource_path: &Path,
         collection: &mut Vec<GmlSwitchStatement>,
     ) {
@@ -53,7 +53,7 @@ fn collect_gml_switch_statements_from_gml_regex(
                 collect_switches(
                     inner_full_body,
                     switch_finder,
-                    clippie_style_default_finder,
+                    duck_style_default_finder,
                     resource_path,
                     collection,
                 );
@@ -62,7 +62,7 @@ fn collect_gml_switch_statements_from_gml_regex(
                 collect_switches(
                     &contents.replace(inner_full_body, ""),
                     switch_finder,
-                    clippie_style_default_finder,
+                    duck_style_default_finder,
                     resource_path,
                     collection,
                 )
@@ -70,7 +70,7 @@ fn collect_gml_switch_statements_from_gml_regex(
                 // No nesting! We're good to go.
                 // Idenitfy the type of this switch statement
                 if let Some(enum_name_capture) =
-                    clippie_style_default_finder.captures(cases_body.as_str())
+                    duck_style_default_finder.captures(cases_body.as_str())
                 {
                     // Create the switch
                     let mut gml_switch = GmlSwitchStatement::new(
@@ -95,14 +95,14 @@ fn collect_gml_switch_statements_from_gml_regex(
                     // Okay, register!
                     collection.push(gml_switch);
                 } else {
-                    // There is a default, but its not set up for clippie. We ignore these!
+                    // There is a default, but its not set up for duck. We ignore these!
                 }
 
                 // Now we recurse with ourselves removed...
                 collect_switches(
                     &contents.replace(full_body, ""),
                     switch_finder,
-                    clippie_style_default_finder,
+                    duck_style_default_finder,
                     resource_path,
                     collection,
                 )
@@ -110,11 +110,11 @@ fn collect_gml_switch_statements_from_gml_regex(
         }
     }
 
-    // First, let's just get a count of how many clippie-style default cases we can find.
+    // First, let's just get a count of how many duck-style default cases we can find.
     // Later on, we're going to use this to ensure we parsed all the enums we needed to.
-    let clippie_style_default_finder =
+    let duck_style_default_finder =
         Regex::new(r#"default: IMPOSSIBLE\("Unexpected (\w+)"#).unwrap();
-    let expected_matches = clippie_style_default_finder.captures_iter(contents).count();
+    let expected_matches = duck_style_default_finder.captures_iter(contents).count();
     let start_count = collection.len();
 
     // Make our pattern
@@ -124,7 +124,7 @@ fn collect_gml_switch_statements_from_gml_regex(
     collect_switches(
         &contents,
         &switch_finder,
-        &clippie_style_default_finder,
+        &duck_style_default_finder,
         resource_path,
         collection,
     );

@@ -1,5 +1,5 @@
-use clippie::{Clippie, ClippieIssue, ClippieLevel, GmlSwitchStatementDefault};
 use colored::Colorize;
+use duck::{Duck, ParseError, GmlSwitchStatementDefault, Lint, LintLevel};
 use enum_map::{enum_map, EnumMap};
 use yy_boss::{Resource, YyResource, YypBoss};
 
@@ -13,11 +13,11 @@ fn main() {
     )
     .unwrap();
 
-    let mut clippie = Clippie::new();
-    let mut lint_counts: EnumMap<ClippieLevel, usize> = enum_map! {
-        ClippieLevel::Allow => 0,
-        ClippieLevel::Warn => 0,
-        ClippieLevel::Deny => 0,
+    let mut duck = Duck::new();
+    let mut lint_counts: EnumMap<LintLevel, usize> = enum_map! {
+        LintLevel::Allow => 0,
+        LintLevel::Warn => 0,
+        LintLevel::Deny => 0,
     };
 
     // Parse it all
@@ -50,47 +50,47 @@ fn main() {
                 })
         }));
     for (gml_file, path) in gml {
-        if let Err(error) = clippie.parse_gml(&gml_file, &path) {
+        if let Err(error) = duck.parse_gml(&gml_file, &path) {
             match error {
-                clippie::ClippieParseError::UnexpectedToken(cursor, token) => {
-                    let target = Clippie::create_file_position_string(
+                ParseError::UnexpectedToken(cursor, token) => {
+                    let target = Duck::create_file_position_string(
                         &gml_file,
                         path.to_str().unwrap(),
                         cursor,
                     );
                     error!(target: &target.file_string, "Unexpected token: {:?}", token)
                 }
-                clippie::ClippieParseError::ExpectedToken(token) => {
+                ParseError::ExpectedToken(token) => {
                     error!("Expected token: {:?}", token)
                 }
-                clippie::ClippieParseError::UnexpectedEnd => {
+                ParseError::UnexpectedEnd => {
                     error!(target: path.to_str().unwrap(), "Unexpected end.")
                 }
-                clippie::ClippieParseError::InvalidClippieLevel(cursor, level) => {
-                    let target = Clippie::create_file_position_string(
+                ParseError::InvalidLintLevel(cursor, level) => {
+                    let target = Duck::create_file_position_string(
                         &gml_file,
                         path.to_str().unwrap(),
                         cursor,
                     );
-                    error!(target: &target.file_string, "Invalid Clippie level: {:?}", level)
+                    error!(target: &target.file_string, "Invalid lint level: {:?}", level)
                 }
-                clippie::ClippieParseError::InvalidClippieIssue(cursor, level) => {
-                    let target = Clippie::create_file_position_string(
+                ParseError::InvalidLint(cursor, level) => {
+                    let target = Duck::create_file_position_string(
                         &gml_file,
                         path.to_str().unwrap(),
                         cursor,
                     );
-                    error!(target: &target.file_string, "Invalid Clippie issue: {:?}", level)
+                    error!(target: &target.file_string, "Invalid lint: {:?}", level)
                 }
             }
         }
     }
 
     // Validate every switch statement
-    for switch in clippie.switches() {
+    for switch in duck.switches() {
         match switch.default_case() {
             GmlSwitchStatementDefault::TypeAssert(type_name) => {
-                if let Some(gml_enum) = clippie.find_enum_by_name(type_name) {
+                if let Some(gml_enum) = duck.find_enum_by_name(type_name) {
                     let mut missing_members = vec![];
                     for member in gml_enum.iter_constructed_names() {
                         if member.contains(".Len") || member.contains(".LEN") {
@@ -103,16 +103,16 @@ fn main() {
                         }
                     }
                     if !missing_members.is_empty() {
-                        clippie.raise_issue(
-                            ClippieIssue::MissingCaseMembers,
+                        duck.report_lint(
+                            Lint::MissingCaseMembers,
                             switch.position(),
                             missing_members.join(", "),
                             &mut lint_counts,
                         );
                     }
                 } else {
-                    clippie.raise_issue(
-                        ClippieIssue::UnrecognizedEnum,
+                    duck.report_lint(
+                        Lint::UnrecognizedEnum,
                         switch.position(),
                         type_name.clone(),
                         &mut lint_counts,
@@ -120,8 +120,8 @@ fn main() {
                 }
             }
             GmlSwitchStatementDefault::None => {
-                clippie.raise_issue(
-                    ClippieIssue::MissingDefaultCase,
+                duck.report_lint(
+                    Lint::MissingDefaultCase,
                     switch.position(),
                     "".into(),
                     &mut lint_counts,
@@ -132,16 +132,16 @@ fn main() {
     }
 
     // Yell about illegal characters
-    for illegal_char in clippie.keywords() {
+    for illegal_char in duck.keywords() {
         match illegal_char {
-            clippie::GmlKeywords::And(position) => clippie.raise_issue(
-                ClippieIssue::AndKeyword,
+            duck::GmlKeywords::And(position) => duck.report_lint(
+                Lint::AndKeyword,
                 position,
                 "`and` should be `&&`".to_string(),
                 &mut lint_counts,
             ),
-            clippie::GmlKeywords::Or(position) => clippie.raise_issue(
-                ClippieIssue::OrKeyword,
+            duck::GmlKeywords::Or(position) => duck.report_lint(
+                Lint::OrKeyword,
                 position,
                 "`or` should be `||`".to_string(),
                 &mut lint_counts,
@@ -150,12 +150,12 @@ fn main() {
     }
 
     // Yell about improper macros
-    for mac in clippie.macros() {
+    for mac in duck.macros() {
         let name = mac.name();
-        let ideal_name = Clippie::scream_case(name);
+        let ideal_name = Duck::scream_case(name);
         if name != ideal_name {
-            clippie.raise_issue(
-                ClippieIssue::NonScreamCase,
+            duck.report_lint(
+                Lint::NonScreamCase,
                 mac.position(),
                 format!("`{name}` should be `{ideal_name}`"),
                 &mut lint_counts,
@@ -164,12 +164,12 @@ fn main() {
     }
 
     // Yell about improper enums
-    for e in clippie.enums() {
+    for e in duck.enums() {
         let name = e.name();
-        let ideal_name = Clippie::pascal_case(name);
+        let ideal_name = Duck::pascal_case(name);
         if name != ideal_name {
-            clippie.raise_issue(
-                ClippieIssue::NonPascalCase,
+            duck.report_lint(
+                Lint::NonPascalCase,
                 e.position(),
                 format!("`{name}` should be `{ideal_name}`"),
                 &mut lint_counts,
@@ -178,20 +178,20 @@ fn main() {
     }
 
     // Yell about improper constructors
-    for constructor in clippie.constructors() {
+    for constructor in duck.constructors() {
         if constructor.is_anonymous() {
-            clippie.raise_issue(
-                ClippieIssue::AnonymousConstructor,
+            duck.report_lint(
+                Lint::AnonymousConstructor,
                 constructor.position(),
                 "".into(),
                 &mut lint_counts,
             );
         } else {
             let name = constructor.name().unwrap();
-            let ideal_name = Clippie::pascal_case(name);
+            let ideal_name = Duck::pascal_case(name);
             if name != &ideal_name {
-                clippie.raise_issue(
-                    ClippieIssue::NonPascalCase,
+                duck.report_lint(
+                    Lint::NonPascalCase,
                     constructor.position(),
                     format!("`{name}` should be `{ideal_name}`"),
                     &mut lint_counts,
@@ -201,7 +201,7 @@ fn main() {
     }
 
     // Yell about comments
-    for comment in clippie.comments() {
+    for comment in duck.comments() {
         // Seek out that space
         for c in comment.body().chars() {
             match c {
@@ -210,8 +210,8 @@ fn main() {
                     break;
                 }
                 _ => {
-                    clippie.raise_issue(
-                        ClippieIssue::NoSpaceAtStartOfComment,
+                    duck.report_lint(
+                        Lint::NoSpaceAtStartOfComment,
                         comment.position(),
                         "".into(),
                         &mut lint_counts,
@@ -225,12 +225,12 @@ fn main() {
     let output = format!(
         "{} {} {}, {} {}, {} {} {}.",
         "Finished lint with".bold(),
-        lint_counts[ClippieLevel::Deny].to_string().bright_red(),
+        lint_counts[LintLevel::Deny].to_string().bright_red(),
         "errors".bold(),
-        lint_counts[ClippieLevel::Warn].to_string().yellow(),
+        lint_counts[LintLevel::Warn].to_string().yellow(),
         "warnings".bold(),
         "and".bold(),
-        lint_counts[ClippieLevel::Allow].to_string().bright_black(),
+        lint_counts[LintLevel::Allow].to_string().bright_black(),
         "ignored lints".bold()
     );
     println!(

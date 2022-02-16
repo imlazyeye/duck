@@ -1,10 +1,10 @@
-use crate::ClippiePosition;
+use crate::Position;
 
 #[derive(Debug)]
-pub struct GmlEnum(String, Vec<GmlEnumMember>, ClippiePosition);
+pub struct GmlEnum(String, Vec<GmlEnumMember>, Position);
 impl GmlEnum {
     /// Creates a new GmlEnum.
-    pub fn new(name: String, position: ClippiePosition) -> Self {
+    pub fn new(name: String, position: Position) -> Self {
         Self(name, vec![], position)
     }
 
@@ -29,7 +29,7 @@ impl GmlEnum {
         &self.0
     }
 
-    pub fn position(&self) -> &ClippiePosition {
+    pub fn position(&self) -> &Position {
         &self.2
     }
 }
@@ -52,13 +52,13 @@ pub struct GmlSwitchStatement {
     cases: Vec<String>,
 
     /// The path this switch comes from.
-    position: ClippiePosition,
+    position: Position,
 }
 impl GmlSwitchStatement {
     pub fn new(
         default_case: GmlSwitchStatementDefault,
         cases: Vec<String>,
-        position: ClippiePosition,
+        position: Position,
     ) -> Self {
         Self {
             default_case,
@@ -76,7 +76,7 @@ impl GmlSwitchStatement {
         self.cases.as_ref()
     }
 
-    pub fn position(&self) -> &ClippiePosition {
+    pub fn position(&self) -> &Position {
         &self.position
     }
 
@@ -94,28 +94,28 @@ pub enum GmlSwitchStatementDefault {
 }
 
 pub enum GmlKeywords {
-    And(ClippiePosition),
-    Or(ClippiePosition),
+    And(Position),
+    Or(Position),
 }
 
 #[derive(Debug)]
-pub struct GmlMacro(String, ClippiePosition);
+pub struct GmlMacro(String, Position);
 impl GmlMacro {
-    pub fn new(name: String, position: ClippiePosition) -> Self {
+    pub fn new(name: String, position: Position) -> Self {
         GmlMacro(name, position)
     }
     pub fn name(&self) -> &str {
         &self.0
     }
-    pub fn position(&self) -> &ClippiePosition {
+    pub fn position(&self) -> &Position {
         &self.1
     }
 }
 
 #[derive(Debug)]
-pub struct GmlConstructor(Option<String>, ClippiePosition);
+pub struct GmlConstructor(Option<String>, Position);
 impl GmlConstructor {
-    pub fn new(name: Option<String>, position: ClippiePosition) -> Self {
+    pub fn new(name: Option<String>, position: Position) -> Self {
         GmlConstructor(name, position)
     }
     pub fn is_anonymous(&self) -> bool {
@@ -124,21 +124,21 @@ impl GmlConstructor {
     pub fn name(&self) -> Option<&String> {
         self.0.as_ref()
     }
-    pub fn position(&self) -> &ClippiePosition {
+    pub fn position(&self) -> &Position {
         &self.1
     }
 }
 
 #[derive(Debug)]
-pub struct GmlComment(String, ClippiePosition);
+pub struct GmlComment(String, Position);
 impl GmlComment {
-    pub fn new(body: String, position: ClippiePosition) -> Self {
+    pub fn new(body: String, position: Position) -> Self {
         GmlComment(body, position)
     }
     pub fn body(&self) -> &str {
         &self.0
     }
-    pub fn position(&self) -> &ClippiePosition {
+    pub fn position(&self) -> &Position {
         &self.1
     }
 }

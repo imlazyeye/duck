@@ -125,20 +125,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clippie"
-version = "0.1.0"
-dependencies = [
- "color-eyre",
- "colored",
- "enum-map",
- "heck 0.4.0",
- "log",
- "pretty_env_logger",
- "regex",
- "yy-boss",
-]
-
-[[package]]
 name = "color-eyre"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -278,6 +264,20 @@ checksum = "73770f8e1fe7d64df17ca66ad28994a0a623ea497fa69486e14984e715c5d174"
 dependencies = [
  "adler32",
  "byteorder",
+]
+
+[[package]]
+name = "duck"
+version = "0.1.0"
+dependencies = [
+ "color-eyre",
+ "colored",
+ "enum-map",
+ "heck 0.4.0",
+ "log",
+ "pretty_env_logger",
+ "regex",
+ "yy-boss",
 ]
 
 [[package]]

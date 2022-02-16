@@ -1,15 +1,15 @@
 pub type AnyResult<T = ()> = color_eyre::Result<T>;
-mod clippie;
-pub use clippie::*;
+mod duck;
+pub use duck::*;
 
-mod issues;
-pub use issues::*;
+mod lint;
+pub use lint::*;
 
 mod gml;
 pub use gml::*;
 
 mod parsing;
-pub use parsing::ClippieParseError;
+pub use parsing::ParseError;
 
 #[allow(unused_imports)]
 #[macro_use]
