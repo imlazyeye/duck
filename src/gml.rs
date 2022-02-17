@@ -93,11 +93,6 @@ pub enum GmlSwitchStatementDefault {
     TypeAssert(String),
 }
 
-pub enum GmlKeywords {
-    And(Position),
-    Or(Position),
-}
-
 #[derive(Debug)]
 pub struct GmlMacro(String, Position);
 impl GmlMacro {

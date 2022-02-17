@@ -1,24 +1,24 @@
-use crate::{LintCategory, XLint};
+use crate::{Lint, LintCategory};
 
 pub struct Todo;
-impl XLint for Todo {
-    fn tag(&self) -> &str {
+impl Lint for Todo {
+    fn tag() -> &'static str {
         "todo"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Use of todo marker"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec!["Remove this todo marker"]
     }
 
-    fn category(&self) -> LintCategory {
+    fn category() -> LintCategory {
         LintCategory::Pedantic
     }
 }

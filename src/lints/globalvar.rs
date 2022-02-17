@@ -1,27 +1,27 @@
-use crate::{LintCategory, XLint};
+use crate::{Lint, LintCategory};
 
 pub struct Globalvar;
-impl XLint for Globalvar {
-    fn tag(&self) -> &str {
+impl Lint for Globalvar {
+    fn tag() -> &'static str {
         "globalvar"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Use of `globalvar`"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "Globalvars are depricated and reduce readability."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec![
             "Use the `global` keyword",
             "Scope this variable to an individual object",
         ]
     }
 
-    fn category(&self) -> LintCategory {
+    fn category() -> LintCategory {
         LintCategory::Correctness
     }
 }

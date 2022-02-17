@@ -1,24 +1,24 @@
-use crate::{LintCategory, XLint};
+use crate::{Lint, LintCategory};
 
 pub struct ConstructorWithoutNew;
-impl XLint for ConstructorWithoutNew {
-    fn tag(&self) -> &str {
+impl Lint for ConstructorWithoutNew {
+    fn tag() -> &'static str {
         "constructor_without_new"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Invokation of constructor without `new`"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "Constructors invoked without the `new` keyword will always return undefined."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec!["Add the `new` operator before the call"]
     }
 
-    fn category(&self) -> LintCategory {
+    fn category() -> LintCategory {
         LintCategory::Correctness
     }
 }

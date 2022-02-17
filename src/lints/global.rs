@@ -1,24 +1,24 @@
-use crate::{LintCategory, XLint};
+use crate::{Lint, LintCategory};
 
 pub struct Global;
-impl XLint for Global {
-    fn tag(&self) -> &str {
+impl Lint for Global {
+    fn tag() -> &'static str {
         "global"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Use of `global`"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec!["Scope this variable to an individual object"]
     }
 
-    fn category(&self) -> LintCategory {
+    fn category() -> LintCategory {
         LintCategory::Pedantic
     }
 }

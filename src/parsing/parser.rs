@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-    Duck, GmlComment, GmlConstructor, GmlEnum, GmlKeywords, GmlMacro, GmlSwitchStatement,
-    GmlSwitchStatementDefault, Lint, LintLevel, LintTag,
+    GmlComment, GmlConstructor, GmlEnum, GmlMacro, GmlSwitchStatement,
+    GmlSwitchStatementDefault, LintLevel, LintTag, Position,
 };
 
 use super::{lexer::Lexer, token::Token, token_pilot::TokenPilot, utils::ParseError};
@@ -39,24 +39,18 @@ impl Parser {
         TokenPilot::new(self.tokens.clone().into_iter().peekable())
     }
 
-    pub fn collect_lint_tags(
-        &mut self,
-    ) -> Result<HashMap<(String, usize), LintTag>, ParseError> {
+    pub fn collect_lint_tags(&mut self) -> Result<HashMap<(String, usize), LintTag>, ParseError> {
         let mut collection = HashMap::new();
         let mut pilot = self.token_pilot();
         while let Ok(token) = pilot.take() {
             if let Token::LintTag(tag) = &token {
-                let level = LintLevel::from_str(tag).ok_or_else(|| {
-                    ParseError::InvalidLintLevel(pilot.cursor(), tag.to_string())
-                })?;
+                let level = LintLevel::from_str(tag)
+                    .ok_or_else(|| ParseError::InvalidLintLevel(pilot.cursor(), tag.to_string()))?;
                 pilot.require(Token::LeftParenthesis)?;
                 let lint_name = pilot.require_identifier()?;
-                let lint = Lint::from_str(&lint_name).ok_or_else(|| {
-                    ParseError::InvalidLint(pilot.cursor(), lint_name.to_string())
-                })?;
                 pilot.require(Token::RightParenthesis)?;
                 pilot.require(Token::RightSquareBracket)?;
-                let position = Duck::create_file_position_string(
+                let position = Position::new(
                     &self.source_code,
                     self.resource_path.to_str().unwrap(),
                     pilot.cursor(),
@@ -65,22 +59,20 @@ impl Parser {
                 // Register this tag for the line BELOW this line...
                 collection.insert(
                     (position.file_name, position.line + 1),
-                    LintTag(lint, level),
+                    LintTag(lint_name, level),
                 );
             }
         }
         Ok(collection)
     }
 
-    pub fn collect_gml_switch_statements(
-        &mut self,
-    ) -> Result<Vec<GmlSwitchStatement>, ParseError> {
+    pub fn collect_gml_switch_statements(&mut self) -> Result<Vec<GmlSwitchStatement>, ParseError> {
         let mut collection = vec![];
         let mut pilot = self.token_pilot();
         while let Ok(token) = pilot.take() {
             if token == Token::Switch {
                 // Get the position
-                let switch_position = Duck::create_file_position_string(
+                let switch_position = Position::new(
                     &self.source_code,
                     self.resource_path.to_str().unwrap(),
                     pilot.cursor(),
@@ -127,10 +119,7 @@ impl Parser {
                                     }
                                 }
                                 token => {
-                                    return Err(ParseError::UnexpectedToken(
-                                        pilot.cursor(),
-                                        token,
-                                    ));
+                                    return Err(ParseError::UnexpectedToken(pilot.cursor(), token));
                                 }
                             }
 
@@ -233,7 +222,7 @@ impl Parser {
                     Token::Identifier(name) => {
                         let mut gml_enum = GmlEnum::new(
                             name.to_string(),
-                            Duck::create_file_position_string(
+                            Position::new(
                                 &self.source_code,
                                 self.resource_path.to_str().unwrap(),
                                 pilot.cursor(),
@@ -258,10 +247,7 @@ impl Parser {
                                     }
                                 }
                                 token => {
-                                    return Err(ParseError::UnexpectedToken(
-                                        pilot.cursor(),
-                                        token,
-                                    ))
+                                    return Err(ParseError::UnexpectedToken(pilot.cursor(), token))
                                 }
                             }
                         }
@@ -281,7 +267,7 @@ impl Parser {
             if let Token::Comment(lexeme) = token {
                 collection.push(GmlComment::new(
                     lexeme,
-                    Duck::create_file_position_string(
+                    Position::new(
                         &self.source_code,
                         self.resource_path.to_str().unwrap(),
                         pilot.cursor(),
@@ -301,7 +287,7 @@ impl Parser {
                     Token::Identifier(name) => {
                         collection.push(GmlMacro::new(
                             name,
-                            Duck::create_file_position_string(
+                            Position::new(
                                 &self.source_code,
                                 self.resource_path.to_str().unwrap(),
                                 pilot.cursor(),
@@ -327,9 +313,7 @@ impl Parser {
                     // Otherwise, it must be a name
                     let name = match pilot.take()? {
                         Token::Identifier(name) => name,
-                        token => {
-                            return Err(ParseError::UnexpectedToken(pilot.cursor(), token))
-                        }
+                        token => return Err(ParseError::UnexpectedToken(pilot.cursor(), token)),
                     };
 
                     // Eat the left parenthesis
@@ -346,10 +330,7 @@ impl Parser {
                             match pilot.take()? {
                                 Token::Identifier(_) => {}
                                 token => {
-                                    return Err(ParseError::UnexpectedToken(
-                                        pilot.cursor(),
-                                        token,
-                                    ))
+                                    return Err(ParseError::UnexpectedToken(pilot.cursor(), token))
                                 }
                             }
                             // Now eat its opening paren...
@@ -364,7 +345,7 @@ impl Parser {
                                 // This is a constructor!
                                 collection.push(GmlConstructor::new(
                                     constructor_name,
-                                    Duck::create_file_position_string(
+                                    Position::new(
                                         &self.source_code,
                                         self.resource_path.to_str().unwrap(),
                                         pilot.cursor(),
@@ -380,25 +361,26 @@ impl Parser {
         Ok(collection)
     }
 
-    pub fn collect_gml_keywords(&mut self) -> Result<Vec<GmlKeywords>, ParseError> {
+    pub fn collect_gml_keywords(&mut self) -> Result<Vec<(Token, Position)>, ParseError> {
         let mut collection = vec![];
         let mut pilot = self.token_pilot();
         while let Ok(token) = pilot.take() {
             match token {
-                Token::AndKeyword => {
-                    collection.push(GmlKeywords::And(Duck::create_file_position_string(
+                Token::AndKeyword
+                | Token::OrKeyword
+                | Token::Exit
+                | Token::Global
+                | Token::Globalvar
+                | Token::Mod
+                | Token::Try
+                | Token::With => collection.push((
+                    token,
+                    Position::new(
                         &self.source_code,
                         self.resource_path.to_str().unwrap(),
                         pilot.cursor(),
-                    )))
-                }
-                Token::OrKeyword => {
-                    collection.push(GmlKeywords::Or(Duck::create_file_position_string(
-                        &self.source_code,
-                        self.resource_path.to_str().unwrap(),
-                        pilot.cursor(),
-                    )))
-                }
+                    ),
+                )),
                 _ => {}
             }
         }

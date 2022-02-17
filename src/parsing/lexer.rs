@@ -1,4 +1,7 @@
-use std::{iter::{Peekable, Enumerate}, str::Chars};
+use std::{
+    iter::{Enumerate, Peekable},
+    str::Chars,
+};
 
 use super::token::Token;
 
@@ -137,6 +140,13 @@ impl<'a> Lexer<'a> {
                         "or" => Some(Token::OrKeyword),
                         "function" => Some(Token::Function),
                         "constructor" => Some(Token::Constructor),
+                        "exit" => Some(Token::Exit),
+                        "new" => Some(Token::New),
+                        "global" => Some(Token::Global),
+                        "globalvar" => Some(Token::Globalvar),
+                        "mod" => Some(Token::Mod),
+                        "try" => Some(Token::Try),
+                        "with" => Some(Token::With),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }

@@ -1,24 +1,24 @@
-use crate::{LintCategory, XLint};
+use crate::{Lint, LintCategory};
 
-pub struct DrawText;
-impl XLint for DrawText {
-    fn tag(&self) -> &str {
+pub struct DrawSprite;
+impl Lint for DrawSprite {
+    fn tag() -> &'static str {
         "draw_sprite"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Use of `draw_sprite*`"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec!["Replace this call with your API's ideal function"]
     }
 
-    fn category(&self) -> crate::LintCategory {
+    fn category() -> crate::LintCategory {
         LintCategory::Pedantic
     }
 }

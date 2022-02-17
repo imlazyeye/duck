@@ -1,13 +1,13 @@
-use colored::*;
+use colored::Colorize;
 use enum_map::{enum_map, EnumMap};
 use heck::{ToShoutySnakeCase, ToUpperCamelCase};
 use std::{collections::HashMap, path::Path};
 
 use crate::{
     gml::{GmlEnum, GmlSwitchStatement},
-    lints::{Lint, LintLevel},
-    parsing::{ParseError, Parser},
-    GmlComment, GmlConstructor, GmlKeywords, GmlMacro, LintTag,
+    lints::LintLevel,
+    parsing::{ParseError, Parser, Token},
+    GmlComment, GmlConstructor, GmlMacro, Lint, LintCategory, LintReport, LintTag,
 };
 
 pub struct Duck {
@@ -16,9 +16,9 @@ pub struct Duck {
     macros: Vec<GmlMacro>,
     constructors: Vec<GmlConstructor>,
     switches: Vec<GmlSwitchStatement>,
-    keywords: Vec<GmlKeywords>,
+    keywords: Vec<(Token, Position)>,
     comments: Vec<GmlComment>,
-    levels: EnumMap<Lint, LintLevel>,
+    category_levels: EnumMap<LintCategory, LintLevel>,
 }
 
 impl Duck {
@@ -39,16 +39,11 @@ impl Duck {
             switches: vec![],
             keywords: vec![],
             comments: vec![],
-            levels: enum_map! {
-                Lint::MissingCaseMembers => LintLevel::Deny,
-                Lint::MissingDefaultCase => LintLevel::Warn,
-                Lint::UnrecognizedEnum => LintLevel::Allow,
-                Lint::AndKeyword => LintLevel::Allow,
-                Lint::OrKeyword => LintLevel::Allow,
-                Lint::NonScreamCase => LintLevel::Warn,
-                Lint::NonPascalCase => LintLevel::Warn,
-                Lint::AnonymousConstructor => LintLevel::Warn,
-                Lint::NoSpaceAtStartOfComment => LintLevel::Allow,
+            category_levels: enum_map! {
+                LintCategory::Correctness => LintLevel::Deny,
+                LintCategory::Suspicious => LintLevel::Warn,
+                LintCategory::Style => LintLevel::Warn,
+                LintCategory::Pedantic => LintLevel::Allow,
             },
         }
     }
@@ -69,49 +64,52 @@ impl Duck {
         Ok(())
     }
 
-    pub fn report_lint(
+    pub fn report_lint<L: Lint>(
         &self,
-        lint: Lint,
-        position: &Position,
-        additional_information: String,
+        _lint: &L,
+        report: LintReport,
         lint_counts: &mut EnumMap<LintLevel, usize>,
     ) {
-        let user_provided_level = self.get_user_provided_level(lint, position);
-        let actual_level = user_provided_level.unwrap_or(self.levels[lint]);
+        let user_provided_level = self.get_user_provided_level(L::tag(), &report.position);
+        let actual_level =
+            user_provided_level.unwrap_or_else(|| self.category_levels[L::category()]);
         lint_counts[actual_level] += 1;
-        let lint_string = match actual_level {
+        let level_string = match actual_level {
             LintLevel::Allow => return, // allow this!
             LintLevel::Warn => "warning".yellow().bold(),
             LintLevel::Deny => "error".bright_red().bold(),
         };
-        let path_message = format!("\n {} {}", "-->".bold().bright_blue(), position.file_string);
+        let path_message = format!(
+            "\n {} {}",
+            "-->".bold().bright_blue(),
+            report.position.file_string
+        );
         let snippet_message = format!(
             "\n{}\n{}{}\n{}",
             " | ".bright_blue().bold(),
             " | ".bright_blue().bold(),
-            position.snippet,
+            report.position.snippet,
             " | ".bright_blue().bold()
         );
-        let additional_message = match lint {
-            Lint::MissingCaseMembers => {
-                format!(
-                    "\n\n Missing the following members: {}",
-                    additional_information
-                )
-            }
-            Lint::UnrecognizedEnum => {
-                format!("\n\n Missing enum: {}", additional_information)
-            }
-            Lint::AndKeyword | Lint::OrKeyword | Lint::NonPascalCase | Lint::NonScreamCase => {
-                format!("\n\n {additional_information}")
-            }
-            Lint::MissingDefaultCase
-            | Lint::AnonymousConstructor
-            | Lint::NoSpaceAtStartOfComment => "".into(),
-        };
         let show_suggestions = true;
         let suggestion_message = if show_suggestions {
-            format!("\n\n {}: {}", "suggestion".bold(), lint.hint_message())
+            let mut suggestions: Vec<String> = L::suggestions()
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            suggestions.push(format!(
+                "Ignore this by placing `// #[allow({})]` above this code",
+                L::tag()
+            ));
+            format!(
+                "\n\n {}: You can resolve this by doing one of the following:\n{}",
+                "suggestions".bold(),
+                suggestions
+                    .iter()
+                    .enumerate()
+                    .map(|(i, suggestion)| format!("  {}: {}\n", i + 1, suggestion))
+                    .collect::<String>(),
+            )
         } else {
             "".into()
         };
@@ -121,14 +119,18 @@ impl Duck {
             if user_provided_level.is_some() {
                 "This lint was specifically requested by in line above this source code".into()
             } else {
-                lint.explanation_message(actual_level)
+                format!(
+                    "#[{}({})] is enabled by default",
+                    actual_level.to_str(),
+                    L::tag()
+                )
             }
         )
         .bright_black();
         println!(
-            "{}: {}{path_message}{snippet_message}{additional_message}{suggestion_message}{note_message}\n",
-            lint_string,
-            lint.error_message().bright_white(),
+            "{}: {}{path_message}{snippet_message}{suggestion_message}{note_message}\n",
+            level_string,
+            L::display_name().bright_white(),
         );
     }
 
@@ -147,7 +149,7 @@ impl Duck {
     }
 
     /// Get a reference to the collected keywords.
-    pub fn keywords(&self) -> &[GmlKeywords] {
+    pub fn keywords(&self) -> &[(Token, Position)] {
         self.keywords.as_ref()
     }
 
@@ -166,22 +168,22 @@ impl Duck {
         self.comments.as_ref()
     }
 
-    /// Gets the user-specified level for the given position (if one exists)
+    // /// Gets the user-specified level for the given position (if one exists)
     pub fn get_user_provided_level(
         &self,
-        lint: Lint,
+        lint_tag: &str,
         position: &Position,
     ) -> Option<LintLevel> {
         // Check if the line above this position has a lint tag
-        if let Some(lint_tag) = self
+        if let Some(tag) = self
             .lint_tags
             // that clone there... look, we're all just doing our best here, okay?
             .get(&(position.file_name.clone(), position.line))
         {
             // Check if its the right one?
-            if lint_tag.0 == lint {
+            if tag.0 == lint_tag {
                 // Dabs -- you get this level
-                Some(lint_tag.1)
+                Some(tag.1)
             } else {
                 // W-what are you doing here? You get the global...
                 None
@@ -215,12 +217,18 @@ impl Duck {
         }
         prefix + &output
     }
+}
 
-    pub fn create_file_position_string(
-        file_contents: &str,
-        file_name: &str,
-        cursor: usize,
-    ) -> Position {
+#[derive(Debug, Clone)]
+pub struct Position {
+    pub file_name: String,
+    pub line: usize,
+    pub column: usize,
+    pub file_string: String,
+    pub snippet: String,
+}
+impl Position {
+    pub fn new(file_contents: &str, file_name: &str, cursor: usize) -> Self {
         let mut line = 1;
         let mut column = 0;
         file_contents[..cursor].chars().for_each(|c| {
@@ -237,7 +245,7 @@ impl Duck {
             .next()
             .map_or(line_and_after.len() - 1, |(i, _)| i);
         let snippet = &line_and_after[..last_index];
-        Position {
+        Self {
             file_name: file_name.to_string(),
             line,
             column,
@@ -245,13 +253,4 @@ impl Duck {
             snippet: snippet.to_string(),
         }
     }
-}
-
-#[derive(Debug)]
-pub struct Position {
-    pub file_name: String,
-    pub line: usize,
-    pub column: usize,
-    pub file_string: String,
-    pub snippet: String,
 }

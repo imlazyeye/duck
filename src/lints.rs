@@ -1,28 +1,88 @@
-mod and_keyword;
-mod draw_text;
-mod global;
-mod globalvar;
-mod missing_case_members;
-mod missing_default_case;
-mod mod_keyword;
-mod or_keyword;
-mod show_debug_message;
-mod todo;
-mod try_catch;
-mod with_loop;
-mod draw_sprite;
-mod constructor_without_new;
-mod single_switch_case;
-mod exit;
-mod too_many_arguments;
-mod too_many_lines;
-mod non_scream_case;
-mod non_pascal_case;
+use crate::{Duck, Position};
 
+mod and_keyword;
+pub use and_keyword::AndKeyword;
+mod constructor_without_new;
+pub use constructor_without_new::ConstructorWithoutNew;
+mod draw_sprite;
+pub use draw_sprite::DrawSprite;
+mod draw_text;
+pub use draw_text::DrawText;
+mod exit;
+pub use exit::Exit;
+mod global;
+pub use global::Global;
+mod globalvar;
+pub use globalvar::Globalvar;
+mod missing_case_members;
+pub use missing_case_members::MissingCaseMember;
+mod missing_default_case;
+pub use missing_default_case::MissingDefaultCase;
+mod mod_keyword;
+pub use mod_keyword::ModKeyword;
+mod non_pascal_case;
+pub use non_pascal_case::NonPascalCase;
+mod non_scream_case;
+pub use non_scream_case::NonScreamCase;
+mod or_keyword;
+pub use or_keyword::OrKeyword;
+mod show_debug_message;
+pub use show_debug_message::ShowDebugMessage;
+mod single_switch_case;
+pub use single_switch_case::SingleSwitchCase;
+mod todo;
+pub use todo::Todo;
+mod too_many_arguments;
+pub use too_many_arguments::TooManyArguments;
+mod too_many_lines;
+pub use too_many_lines::TooManyLines;
+mod try_catch;
+pub use try_catch::TryCatch;
+mod with_loop;
+pub use with_loop::WithLoop;
+
+/// An individual lint in duck.
+///
+/// Lints should be named after the *bad* action, not the good one. For example,
+/// a lint that prevents switch statements from having no default case should be
+/// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes tagging
+/// read more clearly (ie: `#[allow(missing_default_case)])`).
+pub trait Lint {
+    /// The string representation of this lint used for referencing it in code.
+    /// For example, the lint `"MissingDefaultCase"` should return a string like
+    /// `"missing_default_case"`.
+    fn tag() -> &'static str;
+
+    /// The title of the lint as displayed when it fires into the output.
+    fn display_name() -> &'static str;
+
+    /// A justification for this lint, expressing why it may be desirable to enable.
+    fn explanation() -> &'static str;
+
+    /// A collection of suggestions on how to avoid this lint that will be displayed to the user
+    /// when this lint fires.
+    fn suggestions() -> Vec<&'static str>;
+
+    /// The [LintCategory] this lint belongs to.
+    fn category() -> LintCategory;
+
+    /// The execution of this lint, returning any discoveries through LintReports.
+    #[allow(unused_mut)]
+    #[allow(unused_variables)]
+    fn run(duck: &Duck) -> Vec<LintReport> {
+        let mut reports = vec![];
+        reports
+    }
+}
+
+/// The three different levels a lint can be set to, changing how it will be treated.
 #[derive(Debug, Copy, Clone, enum_map::Enum)]
 pub enum LintLevel {
+    /// These lints will be ran, but their results will not affect the outcome of duck.
     Allow,
+    /// These lints will be reported to the user, but will not fail the run by default.
     Warn,
+    /// These lints will be reported to the user and will fail the run.
     Deny,
 }
 impl LintLevel {
@@ -35,144 +95,21 @@ impl LintLevel {
             _ => None,
         }
     }
-}
-
-#[derive(Debug, Copy, PartialEq, Eq, Clone, enum_map::Enum)]
-pub enum Lint {
-    MissingCaseMembers,
-    MissingDefaultCase,
-    UnrecognizedEnum,
-    AndKeyword,
-    OrKeyword,
-    NonScreamCase,
-    NonPascalCase,
-    AnonymousConstructor,
-    NoSpaceAtStartOfComment,
-}
-impl Lint {
     pub fn to_str(&self) -> &str {
         match self {
-            Lint::MissingCaseMembers => "missing_case_members",
-            Lint::MissingDefaultCase => "missing_default_case",
-            Lint::UnrecognizedEnum => "unrecognized_enum",
-            Lint::AndKeyword => "and_keyword",
-            Lint::OrKeyword => "or_keyword",
-            Lint::NonScreamCase => "non_scream_case",
-            Lint::NonPascalCase => "non_pascal_case",
-            Lint::AnonymousConstructor => "anonymous_constructor",
-            Lint::NoSpaceAtStartOfComment => "no_space_at_start_of_comment",
+            LintLevel::Allow => "allow",
+            LintLevel::Warn => "warn",
+            LintLevel::Deny => "deny",
         }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(tag: &str) -> Option<Self> {
-        match tag {
-            "missing_case_members" => Some(Lint::MissingCaseMembers),
-            "missing_default_case" => Some(Lint::MissingDefaultCase),
-            "unrecognized_enum" => Some(Lint::UnrecognizedEnum),
-            "and_keyword" => Some(Lint::AndKeyword),
-            "or_keyword" => Some(Lint::OrKeyword),
-            "non_scream_case" => Some(Lint::NonScreamCase),
-            "non_pascal_case" => Some(Lint::NonPascalCase),
-            "anonymous_constructor" => Some(Lint::AnonymousConstructor),
-            "no_space_at_start_of_comment" => Some(Lint::NoSpaceAtStartOfComment),
-            _ => None,
-        }
-    }
-
-    pub fn error_message(&self) -> String {
-        match self {
-            Lint::MissingCaseMembers => "Missing required members in switch statement.",
-            Lint::MissingDefaultCase => "Missing default case in switch statement.",
-            Lint::UnrecognizedEnum => "Unrecognized enum name to check against.",
-            Lint::AndKeyword => "Use of illegal character: `and`.",
-            Lint::OrKeyword => "Use of illegal character: `or`.",
-            Lint::NonScreamCase => "Identifier should be SCREAM_CASE.",
-            Lint::NonPascalCase => "Identifier should be PascalCase.",
-            Lint::AnonymousConstructor => "Anonymous functions should not be constructors.",
-            Lint::NoSpaceAtStartOfComment => "Comments should begin with a space.",
-        }
-        .into()
-    }
-
-    pub fn explanation_message(&self, level: LintLevel) -> String {
-        match level {
-            LintLevel::Allow => format!("`#[allow({})]` on by default", self.to_str()),
-            LintLevel::Warn => format!("`#[warn({})]` on by default", self.to_str()),
-            LintLevel::Deny => format!("`#[deny({})]` on by default", self.to_str()),
-        }
-    }
-
-    pub fn hint_message(&self) -> String {
-        let suggestions = match self {
-            Lint::MissingCaseMembers => vec![
-                "Add cases for the missing members",
-                "Remove the imtentional crash from your default case",
-            ],
-            Lint::MissingDefaultCase => vec!["Add a default case to the switch statement"],
-            Lint::UnrecognizedEnum => {
-                vec!["Correct the name in the default case to the correct enum"]
-            }
-            Lint::AndKeyword | Lint::OrKeyword => vec!["Use the suggested symbol"],
-            Lint::NonScreamCase | Lint::NonPascalCase => {
-                vec!["Use the suggested casing"]
-            }
-            Lint::AnonymousConstructor => vec![
-                "Change this into a named function",
-                "Change this into a standard function that returns a struct literal",
-            ],
-            Lint::NoSpaceAtStartOfComment => {
-                vec!["Add a space after the start of the comment"]
-            }
-        };
-
-        let mut suggestions: Vec<String> = suggestions.into_iter().map(|s| s.to_string()).collect();
-        suggestions.push(format!(
-            "Ignore this by placing `// #[allow({})]` above this code",
-            self.to_str()
-        ));
-
-        format!(
-            "You can resolve this by doing one of the following:\n{}",
-            suggestions
-                .iter()
-                .enumerate()
-                .map(|(i, suggestion)| format!("  {}: {}\n", i + 1, suggestion))
-                .collect::<String>(),
-        )
     }
 }
 
+/// The data from a user-written tag (ie: #[allow(draw_text)])
 #[derive(Debug)]
-pub struct LintTag(pub Lint, pub LintLevel);
-
-/// An individual lint in duck.
-///
-/// Lints should be named after the *bad* action, not the good one. For example,
-/// a lint that prevents switch statements from having no default case should be
-/// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes tagging
-/// read more clearly (ie: `#[allow(missing_default_case)])`).
-pub trait XLint {
-    /// The string representation of this lint used for referencing it in code.
-    /// For example, the lint `"MissingDefaultCase"` should return a string like
-    /// `"missing_default_case"`.
-    fn tag(&self) -> &str;
-
-    /// The title of the lint as displayed when it fires into the output.
-    fn display_name(&self) -> &str;
-
-    /// A justification for this lint, expressing why it may be desirable to enable.
-    fn explanation(&self) -> &str;
-
-    /// A collection of suggestions on how to avoid this lint that will be displayed to the user
-    /// when this lint fires.
-    fn suggestions(&self) -> Vec<&str>;
-
-    /// The [LintCategory] this lint belongs to.
-    fn category(&self) -> LintCategory;
-}
+pub struct LintTag(pub String, pub LintLevel);
 
 /// The category a lint falls into. This effects duck's default permission level for all lints.
+#[derive(Debug, Copy, Clone, enum_map::Enum)]
 pub enum LintCategory {
     /// Code that is outright wrong or useless
     Correctness,
@@ -193,4 +130,9 @@ impl LintCategory {
             LintCategory::Pedantic => LintLevel::Allow,
         }
     }
+}
+
+/// A report returned by a lint if it fails.
+pub struct LintReport {
+    pub position: Position,
 }

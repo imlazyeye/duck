@@ -1,24 +1,24 @@
-use crate::{XLint, LintCategory};
+use crate::{Lint, LintCategory};
 
 pub struct MissingDefaultCase;
-impl XLint for MissingDefaultCase {
-    fn tag(&self) -> &str {
+impl Lint for MissingDefaultCase {
+    fn tag() -> &'static str {
         "missing_default_case"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Missing default case"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec!["Add a default case to the switch statement"]
     }
 
-    fn category(&self) -> LintCategory {
+    fn category() -> LintCategory {
         LintCategory::Pedantic
     }
 }

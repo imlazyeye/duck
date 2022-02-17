@@ -1,27 +1,27 @@
-use crate::{LintCategory, XLint};
+use crate::{Lint, LintCategory};
 
 pub struct TooManyArguments;
-impl XLint for TooManyArguments {
-    fn tag(&self) -> &str {
+impl Lint for TooManyArguments {
+    fn tag() -> &'static str {
         "too_many_arguments"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Too many arguments"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "Functions with lots of parameters quickly become confusing and indicate a need for structural change."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec![
             "Split this into multiple functions",
             "Create a struct that holds the fields required by this function",
         ]
     }
 
-    fn category(&self) -> LintCategory {
+    fn category() -> LintCategory {
         LintCategory::Style
     }
 }

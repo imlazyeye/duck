@@ -1,24 +1,24 @@
-use crate::{LintCategory, XLint};
+use crate::{Lint, LintCategory};
 
 pub struct DrawText;
-impl XLint for DrawText {
-    fn tag(&self) -> &str {
+impl Lint for DrawText {
+    fn tag() -> &'static str {
         "draw_text"
     }
 
-    fn display_name(&self) -> &str {
+    fn display_name() -> &'static str {
         "Use of `draw_text_*`"
     }
 
-    fn explanation(&self) -> &str {
+    fn explanation() -> &'static str {
         "Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called."
     }
 
-    fn suggestions(&self) -> Vec<&str> {
+    fn suggestions() -> Vec<&'static str> {
         vec!["Replace this call with your API's ideal function"]
     }
 
-    fn category(&self) -> LintCategory {
+    fn category() -> LintCategory {
         LintCategory::Pedantic
     }
 }
