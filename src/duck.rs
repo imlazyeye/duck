@@ -5,7 +5,7 @@ use std::{collections::HashMap, path::Path};
 
 use crate::{
     gml::{GmlEnum, GmlSwitchStatement},
-    lint::{Lint, LintLevel},
+    lints::{Lint, LintLevel},
     parsing::{ParseError, Parser},
     GmlComment, GmlConstructor, GmlKeywords, GmlMacro, LintTag,
 };

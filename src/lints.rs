@@ -1,3 +1,24 @@
+mod and_keyword;
+mod draw_text;
+mod global;
+mod globalvar;
+mod missing_case_members;
+mod missing_default_case;
+mod mod_keyword;
+mod or_keyword;
+mod show_debug_message;
+mod todo;
+mod try_catch;
+mod with_loop;
+mod draw_sprite;
+mod constructor_without_new;
+mod single_switch_case;
+mod exit;
+mod too_many_arguments;
+mod too_many_lines;
+mod non_scream_case;
+mod non_pascal_case;
+
 #[derive(Debug, Copy, Clone, enum_map::Enum)]
 pub enum LintLevel {
     Allow,
@@ -124,3 +145,52 @@ impl Lint {
 
 #[derive(Debug)]
 pub struct LintTag(pub Lint, pub LintLevel);
+
+/// An individual lint in duck.
+///
+/// Lints should be named after the *bad* action, not the good one. For example,
+/// a lint that prevents switch statements from having no default case should be
+/// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes tagging
+/// read more clearly (ie: `#[allow(missing_default_case)])`).
+pub trait XLint {
+    /// The string representation of this lint used for referencing it in code.
+    /// For example, the lint `"MissingDefaultCase"` should return a string like
+    /// `"missing_default_case"`.
+    fn tag(&self) -> &str;
+
+    /// The title of the lint as displayed when it fires into the output.
+    fn display_name(&self) -> &str;
+
+    /// A justification for this lint, expressing why it may be desirable to enable.
+    fn explanation(&self) -> &str;
+
+    /// A collection of suggestions on how to avoid this lint that will be displayed to the user
+    /// when this lint fires.
+    fn suggestions(&self) -> Vec<&str>;
+
+    /// The [LintCategory] this lint belongs to.
+    fn category(&self) -> LintCategory;
+}
+
+/// The category a lint falls into. This effects duck's default permission level for all lints.
+pub enum LintCategory {
+    /// Code that is outright wrong or useless
+    Correctness,
+    /// Code that is most likely wrong or useless
+    Suspicious,
+    /// Code that could be written in a more idomatic way
+    Style,
+    /// Lints that express strict opinions over GML, or may have false positives
+    Pedantic,
+}
+impl LintCategory {
+    /// Retrieves the default [LintLevel] all lints in a given category have
+    pub fn default_level(&self) -> LintLevel {
+        match self {
+            LintCategory::Correctness => LintLevel::Deny,
+            LintCategory::Suspicious => LintLevel::Warn,
+            LintCategory::Style => LintLevel::Warn,
+            LintCategory::Pedantic => LintLevel::Allow,
+        }
+    }
+}
