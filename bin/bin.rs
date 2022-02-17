@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::path::PathBuf;
 
 use colored::Colorize;
 use duck::{lints::*, DuckConfig};
@@ -10,12 +10,29 @@ use yy_boss::{Resource, YyResource, YypBoss};
 extern crate log;
 
 fn main() {
-    let mut lint_levels = HashMap::new();
-    lint_levels.insert("and_keyword".to_string(), LintLevel::Allow);
-    lint_levels.insert("or_keyword".to_string(), LintLevel::Allow);
-    lint_levels.insert("with_keyword".to_string(), LintLevel::Allow);
-    lint_levels.insert("no_space_begining_comment".to_string(), LintLevel::Allow);
-    let mut duck = Duck::new_with_config(DuckConfig { lint_levels });
+    pretty_env_logger::formatted_builder()
+        .format_module_path(true)
+        .filter(None, log::LevelFilter::Trace)
+        .init();
+
+    color_eyre::install().unwrap();
+
+    let timer = std::time::Instant::now();
+    let _current_directory = std::env::current_dir().expect("Cannot access the current directory!");
+
+    // TEMPORARY
+    let current_directory = PathBuf::from("../SwordAndField");
+
+    let mut duck = if let Ok(text) = std::fs::read_to_string(current_directory.join(".duck.toml")) {
+        let config: DuckConfig = toml::from_str(&text).unwrap_or_else(|e| {
+            error!("Failed to parse `.duck.toml`: {e}");
+            info!("Falling back to default settings...");
+            DuckConfig::default()
+        });
+        Duck::new_with_config(config)
+    } else {
+        Duck::new()
+    };
     parse_all_gml(&mut duck);
 
     let mut lint_counts: EnumMap<LintLevel, usize> = enum_map! {
@@ -43,7 +60,13 @@ fn main() {
     // Print the results
     let output = format!(
         "🦆 <( {} {} {}, {} {}, {} {} {}! )",
-        "Finished lint with".bold(),
+        format!(
+            "Finished lint in {:.2}s with",
+            std::time::Instant::now()
+                .duration_since(timer)
+                .as_secs_f32()
+        )
+        .bold(),
         lint_counts[LintLevel::Deny].to_string().bright_red(),
         "errors".bold(),
         lint_counts[LintLevel::Warn].to_string().yellow(),

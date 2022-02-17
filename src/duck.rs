@@ -26,12 +26,6 @@ impl Duck {
     #[allow(clippy::new_without_default)]
     /// Creates a new, blank Duck.
     pub fn new() -> Self {
-        pretty_env_logger::formatted_builder()
-            .format_module_path(true)
-            .filter(None, log::LevelFilter::Trace)
-            .init();
-
-        color_eyre::install().unwrap();
         Self {
             lint_tags: HashMap::new(),
             enums: vec![],
@@ -226,7 +220,7 @@ impl Duck {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct DuckConfig {
     pub lint_levels: HashMap<String, LintLevel>,
 }
