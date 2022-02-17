@@ -41,6 +41,9 @@ impl GmlEnumMember {
     pub fn new(name: String) -> Self {
         Self(name)
     }
+    pub fn name(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(Debug)]
@@ -86,7 +89,7 @@ impl GmlSwitchStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum GmlSwitchStatementDefault {
     None,
     Some,

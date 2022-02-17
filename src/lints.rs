@@ -1,5 +1,11 @@
 use crate::{Duck, Position};
 
+mod room_goto;
+pub use room_goto::RoomGoto;
+mod no_space_begining_comment;
+pub use no_space_begining_comment::NoSpaceBeginingComment;
+mod anonymous_constructor;
+pub use anonymous_constructor::AnonymousConstructor;
 mod and_keyword;
 pub use and_keyword::AndKeyword;
 mod constructor_without_new;
@@ -76,7 +82,8 @@ pub trait Lint {
 }
 
 /// The three different levels a lint can be set to, changing how it will be treated.
-#[derive(Debug, Copy, Clone, enum_map::Enum)]
+#[derive(Debug, Copy, Clone, enum_map::Enum, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum LintLevel {
     /// These lints will be ran, but their results will not affect the outcome of duck.
     Allow,
@@ -119,17 +126,6 @@ pub enum LintCategory {
     Style,
     /// Lints that express strict opinions over GML, or may have false positives
     Pedantic,
-}
-impl LintCategory {
-    /// Retrieves the default [LintLevel] all lints in a given category have
-    pub fn default_level(&self) -> LintLevel {
-        match self {
-            LintCategory::Correctness => LintLevel::Deny,
-            LintCategory::Suspicious => LintLevel::Warn,
-            LintCategory::Style => LintLevel::Warn,
-            LintCategory::Pedantic => LintLevel::Allow,
-        }
-    }
 }
 
 /// A report returned by a lint if it fails.

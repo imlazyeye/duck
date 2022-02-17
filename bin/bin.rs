@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use colored::Colorize;
-use duck::lints::*;
-use duck::{Duck, GmlSwitchStatementDefault, Lint, LintLevel, ParseError, Position};
+use duck::{lints::*, DuckConfig};
+use duck::{Duck, Lint, LintLevel, ParseError, Position};
 use enum_map::{enum_map, EnumMap};
 use yy_boss::{Resource, YyResource, YypBoss};
 
@@ -8,18 +10,67 @@ use yy_boss::{Resource, YyResource, YypBoss};
 extern crate log;
 
 fn main() {
-    let boss = YypBoss::with_startup_injest(
-        "../SwordAndField/FieldsOfMistria.yyp",
-        &[Resource::Script, Resource::Object],
-    )
-    .unwrap();
+    let mut lint_levels = HashMap::new();
+    lint_levels.insert("and_keyword".to_string(), LintLevel::Allow);
+    lint_levels.insert("or_keyword".to_string(), LintLevel::Allow);
+    lint_levels.insert("with_keyword".to_string(), LintLevel::Allow);
+    lint_levels.insert("no_space_begining_comment".to_string(), LintLevel::Allow);
+    let mut duck = Duck::new_with_config(DuckConfig { lint_levels });
+    parse_all_gml(&mut duck);
 
-    let mut duck = Duck::new();
     let mut lint_counts: EnumMap<LintLevel, usize> = enum_map! {
         LintLevel::Allow => 0,
         LintLevel::Warn => 0,
         LintLevel::Deny => 0,
     };
+
+    run_lint(AndKeyword, &duck, &mut lint_counts);
+    run_lint(OrKeyword, &duck, &mut lint_counts);
+    run_lint(Exit, &duck, &mut lint_counts);
+    run_lint(Global, &duck, &mut lint_counts);
+    run_lint(Globalvar, &duck, &mut lint_counts);
+    run_lint(ModKeyword, &duck, &mut lint_counts);
+    run_lint(TryCatch, &duck, &mut lint_counts);
+    run_lint(WithLoop, &duck, &mut lint_counts);
+    run_lint(AnonymousConstructor, &duck, &mut lint_counts);
+    run_lint(ConstructorWithoutNew, &duck, &mut lint_counts);
+    run_lint(MissingCaseMember, &duck, &mut lint_counts);
+    run_lint(MissingDefaultCase, &duck, &mut lint_counts);
+    run_lint(NoSpaceBeginingComment, &duck, &mut lint_counts);
+    run_lint(NonPascalCase, &duck, &mut lint_counts);
+    run_lint(NonScreamCase, &duck, &mut lint_counts);
+
+    // Print the results
+    let output = format!(
+        "🦆 <( {} {} {}, {} {}, {} {} {}! )",
+        "Finished lint with".bold(),
+        lint_counts[LintLevel::Deny].to_string().bright_red(),
+        "errors".bold(),
+        lint_counts[LintLevel::Warn].to_string().yellow(),
+        "warnings".bold(),
+        "and".bold(),
+        lint_counts[LintLevel::Allow].to_string().bright_black(),
+        "ignored lints".bold()
+    );
+    println!(
+        "{}",
+        String::from_utf8(vec![b'-'; output.len() / 2]).unwrap()
+    );
+    println!("\n{output}\n");
+}
+
+fn run_lint<L: Lint>(lint: L, duck: &Duck, lint_counts: &mut EnumMap<LintLevel, usize>) {
+    L::run(duck)
+        .into_iter()
+        .for_each(|r| duck.report_lint(&lint, r, lint_counts));
+}
+
+fn parse_all_gml(duck: &mut Duck) {
+    let boss = YypBoss::with_startup_injest(
+        "../SwordAndField/FieldsOfMistria.yyp",
+        &[Resource::Script, Resource::Object],
+    )
+    .unwrap();
 
     // Parse it all
     let gml = boss
@@ -50,6 +101,7 @@ fn main() {
                     )
                 })
         }));
+
     for (gml_file, path) in gml {
         if let Err(error) = duck.parse_gml(&gml_file, &path) {
             match error {
@@ -70,154 +122,4 @@ fn main() {
             }
         }
     }
-
-    run_lint(AndKeyword, &duck, &mut lint_counts);
-    run_lint(OrKeyword, &duck, &mut lint_counts);
-    run_lint(Exit, &duck, &mut lint_counts);
-    run_lint(Global, &duck, &mut lint_counts);
-    run_lint(Globalvar, &duck, &mut lint_counts);
-    run_lint(ModKeyword, &duck, &mut lint_counts);
-    run_lint(TryCatch, &duck, &mut lint_counts);
-    run_lint(WithLoop, &duck, &mut lint_counts);
-
-    // Validate every switch statement
-    for switch in duck.switches() {
-        match switch.default_case() {
-            GmlSwitchStatementDefault::TypeAssert(type_name) => {
-                if let Some(gml_enum) = duck.find_enum_by_name(type_name) {
-                    let mut missing_members = vec![];
-                    for member in gml_enum.iter_constructed_names() {
-                        if member.contains(".Len") || member.contains(".LEN") {
-                            // A special case...
-                            continue;
-                        }
-                        if !switch.cases().contains(&member) {
-                            missing_members
-                                .push(member[member.find('.').unwrap() + 1..].to_string());
-                        }
-                    }
-                    if !missing_members.is_empty() {
-                        // duck.report_lint(
-                        //     Lint::MissingCaseMembers,
-                        //     switch.position(),
-                        //     missing_members.join(", "),
-                        //     &mut lint_counts,
-                        // );
-                    }
-                } else {
-                    // duck.report_lint(
-                    //     Lint::UnrecognizedEnum,
-                    //     switch.position(),
-                    //     type_name.clone(),
-                    //     &mut lint_counts,
-                    // );
-                }
-            }
-            GmlSwitchStatementDefault::None => {
-                // duck.report_lint(
-                //     Lint::MissingDefaultCase,
-                //     switch.position(),
-                //     "".into(),
-                //     &mut lint_counts,
-                // );
-            }
-            GmlSwitchStatementDefault::Some => {}
-        }
-    }
-
-    // Yell about improper macros
-    for mac in duck.macros() {
-        let name = mac.name();
-        let ideal_name = Duck::scream_case(name);
-        if name != ideal_name {
-            // duck.report_lint(
-            //     Lint::NonScreamCase,
-            //     mac.position(),
-            //     format!("`{name}` should be `{ideal_name}`"),
-            //     &mut lint_counts,
-            // );
-        }
-    }
-
-    // Yell about improper enums
-    for e in duck.enums() {
-        let name = e.name();
-        let ideal_name = Duck::pascal_case(name);
-        if name != ideal_name {
-            // duck.report_lint(
-            //     Lint::NonPascalCase,
-            //     e.position(),
-            //     format!("`{name}` should be `{ideal_name}`"),
-            //     &mut lint_counts,
-            // );
-        }
-    }
-
-    // Yell about improper constructors
-    for constructor in duck.constructors() {
-        if constructor.is_anonymous() {
-            // duck.report_lint(
-            //     Lint::AnonymousConstructor,
-            //     constructor.position(),
-            //     "".into(),
-            //     &mut lint_counts,
-            // );
-        } else {
-            let name = constructor.name().unwrap();
-            let ideal_name = Duck::pascal_case(name);
-            if name != &ideal_name {
-                // duck.report_lint(
-                //     Lint::NonPascalCase,
-                //     constructor.position(),
-                //     format!("`{name}` should be `{ideal_name}`"),
-                //     &mut lint_counts,
-                // );
-            }
-        }
-    }
-
-    // Yell about comments
-    for comment in duck.comments() {
-        // Seek out that space
-        for c in comment.body().chars() {
-            match c {
-                '/' | '*' => {}
-                ' ' => {
-                    break;
-                }
-                _ => {
-                    // duck.report_lint(
-                    //     Lint::NoSpaceAtStartOfComment,
-                    //     comment.position(),
-                    //     "".into(),
-                    //     &mut lint_counts,
-                    // );
-                }
-            }
-        }
-    }
-
-    // Print the results
-    let output = format!(
-        "{} {} {}, {} {}, {} {} {}.",
-        "Finished lint with".bold(),
-        lint_counts[LintLevel::Deny].to_string().bright_red(),
-        "errors".bold(),
-        lint_counts[LintLevel::Warn].to_string().yellow(),
-        "warnings".bold(),
-        "and".bold(),
-        lint_counts[LintLevel::Allow].to_string().bright_black(),
-        "ignored lints".bold()
-    );
-    println!(
-        "{}",
-        String::from_utf8(vec![b'-'; output.len() / 2]).unwrap()
-    );
-    println!("\n{output}\n");
-}
-
-fn run_lint<L: Lint>(lint: L, duck: &Duck, lint_counts: &mut EnumMap<LintLevel, usize>) {
-    L::run(duck)
-        .into_iter()
-        .for_each(|r| duck.report_lint(&lint, r, lint_counts));
 }

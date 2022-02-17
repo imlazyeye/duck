@@ -11,7 +11,7 @@ impl Lint for ConstructorWithoutNew {
     }
 
     fn explanation() -> &'static str {
-        "Constructors invoked without the `new` keyword will always return undefined."
+        "Constructors invoked without the `new` keyword do not return the newly constructed struct."
     }
 
     fn suggestions() -> Vec<&'static str> {

@@ -1,8 +1,8 @@
 use std::{collections::HashMap, path::PathBuf};
 
 use crate::{
-    GmlComment, GmlConstructor, GmlEnum, GmlMacro, GmlSwitchStatement,
-    GmlSwitchStatementDefault, LintLevel, LintTag, Position,
+    GmlComment, GmlConstructor, GmlEnum, GmlMacro, GmlSwitchStatement, GmlSwitchStatementDefault,
+    LintLevel, LintTag, Position,
 };
 
 use super::{lexer::Lexer, token::Token, token_pilot::TokenPilot, utils::ParseError};

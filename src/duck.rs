@@ -18,12 +18,13 @@ pub struct Duck {
     switches: Vec<GmlSwitchStatement>,
     keywords: Vec<(Token, Position)>,
     comments: Vec<GmlComment>,
+    lint_levels: HashMap<String, LintLevel>,
     category_levels: EnumMap<LintCategory, LintLevel>,
 }
 
 impl Duck {
     #[allow(clippy::new_without_default)]
-    /// Creates a new, blank Duck. Use `Duck::parse_gml` to start collecting data.
+    /// Creates a new, blank Duck.
     pub fn new() -> Self {
         pretty_env_logger::formatted_builder()
             .format_module_path(true)
@@ -39,6 +40,7 @@ impl Duck {
             switches: vec![],
             keywords: vec![],
             comments: vec![],
+            lint_levels: HashMap::new(),
             category_levels: enum_map! {
                 LintCategory::Correctness => LintLevel::Deny,
                 LintCategory::Suspicious => LintLevel::Warn,
@@ -46,6 +48,13 @@ impl Duck {
                 LintCategory::Pedantic => LintLevel::Allow,
             },
         }
+    }
+
+    /// Creates a new Duck based on a DuckConfig.
+    pub fn new_with_config(config: DuckConfig) -> Self {
+        let mut duck = Self::new();
+        duck.lint_levels = config.lint_levels;
+        duck
     }
 
     /// Parses the given String of GML, collecting data for Duck.
@@ -114,7 +123,7 @@ impl Duck {
             "".into()
         };
         let note_message = format!(
-            "\n\n {}: {}",
+            "\n {}: {}",
             "note".bold(),
             if user_provided_level.is_some() {
                 "This lint was specifically requested by in line above this source code".into()
@@ -132,10 +141,6 @@ impl Duck {
             level_string,
             L::display_name().bright_white(),
         );
-    }
-
-    pub fn find_enum_by_name(&self, name: &str) -> Option<&GmlEnum> {
-        self.enums.iter().find(|v| v.name() == name)
     }
 
     /// Get an iterator to the duck's switches.
@@ -182,15 +187,17 @@ impl Duck {
         {
             // Check if its the right one?
             if tag.0 == lint_tag {
-                // Dabs -- you get this level
-                Some(tag.1)
-            } else {
-                // W-what are you doing here? You get the global...
-                None
+                return Some(tag.1);
             }
-        } else {
-            None
         }
+
+        // Check if there is a config-based rule for this lint
+        if let Some((_, level)) = self.lint_levels.iter().find(|(key, _)| key == &lint_tag) {
+            return Some(*level);
+        }
+
+        // User has specificed nada
+        None
     }
 }
 
@@ -219,6 +226,11 @@ impl Duck {
     }
 }
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct DuckConfig {
+    pub lint_levels: HashMap<String, LintLevel>,
+}
+
 #[derive(Debug, Clone)]
 pub struct Position {
     pub file_name: String,
@@ -239,11 +251,11 @@ impl Position {
                 column += 1;
             }
         });
-        let line_and_after = &file_contents[cursor - column + 1..];
+        let line_and_after = &file_contents[cursor - column..];
         let last_index = line_and_after
             .match_indices('\n')
             .next()
-            .map_or(line_and_after.len() - 1, |(i, _)| i);
+            .map_or(line_and_after.len() - 1, |(i, _)| i - 1);
         let snippet = &line_and_after[..last_index];
         Self {
             file_name: file_name.to_string(),

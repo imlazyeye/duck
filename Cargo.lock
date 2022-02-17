@@ -277,6 +277,8 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "regex",
+ "serde",
+ "serde_json",
  "yy-boss",
 ]
 
