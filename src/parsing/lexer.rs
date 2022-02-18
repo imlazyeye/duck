@@ -33,7 +33,19 @@ impl<'a> Lexer<'a> {
                 '[' => Some(Token::LeftSquareBracket),
                 ']' => Some(Token::RightSquareBracket),
                 ',' => Some(Token::Comma),
-                '=' => Some(Token::Equals),
+                '!' => Some(Token::Bang),
+                '?' => Some(Token::Interrobang),
+                '-' => Some(Token::Minus),
+                '+' => Some(Token::Plus),
+                '*' => Some(Token::Star),
+                '%' => Some(Token::ModSymbol),
+                '=' => {
+                    if self.match_take('=') {
+                        Some(Token::DoubleEquals)
+                    } else {
+                        Some(Token::Equals)
+                    }
+                }
                 '"' => {
                     let mut lexeme = String::new();
                     loop {
@@ -50,6 +62,34 @@ impl<'a> Lexer<'a> {
                     }
                     Some(Token::StringLiteral(lexeme))
                 }
+                '<' => {
+                    if self.match_take('=') {
+                        Some(Token::LessThanOrEqual)
+                    } else {
+                        Some(Token::LessThan)
+                    }
+                }
+                '>' => {
+                    if self.match_take('=') {
+                        Some(Token::GreaterThanOrEqual)
+                    } else {
+                        Some(Token::GreaterThan)
+                    }
+                }
+                '&' => {
+                    if self.match_take('&') {
+                        Some(Token::AndSymbol)
+                    } else {
+                        Some(Token::BitwiseAnd)
+                    }
+                }
+                '|' => {
+                    if self.match_take('|') {
+                        Some(Token::OrSymbol)
+                    } else {
+                        Some(Token::BitwiseOr)
+                    }
+                }
 
                 // Regions / Macros
                 '#' => {
@@ -65,43 +105,46 @@ impl<'a> Lexer<'a> {
                     };
                 }
 
-                // Single line comments or lint tags
-                '/' if self.match_take('/') => {
-                    // Eat up the whitespace first...
-                    let mut comment_lexeme = String::from("//");
-                    self.consume_whitespace(&mut comment_lexeme);
+                // Comments, lint tags, oh my
+                '/' => {
+                    if self.match_take('/') {
+                        // Eat up the whitespace first...
+                        let mut comment_lexeme = String::from("//");
+                        self.consume_whitespace(&mut comment_lexeme);
 
-                    // See if this is an lint tag...
-                    if self.match_take('#') && self.match_take('[') {
-                        // Looking promising!!
-                        let mut lexeme = String::new();
-                        self.try_construct_word(&mut lexeme);
-                        match lexeme.as_ref() {
-                            "allow" | "warn" | "deny" => Some(Token::LintTag(lexeme)),
-                            _ => return self.lex(),
-                        }
-                    } else {
-                        // It's just a comment -- eat it up
-                        self.consume_rest_of_line(&mut comment_lexeme);
-                        Some(Token::Comment(comment_lexeme))
-                    }
-                }
-
-                // Multi line comments
-                '/' if self.match_take('*') => {
-                    let mut comment_lexeme = String::from("//");
-                    loop {
-                        match self.take() {
-                            Some((_, chr)) => {
-                                comment_lexeme.push(chr);
-                                if chr == '*' && self.match_take('/') {
-                                    break;
-                                }
+                        // See if this is an lint tag...
+                        if self.match_take('#') && self.match_take('[') {
+                            // Looking promising!!
+                            let mut lexeme = String::new();
+                            self.try_construct_word(&mut lexeme);
+                            match lexeme.as_ref() {
+                                "allow" | "warn" | "deny" => Some(Token::LintTag(lexeme)),
+                                _ => return self.lex(),
                             }
-                            None => return (start_index, Token::Eof),
+                        } else {
+                            // It's just a comment -- eat it up
+                            self.consume_rest_of_line(&mut comment_lexeme);
+                            Some(Token::Comment(comment_lexeme))
                         }
+                    } else if self.match_take('*') {
+                        // Multi-line comment
+                        let mut comment_lexeme = String::from("//");
+                        loop {
+                            match self.take() {
+                                Some((_, chr)) => {
+                                    comment_lexeme.push(chr);
+                                    if chr == '*' && self.match_take('/') {
+                                        break;
+                                    }
+                                }
+                                None => return (start_index, Token::Eof),
+                            }
+                        }
+                        Some(Token::Comment(comment_lexeme))
+                    } else {
+                        // Just a slash
+                        Some(Token::Slash)
                     }
-                    Some(Token::Comment(comment_lexeme))
                 }
 
                 // Check for whitespace
@@ -144,9 +187,12 @@ impl<'a> Lexer<'a> {
                         "new" => Some(Token::New),
                         "global" => Some(Token::Global),
                         "globalvar" => Some(Token::Globalvar),
-                        "mod" => Some(Token::Mod),
+                        "mod" => Some(Token::ModKeyword),
                         "try" => Some(Token::Try),
                         "with" => Some(Token::With),
+                        "true" => Some(Token::True),
+                        "false" => Some(Token::False),
+                        "div" => Some(Token::Div),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }

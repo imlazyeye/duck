@@ -12,9 +12,7 @@ extern crate log;
 fn main() {
     pretty_env_logger::formatted_builder()
         .format_module_path(true)
-        .filter(None, log::LevelFilter::Trace)
         .init();
-
     color_eyre::install().unwrap();
 
     let timer = std::time::Instant::now();

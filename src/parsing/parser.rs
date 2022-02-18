@@ -22,7 +22,7 @@ impl Parser {
         }
     }
 
-    fn token_pilot(&self) -> TokenPilot {
+    pub(super) fn token_pilot(&self) -> TokenPilot {
         TokenPilot::new(
             // THIS SUCKS
             self.tokens
@@ -371,7 +371,7 @@ impl Parser {
                 | Token::Exit
                 | Token::Global
                 | Token::Globalvar
-                | Token::Mod
+                | Token::ModKeyword
                 | Token::Try
                 | Token::With => collection.push((
                     token,
