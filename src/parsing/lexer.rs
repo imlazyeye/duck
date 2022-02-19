@@ -25,7 +25,6 @@ impl<'a> Lexer<'a> {
             let token_type = match chr {
                 // Match single tokens
                 ':' => Some(Token::Colon),
-                '.' => Some(Token::Dot),
                 '{' => Some(Token::LeftBrace),
                 '}' => Some(Token::RightBrace),
                 '(' => Some(Token::LeftParenthesis),
@@ -33,13 +32,27 @@ impl<'a> Lexer<'a> {
                 '[' => Some(Token::LeftSquareBracket),
                 ']' => Some(Token::RightSquareBracket),
                 ',' => Some(Token::Comma),
-                '!' => Some(Token::Bang),
                 '?' => Some(Token::Interrobang),
                 '%' => Some(Token::ModSymbol),
                 ';' => Some(Token::SemiColon),
+                '$' => Some(Token::DollarSign),
+                '^' => {
+                    if self.match_take('=') {
+                        Some(Token::CirumflexEqual)
+                    } else {
+                        Some(Token::Circumflex)
+                    }
+                }
+                '!' => {
+                    if self.match_take('=') {
+                        Some(Token::BangEqual)
+                    } else {
+                        Some(Token::Bang)
+                    }
+                }
                 '+' => {
                     if self.match_take('=') {
-                        Some(Token::PlusEquals)
+                        Some(Token::PlusEqual)
                     } else if self.match_take('+') {
                         Some(Token::DoublePlus)
                     } else {
@@ -48,7 +61,7 @@ impl<'a> Lexer<'a> {
                 }
                 '-' => {
                     if self.match_take('=') {
-                        Some(Token::MinusEquals)
+                        Some(Token::MinusEqual)
                     } else if self.match_take('-') {
                         Some(Token::DoubleMinus)
                     } else {
@@ -57,16 +70,16 @@ impl<'a> Lexer<'a> {
                 }
                 '*' => {
                     if self.match_take('=') {
-                        Some(Token::StarEquals)
+                        Some(Token::StarEqual)
                     } else {
                         Some(Token::Star)
                     }
                 }
                 '=' => {
                     if self.match_take('=') {
-                        Some(Token::DoubleEquals)
+                        Some(Token::DoubleEqual)
                     } else {
-                        Some(Token::Equals)
+                        Some(Token::Equal)
                     }
                 }
                 '"' => {
@@ -88,6 +101,8 @@ impl<'a> Lexer<'a> {
                 '<' => {
                     if self.match_take('=') {
                         Some(Token::LessThanOrEqual)
+                    } else if self.match_take('<') {
+                        Some(Token::BitShiftLeft)
                     } else {
                         Some(Token::LessThan)
                     }
@@ -95,32 +110,53 @@ impl<'a> Lexer<'a> {
                 '>' => {
                     if self.match_take('=') {
                         Some(Token::GreaterThanOrEqual)
+                    } else if self.match_take('>') {
+                        Some(Token::BitShiftRight)
                     } else {
                         Some(Token::GreaterThan)
                     }
                 }
                 '&' => {
                     if self.match_take('&') {
-                        Some(Token::AndSymbol)
+                        Some(Token::DoubleAmpersand)
+                    } else if self.match_take('=') {
+                        Some(Token::AmpersandEqual)
                     } else {
-                        Some(Token::BitwiseAnd)
+                        Some(Token::Ampersand)
                     }
                 }
                 '|' => {
                     if self.match_take('|') {
-                        Some(Token::OrSymbol)
+                        Some(Token::DoublePipe)
+                    } else if self.match_take('=') {
+                        Some(Token::PipeEqual)
                     } else {
-                        Some(Token::BitwiseOr)
+                        Some(Token::Pipe)
                     }
                 }
 
                 // Regions / Macros
                 '#' => {
                     let mut lexeme = chr.into();
-                    self.try_construct_word(&mut lexeme);
+                    self.construct_word(&mut lexeme);
                     return match lexeme.as_ref() {
-                        "#macro" => (start_index, Token::Macro),
-                        "#region" => {
+                        "#macro" => {
+                            self.discard_whitespace();
+                            let mut iden_one = String::new();
+                            self.construct_word(&mut iden_one);
+                            let (name, config) = if self.match_take(':') {
+                                let mut name = String::new();
+                                self.construct_word(&mut name);
+                                (name, Some(iden_one))
+                            } else {
+                                (iden_one, None)
+                            };
+                            self.discard_whitespace();
+                            let mut body = String::new();
+                            self.consume_rest_of_line(&mut body);
+                            (start_index, Token::Macro(name, config, body))
+                        }
+                        "#region" | "#endregion" => {
                             self.discard_rest_of_line();
                             self.lex()
                         }
@@ -132,7 +168,7 @@ impl<'a> Lexer<'a> {
                 // Slashes can be SO MANY THINGS
                 '/' => {
                     if self.match_take('=') {
-                        Some(Token::SlashEquals)
+                        Some(Token::SlashEqual)
                     } else if self.match_take('/') {
                         // Eat up the whitespace first...
                         let mut comment_lexeme = String::from("//");
@@ -142,7 +178,7 @@ impl<'a> Lexer<'a> {
                         if self.match_take('#') && self.match_take('[') {
                             // Looking promising!!
                             let mut lexeme = String::new();
-                            self.try_construct_word(&mut lexeme);
+                            self.construct_word(&mut lexeme);
                             match lexeme.as_ref() {
                                 "allow" | "warn" | "deny" => Some(Token::LintTag(lexeme)),
                                 _ => return self.lex(),
@@ -150,7 +186,8 @@ impl<'a> Lexer<'a> {
                         } else {
                             // It's just a comment -- eat it up
                             self.consume_rest_of_line(&mut comment_lexeme);
-                            Some(Token::Comment(comment_lexeme))
+                            // Some(Token::Comment(comment_lexeme))
+                            return self.lex();
                         }
                     } else if self.match_take('*') {
                         // Multi-line comment
@@ -166,7 +203,8 @@ impl<'a> Lexer<'a> {
                                 None => return (start_index, Token::Eof),
                             }
                         }
-                        Some(Token::Comment(comment_lexeme))
+                        //Some(Token::Comment(comment_lexeme))
+                        return self.lex();
                     } else {
                         // Just a slash
                         Some(Token::Slash)
@@ -177,25 +215,25 @@ impl<'a> Lexer<'a> {
                 id if id.is_whitespace() => return self.lex(),
 
                 // Check for numbers
+                '.' => {
+                    if self.peek().map(|c| matches!(c, '0'..='9')).unwrap_or(false) {
+                        let mut lexeme = String::from(chr);
+                        self.construct_number(&mut lexeme);
+                        Some(Token::Real(lexeme.parse().unwrap()))
+                    } else {
+                        Some(Token::Dot)
+                    }
+                }
                 '0'..='9' => {
                     let mut lexeme = String::from(chr);
-                    while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
-                        lexeme.push(self.take().unwrap().1);
-                    }
-                    // Floats!
-                    if self.match_take('.') {
-                        lexeme.push('.');
-                        while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
-                            lexeme.push(self.take().unwrap().1);
-                        }
-                    }
+                    self.construct_number(&mut lexeme);
                     Some(Token::Real(lexeme.parse().unwrap()))
                 }
 
                 // Check for keywords / identifiers
                 id if id.is_alphabetic() || id == '_' => {
                     let mut lexeme = chr.into();
-                    self.try_construct_word(&mut lexeme);
+                    self.construct_word(&mut lexeme);
 
                     // Now let's check for keywords
                     match lexeme.as_ref() {
@@ -205,8 +243,8 @@ impl<'a> Lexer<'a> {
                         "return" => Some(Token::Return),
                         "default" => Some(Token::Default),
                         "enum" => Some(Token::Enum),
-                        "and" => Some(Token::AndKeyword),
-                        "or" => Some(Token::OrKeyword),
+                        "and" => Some(Token::And),
+                        "or" => Some(Token::Or),
                         "function" => Some(Token::Function),
                         "constructor" => Some(Token::Constructor),
                         "exit" => Some(Token::Exit),
@@ -227,6 +265,8 @@ impl<'a> Lexer<'a> {
                         "until" => Some(Token::Until),
                         "repeat" => Some(Token::Repeat),
                         "var" => Some(Token::Var),
+                        "self" => Some(Token::SelfKeyword),
+                        "xor" => Some(Token::Xor),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
@@ -272,13 +312,28 @@ impl<'a> Lexer<'a> {
 
     /// Will keep eating characters into the given string until it reaches a charcter that
     /// can't be used in an identifier.
-    fn try_construct_word(&mut self, lexeme: &mut String) {
+    fn construct_word(&mut self, lexeme: &mut String) {
         while let Some(chr) = self.peek() {
             match chr {
                 '_' | 'A'..='Z' | 'a'..='z' | '0'..='9' => {
                     lexeme.push(self.take().unwrap().1);
                 }
                 _ => break,
+            }
+        }
+    }
+
+    /// Will keep eating characters into the given string until it reaches a character that
+    /// can't be used in an identifier.
+    fn construct_number(&mut self, lexeme: &mut String) {
+        while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
+            lexeme.push(self.take().unwrap().1);
+        }
+        // Floats!
+        if self.match_take('.') {
+            lexeme.push('.');
+            while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
+                lexeme.push(self.take().unwrap().1);
             }
         }
     }
@@ -313,6 +368,13 @@ impl<'a> Lexer<'a> {
     fn consume_whitespace(&mut self, lexeme: &mut String) {
         while self.peek().filter(|c| c.is_whitespace()).is_some() {
             lexeme.push(self.take().unwrap().1);
+        }
+    }
+
+    /// Discards all upcoming characters that are whitespace.
+    fn discard_whitespace(&mut self) {
+        while self.peek().filter(|c| c.is_whitespace()).is_some() {
+            self.take();
         }
     }
 }

@@ -130,8 +130,9 @@ fn parse_all_gml(duck: &mut Duck) {
                     let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
                     error!(target: &target.file_string, "Unexpected token: {:?}", token)
                 }
-                ParseError::ExpectedToken(token) => {
-                    error!("Expected token: {:?}", token)
+                ParseError::ExpectedToken(cursor, token) => {
+                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
+                    error!(target: &target.file_string, "Expected token: {:?}", token)
                 }
                 ParseError::UnexpectedEnd => {
                     error!(target: path.to_str().unwrap(), "Unexpected end.")
@@ -143,6 +144,10 @@ fn parse_all_gml(duck: &mut Duck) {
                 ParseError::InvalidAssignmentTarget(cursor, expr) => {
                     let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
                     error!(target: &target.file_string, "Invalid assignment target: {:?}", expr)
+                }
+                ParseError::InvalidNewTarget(cursor, expr) => {
+                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
+                    error!(target: &target.file_string, "Invalid new target: {:?}", expr)
                 }
             }
         }

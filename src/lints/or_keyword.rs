@@ -25,7 +25,7 @@ impl Lint for OrKeyword {
     fn run(duck: &Duck) -> Vec<LintReport> {
         let mut reports = vec![];
         for keyword in duck.keywords() {
-            if let (Token::OrKeyword, position) = keyword {
+            if let (Token::Or, position) = keyword {
                 reports.push(LintReport {
                     position: position.clone(),
                 })

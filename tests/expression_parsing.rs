@@ -1,17 +1,159 @@
-use duck::parsing::parser::Parser;
-use duck::parsing::{
-    expression::{
-        AssignmentOperator, DsAccess, EvaluationOperator, Expression, Literal, PostfixOperator,
-        UnaryOperator,
-    },
-    OldParser,
+use duck::parsing::expression::{
+    AccessScope, AssignmentOperator, Constructor, DSAccess, EqualityOperator, EvaluationOperator,
+    Expression, Function, Literal, LogicalOperator, Parameter, PostfixOperator, UnaryOperator,
 };
+use duck::parsing::parser::Parser;
+use duck::parsing::statement::Statement;
 use pretty_assertions::assert_eq;
 
 fn harness_expr(source: &str, expected: Expression) {
-    let parser = OldParser::new(source.into(), "test".into());
-    let mut parser = Parser::new(source.into(), "test".into());
-    assert_eq!(*parser.expression().unwrap(), expected);
+    let mut parser = Parser::new(source, "test".into());
+    assert_eq!(*dbg!(parser.expression().unwrap()), expected);
+}
+
+#[test]
+fn function() {
+    harness_expr(
+        "function foo() {}",
+        Expression::FunctionDeclaration(Function::Named(
+            "foo".into(),
+            vec![],
+            None,
+            Statement::Block(vec![]).into(),
+        )),
+    )
+}
+
+#[test]
+fn function_with_parameters() {
+    harness_expr(
+        "function foo(bar, baz) {}",
+        Expression::FunctionDeclaration(Function::Named(
+            "foo".into(),
+            vec![Parameter("bar".into(), None), Parameter("baz".into(), None)],
+            None,
+            Statement::Block(vec![]).into(),
+        )),
+    )
+}
+
+#[test]
+fn default_parameters() {
+    harness_expr(
+        "function foo(bar=20, baz) {}",
+        Expression::FunctionDeclaration(Function::Named(
+            "foo".into(),
+            vec![
+                Parameter(
+                    "bar".into(),
+                    Some(Expression::Literal(Literal::Real(20.0)).into()),
+                ),
+                Parameter("baz".into(), None),
+            ],
+            None,
+            Statement::Block(vec![]).into(),
+        )),
+    )
+}
+
+#[test]
+fn anonymous_function() {
+    harness_expr(
+        "function() {}",
+        Expression::FunctionDeclaration(Function::Anonymous(
+            vec![],
+            None,
+            Statement::Block(vec![]).into(),
+        )),
+    )
+}
+
+#[test]
+fn constructor() {
+    harness_expr(
+        "function foo() constructor {}",
+        Expression::FunctionDeclaration(Function::Named(
+            "foo".into(),
+            vec![],
+            Some(Constructor(None)),
+            Statement::Block(vec![]).into(),
+        )),
+    )
+}
+
+#[test]
+fn inheritance() {
+    harness_expr(
+        "function foo() : bar() constructor {}",
+        Expression::FunctionDeclaration(Function::Named(
+            "foo".into(),
+            vec![],
+            Some(Constructor(Some(
+                Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
+            ))),
+            Statement::Block(vec![]).into(),
+        )),
+    )
+}
+
+#[test]
+fn and() {
+    harness_expr(
+        "1 && 1",
+        Expression::Logical(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            LogicalOperator::And,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn and_keyword() {
+    harness_expr(
+        "1 and 1",
+        Expression::Logical(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            LogicalOperator::And,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn or() {
+    harness_expr(
+        "1 || 1",
+        Expression::Logical(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            LogicalOperator::Or,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn or_keyword() {
+    harness_expr(
+        "1 or 1",
+        Expression::Logical(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            LogicalOperator::Or,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn xor() {
+    harness_expr(
+        "1 xor 1",
+        Expression::Logical(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            LogicalOperator::Xor,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
 }
 
 #[test]
@@ -68,7 +210,7 @@ fn modulo() {
         "1 mod 1",
         Expression::Evaluation(
             Expression::Literal(Literal::Real(1.0)).into(),
-            EvaluationOperator::Mod,
+            EvaluationOperator::Modulo,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
@@ -76,7 +218,7 @@ fn modulo() {
         "1 % 1",
         Expression::Evaluation(
             Expression::Literal(Literal::Real(1.0)).into(),
-            EvaluationOperator::Mod,
+            EvaluationOperator::Modulo,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
@@ -95,57 +237,9 @@ fn div() {
 }
 
 #[test]
-fn less_than() {
+fn bitwise_and() {
     harness_expr(
-        "1 < 1",
-        Expression::Evaluation(
-            Expression::Literal(Literal::Real(1.0)).into(),
-            EvaluationOperator::LessThan,
-            Expression::Literal(Literal::Real(1.0)).into(),
-        ),
-    );
-}
-
-#[test]
-fn less_than_or_equal() {
-    harness_expr(
-        "1 <= 1",
-        Expression::Evaluation(
-            Expression::Literal(Literal::Real(1.0)).into(),
-            EvaluationOperator::LessThanOrEqual,
-            Expression::Literal(Literal::Real(1.0)).into(),
-        ),
-    );
-}
-
-#[test]
-fn greater_than() {
-    harness_expr(
-        "1 > 1",
-        Expression::Evaluation(
-            Expression::Literal(Literal::Real(1.0)).into(),
-            EvaluationOperator::GreaterThan,
-            Expression::Literal(Literal::Real(1.0)).into(),
-        ),
-    );
-}
-
-#[test]
-fn greater_than_or_equal() {
-    harness_expr(
-        "1 >= 1",
-        Expression::Evaluation(
-            Expression::Literal(Literal::Real(1.0)).into(),
-            EvaluationOperator::GreaterThanOrEqual,
-            Expression::Literal(Literal::Real(1.0)).into(),
-        ),
-    );
-}
-
-#[test]
-fn and() {
-    harness_expr(
-        "1 && 1",
+        "1 & 1",
         Expression::Evaluation(
             Expression::Literal(Literal::Real(1.0)).into(),
             EvaluationOperator::And,
@@ -155,9 +249,9 @@ fn and() {
 }
 
 #[test]
-fn or() {
+fn bitwise_or() {
     harness_expr(
-        "1 || 1",
+        "1 | 1",
         Expression::Evaluation(
             Expression::Literal(Literal::Real(1.0)).into(),
             EvaluationOperator::Or,
@@ -167,12 +261,108 @@ fn or() {
 }
 
 #[test]
-fn equals() {
+fn bitwise_xor() {
     harness_expr(
-        "1 == 1",
+        "1 ^ 1",
         Expression::Evaluation(
             Expression::Literal(Literal::Real(1.0)).into(),
-            EvaluationOperator::Equals,
+            EvaluationOperator::Xor,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn bit_shift_left() {
+    harness_expr(
+        "1 << 1",
+        Expression::Evaluation(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EvaluationOperator::BitShiftLeft,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn bit_shift_right() {
+    harness_expr(
+        "1 >> 1",
+        Expression::Evaluation(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EvaluationOperator::BitShiftRight,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn less_than() {
+    harness_expr(
+        "1 < 1",
+        Expression::Equality(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EqualityOperator::LessThan,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn less_than_or_equal() {
+    harness_expr(
+        "1 <= 1",
+        Expression::Equality(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EqualityOperator::LessThanOrEqual,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn greater_than() {
+    harness_expr(
+        "1 > 1",
+        Expression::Equality(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EqualityOperator::GreaterThan,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn greater_than_or_equal() {
+    harness_expr(
+        "1 >= 1",
+        Expression::Equality(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EqualityOperator::GreaterThanOrEqual,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn equal() {
+    harness_expr(
+        "1 == 1",
+        Expression::Equality(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EqualityOperator::Equal,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn bang_equal() {
+    harness_expr(
+        "1 != 1",
+        Expression::Equality(
+            Expression::Literal(Literal::Real(1.0)).into(),
+            EqualityOperator::NotEqual,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
@@ -196,55 +386,91 @@ fn assign() {
         "foo = 1",
         Expression::Assignment(
             Expression::Identifier("foo".into()).into(),
-            AssignmentOperator::Equals,
+            AssignmentOperator::Equal,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
 }
 
 #[test]
-fn plus_equals() {
+fn plus_equal() {
     harness_expr(
         "foo += 1",
         Expression::Assignment(
             Expression::Identifier("foo".into()).into(),
-            AssignmentOperator::PlusEquals,
+            AssignmentOperator::PlusEqual,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
 }
 
 #[test]
-fn minus_equals() {
+fn minus_equal() {
     harness_expr(
         "foo -= 1",
         Expression::Assignment(
             Expression::Identifier("foo".into()).into(),
-            AssignmentOperator::MinusEquals,
+            AssignmentOperator::MinusEqual,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
 }
 
 #[test]
-fn star_equals() {
+fn star_equal() {
     harness_expr(
         "foo *= 1",
         Expression::Assignment(
             Expression::Identifier("foo".into()).into(),
-            AssignmentOperator::StarEquals,
+            AssignmentOperator::StarEqual,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
 }
 
 #[test]
-fn slash_equals() {
+fn slash_equal() {
     harness_expr(
         "foo /= 1",
         Expression::Assignment(
             Expression::Identifier("foo".into()).into(),
-            AssignmentOperator::SlashEquals,
+            AssignmentOperator::SlashEqual,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn and_equal() {
+    harness_expr(
+        "foo &= 1",
+        Expression::Assignment(
+            Expression::Identifier("foo".into()).into(),
+            AssignmentOperator::AndEqual,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn or_equal() {
+    harness_expr(
+        "foo |= 1",
+        Expression::Assignment(
+            Expression::Identifier("foo".into()).into(),
+            AssignmentOperator::OrEqual,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn xor_equal() {
+    harness_expr(
+        "foo ^= 1",
+        Expression::Assignment(
+            Expression::Identifier("foo".into()).into(),
+            AssignmentOperator::XorEqual,
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
@@ -298,7 +524,7 @@ fn decrement() {
 fn call() {
     harness_expr(
         "foo()",
-        Expression::Call(Expression::Identifier("foo".into()).into(), vec![]),
+        Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false),
     );
 }
 
@@ -313,7 +539,32 @@ fn call_with_args() {
                 Expression::Literal(Literal::Real(1.0)).into(),
                 Expression::Literal(Literal::Real(2.0)).into(),
             ],
+            false,
         ),
+    );
+}
+
+#[test]
+fn call_trailing_commas() {
+    harness_expr(
+        "foo(0, 1, 2,)",
+        Expression::Call(
+            Expression::Identifier("foo".into()).into(),
+            vec![
+                Expression::Literal(Literal::Real(0.0)).into(),
+                Expression::Literal(Literal::Real(1.0)).into(),
+                Expression::Literal(Literal::Real(2.0)).into(),
+            ],
+            false,
+        ),
+    );
+}
+
+#[test]
+fn construction() {
+    harness_expr(
+        "new foo()",
+        Expression::Call(Expression::Identifier("foo".into()).into(), vec![], true),
     );
 }
 
@@ -356,7 +607,7 @@ fn array_access() {
         "foo[bar]",
         Expression::DSAccess(
             Expression::Identifier("foo".into()).into(),
-            DsAccess::Array(Expression::Identifier("bar".into()).into()),
+            DSAccess::Array(Expression::Identifier("bar".into()).into()),
         ),
     );
 }
@@ -367,7 +618,7 @@ fn ds_map_access() {
         "foo[? bar]",
         Expression::DSAccess(
             Expression::Identifier("foo".into()).into(),
-            DsAccess::Map(Expression::Identifier("bar".into()).into()),
+            DSAccess::Map(Expression::Identifier("bar".into()).into()),
         ),
     );
 }
@@ -378,7 +629,7 @@ fn ds_list_access() {
         "foo[| bar]",
         Expression::DSAccess(
             Expression::Identifier("foo".into()).into(),
-            DsAccess::List(Expression::Identifier("bar".into()).into()),
+            DSAccess::List(Expression::Identifier("bar".into()).into()),
         ),
     );
 }
@@ -389,10 +640,21 @@ fn ds_grid_access() {
         "foo[# bar, buzz]",
         Expression::DSAccess(
             Expression::Identifier("foo".into()).into(),
-            DsAccess::Grid(
+            DSAccess::Grid(
                 Expression::Identifier("bar".into()).into(),
                 Expression::Identifier("buzz".into()).into(),
             ),
+        ),
+    );
+}
+
+#[test]
+fn struct_access() {
+    harness_expr(
+        "foo[$ bar]",
+        Expression::DSAccess(
+            Expression::Identifier("foo".into()).into(),
+            DSAccess::Struct(Expression::Identifier("bar".into()).into()),
         ),
     );
 }
@@ -402,7 +664,117 @@ fn dot_access() {
     harness_expr(
         "foo.bar",
         Expression::DotAccess(
+            AccessScope::Other(Expression::Identifier("foo".into()).into()),
+            Expression::Identifier("bar".into()).into(),
+        ),
+    );
+}
+
+#[test]
+fn dot_access_to_call() {
+    harness_expr(
+        "foo.bar()",
+        Expression::DotAccess(
+            AccessScope::Other(Expression::Identifier("foo".into()).into()),
+            Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
+        ),
+    );
+}
+
+#[test]
+fn dot_access_from_call() {
+    harness_expr(
+        "foo().bar",
+        Expression::DotAccess(
+            AccessScope::Other(
+                Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false).into(),
+            ),
+            Expression::Identifier("bar".into()).into(),
+        ),
+    );
+}
+
+#[test]
+fn chained_calls() {
+    harness_expr(
+        "foo().bar()",
+        Expression::DotAccess(
+            AccessScope::Other(
+                Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false).into(),
+            ),
+            Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
+        ),
+    );
+}
+
+#[test]
+fn chain_calls_with_call_parameter() {
+    harness_expr(
+        "foo().bar(buzz())",
+        dbg!(Expression::DotAccess(
+            AccessScope::Other(
+                Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false,)
+                    .into()
+            ),
+            Expression::Call(
+                Expression::Identifier("bar".into()).into(),
+                vec![
+                    Expression::Call(Expression::Identifier("buzz".into()).into(), vec![], false,)
+                        .into()
+                ],
+                false,
+            )
+            .into(),
+        )),
+    )
+}
+
+#[test]
+fn global_dot_access() {
+    harness_expr(
+        "global.bar",
+        Expression::DotAccess(
+            AccessScope::Global,
+            Expression::Identifier("bar".into()).into(),
+        ),
+    );
+}
+
+#[test]
+fn self_dot_access() {
+    harness_expr(
+        "self.bar",
+        Expression::DotAccess(
+            AccessScope::Current,
+            Expression::Identifier("bar".into()).into(),
+        ),
+    );
+}
+
+#[test]
+fn general_self_reference() {
+    harness_expr(
+        "foo = self",
+        Expression::Assignment(
             Expression::Identifier("foo".into()).into(),
+            AssignmentOperator::Equal,
+            Expression::Identifier("self".into()).into(),
+        ),
+    );
+}
+
+#[test]
+fn ds_dot_access() {
+    harness_expr(
+        "foo[0].bar",
+        Expression::DotAccess(
+            AccessScope::Other(
+                Expression::DSAccess(
+                    Expression::Identifier("foo".into()).into(),
+                    DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into()),
+                )
+                .into(),
+            ),
             Expression::Identifier("bar".into()).into(),
         ),
     );
@@ -432,6 +804,11 @@ fn float() {
 }
 
 #[test]
+fn float_no_prefix() {
+    harness_expr(".01", Expression::Literal(Literal::Real(0.01)));
+}
+
+#[test]
 fn constant() {
     harness_expr("true", Expression::Literal(Literal::True));
     harness_expr("false", Expression::Literal(Literal::False));
@@ -442,5 +819,27 @@ fn string() {
     harness_expr(
         "\"foo\"",
         Expression::Literal(Literal::String("foo".into())),
+    );
+}
+
+#[test]
+fn logically_joined_expressions() {
+    harness_expr(
+        "foo == 1 && foo == 1",
+        Expression::Logical(
+            Expression::Equality(
+                Expression::Identifier("foo".into()).into(),
+                EqualityOperator::Equal,
+                Expression::Literal(Literal::Real(1.0)).into(),
+            )
+            .into(),
+            LogicalOperator::And,
+            Expression::Equality(
+                Expression::Identifier("foo".into()).into(),
+                EqualityOperator::Equal,
+                Expression::Literal(Literal::Real(1.0)).into(),
+            )
+            .into(),
+        ),
     );
 }

@@ -25,7 +25,7 @@ impl Lint for AndKeyword {
     fn run(duck: &Duck) -> Vec<LintReport> {
         let mut reports = vec![];
         for keyword in duck.keywords() {
-            if let (Token::AndKeyword, position) = keyword {
+            if let (Token::Ampersand, position) = keyword {
                 reports.push(LintReport {
                     position: position.clone(),
                 })

@@ -1,17 +1,21 @@
 use colored::Colorize;
 use enum_map::{enum_map, EnumMap};
 use heck::{ToShoutySnakeCase, ToUpperCamelCase};
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     gml::{GmlEnum, GmlSwitchStatement},
     lints::LintLevel,
-    parsing::{ParseError, OldParser, Token},
+    parsing::{parser::Ast, ParseError, Parser, Token},
     GmlComment, GmlConstructor, GmlMacro, Lint, LintCategory, LintReport, LintTag,
 };
 
 pub struct Duck {
     lint_tags: HashMap<(String, usize), LintTag>,
+    asts: HashMap<PathBuf, Ast>,
     enums: Vec<GmlEnum>,
     macros: Vec<GmlMacro>,
     constructors: Vec<GmlConstructor>,
@@ -28,6 +32,7 @@ impl Duck {
     pub fn new() -> Self {
         Self {
             lint_tags: HashMap::new(),
+            asts: HashMap::new(),
             enums: vec![],
             macros: vec![],
             constructors: vec![],
@@ -53,17 +58,10 @@ impl Duck {
 
     /// Parses the given String of GML, collecting data for Duck.
     pub fn parse_gml(&mut self, source_code: &str, path: &Path) -> Result<(), ParseError> {
-        let mut parser = OldParser::new(source_code.to_string(), path.to_path_buf());
-        self.lint_tags
-            .extend(&mut parser.collect_lint_tags()?.into_iter());
-        self.comments.append(&mut parser.collect_gml_comments()?);
-        self.enums.append(&mut parser.collect_gml_enums()?);
-        self.macros.append(&mut parser.collect_gml_macros()?);
-        self.constructors
-            .append(&mut parser.collect_gml_constructors()?);
-        self.keywords.append(&mut parser.collect_gml_keywords()?);
-        self.switches
-            .append(&mut parser.collect_gml_switch_statements()?);
+        self.asts.insert(
+            path.to_path_buf(),
+            Parser::new(source_code, path.to_path_buf()).into_ast()?,
+        );
         Ok(())
     }
 

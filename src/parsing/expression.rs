@@ -1,17 +1,22 @@
 use std::ops::{Deref, DerefMut};
 
+use super::statement::StatementBox;
+
 #[derive(Debug, PartialEq)]
 pub enum Expression {
+    FunctionDeclaration(Function),
+    Logical(ExpressionBox, LogicalOperator, ExpressionBox),
+    Equality(ExpressionBox, EqualityOperator, ExpressionBox),
     Evaluation(ExpressionBox, EvaluationOperator, ExpressionBox),
     Ternary(ExpressionBox, ExpressionBox, ExpressionBox),
     Assignment(ExpressionBox, AssignmentOperator, ExpressionBox),
     Unary(UnaryOperator, ExpressionBox),
     Postfix(ExpressionBox, PostfixOperator),
-    Call(ExpressionBox, Vec<ExpressionBox>),
     ArrayLiteral(Vec<ExpressionBox>),
     StructLiteral(Vec<(String, ExpressionBox)>),
-    DSAccess(ExpressionBox, DsAccess),
-    DotAccess(ExpressionBox, ExpressionBox),
+    DSAccess(ExpressionBox, DSAccess),
+    DotAccess(AccessScope, ExpressionBox),
+    Call(ExpressionBox, Vec<ExpressionBox>, bool),
     Grouping(ExpressionBox),
     Literal(Literal),
     Identifier(String),
@@ -43,24 +48,42 @@ pub enum EvaluationOperator {
     Slash,
     Star,
     Div,
-    Mod,
-    Equals,
+    Modulo,
+    And,
+    Or,
+    Xor,
+    BitShiftLeft,
+    BitShiftRight,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum EqualityOperator {
+    Equal,
+    NotEqual,
     GreaterThan,
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum LogicalOperator {
     And,
     Or,
+    Xor,
 }
 
 #[derive(Debug, PartialEq)]
 #[allow(clippy::enum_variant_names)]
 pub enum AssignmentOperator {
-    Equals,
-    PlusEquals,
-    MinusEquals,
-    StarEquals,
-    SlashEquals,
+    Equal,
+    PlusEqual,
+    MinusEqual,
+    StarEqual,
+    SlashEqual,
+    XorEqual,
+    OrEqual,
+    AndEqual,
 }
 
 #[derive(Debug, PartialEq)]
@@ -84,9 +107,30 @@ pub enum Literal {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum DsAccess {
+pub enum DSAccess {
     Array(ExpressionBox),
     Map(ExpressionBox),
     Grid(ExpressionBox, ExpressionBox),
     List(ExpressionBox),
+    Struct(ExpressionBox),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Function {
+    Anonymous(Vec<Parameter>, Option<Constructor>, StatementBox),
+    Named(String, Vec<Parameter>, Option<Constructor>, StatementBox),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Constructor(pub Option<ExpressionBox>);
+
+#[derive(Debug, PartialEq)]
+pub struct Parameter(pub String, pub Option<ExpressionBox>);
+
+#[derive(Debug, PartialEq)]
+pub enum AccessScope {
+    Global,
+    /// This is Self. I can't use Self.
+    Current,
+    Other(ExpressionBox),
 }

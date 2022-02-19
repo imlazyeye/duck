@@ -4,9 +4,10 @@ use super::expression::ExpressionBox;
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
+    MacroDeclaration(String, Option<String>, String),
     EnumDeclaration(String, Vec<ExpressionBox>),
-    FunctionDeclaration(Function),
-    VariableDeclaration(String, Option<ExpressionBox>),
+    GlobalvarDeclaration(String),
+    LocalVariableDeclaration(String, Option<ExpressionBox>),
     For(StatementBox, StatementBox, StatementBox, StatementBox),
     With(ExpressionBox, StatementBox),
     Repeat(ExpressionBox, StatementBox),
@@ -41,16 +42,4 @@ impl DerefMut for StatementBox {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Parameter(pub String, pub Option<ExpressionBox>);
-
-#[derive(Debug, PartialEq)]
 pub struct Case(pub ExpressionBox, pub Vec<StatementBox>); // kinda a block?
-
-#[derive(Debug, PartialEq)]
-pub enum Function {
-    Anonymous(Vec<Parameter>, Option<Constructor>, StatementBox),
-    Named(String, Vec<Parameter>, Option<Constructor>, StatementBox),
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Constructor(pub Option<ExpressionBox>);

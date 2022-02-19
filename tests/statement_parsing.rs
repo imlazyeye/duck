@@ -1,7 +1,9 @@
-use duck::parsing::expression::UnaryOperator;
 use duck::parsing::{
-    expression::{AssignmentOperator, EvaluationOperator, Expression, Literal, PostfixOperator},
-    statement::{Case, Constructor, Function, Parameter, Statement},
+    expression::{
+        AssignmentOperator, EqualityOperator, EvaluationOperator, Expression, Literal,
+        LogicalOperator, PostfixOperator,
+    },
+    statement::{Case, Statement},
 };
 use pretty_assertions::assert_eq;
 
@@ -10,6 +12,22 @@ use duck::parsing::parser::Parser;
 fn harness_stmt(source: &str, expected: Statement) {
     let mut parser = Parser::new(source, "test".into());
     assert_eq!(*parser.statement().unwrap(), expected);
+}
+
+#[test]
+fn macro_declaration() {
+    harness_stmt(
+        "#macro foo 0",
+        Statement::MacroDeclaration("foo".into(), None, "0".into()),
+    )
+}
+
+#[test]
+fn config_macro() {
+    harness_stmt(
+        "#macro bar:foo 0",
+        Statement::MacroDeclaration("foo".into(), Some("bar".into()), "0".into()),
+    )
 }
 
 #[test]
@@ -35,7 +53,7 @@ fn enum_with_values() {
             vec![
                 Expression::Assignment(
                     Expression::Identifier("Bar".into()).into(),
-                    AssignmentOperator::Equals,
+                    AssignmentOperator::Equal,
                     Expression::Literal(Literal::Real(20.0)).into(),
                 )
                 .into(),
@@ -46,100 +64,26 @@ fn enum_with_values() {
 }
 
 #[test]
-fn function() {
+fn globalvar() {
     harness_stmt(
-        "function foo() {}",
-        Statement::FunctionDeclaration(Function::Named(
-            "foo".into(),
-            vec![],
-            None,
-            Statement::Block(vec![]).into(),
-        )),
-    )
-}
-
-#[test]
-fn function_with_parameters() {
-    harness_stmt(
-        "function foo(bar, baz) {}",
-        Statement::FunctionDeclaration(Function::Named(
-            "foo".into(),
-            vec![Parameter("bar".into(), None), Parameter("baz".into(), None)],
-            None,
-            Statement::Block(vec![]).into(),
-        )),
-    )
-}
-
-#[test]
-fn default_parameters() {
-    harness_stmt(
-        "function foo(bar=20, baz) {}",
-        Statement::FunctionDeclaration(Function::Named(
-            "foo".into(),
-            vec![
-                Parameter(
-                    "bar".into(),
-                    Some(Expression::Literal(Literal::Real(20.0)).into()),
-                ),
-                Parameter("baz".into(), None),
-            ],
-            None,
-            Statement::Block(vec![]).into(),
-        )),
-    )
-}
-
-#[test]
-fn anonymous_function() {
-    harness_stmt(
-        "function() {}",
-        Statement::FunctionDeclaration(Function::Anonymous(
-            vec![],
-            None,
-            Statement::Block(vec![]).into(),
-        )),
-    )
-}
-
-#[test]
-fn constructor() {
-    harness_stmt(
-        "function foo() constructor {}",
-        Statement::FunctionDeclaration(Function::Named(
-            "foo".into(),
-            vec![],
-            Some(Constructor(None)),
-            Statement::Block(vec![]).into(),
-        )),
-    )
-}
-
-#[test]
-fn inheritance() {
-    harness_stmt(
-        "function foo() : bar() constructor {}",
-        Statement::FunctionDeclaration(Function::Named(
-            "foo".into(),
-            vec![],
-            Some(Constructor(Some(
-                Expression::Call(Expression::Identifier("bar".into()).into(), vec![]).into(),
-            ))),
-            Statement::Block(vec![]).into(),
-        )),
+        "globalvar foo;",
+        Statement::GlobalvarDeclaration("foo".into()),
     )
 }
 
 #[test]
 fn local_variable() {
-    harness_stmt("var i;", Statement::VariableDeclaration("i".into(), None))
+    harness_stmt(
+        "var i;",
+        Statement::LocalVariableDeclaration("i".into(), None),
+    )
 }
 
 #[test]
 fn local_variable_with_value() {
     harness_stmt(
         "var i = 0;",
-        Statement::VariableDeclaration(
+        Statement::LocalVariableDeclaration(
             "i".into(),
             Some(Expression::Literal(Literal::Real(0.0)).into()),
         ),
@@ -151,15 +95,15 @@ fn r#for() {
     harness_stmt(
         "for (var i = 0; i < 1; i++) {}",
         Statement::For(
-            Statement::VariableDeclaration(
+            Statement::LocalVariableDeclaration(
                 "i".into(),
                 Some(Expression::Literal(Literal::Real(0.0)).into()),
             )
             .into(),
             Statement::Expression(
-                Expression::Evaluation(
+                Expression::Equality(
                     Expression::Identifier("i".into()).into(),
-                    EvaluationOperator::LessThan,
+                    EqualityOperator::LessThan,
                     Expression::Literal(Literal::Real(1.0)).into(),
                 )
                 .into(),
@@ -208,16 +152,16 @@ fn do_until() {
             Statement::Block(vec![Statement::Expression(
                 Expression::Assignment(
                     Expression::Identifier("foo".into()).into(),
-                    AssignmentOperator::PlusEquals,
+                    AssignmentOperator::PlusEqual,
                     Expression::Literal(Literal::Real(1.0)).into(),
                 )
                 .into(),
             )
             .into()])
             .into(),
-            Expression::Evaluation(
+            Expression::Equality(
                 Expression::Identifier("foo".into()).into(),
-                EvaluationOperator::Equals,
+                EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).into(),
             )
             .into(),
@@ -230,16 +174,16 @@ fn while_loop() {
     harness_stmt(
         "while foo == 1 { foo += 1; }",
         Statement::While(
-            Expression::Evaluation(
+            Expression::Equality(
                 Expression::Identifier("foo".into()).into(),
-                EvaluationOperator::Equals,
+                EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).into(),
             )
             .into(),
             Statement::Block(vec![Statement::Expression(
                 Expression::Assignment(
                     Expression::Identifier("foo".into()).into(),
-                    AssignmentOperator::PlusEquals,
+                    AssignmentOperator::PlusEqual,
                     Expression::Literal(Literal::Real(1.0)).into(),
                 )
                 .into(),
@@ -255,9 +199,9 @@ fn if_statement() {
     harness_stmt(
         "if foo == 1 {}",
         Statement::If(
-            Expression::Evaluation(
+            Expression::Equality(
                 Expression::Identifier("foo".into()).into(),
-                EvaluationOperator::Equals,
+                EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).into(),
             )
             .into(),
@@ -272,9 +216,9 @@ fn if_else() {
     harness_stmt(
         "if foo == 1 {} else {}",
         Statement::If(
-            Expression::Evaluation(
+            Expression::Equality(
                 Expression::Identifier("foo".into()).into(),
-                EvaluationOperator::Equals,
+                EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).into(),
             )
             .into(),

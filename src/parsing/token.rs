@@ -1,5 +1,6 @@
 use super::expression::{
-    AssignmentOperator, EvaluationOperator, Literal, PostfixOperator, UnaryOperator,
+    AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator,
+    PostfixOperator, UnaryOperator,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -19,19 +20,23 @@ pub enum Token {
     RightSquareBracket,
     Default,
     Comma,
-    AndKeyword,
-    AndSymbol,
-    OrKeyword,
-    OrSymbol,
-    Equals,
-    DoubleEquals,
-    Macro,
+    Ampersand,
+    And,
+    DoubleAmpersand,
+    Or,
+    DoublePipe,
+    Xor,
+    Circumflex,
+    Equal,
+    DoubleEqual,
+    BangEqual,
     Function,
     Constructor,
     Exit,
     New,
     Global,
     Globalvar,
+    SelfKeyword,
     ModKeyword,
     ModSymbol,
     Div,
@@ -49,8 +54,7 @@ pub enum Token {
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
-    BitwiseAnd,
-    BitwiseOr,
+    Pipe,
     SemiColon,
     Hash,
     If,
@@ -61,12 +65,19 @@ pub enum Token {
     Until,
     Repeat,
     Var,
-    PlusEquals,
-    MinusEquals,
-    StarEquals,
-    SlashEquals,
+    PlusEqual,
+    MinusEqual,
+    StarEqual,
+    SlashEqual,
     DoublePlus,
     DoubleMinus,
+    DollarSign,
+    PipeEqual,
+    AmpersandEqual,
+    CirumflexEqual,
+    BitShiftLeft,
+    BitShiftRight,
+    Macro(String, Option<String>, String),
     Comment(String),
     Identifier(String),
     Real(f64),
@@ -92,25 +103,38 @@ impl Token {
             Token::Slash => Some(EvaluationOperator::Slash),
             Token::Star => Some(EvaluationOperator::Star),
             Token::Div => Some(EvaluationOperator::Div),
-            Token::Equals | Token::DoubleEquals => Some(EvaluationOperator::Equals),
-            Token::ModKeyword | Token::ModSymbol => Some(EvaluationOperator::Mod),
-            Token::GreaterThan => Some(EvaluationOperator::GreaterThan),
-            Token::GreaterThanOrEqual => Some(EvaluationOperator::GreaterThanOrEqual),
-            Token::LessThan => Some(EvaluationOperator::LessThan),
-            Token::LessThanOrEqual => Some(EvaluationOperator::LessThanOrEqual),
-            Token::AndKeyword | Token::AndSymbol => Some(EvaluationOperator::And),
-            Token::OrKeyword | Token::OrSymbol => Some(EvaluationOperator::Or),
+            Token::ModKeyword | Token::ModSymbol => Some(EvaluationOperator::Modulo),
+            Token::Ampersand => Some(EvaluationOperator::And),
+            Token::Pipe => Some(EvaluationOperator::Or),
+            Token::Circumflex => Some(EvaluationOperator::Xor),
+            Token::BitShiftLeft => Some(EvaluationOperator::BitShiftLeft),
+            Token::BitShiftRight => Some(EvaluationOperator::BitShiftRight),
+            _ => None,
+        }
+    }
+
+    pub fn as_equality_operator(&self) -> Option<EqualityOperator> {
+        match self {
+            Token::Equal | Token::DoubleEqual => Some(EqualityOperator::Equal),
+            Token::BangEqual => Some(EqualityOperator::NotEqual),
+            Token::GreaterThan => Some(EqualityOperator::GreaterThan),
+            Token::GreaterThanOrEqual => Some(EqualityOperator::GreaterThanOrEqual),
+            Token::LessThan => Some(EqualityOperator::LessThan),
+            Token::LessThanOrEqual => Some(EqualityOperator::LessThanOrEqual),
             _ => None,
         }
     }
 
     pub fn as_assignment_operator(&self) -> Option<AssignmentOperator> {
         match self {
-            Token::Equals => Some(AssignmentOperator::Equals),
-            Token::PlusEquals => Some(AssignmentOperator::PlusEquals),
-            Token::MinusEquals => Some(AssignmentOperator::MinusEquals),
-            Token::StarEquals => Some(AssignmentOperator::StarEquals),
-            Token::SlashEquals => Some(AssignmentOperator::SlashEquals),
+            Token::Equal => Some(AssignmentOperator::Equal),
+            Token::PlusEqual => Some(AssignmentOperator::PlusEqual),
+            Token::MinusEqual => Some(AssignmentOperator::MinusEqual),
+            Token::StarEqual => Some(AssignmentOperator::StarEqual),
+            Token::SlashEqual => Some(AssignmentOperator::SlashEqual),
+            Token::PipeEqual => Some(AssignmentOperator::OrEqual),
+            Token::AmpersandEqual => Some(AssignmentOperator::AndEqual),
+            Token::CirumflexEqual => Some(AssignmentOperator::XorEqual),
             _ => None,
         }
     }
@@ -127,6 +151,15 @@ impl Token {
         match self {
             Token::DoublePlus => Some(PostfixOperator::Increment),
             Token::DoubleMinus => Some(PostfixOperator::Decrement),
+            _ => None,
+        }
+    }
+
+    pub fn as_logical_operator(&self) -> Option<LogicalOperator> {
+        match self {
+            Token::And | Token::DoubleAmpersand => Some(LogicalOperator::And),
+            Token::Or | Token::DoublePipe => Some(LogicalOperator::Or),
+            Token::Xor => Some(LogicalOperator::Xor),
             _ => None,
         }
     }
