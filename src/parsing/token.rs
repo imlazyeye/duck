@@ -43,6 +43,7 @@ pub enum Token {
     Slash,
     Star,
     Try,
+    Catch,
     With,
     True,
     False,
@@ -50,6 +51,8 @@ pub enum Token {
     Minus,
     Bang,
     Interrobang,
+    DoubleInterrobang,
+    DoubleInterrobangEquals,
     GreaterThan,
     GreaterThanOrEqual,
     LessThan,
@@ -83,6 +86,7 @@ pub enum Token {
     Real(f64),
     StringLiteral(String),
     LintTag(String),
+    Hex(String),
     Eof,
 }
 impl Token {
@@ -92,6 +96,7 @@ impl Token {
             Token::False => Some(Literal::False),
             Token::StringLiteral(lexeme) => Some(Literal::String(lexeme.clone())),
             Token::Real(value) => Some(Literal::Real(*value)),
+            Token::Hex(lexeme) => Some(Literal::Hex(lexeme.clone())),
             _ => None,
         }
     }
@@ -135,12 +140,15 @@ impl Token {
             Token::PipeEqual => Some(AssignmentOperator::OrEqual),
             Token::AmpersandEqual => Some(AssignmentOperator::AndEqual),
             Token::CirumflexEqual => Some(AssignmentOperator::XorEqual),
+            Token::DoubleInterrobangEquals => Some(AssignmentOperator::NullCoalecenceEqual),
             _ => None,
         }
     }
 
     pub fn as_unary_operator(&self) -> Option<UnaryOperator> {
         match self {
+            Token::DoublePlus => Some(UnaryOperator::Increment),
+            Token::DoubleMinus => Some(UnaryOperator::Decrement),
             Token::Bang => Some(UnaryOperator::Not),
             Token::Minus => Some(UnaryOperator::Negative),
             _ => None,

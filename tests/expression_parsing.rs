@@ -309,6 +309,38 @@ fn less_than() {
 }
 
 #[test]
+fn combo_math() {
+    harness_expr(
+        "1 * 1 + 1 >> 1 & 1 == 1",
+        Expression::Equality(
+            Expression::Evaluation(
+                Expression::Evaluation(
+                    Expression::Evaluation(
+                        Expression::Evaluation(
+                            Expression::Literal(Literal::Real(1.0)).into(),
+                            EvaluationOperator::Star,
+                            Expression::Literal(Literal::Real(1.0)).into(),
+                        )
+                        .into(),
+                        EvaluationOperator::Plus,
+                        Expression::Literal(Literal::Real(1.0)).into(),
+                    )
+                    .into(),
+                    EvaluationOperator::BitShiftRight,
+                    Expression::Literal(Literal::Real(1.0)).into(),
+                )
+                .into(),
+                EvaluationOperator::And,
+                Expression::Literal(Literal::Real(1.0)).into(),
+            )
+            .into(),
+            EqualityOperator::Equal,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    )
+}
+
+#[test]
 fn less_than_or_equal() {
     harness_expr(
         "1 <= 1",
@@ -363,6 +395,17 @@ fn bang_equal() {
         Expression::Equality(
             Expression::Literal(Literal::Real(1.0)).into(),
             EqualityOperator::NotEqual,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn null_coalecence() {
+    harness_expr(
+        "foo ?? 1",
+        Expression::NullCoalecence(
+            Expression::Identifier("foo".into()).into(),
             Expression::Literal(Literal::Real(1.0)).into(),
         ),
     );
@@ -499,7 +542,29 @@ fn neagtive() {
 }
 
 #[test]
-fn increment() {
+fn prefix_increment() {
+    harness_expr(
+        "++1",
+        Expression::Unary(
+            UnaryOperator::Increment,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn prefix_decrement() {
+    harness_expr(
+        "--1",
+        Expression::Unary(
+            UnaryOperator::Decrement,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
+fn postfix_increment() {
     harness_expr(
         "1++",
         Expression::Postfix(
@@ -510,7 +575,7 @@ fn increment() {
 }
 
 #[test]
-fn decrement() {
+fn postfix_decrement() {
     harness_expr(
         "1--",
         Expression::Postfix(
@@ -660,6 +725,37 @@ fn struct_access() {
 }
 
 #[test]
+fn chained_ds_accesses() {
+    harness_expr(
+        "foo[bar][buzz]",
+        Expression::DSAccess(
+            Expression::DSAccess(
+                Expression::Identifier("foo".into()).into(),
+                DSAccess::Array(Expression::Identifier("bar".into()).into()),
+            )
+            .into(),
+            DSAccess::Array(Expression::Identifier("buzz".into()).into()),
+        ),
+    );
+}
+
+#[test]
+fn ds_access_call() {
+    harness_expr(
+        "foo[0]()",
+        Expression::Call(
+            Expression::DSAccess(
+                Expression::Identifier("foo".into()).into(),
+                DSAccess::Array(Expression::Identifier("bar".into()).into()),
+            )
+            .into(),
+            vec![],
+            false,
+        ),
+    )
+}
+
+#[test]
 fn dot_access() {
     harness_expr(
         "foo.bar",
@@ -671,12 +767,42 @@ fn dot_access() {
 }
 
 #[test]
+fn chained_dot_access() {
+    harness_expr(
+        "foo.bar.buzz",
+        Expression::DotAccess(
+            AccessScope::Other(Expression::Identifier("foo".into()).into()),
+            Expression::DotAccess(
+                AccessScope::Other(Expression::Identifier("bar".into()).into()),
+                Expression::Identifier("buzz".into()).into(),
+            )
+            .into(),
+        ),
+    );
+}
+
+#[test]
 fn dot_access_to_call() {
     harness_expr(
         "foo.bar()",
         Expression::DotAccess(
             AccessScope::Other(Expression::Identifier("foo".into()).into()),
             Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
+        ),
+    );
+}
+
+#[test]
+fn dot_access_to_ds_access() {
+    harness_expr(
+        "foo.bar[0]",
+        Expression::DotAccess(
+            AccessScope::Other(Expression::Identifier("foo".into()).into()),
+            Expression::DSAccess(
+                Expression::Identifier("bar".into()).into(),
+                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into()),
+            )
+            .into(),
         ),
     );
 }
@@ -823,9 +949,17 @@ fn string() {
 }
 
 #[test]
+fn hex() {
+    harness_expr(
+        "$a0f9a0",
+        Expression::Literal(Literal::Hex("a0f9a0".into())),
+    );
+}
+
+#[test]
 fn logically_joined_expressions() {
     harness_expr(
-        "foo == 1 && foo == 1",
+        "foo == 1 && foo == 1 && foo == 1",
         Expression::Logical(
             Expression::Equality(
                 Expression::Identifier("foo".into()).into(),
@@ -834,10 +968,20 @@ fn logically_joined_expressions() {
             )
             .into(),
             LogicalOperator::And,
-            Expression::Equality(
-                Expression::Identifier("foo".into()).into(),
-                EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).into(),
+            Expression::Logical(
+                Expression::Equality(
+                    Expression::Identifier("foo".into()).into(),
+                    EqualityOperator::Equal,
+                    Expression::Literal(Literal::Real(1.0)).into(),
+                )
+                .into(),
+                LogicalOperator::And,
+                Expression::Equality(
+                    Expression::Identifier("foo".into()).into(),
+                    EqualityOperator::Equal,
+                    Expression::Literal(Literal::Real(1.0)).into(),
+                )
+                .into(),
             )
             .into(),
         ),

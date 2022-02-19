@@ -8,6 +8,7 @@ pub enum Expression {
     Logical(ExpressionBox, LogicalOperator, ExpressionBox),
     Equality(ExpressionBox, EqualityOperator, ExpressionBox),
     Evaluation(ExpressionBox, EvaluationOperator, ExpressionBox),
+    NullCoalecence(ExpressionBox, ExpressionBox),
     Ternary(ExpressionBox, ExpressionBox, ExpressionBox),
     Assignment(ExpressionBox, AssignmentOperator, ExpressionBox),
     Unary(UnaryOperator, ExpressionBox),
@@ -84,10 +85,13 @@ pub enum AssignmentOperator {
     XorEqual,
     OrEqual,
     AndEqual,
+    NullCoalecenceEqual,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum UnaryOperator {
+    Increment,
+    Decrement,
     Not,
     Negative,
 }
@@ -104,6 +108,7 @@ pub enum Literal {
     False,
     String(String),
     Real(f64),
+    Hex(String),
 }
 
 #[derive(Debug, PartialEq)]

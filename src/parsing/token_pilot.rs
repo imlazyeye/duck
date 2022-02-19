@@ -45,6 +45,17 @@ impl<'a> TokenPilot<'a> {
         }
     }
 
+    /// Continously eats next token if it is the given type.
+    pub fn match_take_repeating(&mut self, token: Token) {
+        loop {
+            if self.peek() != Ok(&token) {
+                break;
+            } else {
+                self.take().unwrap();
+            }
+        }
+    }
+
     /// Returns the next Token, returning an error if there is none, or if it is
     /// not of the required type.
     pub fn require(&mut self, token: Token) -> Result<Token, ParseError> {

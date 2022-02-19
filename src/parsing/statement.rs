@@ -1,13 +1,14 @@
 use std::ops::{Deref, DerefMut};
 
-use super::expression::ExpressionBox;
+use super::expression::{Expression, ExpressionBox};
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     MacroDeclaration(String, Option<String>, String),
     EnumDeclaration(String, Vec<ExpressionBox>),
     GlobalvarDeclaration(String),
-    LocalVariableDeclaration(String, Option<ExpressionBox>),
+    LocalVariableSeries(Vec<(String, Option<ExpressionBox>)>),
+    TryCatch(StatementBox, ExpressionBox, StatementBox),
     For(StatementBox, StatementBox, StatementBox, StatementBox),
     With(ExpressionBox, StatementBox),
     Repeat(ExpressionBox, StatementBox),

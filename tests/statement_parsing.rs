@@ -75,7 +75,7 @@ fn globalvar() {
 fn local_variable() {
     harness_stmt(
         "var i;",
-        Statement::LocalVariableDeclaration("i".into(), None),
+        Statement::LocalVariableSeries(vec![("i".into(), None)]),
     )
 }
 
@@ -83,9 +83,36 @@ fn local_variable() {
 fn local_variable_with_value() {
     harness_stmt(
         "var i = 0;",
-        Statement::LocalVariableDeclaration(
+        Statement::LocalVariableSeries(vec![(
             "i".into(),
             Some(Expression::Literal(Literal::Real(0.0)).into()),
+        )]),
+    )
+}
+
+#[test]
+fn local_variable_series() {
+    harness_stmt(
+        "var i, j = 0, h;",
+        Statement::LocalVariableSeries(vec![
+            ("i".into(), None),
+            (
+                "j".into(),
+                Some(Expression::Literal(Literal::Real(0.0)).into()),
+            ),
+            ("h".into(), None),
+        ]),
+    )
+}
+
+#[test]
+fn try_catch() {
+    harness_stmt(
+        "try {} catch (e) {}",
+        Statement::TryCatch(
+            Statement::Block(vec![]).into(),
+            Expression::Grouping(Expression::Identifier("e".into()).into()).into(),
+            Statement::Block(vec![]).into(),
         ),
     )
 }
@@ -95,10 +122,10 @@ fn r#for() {
     harness_stmt(
         "for (var i = 0; i < 1; i++) {}",
         Statement::For(
-            Statement::LocalVariableDeclaration(
+            Statement::LocalVariableSeries(vec![(
                 "i".into(),
                 Some(Expression::Literal(Literal::Real(0.0)).into()),
-            )
+            )])
             .into(),
             Statement::Expression(
                 Expression::Equality(
@@ -315,4 +342,9 @@ fn r#break() {
 #[test]
 fn exit() {
     harness_stmt("exit;", Statement::Exit)
+}
+
+#[test]
+fn excess_semicolons() {
+    harness_stmt("exit;;;", Statement::Exit)
 }

@@ -40,6 +40,7 @@ impl<'a> Parser<'a> {
         match self.pilot.peek()? {
             Token::Macro(_, _, _) => self.macro_declaration(),
             Token::Enum => self.enum_declaration(),
+            Token::Try => self.try_catch(),
             Token::For => self.for_loop(),
             Token::With => self.with(),
             Token::Repeat => self.repeat(),
@@ -82,6 +83,15 @@ impl<'a> Parser<'a> {
         Ok(Statement::EnumDeclaration(name, members).into())
     }
 
+    fn try_catch(&mut self) -> Result<StatementBox, ParseError> {
+        self.pilot.require(Token::Try)?;
+        let try_body = self.block()?;
+        self.pilot.require(Token::Catch)?;
+        let catch_expr = self.expression()?;
+        let catch_body = self.block()?;
+        Ok(Statement::TryCatch(try_body, catch_expr, catch_body).into())
+    }
+
     fn for_loop(&mut self) -> Result<StatementBox, ParseError> {
         self.pilot.require(Token::For)?;
         self.pilot.match_take(Token::LeftParenthesis);
@@ -112,6 +122,7 @@ impl<'a> Parser<'a> {
         let body = self.statement()?;
         self.pilot.require(Token::Until)?;
         let condition = self.expression()?;
+        self.pilot.match_take_repeating(Token::SemiColon);
         Ok(Statement::DoUntil(body, condition).into())
     }
 
@@ -187,51 +198,58 @@ impl<'a> Parser<'a> {
             statements.push(self.statement()?);
         }
         self.pilot.require(Token::RightBrace)?;
+        self.pilot.match_take_repeating(Token::SemiColon); // yes, GM allows this...
         Ok(Statement::Block(statements).into())
     }
 
     fn return_statement(&mut self) -> Result<StatementBox, ParseError> {
         self.pilot.require(Token::Return)?;
         let expression = self.expression().ok();
-        self.pilot.match_take(Token::SemiColon);
+        self.pilot.match_take_repeating(Token::SemiColon);
         Ok(Statement::Return(expression).into())
     }
 
     fn break_statement(&mut self) -> Result<StatementBox, ParseError> {
         self.pilot.require(Token::Break)?;
-        self.pilot.match_take(Token::SemiColon);
+        self.pilot.match_take_repeating(Token::SemiColon);
         Ok(Statement::Break.into())
     }
 
     fn exit(&mut self) -> Result<StatementBox, ParseError> {
         self.pilot.require(Token::Exit)?;
-        self.pilot.match_take(Token::SemiColon);
+        self.pilot.match_take_repeating(Token::SemiColon);
         Ok(Statement::Exit.into())
     }
 
     fn globalvar_declaration(&mut self) -> Result<StatementBox, ParseError> {
         self.pilot.require(Token::Globalvar)?;
         let name = self.pilot.require_identifier()?;
-        self.pilot.match_take(Token::SemiColon);
+        self.pilot.match_take_repeating(Token::SemiColon);
         Ok(Statement::GlobalvarDeclaration(name).into())
     }
 
     fn local_variable_declaration(&mut self) -> Result<StatementBox, ParseError> {
         self.pilot.require(Token::Var)?;
-        let name = self.pilot.require_identifier()?;
-        let initializer = if self.pilot.match_take(Token::Equal).is_some() {
-            Some(self.expression()?)
-        } else {
-            None
-        };
-        self.pilot.match_take(Token::SemiColon);
-        // todo: support series
-        Ok(Statement::LocalVariableDeclaration(name, initializer).into())
+        let mut declarations = vec![];
+        loop {
+            let name = self.pilot.require_identifier()?;
+            let initializer = if self.pilot.match_take(Token::Equal).is_some() {
+                Some(self.expression()?)
+            } else {
+                None
+            };
+            declarations.push((name, initializer));
+            if self.pilot.match_take(Token::Comma).is_none() {
+                break;
+            }
+        }
+        self.pilot.match_take_repeating(Token::SemiColon);
+        Ok(Statement::LocalVariableSeries(declarations).into())
     }
 
     fn expression_statement(&mut self) -> Result<StatementBox, ParseError> {
         let expression = self.expression()?;
-        self.pilot.match_take(Token::SemiColon);
+        self.pilot.match_take_repeating(Token::SemiColon);
         Ok(Statement::Expression(expression).into())
     }
 
@@ -283,16 +301,26 @@ impl<'a> Parser<'a> {
             };
             Ok(Expression::FunctionDeclaration(function).into())
         } else {
-            self.ternary()
+            self.null_coalecence()
+        }
+    }
+
+    fn null_coalecence(&mut self) -> Result<ExpressionBox, ParseError> {
+        let expression = self.ternary()?;
+        if self.pilot.match_take(Token::DoubleInterrobang).is_some() {
+            let value = self.expression()?;
+            Ok(Expression::NullCoalecence(expression, value).into())
+        } else {
+            Ok(expression)
         }
     }
 
     fn ternary(&mut self) -> Result<ExpressionBox, ParseError> {
         let expression = self.logical()?;
         if self.pilot.match_take(Token::Interrobang).is_some() {
-            let true_value = self.ternary()?;
+            let true_value = self.expression()?;
             self.pilot.require(Token::Colon)?;
-            let false_value = self.ternary()?;
+            let false_value = self.expression()?;
             Ok(Expression::Ternary(expression, true_value, false_value).into())
         } else {
             Ok(expression)
@@ -308,7 +336,7 @@ impl<'a> Parser<'a> {
             .flatten()
         {
             self.pilot.take()?;
-            let right = self.equality()?;
+            let right = self.logical()?;
             Ok(Expression::Logical(expression, operator, right).into())
         } else {
             Ok(expression)
@@ -393,7 +421,7 @@ impl<'a> Parser<'a> {
             .flatten()
         {
             self.pilot.take()?;
-            let right = self.multiplication()?;
+            let right = self.addition()?;
             Ok(Expression::Evaluation(expression, operator, right).into())
         } else {
             Ok(expression)
@@ -418,7 +446,7 @@ impl<'a> Parser<'a> {
             .flatten()
         {
             self.pilot.take()?;
-            let right = self.unary()?;
+            let right = self.multiplication()?;
             Ok(Expression::Evaluation(expression, operator, right).into())
         } else {
             Ok(expression)
@@ -541,8 +569,8 @@ impl<'a> Parser<'a> {
     }
 
     fn ds_access(&mut self) -> Result<ExpressionBox, ParseError> {
-        let expression = self.grouping()?;
-        if self.pilot.match_take(Token::LeftSquareBracket).is_some() {
+        let mut expression = self.grouping()?;
+        while self.pilot.match_take(Token::LeftSquareBracket).is_some() {
             let ds_access = match self.pilot.peek()? {
                 Token::DollarSign => {
                     self.pilot.take()?;
@@ -566,10 +594,9 @@ impl<'a> Parser<'a> {
                 _ => DSAccess::Array(self.expression()?),
             };
             self.pilot.require(Token::RightSquareBracket)?;
-            Ok(Expression::DSAccess(expression, ds_access).into())
-        } else {
-            Ok(expression)
+            expression = Expression::DSAccess(expression, ds_access).into();
         }
+        Ok(expression)
     }
 
     fn grouping(&mut self) -> Result<ExpressionBox, ParseError> {

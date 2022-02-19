@@ -32,10 +32,19 @@ impl<'a> Lexer<'a> {
                 '[' => Some(Token::LeftSquareBracket),
                 ']' => Some(Token::RightSquareBracket),
                 ',' => Some(Token::Comma),
-                '?' => Some(Token::Interrobang),
                 '%' => Some(Token::ModSymbol),
                 ';' => Some(Token::SemiColon),
-                '$' => Some(Token::DollarSign),
+                '?' => {
+                    if self.match_take('?') {
+                        if self.match_take('=') {
+                            Some(Token::DoubleInterrobangEquals)
+                        } else {
+                            Some(Token::DoubleInterrobang)
+                        }
+                    } else {
+                        Some(Token::Interrobang)
+                    }
+                }
                 '^' => {
                     if self.match_take('=') {
                         Some(Token::CirumflexEqual)
@@ -84,13 +93,21 @@ impl<'a> Lexer<'a> {
                 }
                 '"' => {
                     let mut lexeme = String::new();
+                    let mut in_escape = false;
                     loop {
                         match self.take() {
                             Some((_, chr)) => {
-                                if chr == '"' {
-                                    break;
-                                } else {
+                                if in_escape {
                                     lexeme.push(chr);
+                                    in_escape = false;
+                                } else {
+                                    match chr {
+                                        '"' if !in_escape => break,
+                                        '\\' => {
+                                            in_escape = true;
+                                        }
+                                        _ => lexeme.push(chr),
+                                    }
                                 }
                             }
                             None => return (start_index, Token::Eof),
@@ -132,6 +149,22 @@ impl<'a> Lexer<'a> {
                         Some(Token::PipeEqual)
                     } else {
                         Some(Token::Pipe)
+                    }
+                }
+                '$' => {
+                    let mut lexeme = String::new();
+                    while let Some(chr) = self.peek() {
+                        match chr {
+                            'A'..='F' | 'a'..='f' | '0'..='9' => {
+                                lexeme.push(self.take().unwrap().1);
+                            }
+                            _ => break,
+                        }
+                    }
+                    if lexeme.len() == 6 {
+                        Some(Token::Hex(lexeme))
+                    } else {
+                        Some(Token::DollarSign)
                     }
                 }
 
@@ -267,6 +300,7 @@ impl<'a> Lexer<'a> {
                         "var" => Some(Token::Var),
                         "self" => Some(Token::SelfKeyword),
                         "xor" => Some(Token::Xor),
+                        "catch" => Some(Token::Catch),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
