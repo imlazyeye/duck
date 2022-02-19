@@ -1,29 +1,27 @@
 use std::ops::{Deref, DerefMut};
 
-use super::Token;
-
 #[derive(Debug, PartialEq)]
 pub enum Expression {
-    Binary(ExpressionBox, Operator, ExpressionBox),
-    Unary(Operator, ExpressionBox),
-    Literal(Literal),
-    Grouping(ExpressionBox),
-    Identifier(String),
-    Assign(ExpressionBox, ExpressionBox),
+    Evaluation(ExpressionBox, EvaluationOperator, ExpressionBox),
+    Ternary(ExpressionBox, ExpressionBox, ExpressionBox),
+    Assignment(ExpressionBox, AssignmentOperator, ExpressionBox),
+    Unary(UnaryOperator, ExpressionBox),
+    Postfix(ExpressionBox, PostfixOperator),
     Call(ExpressionBox, Vec<ExpressionBox>),
-    Access(ExpressionBox, String),
-}
-impl Expression {
-    pub fn to_box(self) -> ExpressionBox {
-        ExpressionBox::new(self)
-    }
+    ArrayLiteral(Vec<ExpressionBox>),
+    StructLiteral(Vec<(String, ExpressionBox)>),
+    DSAccess(ExpressionBox, DsAccess),
+    DotAccess(ExpressionBox, ExpressionBox),
+    Grouping(ExpressionBox),
+    Literal(Literal),
+    Identifier(String),
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ExpressionBox(Box<Expression>);
-impl ExpressionBox {
-    pub fn new(expression: Expression) -> Self {
-        Self(Box::new(expression))
+pub struct ExpressionBox(pub Box<Expression>);
+impl From<Expression> for ExpressionBox {
+    fn from(exp: Expression) -> Self {
+        Self(Box::new(exp))
     }
 }
 impl Deref for ExpressionBox {
@@ -39,22 +37,42 @@ impl DerefMut for ExpressionBox {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Operator {
+pub enum EvaluationOperator {
     Plus,
     Minus,
     Slash,
     Star,
-    Bang,
-    Interrobang,
     Div,
     Mod,
+    Equals,
     GreaterThan,
     GreaterThanOrEqual,
     LessThan,
     LessThanOrEqual,
-    Equals,
     And,
     Or,
+}
+
+#[derive(Debug, PartialEq)]
+#[allow(clippy::enum_variant_names)]
+pub enum AssignmentOperator {
+    Equals,
+    PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum UnaryOperator {
+    Not,
+    Negative,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum PostfixOperator {
+    Increment,
+    Decrement,
 }
 
 #[derive(Debug, PartialEq)]
@@ -63,4 +81,12 @@ pub enum Literal {
     False,
     String(String),
     Real(f64),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum DsAccess {
+    Array(ExpressionBox),
+    Map(ExpressionBox),
+    Grid(ExpressionBox, ExpressionBox),
+    List(ExpressionBox),
 }

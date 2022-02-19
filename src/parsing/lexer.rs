@@ -6,7 +6,7 @@ use std::{
 use super::token::Token;
 
 /// Takes gml  and converts it into tokens as an iterator.
-pub(super) struct Lexer<'a> {
+pub struct Lexer<'a> {
     input_characters: Peekable<Enumerate<Chars<'a>>>,
     cursor: usize,
 }
@@ -35,10 +35,33 @@ impl<'a> Lexer<'a> {
                 ',' => Some(Token::Comma),
                 '!' => Some(Token::Bang),
                 '?' => Some(Token::Interrobang),
-                '-' => Some(Token::Minus),
-                '+' => Some(Token::Plus),
-                '*' => Some(Token::Star),
                 '%' => Some(Token::ModSymbol),
+                ';' => Some(Token::SemiColon),
+                '+' => {
+                    if self.match_take('=') {
+                        Some(Token::PlusEquals)
+                    } else if self.match_take('+') {
+                        Some(Token::DoublePlus)
+                    } else {
+                        Some(Token::Plus)
+                    }
+                }
+                '-' => {
+                    if self.match_take('=') {
+                        Some(Token::MinusEquals)
+                    } else if self.match_take('-') {
+                        Some(Token::DoubleMinus)
+                    } else {
+                        Some(Token::Minus)
+                    }
+                }
+                '*' => {
+                    if self.match_take('=') {
+                        Some(Token::StarEquals)
+                    } else {
+                        Some(Token::Star)
+                    }
+                }
                 '=' => {
                     if self.match_take('=') {
                         Some(Token::DoubleEquals)
@@ -101,13 +124,16 @@ impl<'a> Lexer<'a> {
                             self.discard_rest_of_line();
                             self.lex()
                         }
-                        _ => self.lex(),
+                        "#" => (start_index, Token::Hash),
+                        _ => todo!("We don't have a good set up for this error right now!"),
                     };
                 }
 
-                // Comments, lint tags, oh my
+                // Slashes can be SO MANY THINGS
                 '/' => {
-                    if self.match_take('/') {
+                    if self.match_take('=') {
+                        Some(Token::SlashEquals)
+                    } else if self.match_take('/') {
                         // Eat up the whitespace first...
                         let mut comment_lexeme = String::from("//");
                         self.consume_whitespace(&mut comment_lexeme);
@@ -157,7 +183,7 @@ impl<'a> Lexer<'a> {
                         lexeme.push(self.take().unwrap().1);
                     }
                     // Floats!
-                    if self.peek() == Some('.') {
+                    if self.match_take('.') {
                         lexeme.push('.');
                         while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
                             lexeme.push(self.take().unwrap().1);
@@ -193,6 +219,14 @@ impl<'a> Lexer<'a> {
                         "true" => Some(Token::True),
                         "false" => Some(Token::False),
                         "div" => Some(Token::Div),
+                        "if" => Some(Token::If),
+                        "else" => Some(Token::Else),
+                        "for" => Some(Token::For),
+                        "while" => Some(Token::While),
+                        "do" => Some(Token::Do),
+                        "until" => Some(Token::Until),
+                        "repeat" => Some(Token::Repeat),
+                        "var" => Some(Token::Var),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }

@@ -8,8 +8,7 @@ pub use lints::{Lint, LintCategory, LintLevel, LintReport, LintTag};
 mod gml;
 pub use gml::*;
 
-mod parsing;
-pub use parsing::ParseError;
+pub mod parsing;
 
 #[allow(unused_imports)]
 #[macro_use]

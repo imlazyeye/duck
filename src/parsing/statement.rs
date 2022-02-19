@@ -1,20 +1,33 @@
 use std::ops::{Deref, DerefMut};
 
-use super::{expression::ExpressionBox, Token};
+use super::expression::ExpressionBox;
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
-    Expression(ExpressionBox),
-    Block(Vec<StatementBox>),
-    If(ExpressionBox, StatementBox, Option<ExpressionBox>),
+    EnumDeclaration(String, Vec<ExpressionBox>),
+    FunctionDeclaration(Function),
+    VariableDeclaration(String, Option<ExpressionBox>),
+    For(StatementBox, StatementBox, StatementBox, StatementBox),
+    With(ExpressionBox, StatementBox),
+    Repeat(ExpressionBox, StatementBox),
+    DoUntil(StatementBox, ExpressionBox),
     While(ExpressionBox, StatementBox),
-    FunctionDeclaration(String, Vec<FunctionParameter>, bool, StatementBox),
-    LocalVariableDeclaration(String, Option<ExpressionBox>),
+    If(ExpressionBox, StatementBox, Option<StatementBox>),
+    Switch(ExpressionBox, Vec<Case>, Option<Vec<StatementBox>>),
+    Block(Vec<StatementBox>),
     Return(Option<ExpressionBox>),
+    Break,
+    Exit,
+    Expression(ExpressionBox),
 }
 
 #[derive(Debug, PartialEq)]
 pub struct StatementBox(Box<Statement>);
+impl From<Statement> for StatementBox {
+    fn from(stmt: Statement) -> Self {
+        Self(Box::new(stmt))
+    }
+}
 impl Deref for StatementBox {
     type Target = Statement;
     fn deref(&self) -> &Self::Target {
@@ -28,7 +41,16 @@ impl DerefMut for StatementBox {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct FunctionParameter {
-    pub name: Token,
-    pub default_value: Option<ExpressionBox>,
+pub struct Parameter(pub String, pub Option<ExpressionBox>);
+
+#[derive(Debug, PartialEq)]
+pub struct Case(pub ExpressionBox, pub Vec<StatementBox>); // kinda a block?
+
+#[derive(Debug, PartialEq)]
+pub enum Function {
+    Anonymous(Vec<Parameter>, Option<Constructor>, StatementBox),
+    Named(String, Vec<Parameter>, Option<Constructor>, StatementBox),
 }
+
+#[derive(Debug, PartialEq)]
+pub struct Constructor(pub Option<ExpressionBox>);

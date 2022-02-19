@@ -1,12 +1,13 @@
+pub mod parser;
+pub mod expression;
 mod lexer;
-mod parser;
-mod token;
+mod old_parser;
+pub mod statement;
+pub mod token;
 mod token_pilot;
-mod utils;
-mod expression;
-mod statement;
-mod ast;
+pub mod utils;
 
 pub use parser::Parser;
+pub use old_parser::OldParser;
 pub use token::Token;
 pub use utils::ParseError;

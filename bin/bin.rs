@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use colored::Colorize;
 use duck::{lints::*, DuckConfig};
-use duck::{Duck, Lint, LintLevel, ParseError, Position};
+use duck::{parsing::ParseError, Duck, Lint, LintLevel, Position};
 use enum_map::{enum_map, EnumMap};
 use yy_boss::{Resource, YyResource, YypBoss};
 
@@ -139,6 +139,10 @@ fn parse_all_gml(duck: &mut Duck) {
                 ParseError::InvalidLintLevel(cursor, level) => {
                     let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
                     error!(target: &target.file_string, "Invalid lint level: {:?}", level)
+                }
+                ParseError::InvalidAssignmentTarget(cursor, expr) => {
+                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
+                    error!(target: &target.file_string, "Invalid assignment target: {:?}", expr)
                 }
             }
         }

@@ -1,29 +1,41 @@
-use std::{iter::Peekable, vec::IntoIter};
+use std::{
+    iter::{Enumerate, Peekable},
+    vec::IntoIter,
+};
 
-use super::{token::Token, utils::ParseError};
+use super::{lexer::Lexer, token::Token, utils::ParseError};
 
-pub(super) struct TokenPilot {
-    tokens: Peekable<IntoIter<(usize, Token)>>,
+pub(super) struct TokenPilot<'a> {
+    lexer: Peekable<Enumerate<Lexer<'a>>>,
     cursor: usize,
 }
-impl TokenPilot {
-    pub fn new(tokens: Peekable<IntoIter<(usize, Token)>>) -> Self {
-        Self { tokens, cursor: 0 }
+impl<'a> TokenPilot<'a> {
+    pub fn new(source_code: &'a str) -> Self {
+        let lexer = Lexer::new(source_code).enumerate().peekable();
+        Self { lexer, cursor: 0 }
     }
 
     /// Get the gml tokens's cursor.
     pub(super) fn cursor(&self) -> usize {
         self.cursor
     }
-}
-impl TokenPilot {
-    /// Returns the type of the next Token, or returns an error if there
-    /// is none.
+
+    /// Returns the type of the next Token, or returns an error if there is none.
     pub fn peek(&mut self) -> Result<&Token, ParseError> {
-        if let Some((_, token)) = self.tokens.peek() {
+        if let Some((_, (_, token))) = self.lexer.peek() {
             Ok(token)
         } else {
             Err(ParseError::UnexpectedEnd)
+        }
+    }
+
+    /// Returns the type of the next Token if there is one. Used for situations where
+    /// no tokens remaining would be valid.
+    pub fn soft_peek(&mut self) -> Option<&Token> {
+        if let Some((_, (_, token))) = self.lexer.peek() {
+            Some(token)
+        } else {
+            None
         }
     }
 
@@ -57,9 +69,18 @@ impl TokenPilot {
         }
     }
 
+    /// Returns the inner field of the next Token if it is an Identifier.
+    pub fn match_take_identifier(&mut self) -> Result<Option<String>, ParseError> {
+        if matches!(self.peek()?, Token::Identifier(_)) {
+            Ok(Some(self.require_identifier()?))
+        } else {
+            Ok(None)
+        }
+    }
+
     /// Returns the next Token, returning an error if there is none.
     pub fn take(&mut self) -> Result<Token, ParseError> {
-        if let Some((position, token)) = self.tokens.next() {
+        if let Some((position, (_, token))) = self.lexer.next() {
             self.cursor = position;
             Ok(token)
         } else {
