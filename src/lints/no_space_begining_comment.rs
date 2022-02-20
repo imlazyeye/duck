@@ -1,4 +1,4 @@
-use crate::{Duck, Lint, LintCategory, LintReport};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
 pub struct NoSpaceBeginingComment;
 impl Lint for NoSpaceBeginingComment {
@@ -22,22 +22,22 @@ impl Lint for NoSpaceBeginingComment {
         LintCategory::Style
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for comment in duck.comments() {
-            // Seek out that space
-            for c in comment.body().chars() {
-                match c {
-                    '/' | '*' => {}
-                    ' ' => {
-                        break;
-                    }
-                    _ => reports.push(LintReport {
-                        position: comment.position().clone(),
-                    }),
-                }
-            }
-        }
-        reports
-    }
+    // fn run(duck: &Duck) -> Vec<LintReport> {
+    //     let mut reports = vec![];
+    //     for comment in duck.comments() {
+    //         // Seek out that space
+    //         for c in comment.body().chars() {
+    //             match c {
+    //                 '/' | '*' => {}
+    //                 ' ' => {
+    //                     break;
+    //                 }
+    //                 _ => reports.push(LintReport {
+    //                     position: comment.position().clone(),
+    //                 }),
+    //             }
+    //         }
+    //     }
+    //     reports
+    // }
 }

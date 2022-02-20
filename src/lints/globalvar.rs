@@ -1,4 +1,7 @@
-use crate::{Lint, LintCategory};
+use crate::{
+    parsing::{expression::Expression, statement::Statement},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 pub struct Globalvar;
 impl Lint for Globalvar {
@@ -23,5 +26,18 @@ impl Lint for Globalvar {
 
     fn category() -> LintCategory {
         LintCategory::Correctness
+    }
+
+    fn visit_statement(
+        duck: &Duck,
+        statement: &Statement,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Statement::GlobalvarDeclaration(..) = statement {
+            reports.push(LintReport {
+                position: position.clone(),
+            })
+        }
     }
 }

@@ -1,4 +1,7 @@
-use crate::{Duck, Lint, LintCategory, LintReport};
+use crate::{
+    parsing::expression::{Expression, Function},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 pub struct AnonymousConstructor;
 impl Lint for AnonymousConstructor {
@@ -25,15 +28,18 @@ impl Lint for AnonymousConstructor {
         LintCategory::Style
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for constructor in duck.constructors() {
-            if constructor.name().is_none() {
-                reports.push(LintReport {
-                    position: constructor.position().clone(),
-                });
-            }
+    fn visit_expression(
+        duck: &Duck,
+        expression: &Expression,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Expression::FunctionDeclaration(Function::Anonymous(_, Some(constructor), _, _)) =
+            expression
+        {
+            reports.push(LintReport {
+                position: position.clone(),
+            })
         }
-        reports
     }
 }

@@ -2,8 +2,10 @@ pub type AnyResult<T = ()> = color_eyre::Result<T>;
 mod duck;
 pub use crate::duck::*;
 
-pub mod lints;
-pub use lints::{Lint, LintCategory, LintLevel, LintReport, LintTag};
+// pub mod lints;
+
+mod lint;
+pub use lint::{Lint, LintCategory, LintLevel, LintReport, LintTag};
 
 mod gml;
 pub use gml::*;

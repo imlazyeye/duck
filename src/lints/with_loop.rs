@@ -1,4 +1,4 @@
-use crate::{parsing::Token, Duck, Lint, LintCategory, LintReport};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
 pub struct WithLoop;
 impl Lint for WithLoop {
@@ -25,15 +25,15 @@ impl Lint for WithLoop {
         LintCategory::Pedantic
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for keyword in duck.keywords() {
-            if let (Token::With, position) = keyword {
-                reports.push(LintReport {
-                    position: position.clone(),
-                })
-            }
-        }
-        reports
-    }
+    // fn run(duck: &Duck) -> Vec<LintReport> {
+    //     let mut reports = vec![];
+    //     for keyword in duck.keywords() {
+    //         if let (Token::With, position) = keyword {
+    //             reports.push(LintReport {
+    //                 position: position.clone(),
+    //             })
+    //         }
+    //     }
+    //     reports
+    // }
 }

@@ -1,4 +1,4 @@
-use crate::{Duck, Lint, LintCategory, LintReport};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
 pub struct NonScreamCase;
 impl Lint for NonScreamCase {
@@ -22,17 +22,17 @@ impl Lint for NonScreamCase {
         LintCategory::Style
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for mac in duck.macros() {
-            let name = mac.name();
-            let ideal_name = Duck::scream_case(name);
-            if name != ideal_name {
-                reports.push(LintReport {
-                    position: mac.position().clone(),
-                })
-            }
-        }
-        reports
-    }
+    // fn run(duck: &Duck) -> Vec<LintReport> {
+    //     let mut reports = vec![];
+    //     for mac in duck.macros() {
+    //         let name = mac.name();
+    //         let ideal_name = Duck::scream_case(name);
+    //         if name != ideal_name {
+    //             reports.push(LintReport {
+    //                 position: mac.position().clone(),
+    //             })
+    //         }
+    //     }
+    //     reports
+    // }
 }

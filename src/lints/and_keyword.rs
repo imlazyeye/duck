@@ -1,4 +1,4 @@
-use crate::{parsing::Token, Duck, Lint, LintCategory, LintReport};
+use crate::{parsing::Token, Duck, Lint, LintCategory, LintReport, Position};
 
 pub struct AndKeyword;
 impl Lint for AndKeyword {
@@ -22,15 +22,11 @@ impl Lint for AndKeyword {
         LintCategory::Style
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for keyword in duck.keywords() {
-            if let (Token::Ampersand, position) = keyword {
-                reports.push(LintReport {
-                    position: position.clone(),
-                })
-            }
+    fn visit_token(duck: &Duck, token: &Token, position: &Position, reports: &mut Vec<LintReport>) {
+        if token == &Token::And {
+            reports.push(LintReport {
+                position: position.clone(),
+            })
         }
-        reports
     }
 }

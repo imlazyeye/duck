@@ -1,4 +1,7 @@
-use crate::{Duck, GmlSwitchStatementDefault, Lint, LintCategory, LintReport};
+use crate::{
+    parsing::{expression::Expression, statement::Statement},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 pub struct MissingDefaultCase;
 impl Lint for MissingDefaultCase {
@@ -22,15 +25,16 @@ impl Lint for MissingDefaultCase {
         LintCategory::Pedantic
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for switch in duck.switches() {
-            if switch.default_case() == &GmlSwitchStatementDefault::None {
-                reports.push(LintReport {
-                    position: switch.position().clone(),
-                })
-            }
+    fn visit_statement(
+        duck: &Duck,
+        statement: &Statement,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Statement::Switch(_, _, None) = statement {
+            reports.push(LintReport {
+                position: position.clone(),
+            })
         }
-        reports
     }
 }

@@ -251,13 +251,8 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Var)?;
         let mut declarations = vec![];
         loop {
-            let name = self.pilot.require_identifier()?;
-            let initializer = if self.pilot.match_take(Token::Equal).is_some() {
-                Some(self.expression()?)
-            } else {
-                None
-            };
-            declarations.push((name, initializer));
+            let expression = self.assignment()?;
+            declarations.push(expression);
             if self.pilot.match_take(Token::Comma).is_none() {
                 break;
             }

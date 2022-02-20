@@ -1,13 +1,13 @@
 use std::ops::{Deref, DerefMut};
 
-use super::expression::{ExpressionBox};
+use super::expression::ExpressionBox;
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     MacroDeclaration(String, Option<String>, String),
     EnumDeclaration(String, Vec<ExpressionBox>),
     GlobalvarDeclaration(String),
-    LocalVariableSeries(Vec<(String, Option<ExpressionBox>)>),
+    LocalVariableSeries(Vec<ExpressionBox>),
     TryCatch(StatementBox, ExpressionBox, StatementBox),
     For(StatementBox, ExpressionBox, StatementBox, StatementBox),
     With(ExpressionBox, StatementBox),
@@ -22,6 +22,30 @@ pub enum Statement {
     Continue,
     Exit,
     Expression(ExpressionBox),
+}
+impl Statement {
+    pub fn expressions(&self) -> &[ExpressionBox] {
+        match self {
+            Statement::MacroDeclaration(_, _, _) => &[],
+            Statement::EnumDeclaration(_, members) => members.as_slice(),
+            Statement::GlobalvarDeclaration(_) => &[],
+            Statement::LocalVariableSeries(_) => todo!(),
+            Statement::TryCatch(_, _, _) => todo!(),
+            Statement::For(_, _, _, _) => todo!(),
+            Statement::With(_, _) => todo!(),
+            Statement::Repeat(_, _) => todo!(),
+            Statement::DoUntil(_, _) => todo!(),
+            Statement::While(_, _) => todo!(),
+            Statement::If(_, _, _) => todo!(),
+            Statement::Switch(_, _, _) => todo!(),
+            Statement::Block(_) => todo!(),
+            Statement::Return(_) => todo!(),
+            Statement::Break => todo!(),
+            Statement::Continue => todo!(),
+            Statement::Exit => todo!(),
+            Statement::Expression(_) => todo!(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]

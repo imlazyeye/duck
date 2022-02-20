@@ -1,4 +1,4 @@
-use crate::{parsing::Token, Duck, Lint, LintCategory, LintReport};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
 pub struct ModKeyword;
 impl Lint for ModKeyword {
@@ -22,15 +22,15 @@ impl Lint for ModKeyword {
         LintCategory::Style
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for keyword in duck.keywords() {
-            if let (Token::Mod, position) = keyword {
-                reports.push(LintReport {
-                    position: position.clone(),
-                })
-            }
-        }
-        reports
-    }
+    // fn run(duck: &Duck) -> Vec<LintReport> {
+    //     let mut reports = vec![];
+    //     for keyword in duck.keywords() {
+    //         if let (Token::Mod, position) = keyword {
+    //             reports.push(LintReport {
+    //                 position: position.clone(),
+    //             })
+    //         }
+    //     }
+    //     reports
+    // }
 }

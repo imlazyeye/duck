@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 
 use colored::Colorize;
-use duck::{lints::*, DuckConfig};
+use duck::parsing::expression::Expression;
+use duck::parsing::statement::Statement;
+use duck::{DuckConfig, LintReport, Position};
 use duck::{Duck, Lint, LintLevel};
 use enum_map::{enum_map, EnumMap};
 use yy_boss::{Resource, YyResource, YypBoss};
@@ -39,22 +41,6 @@ fn main() {
         LintLevel::Deny => 0,
     };
 
-    run_lint(AndKeyword, &duck, &mut lint_counts);
-    run_lint(OrKeyword, &duck, &mut lint_counts);
-    run_lint(Exit, &duck, &mut lint_counts);
-    run_lint(Global, &duck, &mut lint_counts);
-    run_lint(Globalvar, &duck, &mut lint_counts);
-    run_lint(ModKeyword, &duck, &mut lint_counts);
-    run_lint(TryCatch, &duck, &mut lint_counts);
-    run_lint(WithLoop, &duck, &mut lint_counts);
-    run_lint(AnonymousConstructor, &duck, &mut lint_counts);
-    run_lint(ConstructorWithoutNew, &duck, &mut lint_counts);
-    run_lint(MissingCaseMember, &duck, &mut lint_counts);
-    run_lint(MissingDefaultCase, &duck, &mut lint_counts);
-    run_lint(NoSpaceBeginingComment, &duck, &mut lint_counts);
-    run_lint(NonPascalCase, &duck, &mut lint_counts);
-    run_lint(NonScreamCase, &duck, &mut lint_counts);
-
     // Print the results
     let output = format!(
         "🦆 <( {} {} {}, {} {}, {} {} {}! )",
@@ -80,10 +66,26 @@ fn main() {
     println!("\n{output}\n");
 }
 
-fn run_lint<L: Lint>(lint: L, duck: &Duck, lint_counts: &mut EnumMap<LintLevel, usize>) {
-    L::run(duck)
-        .into_iter()
-        .for_each(|r| duck.report_lint(&lint, r, lint_counts));
+fn run_lint_for_expression<L: Lint>(
+    lint: L,
+    duck: &Duck,
+    expression: &Expression,
+    position: &Position,
+    reports: &mut Vec<LintReport>,
+    lint_counts: &mut EnumMap<LintLevel, usize>,
+) {
+    L::visit_expression(duck, expression, position, reports)
+}
+
+fn run_lint_for_statement<L: Lint>(
+    lint: L,
+    duck: &Duck,
+    statement: &Statement,
+    position: &Position,
+    reports: &mut Vec<LintReport>,
+    lint_counts: &mut EnumMap<LintLevel, usize>,
+) {
+    L::visit_statement(duck, statement, position, reports)
 }
 
 fn parse_all_gml(duck: &mut Duck) {
@@ -124,8 +126,25 @@ fn parse_all_gml(duck: &mut Duck) {
         }));
 
     for (gml_file, path) in gml {
-        if let Err(error) = duck.parse_gml(&gml_file, &path) {
-            error!(target: &error.position().file_string, "{}", error);
+        match duck.parse_gml(&gml_file, &path) {
+            Ok(ast) => ast.into_iter().for_each(|statement| {
+                // run_lint_for_statement(AndKeyword, &duck, &mut lint_counts);
+                // run_lint_for_statement(OrKeyword, &duck, &mut lint_counts);
+                // run_lint_for_statement(Exit, &duck, &mut lint_counts);
+                // run_lint_for_statement(Global, &duck, &mut lint_counts);
+                // run_lint_for_statement(Globalvar, &duck, &mut lint_counts);
+                // run_lint_for_statement(ModKeyword, &duck, &mut lint_counts);
+                // run_lint_for_statement(TryCatch, &duck, &mut lint_counts);
+                // run_lint_for_statement(WithLoop, &duck, &mut lint_counts);
+                // run_lint_for_statement(AnonymousConstructor, &duck, &mut lint_counts);
+                // run_lint_for_statement(ConstructorWithoutNew, &duck, &mut lint_counts);
+                // run_lint_for_statement(MissingCaseMember, &duck, &mut lint_counts);
+                // run_lint_for_statement(MissingDefaultCase, &duck, &mut lint_counts);
+                // run_lint_for_statement(NoSpaceBeginingComment, &duck, &mut lint_counts);
+                // run_lint_for_statement(NonPascalCase, &duck, &mut lint_counts);
+                // run_lint_for_statement(NonScreamCase, &duck, &mut lint_counts);
+            }),
+            Err(error) => error!(target: &error.position().file_string, "{}", error),
         }
     }
 }

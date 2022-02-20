@@ -1,4 +1,7 @@
-use crate::{Lint, LintCategory};
+use crate::{
+    parsing::expression::{AccessScope, Expression},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 pub struct Global;
 impl Lint for Global {
@@ -20,5 +23,18 @@ impl Lint for Global {
 
     fn category() -> LintCategory {
         LintCategory::Pedantic
+    }
+
+    fn visit_expression(
+        duck: &Duck,
+        expression: &Expression,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Expression::DotAccess(AccessScope::Global, _) = expression {
+            reports.push(LintReport {
+                position: position.clone(),
+            })
+        }
     }
 }

@@ -1,4 +1,7 @@
-use crate::{parsing::Token, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    parsing::{expression::Expression, statement::Statement},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 pub struct Exit;
 impl Lint for Exit {
@@ -22,15 +25,16 @@ impl Lint for Exit {
         LintCategory::Style
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for keyword in duck.keywords() {
-            if let (Token::Exit, position) = keyword {
-                reports.push(LintReport {
-                    position: position.clone(),
-                })
-            }
+    fn visit_statement(
+        duck: &Duck,
+        statement: &Statement,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if *statement == Statement::Exit {
+            reports.push(LintReport {
+                position: position.clone(),
+            })
         }
-        reports
     }
 }

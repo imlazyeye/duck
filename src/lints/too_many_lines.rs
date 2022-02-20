@@ -1,5 +1,7 @@
-use crate::{Lint, LintCategory};
-
+use crate::{
+    parsing::expression::{Expression},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 pub struct TooManyLines;
 impl Lint for TooManyLines {
     fn tag() -> &'static str {

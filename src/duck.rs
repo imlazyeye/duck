@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     gml::{GmlEnum, GmlSwitchStatement},
-    lints::LintLevel,
+    lint::LintLevel,
     parsing::{parser::Ast, ParseError, Parser, Token},
     GmlComment, GmlConstructor, GmlMacro, Lint, LintCategory, LintReport, LintTag,
 };
@@ -57,12 +57,8 @@ impl Duck {
     }
 
     /// Parses the given String of GML, collecting data for Duck.
-    pub fn parse_gml(&mut self, source_code: &str, path: &Path) -> Result<(), ParseError> {
-        self.asts.insert(
-            path.to_path_buf(),
-            Parser::new(source_code, path.to_path_buf()).into_ast()?,
-        );
-        Ok(())
+    pub fn parse_gml(&mut self, source_code: &str, path: &Path) -> Result<Ast, ParseError> {
+        Parser::new(source_code, path.to_path_buf()).into_ast()
     }
 
     pub fn report_lint<L: Lint>(

@@ -1,4 +1,4 @@
-use crate::{Duck, Lint, LintCategory, LintReport};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
 pub struct NonPascalCase;
 impl Lint for NonPascalCase {
@@ -22,27 +22,27 @@ impl Lint for NonPascalCase {
         LintCategory::Style
     }
 
-    fn run(duck: &Duck) -> Vec<LintReport> {
-        let mut reports = vec![];
-        for e in duck.enums() {
-            let name = e.name();
-            let ideal_name = Duck::pascal_case(name);
-            if name != ideal_name {
-                reports.push(LintReport {
-                    position: e.position().clone(),
-                })
-            }
-        }
-        for constructor in duck.constructors() {
-            if let Some(name) = constructor.name() {
-                let ideal_name = Duck::pascal_case(name);
-                if name != &ideal_name {
-                    reports.push(LintReport {
-                        position: constructor.position().clone(),
-                    })
-                }
-            }
-        }
-        reports
-    }
+    // fn run(duck: &Duck) -> Vec<LintReport> {
+    //     let mut reports = vec![];
+    //     for e in duck.enums() {
+    //         let name = e.name();
+    //         let ideal_name = Duck::pascal_case(name);
+    //         if name != ideal_name {
+    //             reports.push(LintReport {
+    //                 position: e.position().clone(),
+    //             })
+    //         }
+    //     }
+    //     for constructor in duck.constructors() {
+    //         if let Some(name) = constructor.name() {
+    //             let ideal_name = Duck::pascal_case(name);
+    //             if name != &ideal_name {
+    //                 reports.push(LintReport {
+    //                     position: constructor.position().clone(),
+    //                 })
+    //             }
+    //         }
+    //     }
+    //     reports
+    // }
 }

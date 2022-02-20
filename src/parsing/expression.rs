@@ -25,6 +25,11 @@ pub enum Expression {
 
 #[derive(Debug, PartialEq)]
 pub struct ExpressionBox(pub Box<Expression>);
+impl ExpressionBox {
+    pub fn inner(&self) -> &Expression {
+        self.0.as_ref()
+    }
+}
 impl From<Expression> for ExpressionBox {
     fn from(exp: Expression) -> Self {
         Self(Box::new(exp))
