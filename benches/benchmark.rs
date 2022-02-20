@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use duck::parsing::Parser;
+use duck::{parsing::Parser, Duck, Position};
 use yy_boss::{Resource, YyResource, YypBoss};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -45,6 +45,21 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 Parser::new(&gml_file, path.to_path_buf())
                     .into_ast()
                     .unwrap();
+            }
+        });
+    });
+
+    let duck = Duck::new();
+    c.bench_function("FoM -> Lint", |b| {
+        b.iter(|| {
+            for (gml_file, path) in gml.clone() {
+                for statement in Parser::new(&gml_file, path.to_path_buf())
+                    .into_ast()
+                    .unwrap()
+                {
+                    let mut reports = vec![];
+                    duck.lint_statement(&*statement, &Position::default(), &mut reports);
+                }
             }
         });
     });
