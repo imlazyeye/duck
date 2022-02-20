@@ -106,6 +106,40 @@ fn local_variable_series() {
 }
 
 #[test]
+fn local_variable_trailling_comma() {
+    harness_stmt(
+        "var i = 0,",
+        Statement::LocalVariableSeries(vec![(
+            "i".into(),
+            Some(Expression::Literal(Literal::Real(0.0)).into()),
+        )]),
+    )
+}
+
+#[test]
+fn local_variable_series_ending_without_marker() {
+    harness_stmt(
+        "{ var i = 0 j = 0 }",
+        Statement::Block(vec![
+            Statement::LocalVariableSeries(vec![(
+                "i".into(),
+                Some(Expression::Literal(Literal::Real(0.0)).into()),
+            )])
+            .into(),
+            Statement::Expression(
+                Expression::Assignment(
+                    Expression::Identifier("j".into()).into(),
+                    AssignmentOperator::Equal,
+                    Expression::Literal(Literal::Real(0.0)).into(),
+                )
+                .into(),
+            )
+            .into(),
+        ]),
+    )
+}
+
+#[test]
 fn try_catch() {
     harness_stmt(
         "try {} catch (e) {}",

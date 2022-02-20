@@ -86,6 +86,7 @@ pub enum AssignmentOperator {
     OrEqual,
     AndEqual,
     NullCoalecenceEqual,
+    ModEqual,
 }
 
 #[derive(Debug, PartialEq)]
@@ -113,7 +114,7 @@ pub enum Literal {
 
 #[derive(Debug, PartialEq)]
 pub enum DSAccess {
-    Array(ExpressionBox),
+    Array(ExpressionBox, Option<ExpressionBox>),
     Map(ExpressionBox),
     Grid(ExpressionBox, ExpressionBox),
     List(ExpressionBox),
@@ -135,7 +136,7 @@ pub struct Parameter(pub String, pub Option<ExpressionBox>);
 #[derive(Debug, PartialEq)]
 pub enum AccessScope {
     Global,
-    /// This is Self. I can't use Self.
+    /// This is `self`. I can't use Self.
     Current,
     Other(ExpressionBox),
 }

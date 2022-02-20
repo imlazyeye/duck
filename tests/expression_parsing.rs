@@ -97,6 +97,18 @@ fn inheritance() {
 }
 
 #[test]
+fn function_return_no_semi_colon() {
+    harness_expr(
+        "function() { return }",
+        Expression::FunctionDeclaration(Function::Anonymous(
+            vec![],
+            None,
+            Statement::Block(vec![Statement::Return(None).into()]).into(),
+        )),
+    )
+}
+
+#[test]
 fn and() {
     harness_expr(
         "1 && 1",
@@ -520,6 +532,18 @@ fn xor_equal() {
 }
 
 #[test]
+fn mod_equal() {
+    harness_expr(
+        "foo %= 1",
+        Expression::Assignment(
+            Expression::Identifier("foo".into()).into(),
+            AssignmentOperator::ModEqual,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
 fn not() {
     harness_expr(
         "!foo",
@@ -672,7 +696,21 @@ fn array_access() {
         "foo[bar]",
         Expression::DSAccess(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Array(Expression::Identifier("bar".into()).into()),
+            DSAccess::Array(Expression::Identifier("bar".into()).into(), None),
+        ),
+    );
+}
+
+#[test]
+fn array_access_2d() {
+    harness_expr(
+        "foo[bar, buzz]",
+        Expression::DSAccess(
+            Expression::Identifier("foo".into()).into(),
+            DSAccess::Array(
+                Expression::Identifier("bar".into()).into(),
+                Some(Expression::Identifier("buzz".into()).into()),
+            ),
         ),
     );
 }
@@ -731,10 +769,10 @@ fn chained_ds_accesses() {
         Expression::DSAccess(
             Expression::DSAccess(
                 Expression::Identifier("foo".into()).into(),
-                DSAccess::Array(Expression::Identifier("bar".into()).into()),
+                DSAccess::Array(Expression::Identifier("bar".into()).into(), None),
             )
             .into(),
-            DSAccess::Array(Expression::Identifier("buzz".into()).into()),
+            DSAccess::Array(Expression::Identifier("buzz".into()).into(), None),
         ),
     );
 }
@@ -746,7 +784,7 @@ fn ds_access_call() {
         Expression::Call(
             Expression::DSAccess(
                 Expression::Identifier("foo".into()).into(),
-                DSAccess::Array(Expression::Identifier("bar".into()).into()),
+                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None),
             )
             .into(),
             vec![],
@@ -800,7 +838,7 @@ fn dot_access_to_ds_access() {
             AccessScope::Other(Expression::Identifier("foo".into()).into()),
             Expression::DSAccess(
                 Expression::Identifier("bar".into()).into(),
-                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into()),
+                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None),
             )
             .into(),
         ),
@@ -837,21 +875,20 @@ fn chained_calls() {
 fn chain_calls_with_call_parameter() {
     harness_expr(
         "foo().bar(buzz())",
-        dbg!(Expression::DotAccess(
+        Expression::DotAccess(
             AccessScope::Other(
-                Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false,)
-                    .into()
+                Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false).into(),
             ),
             Expression::Call(
                 Expression::Identifier("bar".into()).into(),
                 vec![
-                    Expression::Call(Expression::Identifier("buzz".into()).into(), vec![], false,)
-                        .into()
+                    Expression::Call(Expression::Identifier("buzz".into()).into(), vec![], false)
+                        .into(),
                 ],
                 false,
             )
             .into(),
-        )),
+        ),
     )
 }
 
@@ -897,7 +934,7 @@ fn ds_dot_access() {
             AccessScope::Other(
                 Expression::DSAccess(
                     Expression::Identifier("foo".into()).into(),
-                    DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into()),
+                    DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None),
                 )
                 .into(),
             ),

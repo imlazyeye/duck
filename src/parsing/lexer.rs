@@ -32,8 +32,14 @@ impl<'a> Lexer<'a> {
                 '[' => Some(Token::LeftSquareBracket),
                 ']' => Some(Token::RightSquareBracket),
                 ',' => Some(Token::Comma),
-                '%' => Some(Token::ModSymbol),
                 ';' => Some(Token::SemiColon),
+                '%' => {
+                    if self.match_take('=') {
+                        Some(Token::PercentEqual)
+                    } else {
+                        Some(Token::Percent)
+                    }
+                }
                 '?' => {
                     if self.match_take('?') {
                         if self.match_take('=') {
@@ -205,7 +211,7 @@ impl<'a> Lexer<'a> {
                     } else if self.match_take('/') {
                         // Eat up the whitespace first...
                         let mut comment_lexeme = String::from("//");
-                        self.consume_whitespace(&mut comment_lexeme);
+                        self.consume_whitespace_on_line(&mut comment_lexeme);
 
                         // See if this is an lint tag...
                         if self.match_take('#') && self.match_take('[') {
@@ -284,7 +290,7 @@ impl<'a> Lexer<'a> {
                         "new" => Some(Token::New),
                         "global" => Some(Token::Global),
                         "globalvar" => Some(Token::Globalvar),
-                        "mod" => Some(Token::ModKeyword),
+                        "mod" => Some(Token::Mod),
                         "try" => Some(Token::Try),
                         "with" => Some(Token::With),
                         "true" => Some(Token::True),
@@ -398,9 +404,14 @@ impl<'a> Lexer<'a> {
         self.match_take(chr);
     }
 
-    /// Consumes all upcoming characters that are whitespace into the string.
-    fn consume_whitespace(&mut self, lexeme: &mut String) {
-        while self.peek().filter(|c| c.is_whitespace()).is_some() {
+    /// Consumes all upcoming characters that are whitespace into the string, stopping at
+    /// the end of the line.
+    fn consume_whitespace_on_line(&mut self, lexeme: &mut String) {
+        while self
+            .peek()
+            .filter(|c| c.is_whitespace() && c != &'\n')
+            .is_some()
+        {
             lexeme.push(self.take().unwrap().1);
         }
     }

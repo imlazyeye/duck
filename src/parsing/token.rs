@@ -37,8 +37,9 @@ pub enum Token {
     Global,
     Globalvar,
     SelfKeyword,
-    ModKeyword,
-    ModSymbol,
+    Mod,
+    Percent,
+    PercentEqual,
     Div,
     Slash,
     Star,
@@ -108,7 +109,7 @@ impl Token {
             Token::Slash => Some(EvaluationOperator::Slash),
             Token::Star => Some(EvaluationOperator::Star),
             Token::Div => Some(EvaluationOperator::Div),
-            Token::ModKeyword | Token::ModSymbol => Some(EvaluationOperator::Modulo),
+            Token::Mod | Token::Percent => Some(EvaluationOperator::Modulo),
             Token::Ampersand => Some(EvaluationOperator::And),
             Token::Pipe => Some(EvaluationOperator::Or),
             Token::Circumflex => Some(EvaluationOperator::Xor),
@@ -141,6 +142,7 @@ impl Token {
             Token::AmpersandEqual => Some(AssignmentOperator::AndEqual),
             Token::CirumflexEqual => Some(AssignmentOperator::XorEqual),
             Token::DoubleInterrobangEquals => Some(AssignmentOperator::NullCoalecenceEqual),
+            Token::PercentEqual => Some(AssignmentOperator::ModEqual),
             _ => None,
         }
     }

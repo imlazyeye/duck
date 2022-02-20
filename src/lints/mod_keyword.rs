@@ -25,7 +25,7 @@ impl Lint for ModKeyword {
     fn run(duck: &Duck) -> Vec<LintReport> {
         let mut reports = vec![];
         for keyword in duck.keywords() {
-            if let (Token::ModKeyword, position) = keyword {
+            if let (Token::Mod, position) = keyword {
                 reports.push(LintReport {
                     position: position.clone(),
                 })
