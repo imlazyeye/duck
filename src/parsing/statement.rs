@@ -1,6 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use super::expression::{Expression, ExpressionBox};
+use super::expression::{ExpressionBox};
 
 #[derive(Debug, PartialEq)]
 pub enum Statement {

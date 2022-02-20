@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use crate::parsing::{expression::EvaluationOperator, ParseError};
+use crate::{
+    parsing::{expression::EvaluationOperator, ParseError},
+    Position,
+};
 
 use super::{
     expression::{
@@ -36,6 +39,14 @@ impl<'a> Parser<'a> {
         Ok(statements)
     }
 
+    pub fn position(&self) -> Position {
+        Position::new(
+            self.source_code,
+            self.resource_path.to_str().unwrap(),
+            self.pilot.cursor(),
+        )
+    }
+
     pub fn statement(&mut self) -> Result<StatementBox, ParseError> {
         match self.pilot.peek()? {
             Token::Macro(_, _, _) => self.macro_declaration(),
@@ -64,7 +75,7 @@ impl<'a> Parser<'a> {
             Token::Macro(name, config, body) => {
                 Ok(Statement::MacroDeclaration(name, config, body).into())
             }
-            token => Err(ParseError::UnexpectedToken(self.pilot.cursor(), token)),
+            token => Err(ParseError::UnexpectedToken(self.position(), token)),
         }
     }
 
@@ -184,7 +195,7 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     return Err(ParseError::UnexpectedToken(
-                        self.pilot.cursor(),
+                        self.position(),
                         self.pilot.take()?,
                     ))
                 }
@@ -283,10 +294,7 @@ impl<'a> Parser<'a> {
             _ => {
                 // Temporarily ignoring!!!
                 if *expression != Expression::Identifier("unsafe".into()) {
-                    return Err(ParseError::IncompleteStatement(
-                        self.pilot.cursor(),
-                        expression,
-                    ));
+                    return Err(ParseError::IncompleteStatement(self.position(), expression));
                 }
             }
         }
@@ -299,7 +307,6 @@ impl<'a> Parser<'a> {
     }
 
     fn function(&mut self) -> Result<ExpressionBox, ParseError> {
-        let static_position = self.pilot.cursor();
         let static_token = self.pilot.match_take(Token::Static);
         if self.pilot.match_take(Token::Function).is_some() {
             let name = self.pilot.match_take_identifier()?;
@@ -513,7 +520,7 @@ impl<'a> Parser<'a> {
                     | Expression::Call(..) // idiotically, this does compile in GM. We have a lint for this!
             ) {
                 Err(ParseError::InvalidAssignmentTarget(
-                    self.pilot.cursor(),
+                    self.position(),
                     expression,
                 ))
             } else {
@@ -651,7 +658,7 @@ impl<'a> Parser<'a> {
                         }
                     }
                     Token::RightParenthesis => break,
-                    token => return Err(ParseError::UnexpectedToken(self.pilot.cursor(), token)),
+                    token => return Err(ParseError::UnexpectedToken(self.position(), token)),
                 }
             }
         }
@@ -718,7 +725,7 @@ impl<'a> Parser<'a> {
         // Users should be able to use `self.expression().ok()` and similar patterns
         // without losing tokens.
         Err(ParseError::UnexpectedToken(
-            self.pilot.cursor(),
+            self.position(),
             self.pilot.soft_peek().unwrap().clone(),
         ))
     }

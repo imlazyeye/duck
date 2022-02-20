@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use colored::Colorize;
 use duck::{lints::*, DuckConfig};
-use duck::{parsing::ParseError, Duck, Lint, LintLevel, Position};
+use duck::{Duck, Lint, LintLevel};
 use enum_map::{enum_map, EnumMap};
 use yy_boss::{Resource, YyResource, YypBoss};
 
@@ -125,35 +125,7 @@ fn parse_all_gml(duck: &mut Duck) {
 
     for (gml_file, path) in gml {
         if let Err(error) = duck.parse_gml(&gml_file, &path) {
-            match error {
-                ParseError::UnexpectedToken(cursor, token) => {
-                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
-                    error!(target: &target.file_string, "Unexpected token: {:?}", token)
-                }
-                ParseError::ExpectedToken(cursor, token) => {
-                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
-                    error!(target: &target.file_string, "Expected token: {:?}", token)
-                }
-                ParseError::UnexpectedEnd => {
-                    error!(target: path.to_str().unwrap(), "Unexpected end.")
-                }
-                ParseError::InvalidLintLevel(cursor, level) => {
-                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
-                    error!(target: &target.file_string, "Invalid lint level: {:?}", level)
-                }
-                ParseError::InvalidAssignmentTarget(cursor, expr) => {
-                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
-                    error!(target: &target.file_string, "Invalid assignment target: {:?}", expr)
-                }
-                ParseError::InvalidNewTarget(cursor, expr) => {
-                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
-                    error!(target: &target.file_string, "Invalid new target: {:?}", expr)
-                }
-                ParseError::IncompleteStatement(cursor, expr) => {
-                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
-                    error!(target: &target.file_string, "Incomplete statement: {:?}", expr)
-                }
-            }
+            error!(target: &error.position().file_string, "{}", error);
         }
     }
 }

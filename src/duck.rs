@@ -80,18 +80,8 @@ impl Duck {
             LintLevel::Warn => "warning".yellow().bold(),
             LintLevel::Deny => "error".bright_red().bold(),
         };
-        let path_message = format!(
-            "\n {} {}",
-            "-->".bold().bright_blue(),
-            report.position.file_string
-        );
-        let snippet_message = format!(
-            "\n{}\n{}{}\n{}",
-            " | ".bright_blue().bold(),
-            " | ".bright_blue().bold(),
-            report.position.snippet,
-            " | ".bright_blue().bold()
-        );
+        let path_message = report.position.path_message();
+        let snippet_message = report.position.snippet_message();
         let show_suggestions = true;
         let suggestion_message = if show_suggestions {
             let mut suggestions: Vec<String> = L::suggestions()
@@ -129,7 +119,7 @@ impl Duck {
         )
         .bright_black();
         println!(
-            "{}: {}{path_message}{snippet_message}{suggestion_message}{note_message}\n",
+            "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
             level_string,
             L::display_name().bright_white(),
         );
@@ -223,7 +213,7 @@ pub struct DuckConfig {
     pub lint_levels: HashMap<String, LintLevel>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Position {
     pub file_name: String,
     pub line: usize,
@@ -256,5 +246,19 @@ impl Position {
             file_string: format!("{}:{}:{}", file_name, line, column),
             snippet: snippet.to_string(),
         }
+    }
+
+    pub fn snippet_message(&self) -> String {
+        format!(
+            "{}\n{}{}\n{}",
+            " | ".bright_blue().bold(),
+            " | ".bright_blue().bold(),
+            self.snippet,
+            " | ".bright_blue().bold()
+        )
+    }
+
+    pub fn path_message(&self) -> String {
+        format!(" {} {}", "-->".bold().bright_blue(), self.file_string)
     }
 }

@@ -1,8 +1,5 @@
 use duck::parsing::{
-    expression::{
-        AssignmentOperator, EqualityOperator, EvaluationOperator, Expression, Literal,
-        LogicalOperator, PostfixOperator,
-    },
+    expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator},
     statement::{Case, Statement},
 };
 use pretty_assertions::assert_eq;
