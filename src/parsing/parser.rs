@@ -6,9 +6,7 @@ use crate::{
 };
 
 use super::{
-    expression::{
-        AccessScope, Constructor, Expression, ExpressionBox, Function, Literal, Parameter,
-    },
+    expression::{AccessScope, Constructor, Expression, ExpressionBox, Literal, Parameter},
     statement::{Case, Statement, StatementBox},
     token_pilot::TokenPilot,
     Token,
@@ -88,7 +86,13 @@ impl<'a> Parser<'a> {
             if self.pilot.match_take(Token::RightBrace).is_some() {
                 break;
             } else {
-                members.push(self.expression()?);
+                let name = self.pilot.require_identifier()?;
+                let initializer = if self.pilot.match_take(Token::Equal).is_some() {
+                    Some(self.expression()?)
+                } else {
+                    None
+                };
+                members.push((name, initializer));
                 self.pilot.match_take(Token::Comma);
             }
         }
@@ -340,12 +344,14 @@ impl<'a> Parser<'a> {
                 None
             };
             let body = self.block()?;
-            let function = if let Some(name) = name {
-                Function::Named(name, parameters, constructor, body, static_token.is_some())
-            } else {
-                Function::Anonymous(parameters, constructor, body, static_token.is_some())
-            };
-            Ok(Expression::FunctionDeclaration(function).into())
+            Ok(Expression::FunctionDeclaration(
+                name,
+                parameters,
+                constructor,
+                body,
+                static_token.is_some(),
+            )
+            .into())
         } else {
             self.null_coalecence()
         }

@@ -33,10 +33,7 @@ fn enum_declaration() {
         "enum Foo { Bar, Baz }",
         Statement::EnumDeclaration(
             "Foo".into(),
-            vec![
-                Expression::Identifier("Bar".into()).into(),
-                Expression::Identifier("Baz".into()).into(),
-            ],
+            vec![("Bar".into(), None), ("Baz".into(), None)],
         ),
     )
 }
@@ -48,13 +45,11 @@ fn enum_with_values() {
         Statement::EnumDeclaration(
             "Foo".into(),
             vec![
-                Expression::Assignment(
-                    Expression::Identifier("Bar".into()).into(),
-                    AssignmentOperator::Equal,
-                    Expression::Literal(Literal::Real(20.0)).into(),
-                )
-                .into(),
-                Expression::Identifier("Baz".into()).into(),
+                (
+                    "Bar".into(),
+                    Some(Expression::Literal(Literal::Real(20.0)).into()),
+                ),
+                ("Baz".into(), None),
             ],
         ),
     )

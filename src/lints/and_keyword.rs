@@ -13,10 +13,4 @@ impl Lint for AndKeyword {
 			position,
 		}
     }
-
-    fn visit_token(duck: &Duck, token: &Token, position: &Position, reports: &mut Vec<LintReport>) {
-        if token == &Token::And {
-            reports.push(Self::generate_report(position.clone()))
-        }
-    }
 }

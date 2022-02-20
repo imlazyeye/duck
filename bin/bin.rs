@@ -7,7 +7,7 @@ use duck::lints::{
     NonPascalCase, NonScreamCase, OrKeyword, RoomGoto, ShowDebugMessage, SingleSwitchCase, Todo,
     TooManyArguments, TooManyLines, TryCatch, WithLoop,
 };
-use duck::parsing::expression::{AccessScope, Expression, Function};
+use duck::parsing::expression::{AccessScope, Expression};
 use duck::parsing::statement::Statement;
 use duck::{Duck, Lint, LintLevel};
 use duck::{DuckConfig, LintReport, Position};
@@ -118,9 +118,9 @@ fn lint_statement(
     match statement {
         Statement::MacroDeclaration(_, _, _) => {}
         Statement::EnumDeclaration(_, members) => {
-            for member in members {
+            members.iter().flat_map(|(_, i)| i).for_each(|member| {
                 lint_expression(duck, &*member, position, reports);
-            }
+            });
         }
         Statement::GlobalvarDeclaration(_) => {}
         Statement::LocalVariableSeries(members) => {
@@ -228,20 +228,17 @@ fn lint_expression(
 
     // Recurse...
     match expression {
-        Expression::FunctionDeclaration(function) => match function {
-            Function::Anonymous(parameters, constructor, body, _)
-            | Function::Named(_, parameters, constructor, body, _) => {
-                for parameter in parameters.iter() {
-                    if let Some(default_value) = &parameter.1 {
-                        lint_expression(duck, &*default_value, position, reports);
-                    }
+        Expression::FunctionDeclaration(_, parameters, constructor, body, _) => {
+            for parameter in parameters.iter() {
+                if let Some(default_value) = &parameter.1 {
+                    lint_expression(duck, &*default_value, position, reports);
                 }
-                if let Some(Some(inheritance_call)) = constructor.as_ref().map(|c| &c.0) {
-                    lint_expression(duck, &*inheritance_call, position, reports);
-                }
-                lint_statement(duck, &*body, position, reports);
             }
-        },
+            if let Some(Some(inheritance_call)) = constructor.as_ref().map(|c| &c.0) {
+                lint_expression(duck, &*inheritance_call, position, reports);
+            }
+            lint_statement(duck, &*body, position, reports);
+        }
         Expression::Logical(left, _, right)
         | Expression::Equality(left, _, right)
         | Expression::Evaluation(left, _, right)

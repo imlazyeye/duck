@@ -1,4 +1,9 @@
-use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
+use heck::ToUpperCamelCase;
+
+use crate::{
+    parsing::{expression::Expression, statement::Statement},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct NonPascalCase;
@@ -14,27 +19,50 @@ impl Lint for NonPascalCase {
 		}
     }
 
-    // fn run(duck: &Duck) -> Vec<LintReport> {
-    //     let mut reports = vec![];
-    //     for e in duck.enums() {
-    //         let name = e.name();
-    //         let ideal_name = Duck::pascal_case(name);
-    //         if name != ideal_name {
-    //             reports.push(LintReport {
-    //                 position: e.position().clone(),
-    //             })
-    //         }
-    //     }
-    //     for constructor in duck.constructors() {
-    //         if let Some(name) = constructor.name() {
-    //             let ideal_name = Duck::pascal_case(name);
-    //             if name != &ideal_name {
-    //                 reports.push(LintReport {
-    //                     position: constructor.position().clone(),
-    //                 })
-    //             }
-    //         }
-    //     }
-    //     reports
-    // }
+    fn visit_expression(
+        _duck: &Duck,
+        expression: &Expression,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Expression::FunctionDeclaration(Some(name), ..) = expression {
+            if name != &pascal_case(name) {
+                reports.push(Self::generate_report(position.clone()))
+            }
+        }
+    }
+
+    fn visit_statement(
+        duck: &Duck,
+        statement: &crate::parsing::statement::Statement,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Statement::EnumDeclaration(name, members) = statement {
+            if name != &pascal_case(name) {
+                reports.push(Self::generate_report(position.clone()))
+            }
+            // for member in members {
+            //     match member {
+            //         Expression::Identifier(name) => {
+            //             if name != &pascal_case(name) {
+            //                 reports.push(Self::generate_report(position.clone()))
+            //             }
+            //         }
+            //         Expression::Assignment(left, ..) => {}
+            //         _ => {}
+            //     }
+            // }
+        }
+    }
+}
+
+pub fn pascal_case(string: &str) -> String {
+    let output = string.to_upper_camel_case();
+    let mut prefix = String::new();
+    let mut chars = string.chars();
+    while let Some('_') = chars.next() {
+        prefix.push('_');
+    }
+    prefix + &output
 }

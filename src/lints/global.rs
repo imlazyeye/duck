@@ -18,7 +18,7 @@ impl Lint for Global {
     }
 
     fn visit_expression(
-        duck: &Duck,
+        _duck: &Duck,
         expression: &Expression,
         position: &Position,
         reports: &mut Vec<LintReport>,

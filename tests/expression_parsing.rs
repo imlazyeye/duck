@@ -1,6 +1,6 @@
 use duck::parsing::expression::{
     AccessScope, AssignmentOperator, Constructor, EqualityOperator, EvaluationOperator, Expression,
-    Function, Literal, LogicalOperator, Parameter, PostfixOperator, UnaryOperator,
+    Literal, LogicalOperator, Parameter, PostfixOperator, UnaryOperator,
 };
 use duck::parsing::parser::Parser;
 use duck::parsing::statement::Statement;
@@ -15,13 +15,13 @@ fn harness_expr(source: &str, expected: Expression) {
 fn function() {
     harness_expr(
         "function foo() {}",
-        Expression::FunctionDeclaration(Function::Named(
-            "foo".into(),
+        Expression::FunctionDeclaration(
+            Some("foo".into()),
             vec![],
             None,
             Statement::Block(vec![]).into(),
             false,
-        )),
+        ),
     )
 }
 
@@ -29,13 +29,13 @@ fn function() {
 fn static_function() {
     harness_expr(
         "static function foo() {}",
-        Expression::FunctionDeclaration(Function::Named(
-            "foo".into(),
+        Expression::FunctionDeclaration(
+            Some("foo".into()),
             vec![],
             None,
             Statement::Block(vec![]).into(),
             true,
-        )),
+        ),
     )
 }
 
@@ -43,13 +43,13 @@ fn static_function() {
 fn function_with_parameters() {
     harness_expr(
         "function foo(bar, baz) {}",
-        Expression::FunctionDeclaration(Function::Named(
-            "foo".into(),
+        Expression::FunctionDeclaration(
+            Some("foo".into()),
             vec![Parameter("bar".into(), None), Parameter("baz".into(), None)],
             None,
             Statement::Block(vec![]).into(),
             false,
-        )),
+        ),
     )
 }
 
@@ -57,8 +57,8 @@ fn function_with_parameters() {
 fn default_parameters() {
     harness_expr(
         "function foo(bar=20, baz) {}",
-        Expression::FunctionDeclaration(Function::Named(
-            "foo".into(),
+        Expression::FunctionDeclaration(
+            Some("foo".into()),
             vec![
                 Parameter(
                     "bar".into(),
@@ -69,7 +69,7 @@ fn default_parameters() {
             None,
             Statement::Block(vec![]).into(),
             false,
-        )),
+        ),
     )
 }
 
@@ -77,12 +77,7 @@ fn default_parameters() {
 fn anonymous_function() {
     harness_expr(
         "function() {}",
-        Expression::FunctionDeclaration(Function::Anonymous(
-            vec![],
-            None,
-            Statement::Block(vec![]).into(),
-            false,
-        )),
+        Expression::FunctionDeclaration(None, vec![], None, Statement::Block(vec![]).into(), false),
     )
 }
 
@@ -90,13 +85,13 @@ fn anonymous_function() {
 fn constructor() {
     harness_expr(
         "function foo() constructor {}",
-        Expression::FunctionDeclaration(Function::Named(
-            "foo".into(),
+        Expression::FunctionDeclaration(
+            Some("foo".into()),
             vec![],
             Some(Constructor(None)),
             Statement::Block(vec![]).into(),
             false,
-        )),
+        ),
     )
 }
 
@@ -104,15 +99,15 @@ fn constructor() {
 fn inheritance() {
     harness_expr(
         "function foo() : bar() constructor {}",
-        Expression::FunctionDeclaration(Function::Named(
-            "foo".into(),
+        Expression::FunctionDeclaration(
+            Some("foo".into()),
             vec![],
             Some(Constructor(Some(
                 Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
             ))),
             Statement::Block(vec![]).into(),
             false,
-        )),
+        ),
     )
 }
 
@@ -120,12 +115,13 @@ fn inheritance() {
 fn function_return_no_semi_colon() {
     harness_expr(
         "function() { return }",
-        Expression::FunctionDeclaration(Function::Anonymous(
+        Expression::FunctionDeclaration(
+            None,
             vec![],
             None,
             Statement::Block(vec![Statement::Return(None).into()]).into(),
             false,
-        )),
+        ),
     )
 }
 

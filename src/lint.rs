@@ -22,15 +22,6 @@ pub trait Lint {
     /// Genreates a LintReport;
     fn generate_report(position: Position) -> LintReport;
 
-    /// Ran on all tokens.
-    fn visit_token(
-        duck: &Duck,
-        expression: &Token,
-        position: &Position,
-        reports: &mut Vec<LintReport>,
-    ) {
-    }
-
     /// Ran on all expressions.
     #[allow(unused_mut)]
     #[allow(unused_variables)]

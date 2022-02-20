@@ -18,7 +18,7 @@ impl Lint for Exit {
     }
 
     fn visit_statement(
-        duck: &Duck,
+        _duck: &Duck,
         statement: &Statement,
         position: &Position,
         reports: &mut Vec<LintReport>,

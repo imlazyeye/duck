@@ -175,16 +175,6 @@ impl Duck {
 
 // Utils
 impl Duck {
-    /// Returns the given string under Duck's definition of PascalCase.
-    pub fn pascal_case(string: &str) -> String {
-        let output = string.to_upper_camel_case();
-        let mut prefix = String::new();
-        let mut chars = string.chars();
-        while let Some('_') = chars.next() {
-            prefix.push('_');
-        }
-        prefix + &output
-    }
 
     /// Returns the given string under Duck's definition of SCREAM_CASE.
     pub fn scream_case(string: &str) -> String {

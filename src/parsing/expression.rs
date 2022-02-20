@@ -4,7 +4,13 @@ use super::statement::StatementBox;
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
-    FunctionDeclaration(Function),
+    FunctionDeclaration(
+        Option<String>,
+        Vec<Parameter>,
+        Option<Constructor>,
+        StatementBox,
+        bool,
+    ),
     Logical(ExpressionBox, LogicalOperator, ExpressionBox),
     Equality(ExpressionBox, EqualityOperator, ExpressionBox),
     Evaluation(ExpressionBox, EvaluationOperator, ExpressionBox),
@@ -127,18 +133,6 @@ pub enum AccessScope {
     Grid(ExpressionBox, ExpressionBox),
     List(ExpressionBox),
     Struct(ExpressionBox),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Function {
-    Anonymous(Vec<Parameter>, Option<Constructor>, StatementBox, bool),
-    Named(
-        String,
-        Vec<Parameter>,
-        Option<Constructor>,
-        StatementBox,
-        bool,
-    ),
 }
 
 #[derive(Debug, PartialEq)]

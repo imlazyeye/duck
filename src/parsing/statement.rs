@@ -8,7 +8,7 @@ use super::expression::ExpressionBox;
 #[derive(Debug, PartialEq)]
 pub enum Statement {
     MacroDeclaration(String, Option<String>, String),
-    EnumDeclaration(String, Vec<ExpressionBox>),
+    EnumDeclaration(String, Vec<(String, Option<ExpressionBox>)>),
     GlobalvarDeclaration(String),
     LocalVariableSeries(Vec<ExpressionBox>),
     TryCatch(StatementBox, ExpressionBox, StatementBox),

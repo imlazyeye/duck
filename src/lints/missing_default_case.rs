@@ -17,7 +17,12 @@ impl Lint for MissingDefaultCase {
 		}
     }
 
-    fn visit_statement(duck: &Duck, statement: &Statement,position: &Position,  reports: &mut Vec<LintReport>) {
+    fn visit_statement(
+        _duck: &Duck,
+        statement: &Statement,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
         if let Statement::Switch(_, _, None) = statement {
             reports.push(Self::generate_report(position.clone()))
         }
