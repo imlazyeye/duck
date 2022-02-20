@@ -1,25 +1,17 @@
 use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
+#[derive(Debug, PartialEq)]
 pub struct NonScreamCase;
 impl Lint for NonScreamCase {
-    fn tag() -> &'static str {
-        "non_scream_case"
-    }
-
-    fn display_name() -> &'static str {
-        "Identifier should be SCREAM_CASE"
-    }
-
-    fn explanation() -> &'static str {
-        "Scream case is the ideal casing for constants to distingusih them from other values."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec!["Change your casing to SCREAM_CASE"]
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+			display_name: "Identifier should be SCREAM_CASE",
+			tag: "non_scream_case",
+			explanation: "Scream case is the ideal casing for constants to distingusih them from other values.",
+			suggestions: vec!["Change your casing to SCREAM_CASE"],
+			category: LintCategory::Style,
+			position,
+		}
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

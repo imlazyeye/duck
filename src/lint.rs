@@ -1,4 +1,13 @@
+use colored::Colorize;
+
 use crate::{
+    lints::{
+        AndKeyword, AnonymousConstructor, ConstructorWithoutNew, DrawSprite, DrawText, Exit,
+        Global, Globalvar, MissingCaseMember, MissingDefaultCase, ModKeyword,
+        NoSpaceBeginingComment, NonPascalCase, NonScreamCase, OrKeyword, RoomGoto,
+        ShowDebugMessage, SingleSwitchCase, Todo, TooManyArguments, TooManyLines, TryCatch,
+        WithLoop,
+    },
     parsing::{expression::Expression, statement::Statement, Token},
     Duck, Position,
 };
@@ -10,23 +19,8 @@ use crate::{
 /// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes tagging
 /// read more clearly (ie: `#[allow(missing_default_case)])`).
 pub trait Lint {
-    /// The string representation of this lint used for referencing it in code.
-    /// For example, the lint `"MissingDefaultCase"` should return a string like
-    /// `"missing_default_case"`.
-    fn tag() -> &'static str;
-
-    /// The title of the lint as displayed when it fires into the output.
-    fn display_name() -> &'static str;
-
-    /// A justification for this lint, expressing why it may be desirable to enable.
-    fn explanation() -> &'static str;
-
-    /// A collection of suggestions on how to avoid this lint that will be displayed to the user
-    /// when this lint fires.
-    fn suggestions() -> Vec<&'static str>;
-
-    /// The [LintCategory] this lint belongs to.
-    fn category() -> LintCategory;
+    /// Genreates a LintReport;
+    fn generate_report(position: Position) -> LintReport;
 
     /// Ran on all tokens.
     fn visit_token(
@@ -61,7 +55,7 @@ pub trait Lint {
 }
 
 /// The three different levels a lint can be set to, changing how it will be treated.
-#[derive(Debug, Copy, Clone, enum_map::Enum, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, PartialEq, Copy, Clone, enum_map::Enum, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LintLevel {
     /// These lints will be ran, but their results will not affect the outcome of duck.
@@ -109,5 +103,69 @@ pub enum LintCategory {
 
 /// A report returned by a lint if it fails.
 pub struct LintReport {
-    pub position: Position,
+    pub(super) display_name: &'static str,
+    pub(super) tag: &'static str,
+    pub(super) category: LintCategory,
+    pub(super) explanation: &'static str,
+    pub(super) suggestions: Vec<&'static str>,
+    pub(super) position: Position,
+}
+impl LintReport {
+    pub fn get_true_level(&self, duck: &Duck) -> LintLevel {
+        let user_provided_level = duck.get_user_provided_level(self.tag, &self.position);
+        user_provided_level.unwrap_or_else(|| duck.category_levels[self.category])
+    }
+    pub fn raise(self, duck: &Duck) {
+        let user_provided_level = duck.get_user_provided_level(self.tag, &self.position);
+        let actual_level = self.get_true_level(duck);
+        let level_string = match actual_level {
+            LintLevel::Allow => return, // allow this!
+            LintLevel::Warn => "warning".yellow().bold(),
+            LintLevel::Deny => "error".bright_red().bold(),
+        };
+        let path_message = self.position.path_message();
+        let snippet_message = self.position.snippet_message();
+        let show_suggestions = true;
+        let suggestion_message = if show_suggestions {
+            let mut suggestions: Vec<String> = self
+                .suggestions
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            suggestions.push(format!(
+                "Ignore this by placing `// #[allow({})]` above this code",
+                self.tag,
+            ));
+            format!(
+                "\n\n {}: You can resolve this by doing one of the following:\n{}",
+                "suggestions".bold(),
+                suggestions
+                    .iter()
+                    .enumerate()
+                    .map(|(i, suggestion)| format!("  {}: {}\n", i + 1, suggestion))
+                    .collect::<String>(),
+            )
+        } else {
+            "".into()
+        };
+        let note_message = format!(
+            "\n {}: {}",
+            "note".bold(),
+            if user_provided_level.is_some() {
+                "This lint was specifically requested by in line above this source code".into()
+            } else {
+                format!(
+                    "#[{}({})] is enabled by default",
+                    actual_level.to_str(),
+                    self.tag,
+                )
+            }
+        )
+        .bright_black();
+        println!(
+            "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
+            level_string,
+            self.display_name.bright_white(),
+        );
+    }
 }

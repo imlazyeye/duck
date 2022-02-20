@@ -1,28 +1,20 @@
 use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
+#[derive(Debug, PartialEq)]
 pub struct MissingCaseMember;
 impl Lint for MissingCaseMember {
-    fn tag() -> &'static str {
-        "missing_case_member"
-    }
-
-    fn display_name() -> &'static str {
-        "Missing case member"
-    }
-
-    fn explanation() -> &'static str {
-        "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec![
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+            display_name: "Missing case member",
+            tag: "missing_case_member",
+            category:  LintCategory::Correctness,
+            explanation:  "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
+            suggestions:  vec![
             "Add cases for the missing members",
             "Remove the imtentional crash from your default case",
-        ]
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Correctness
+        ],
+            position,
+        }
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

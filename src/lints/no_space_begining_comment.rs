@@ -1,25 +1,17 @@
 use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
+#[derive(Debug, PartialEq)]
 pub struct NoSpaceBeginingComment;
 impl Lint for NoSpaceBeginingComment {
-    fn tag() -> &'static str {
-        "no_space_begining_comment"
-    }
-
-    fn display_name() -> &'static str {
-        "No space begining comment"
-    }
-
-    fn explanation() -> &'static str {
-        "Comments should begin with a space after them to increase readability and consistency."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec!["Add a space to the begining of the comment"]
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+			display_name: "No space begining comment",
+			tag: "no_space_begining_comment",
+			explanation: "Comments should begin with a space after them to increase readability and consistency.",
+			suggestions: vec!["Add a space to the begining of the comment"],
+			category: LintCategory::Style,
+			position,
+		}
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

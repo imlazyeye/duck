@@ -1,26 +1,16 @@
-use crate::{
-    parsing::expression::{Expression},
-    Duck, Lint, LintCategory, LintReport, Position,
-};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
+
+#[derive(Debug, PartialEq)]
 pub struct SingleSwitchCase;
 impl Lint for SingleSwitchCase {
-    fn tag() -> &'static str {
-        "single_switch_case"
-    }
-
-    fn display_name() -> &'static str {
-        "Single wwitch case"
-    }
-
-    fn explanation() -> &'static str {
-        "Switch statements that only match on a single element can be reduced to an `if` statement."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec!["Use an `if` statement instead of a `switch` statement"]
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+			display_name: "Single wwitch case",
+			tag: "single_switch_case",
+			explanation: "Switch statements that only match on a single element can be reduced to an `if` statement.",
+			suggestions: vec!["Use an `if` statement instead of a `switch` statement"],
+			category: LintCategory::Style,
+			position,
+		}
     }
 }

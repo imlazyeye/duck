@@ -3,29 +3,21 @@ use crate::{
     Duck, Lint, LintCategory, LintReport, Position,
 };
 
+#[derive(Debug, PartialEq)]
 pub struct AnonymousConstructor;
 impl Lint for AnonymousConstructor {
-    fn tag() -> &'static str {
-        "anonymous_constructor"
-    }
-
-    fn display_name() -> &'static str {
-        "Use of an anonymous constructor"
-    }
-
-    fn explanation() -> &'static str {
-        "Constructors should be reserved for larger, higher scoped types."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec![
-            "Change this to a named function",
-            "Change this to a function that returns a struct literal",
-        ]
-    }
-
-    fn category() -> crate::LintCategory {
-        LintCategory::Style
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+            display_name: "Use of an anonymous constructor",
+            tag: "anonymous_constructor",
+            explanation: "Constructors should be reserved for larger, higher scoped types.",
+            suggestions: vec![
+                "Change this to a named function",
+                "Change this to a function that returns a struct literal",
+            ],
+            category: LintCategory::Style,
+            position,
+        }
     }
 
     fn visit_expression(
@@ -37,9 +29,7 @@ impl Lint for AnonymousConstructor {
         if let Expression::FunctionDeclaration(Function::Anonymous(_, Some(constructor), _, _)) =
             expression
         {
-            reports.push(LintReport {
-                position: position.clone(),
-            })
+            reports.push(Self::generate_report(position.clone()))
         }
     }
 }

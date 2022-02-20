@@ -29,6 +29,7 @@ serde_json = "1.0"
 toml = "0.5"
 pretty_assertions = "1.1"
 hex = "0.4"
+strum = { version = "0.23", features = ["derive"] }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

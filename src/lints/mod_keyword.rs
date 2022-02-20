@@ -1,25 +1,17 @@
 use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
+#[derive(Debug, PartialEq)]
 pub struct ModKeyword;
 impl Lint for ModKeyword {
-    fn tag() -> &'static str {
-        "mod_keyword"
-    }
-
-    fn display_name() -> &'static str {
-        "Use of `mod`"
-    }
-
-    fn explanation() -> &'static str {
-        "GML supports both `mod` and `%` to perform modulo division -- `%` is more consistent with other languages and is preferred."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec!["Use `%` instead of `mod`"]
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+			display_name: "Use of `mod`",
+			tag: "mod_keyword",
+			explanation: "GML supports both `mod` and `%` to perform modulo division -- `%` is more consistent with other languages and is preferred.",
+			suggestions: vec!["Use `%` instead of `mod`"],
+			category: LintCategory::Style,
+			position,
+		}
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

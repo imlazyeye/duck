@@ -3,26 +3,18 @@ use crate::{
     Duck, Lint, LintCategory, LintReport, Position,
 };
 
+#[derive(Debug, PartialEq)]
 pub struct Global;
 impl Lint for Global {
-    fn tag() -> &'static str {
-        "global"
-    }
-
-    fn display_name() -> &'static str {
-        "Use of `global`"
-    }
-
-    fn explanation() -> &'static str {
-        "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec!["Scope this variable to an individual object"]
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Pedantic
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+			display_name: "Use of `global`",
+			tag: "global",
+			explanation: "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere.",
+			suggestions: vec!["Scope this variable to an individual object"],
+			category: LintCategory::Pedantic,
+			position,
+		}
     }
 
     fn visit_expression(
@@ -32,9 +24,7 @@ impl Lint for Global {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::DotAccess(AccessScope::Global, _) = expression {
-            reports.push(LintReport {
-                position: position.clone(),
-            })
+            reports.push(Self::generate_report(position.clone()))
         }
     }
 }

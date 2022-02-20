@@ -1,25 +1,17 @@
 use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
 
+#[derive(Debug, PartialEq)]
 pub struct TryCatch;
 impl Lint for TryCatch {
-    fn tag() -> &'static str {
-        "try_catch"
-    }
-
-    fn display_name() -> &'static str {
-        "Use of `try` / `catch`"
-    }
-
-    fn explanation() -> &'static str {
-        "GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed."
-    }
-
-    fn suggestions() -> Vec<&'static str> {
-        vec!["Adjust the architecture to inspect for an issue prior to the crash"]
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Pedantic
+    fn generate_report(position: Position) -> LintReport {
+        LintReport {
+			display_name: "Use of `try` / `catch`",
+			tag: "try_catch",
+			explanation: "GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.",
+			suggestions: vec!["Adjust the architecture to inspect for an issue prior to the crash"],
+			category: LintCategory::Pedantic,
+			position,
+		}
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

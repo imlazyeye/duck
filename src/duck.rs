@@ -22,8 +22,8 @@ pub struct Duck {
     switches: Vec<GmlSwitchStatement>,
     keywords: Vec<(Token, Position)>,
     comments: Vec<GmlComment>,
-    lint_levels: HashMap<String, LintLevel>,
-    category_levels: EnumMap<LintCategory, LintLevel>,
+    pub lint_levels: HashMap<String, LintLevel>,
+    pub category_levels: EnumMap<LintCategory, LintLevel>,
 }
 
 impl Duck {
@@ -61,64 +61,58 @@ impl Duck {
         Parser::new(source_code, path.to_path_buf()).into_ast()
     }
 
-    pub fn report_lint<L: Lint>(
-        &self,
-        _lint: &L,
-        report: LintReport,
-        lint_counts: &mut EnumMap<LintLevel, usize>,
-    ) {
-        let user_provided_level = self.get_user_provided_level(L::tag(), &report.position);
-        let actual_level =
-            user_provided_level.unwrap_or_else(|| self.category_levels[L::category()]);
-        lint_counts[actual_level] += 1;
-        let level_string = match actual_level {
-            LintLevel::Allow => return, // allow this!
-            LintLevel::Warn => "warning".yellow().bold(),
-            LintLevel::Deny => "error".bright_red().bold(),
-        };
-        let path_message = report.position.path_message();
-        let snippet_message = report.position.snippet_message();
-        let show_suggestions = true;
-        let suggestion_message = if show_suggestions {
-            let mut suggestions: Vec<String> = L::suggestions()
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect();
-            suggestions.push(format!(
-                "Ignore this by placing `// #[allow({})]` above this code",
-                L::tag()
-            ));
-            format!(
-                "\n\n {}: You can resolve this by doing one of the following:\n{}",
-                "suggestions".bold(),
-                suggestions
-                    .iter()
-                    .enumerate()
-                    .map(|(i, suggestion)| format!("  {}: {}\n", i + 1, suggestion))
-                    .collect::<String>(),
-            )
-        } else {
-            "".into()
-        };
-        let note_message = format!(
-            "\n {}: {}",
-            "note".bold(),
-            if user_provided_level.is_some() {
-                "This lint was specifically requested by in line above this source code".into()
-            } else {
-                format!(
-                    "#[{}({})] is enabled by default",
-                    actual_level.to_str(),
-                    L::tag()
-                )
-            }
-        )
-        .bright_black();
-        println!(
-            "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
-            level_string,
-            L::display_name().bright_white(),
-        );
+    pub fn report_lint<L: Lint>(&self, _lint: &L, report: LintReport, position: &Position) {
+        // let user_provided_level = self.get_user_provided_level(L::tag(), position);
+        // let actual_level =
+        //     user_provided_level.unwrap_or_else(|| self.category_levels[L::category()]);
+        // let level_string = match actual_level {
+        //     LintLevel::Allow => return, // allow this!
+        //     LintLevel::Warn => "warning".yellow().bold(),
+        //     LintLevel::Deny => "error".bright_red().bold(),
+        // };
+        // let path_message = position.path_message();
+        // let snippet_message = position.snippet_message();
+        // let show_suggestions = true;
+        // let suggestion_message = if show_suggestions {
+        //     let mut suggestions: Vec<String> = L::suggestions()
+        //         .into_iter()
+        //         .map(|s| s.to_string())
+        //         .collect();
+        //     suggestions.push(format!(
+        //         "Ignore this by placing `// #[allow({})]` above this code",
+        //         L::tag()
+        //     ));
+        //     format!(
+        //         "\n\n {}: You can resolve this by doing one of the following:\n{}",
+        //         "suggestions".bold(),
+        //         suggestions
+        //             .iter()
+        //             .enumerate()
+        //             .map(|(i, suggestion)| format!("  {}: {}\n", i + 1, suggestion))
+        //             .collect::<String>(),
+        //     )
+        // } else {
+        //     "".into()
+        // };
+        // let note_message = format!(
+        //     "\n {}: {}",
+        //     "note".bold(),
+        //     if user_provided_level.is_some() {
+        //         "This lint was specifically requested by in line above this source code".into()
+        //     } else {
+        //         format!(
+        //             "#[{}({})] is enabled by default",
+        //             actual_level.to_str(),
+        //             L::tag()
+        //         )
+        //     }
+        // )
+        // .bright_black();
+        // println!(
+        //     "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
+        //     level_string,
+        //     L::display_name().bright_white(),
+        // );
     }
 
     /// Get an iterator to the duck's switches.
