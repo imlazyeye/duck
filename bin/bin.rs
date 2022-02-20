@@ -228,9 +228,7 @@ fn lint_expression(
 
     // Recurse...
     match expression {
-        Expression::FunctionDeclaration(function) => {
-            
-        },
+        Expression::FunctionDeclaration(function) => {}
         Expression::Logical(_, _, _) => todo!(),
         Expression::Equality(_, _, _) => todo!(),
         Expression::Evaluation(_, _, _) => todo!(),
@@ -239,10 +237,8 @@ fn lint_expression(
         Expression::Assignment(_, _, _) => todo!(),
         Expression::Unary(_, _) => todo!(),
         Expression::Postfix(_, _) => todo!(),
-        Expression::ArrayLiteral(_) => todo!(),
-        Expression::StructLiteral(_) => todo!(),
-        Expression::DSAccess(_, _) => todo!(),
-        Expression::DotAccess(_, _) => todo!(),
+        Expression::Access(_, _) => todo!(),
+        Expression::Access(_, _) => todo!(),
         Expression::Call(_, _, _) => todo!(),
         Expression::Grouping(_) => todo!(),
         Expression::Literal(_) => todo!(),

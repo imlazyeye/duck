@@ -7,7 +7,7 @@ use crate::{
 
 use super::{
     expression::{
-        AccessScope, Constructor, DSAccess, Expression, ExpressionBox, Function, Parameter,
+        AccessScope, Constructor, Expression, ExpressionBox, Function, Literal, Parameter,
     },
     statement::{Case, Statement, StatementBox},
     token_pilot::TokenPilot,
@@ -284,7 +284,7 @@ impl<'a> Parser<'a> {
             // ```
             // Because, while that *really* is a call, it's a dot access...
             // that should change...
-            Expression::DotAccess(..) => {}
+            Expression::Access(..) => {}
 
             _ => {
                 // Temporarily ignoring!!!
@@ -510,8 +510,8 @@ impl<'a> Parser<'a> {
             if !matches!(
                 *expression,
                 Expression::Identifier(..)
-                    | Expression::DotAccess(..)
-                    | Expression::DSAccess(..)
+                    | Expression::Access(..)
+                    | Expression::Access(..)
                     | Expression::Call(..) // idiotically, this does compile in GM. We have a lint for this!
             ) {
                 Err(ParseError::InvalidAssignmentTarget(
@@ -539,7 +539,7 @@ impl<'a> Parser<'a> {
     }
 
     fn postfix(&mut self) -> Result<ExpressionBox, ParseError> {
-        let expression = self.array_literal()?;
+        let expression = self.grouping()?;
         if let Some(operator) = self
             .pilot
             .soft_peek()
@@ -550,40 +550,6 @@ impl<'a> Parser<'a> {
             Ok(Expression::Postfix(expression, operator).into())
         } else {
             Ok(expression)
-        }
-    }
-
-    fn array_literal(&mut self) -> Result<ExpressionBox, ParseError> {
-        if self.pilot.match_take(Token::LeftSquareBracket).is_some() {
-            let mut elements = vec![];
-            loop {
-                if self.pilot.match_take(Token::RightSquareBracket).is_some() {
-                    break Ok(Expression::ArrayLiteral(elements).into());
-                } else {
-                    elements.push(self.expression()?);
-                    self.pilot.match_take(Token::Comma);
-                }
-            }
-        } else {
-            self.struct_literal()
-        }
-    }
-
-    fn struct_literal(&mut self) -> Result<ExpressionBox, ParseError> {
-        if self.pilot.match_take(Token::LeftBrace).is_some() {
-            let mut elements = vec![];
-            loop {
-                if self.pilot.match_take(Token::RightBrace).is_some() {
-                    break Ok(Expression::StructLiteral(elements).into());
-                } else {
-                    let name = self.pilot.require_identifier()?;
-                    self.pilot.require(Token::Colon)?;
-                    elements.push((name, self.expression()?));
-                    self.pilot.match_take(Token::Comma);
-                }
-            }
-        } else {
-            self.grouping()
         }
     }
 
@@ -601,6 +567,28 @@ impl<'a> Parser<'a> {
         if let Some(literal) = self.pilot.peek()?.to_literal() {
             self.pilot.take()?;
             Ok(Expression::Literal(literal).into())
+        } else if self.pilot.match_take(Token::LeftSquareBracket).is_some() {
+            let mut elements = vec![];
+            loop {
+                if self.pilot.match_take(Token::RightSquareBracket).is_some() {
+                    break Ok(Expression::Literal(Literal::Array(elements)).into());
+                } else {
+                    elements.push(self.expression()?);
+                    self.pilot.match_take(Token::Comma);
+                }
+            }
+        } else if self.pilot.match_take(Token::LeftBrace).is_some() {
+            let mut elements = vec![];
+            loop {
+                if self.pilot.match_take(Token::RightBrace).is_some() {
+                    break Ok(Expression::Literal(Literal::Struct(elements)).into());
+                } else {
+                    let name = self.pilot.require_identifier()?;
+                    self.pilot.require(Token::Colon)?;
+                    elements.push((name, self.expression()?));
+                    self.pilot.match_take(Token::Comma);
+                }
+            }
         } else {
             self.supreme()
         }
@@ -628,7 +616,7 @@ impl<'a> Parser<'a> {
         // Now continue to chain more things on as long as we need!
         loop {
             expression = match self.pilot.soft_peek() {
-                Some(Token::Dot) => self.dot_access(AccessScope::Other(expression))?,
+                Some(Token::Dot) => self.dot_access(AccessScope::Dot(expression))?,
                 Some(Token::LeftSquareBracket) => self.ds_access(expression)?,
                 Some(Token::LeftParenthesis) => {
                     let call = self.call(expression, has_new)?;
@@ -663,7 +651,7 @@ impl<'a> Parser<'a> {
     fn dot_access(&mut self, access: AccessScope) -> Result<ExpressionBox, ParseError> {
         self.pilot.require(Token::Dot)?;
         let right = self.expression()?;
-        Ok(Expression::DotAccess(access, right).into())
+        Ok(Expression::Access(right, access).into())
     }
 
     fn ds_access(&mut self, left: ExpressionBox) -> Result<ExpressionBox, ParseError> {
@@ -671,22 +659,22 @@ impl<'a> Parser<'a> {
         let ds_access = match self.pilot.peek()? {
             Token::DollarSign => {
                 self.pilot.take()?;
-                DSAccess::Struct(self.expression()?)
+                AccessScope::Struct(self.expression()?)
             }
             Token::Interrobang => {
                 self.pilot.take()?;
-                DSAccess::Map(self.expression()?)
+                AccessScope::Map(self.expression()?)
             }
             Token::Pipe => {
                 self.pilot.take()?;
-                DSAccess::List(self.expression()?)
+                AccessScope::List(self.expression()?)
             }
             Token::Hash => {
                 self.pilot.take()?;
                 let first = self.expression()?;
                 self.pilot.require(Token::Comma)?;
                 let second = self.expression()?;
-                DSAccess::Grid(first, second)
+                AccessScope::Grid(first, second)
             }
             _ => {
                 let has_accessor = self.pilot.match_take(Token::AtSign).is_some();
@@ -696,11 +684,11 @@ impl<'a> Parser<'a> {
                 } else {
                     None
                 };
-                DSAccess::Array(left, right, has_accessor)
+                AccessScope::Array(left, right, has_accessor)
             }
         };
         self.pilot.require(Token::RightSquareBracket)?;
-        Ok(Expression::DSAccess(left, ds_access).into())
+        Ok(Expression::Access(left, ds_access).into())
     }
 
     fn identifier(&mut self) -> Result<ExpressionBox, ParseError> {

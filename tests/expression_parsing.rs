@@ -1,6 +1,6 @@
 use duck::parsing::expression::{
-    AccessScope, AssignmentOperator, Constructor, DSAccess, EqualityOperator, EvaluationOperator,
-    Expression, Function, Literal, LogicalOperator, Parameter, PostfixOperator, UnaryOperator,
+    AccessScope, AssignmentOperator, Constructor, EqualityOperator, EvaluationOperator, Expression,
+    Function, Literal, LogicalOperator, Parameter, PostfixOperator, UnaryOperator,
 };
 use duck::parsing::parser::Parser;
 use duck::parsing::statement::Statement;
@@ -703,34 +703,34 @@ fn construction() {
 
 #[test]
 fn empty_array() {
-    harness_expr("[]", Expression::ArrayLiteral(vec![]));
+    harness_expr("[]", Expression::Literal(Literal::Array(vec![])));
 }
 
 #[test]
 fn simple_array() {
     harness_expr(
         "[0, 1, 2]",
-        Expression::ArrayLiteral(vec![
+        Expression::Literal(Literal::Array(vec![
             Expression::Literal(Literal::Real(0.0)).into(),
             Expression::Literal(Literal::Real(1.0)).into(),
             Expression::Literal(Literal::Real(2.0)).into(),
-        ]),
+        ])),
     );
 }
 
 #[test]
 fn empty_struct() {
-    harness_expr("{}", Expression::StructLiteral(vec![]));
+    harness_expr("{}", Expression::Literal(Literal::Struct(vec![])));
 }
 
 #[test]
 fn simple_struct() {
     harness_expr(
         "{ foo: bar, fizz: buzz }",
-        Expression::StructLiteral(vec![
+        Expression::Literal(Literal::Struct(vec![
             ("foo".into(), Expression::Identifier("bar".into()).into()),
             ("fizz".into(), Expression::Identifier("buzz".into()).into()),
-        ]),
+        ])),
     );
 }
 
@@ -738,9 +738,9 @@ fn simple_struct() {
 fn array_access() {
     harness_expr(
         "foo[bar]",
-        Expression::DSAccess(
+        Expression::Access(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Array(Expression::Identifier("bar".into()).into(), None, false),
+            AccessScope::Array(Expression::Identifier("bar".into()).into(), None, false),
         ),
     );
 }
@@ -749,9 +749,9 @@ fn array_access() {
 fn array_direct_access() {
     harness_expr(
         "foo[@ bar]",
-        Expression::DSAccess(
+        Expression::Access(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Array(Expression::Identifier("bar".into()).into(), None, true),
+            AccessScope::Array(Expression::Identifier("bar".into()).into(), None, true),
         ),
     );
 }
@@ -760,9 +760,9 @@ fn array_direct_access() {
 fn array_access_2d() {
     harness_expr(
         "foo[bar, buzz]",
-        Expression::DSAccess(
+        Expression::Access(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Array(
+            AccessScope::Array(
                 Expression::Identifier("bar".into()).into(),
                 Some(Expression::Identifier("buzz".into()).into()),
                 false,
@@ -775,9 +775,9 @@ fn array_access_2d() {
 fn ds_map_access() {
     harness_expr(
         "foo[? bar]",
-        Expression::DSAccess(
+        Expression::Access(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Map(Expression::Identifier("bar".into()).into()),
+            AccessScope::Map(Expression::Identifier("bar".into()).into()),
         ),
     );
 }
@@ -786,9 +786,9 @@ fn ds_map_access() {
 fn ds_list_access() {
     harness_expr(
         "foo[| bar]",
-        Expression::DSAccess(
+        Expression::Access(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::List(Expression::Identifier("bar".into()).into()),
+            AccessScope::List(Expression::Identifier("bar".into()).into()),
         ),
     );
 }
@@ -797,9 +797,9 @@ fn ds_list_access() {
 fn ds_grid_access() {
     harness_expr(
         "foo[# bar, buzz]",
-        Expression::DSAccess(
+        Expression::Access(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Grid(
+            AccessScope::Grid(
                 Expression::Identifier("bar".into()).into(),
                 Expression::Identifier("buzz".into()).into(),
             ),
@@ -811,9 +811,9 @@ fn ds_grid_access() {
 fn struct_access() {
     harness_expr(
         "foo[$ bar]",
-        Expression::DSAccess(
+        Expression::Access(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Struct(Expression::Identifier("bar".into()).into()),
+            AccessScope::Struct(Expression::Identifier("bar".into()).into()),
         ),
     );
 }
@@ -822,13 +822,13 @@ fn struct_access() {
 fn chained_ds_accesses() {
     harness_expr(
         "foo[bar][buzz]",
-        Expression::DSAccess(
-            Expression::DSAccess(
+        Expression::Access(
+            Expression::Access(
                 Expression::Identifier("foo".into()).into(),
-                DSAccess::Array(Expression::Identifier("bar".into()).into(), None, false),
+                AccessScope::Array(Expression::Identifier("bar".into()).into(), None, false),
             )
             .into(),
-            DSAccess::Array(Expression::Identifier("buzz".into()).into(), None, false),
+            AccessScope::Array(Expression::Identifier("buzz".into()).into(), None, false),
         ),
     );
 }
@@ -838,9 +838,9 @@ fn ds_access_call() {
     harness_expr(
         "foo[0]()",
         Expression::Call(
-            Expression::DSAccess(
+            Expression::Access(
                 Expression::Identifier("foo".into()).into(),
-                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
+                AccessScope::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
             )
             .into(),
             vec![],
@@ -853,9 +853,9 @@ fn ds_access_call() {
 fn dot_access() {
     harness_expr(
         "foo.bar",
-        Expression::DotAccess(
-            AccessScope::Other(Expression::Identifier("foo".into()).into()),
+        Expression::Access(
             Expression::Identifier("bar".into()).into(),
+            AccessScope::Dot(Expression::Identifier("foo".into()).into()),
         ),
     );
 }
@@ -864,13 +864,13 @@ fn dot_access() {
 fn chained_dot_access() {
     harness_expr(
         "foo.bar.buzz",
-        Expression::DotAccess(
-            AccessScope::Other(Expression::Identifier("foo".into()).into()),
-            Expression::DotAccess(
-                AccessScope::Other(Expression::Identifier("bar".into()).into()),
+        Expression::Access(
+            Expression::Access(
                 Expression::Identifier("buzz".into()).into(),
+                AccessScope::Dot(Expression::Identifier("bar".into()).into()),
             )
             .into(),
+            AccessScope::Dot(Expression::Identifier("foo".into()).into()),
         ),
     );
 }
@@ -879,9 +879,9 @@ fn chained_dot_access() {
 fn dot_access_to_call() {
     harness_expr(
         "foo.bar()",
-        Expression::DotAccess(
-            AccessScope::Other(Expression::Identifier("foo".into()).into()),
+        Expression::Access(
             Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
+            AccessScope::Dot(Expression::Identifier("foo".into()).into()),
         ),
     );
 }
@@ -890,13 +890,13 @@ fn dot_access_to_call() {
 fn dot_access_to_ds_access() {
     harness_expr(
         "foo.bar[0]",
-        Expression::DotAccess(
-            AccessScope::Other(Expression::Identifier("foo".into()).into()),
-            Expression::DSAccess(
+        Expression::Access(
+            Expression::Access(
                 Expression::Identifier("bar".into()).into(),
-                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
+                AccessScope::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
             )
             .into(),
+            AccessScope::Dot(Expression::Identifier("foo".into()).into()),
         ),
     );
 }
@@ -905,11 +905,11 @@ fn dot_access_to_ds_access() {
 fn dot_access_from_call() {
     harness_expr(
         "foo().bar",
-        Expression::DotAccess(
-            AccessScope::Other(
+        Expression::Access(
+            Expression::Identifier("bar".into()).into(),
+            AccessScope::Dot(
                 Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false).into(),
             ),
-            Expression::Identifier("bar".into()).into(),
         ),
     );
 }
@@ -918,11 +918,11 @@ fn dot_access_from_call() {
 fn chained_calls() {
     harness_expr(
         "foo().bar()",
-        Expression::DotAccess(
-            AccessScope::Other(
+        Expression::Access(
+            Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
+            AccessScope::Dot(
                 Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false).into(),
             ),
-            Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
         ),
     );
 }
@@ -931,10 +931,7 @@ fn chained_calls() {
 fn chain_calls_with_call_parameter() {
     harness_expr(
         "foo().bar(buzz())",
-        Expression::DotAccess(
-            AccessScope::Other(
-                Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false).into(),
-            ),
+        Expression::Access(
             Expression::Call(
                 Expression::Identifier("bar".into()).into(),
                 vec![
@@ -944,6 +941,9 @@ fn chain_calls_with_call_parameter() {
                 false,
             )
             .into(),
+            AccessScope::Dot(
+                Expression::Call(Expression::Identifier("foo".into()).into(), vec![], false).into(),
+            ),
         ),
     )
 }
@@ -952,9 +952,9 @@ fn chain_calls_with_call_parameter() {
 fn global_dot_access() {
     harness_expr(
         "global.bar",
-        Expression::DotAccess(
-            AccessScope::Global,
+        Expression::Access(
             Expression::Identifier("bar".into()).into(),
+            AccessScope::Global,
         ),
     );
 }
@@ -963,9 +963,9 @@ fn global_dot_access() {
 fn self_dot_access() {
     harness_expr(
         "self.bar",
-        Expression::DotAccess(
-            AccessScope::Current,
+        Expression::Access(
             Expression::Identifier("bar".into()).into(),
+            AccessScope::Current,
         ),
     );
 }
@@ -986,15 +986,15 @@ fn general_self_reference() {
 fn ds_dot_access() {
     harness_expr(
         "foo[0].bar",
-        Expression::DotAccess(
-            AccessScope::Other(
-                Expression::DSAccess(
+        Expression::Access(
+            Expression::Identifier("bar".into()).into(),
+            AccessScope::Dot(
+                Expression::Access(
                     Expression::Identifier("foo".into()).into(),
-                    DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
+                    AccessScope::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
                 )
                 .into(),
             ),
-            Expression::Identifier("bar".into()).into(),
         ),
     );
 }

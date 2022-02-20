@@ -13,10 +13,7 @@ pub enum Expression {
     Assignment(ExpressionBox, AssignmentOperator, ExpressionBox),
     Unary(UnaryOperator, ExpressionBox),
     Postfix(ExpressionBox, PostfixOperator),
-    ArrayLiteral(Vec<ExpressionBox>),
-    StructLiteral(Vec<(String, ExpressionBox)>),
-    DSAccess(ExpressionBox, DSAccess),
-    DotAccess(AccessScope, ExpressionBox),
+    Access(ExpressionBox, AccessScope),
     Call(ExpressionBox, Vec<ExpressionBox>, bool),
     Grouping(ExpressionBox),
     Literal(Literal),
@@ -116,10 +113,15 @@ pub enum Literal {
     String(String),
     Real(f64),
     Hex(String),
+    Array(Vec<ExpressionBox>),
+    Struct(Vec<(String, ExpressionBox)>),
 }
 
 #[derive(Debug, PartialEq)]
-pub enum DSAccess {
+pub enum AccessScope {
+    Global,
+    Current,
+    Dot(ExpressionBox),
     Array(ExpressionBox, Option<ExpressionBox>, bool),
     Map(ExpressionBox),
     Grid(ExpressionBox, ExpressionBox),
@@ -144,11 +146,3 @@ pub struct Constructor(pub Option<ExpressionBox>);
 
 #[derive(Debug, PartialEq)]
 pub struct Parameter(pub String, pub Option<ExpressionBox>);
-
-#[derive(Debug, PartialEq)]
-pub enum AccessScope {
-    Global,
-    /// This is `self`. I can't use Self.
-    Current,
-    Other(ExpressionBox),
-}

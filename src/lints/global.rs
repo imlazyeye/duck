@@ -23,7 +23,7 @@ impl Lint for Global {
         position: &Position,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::DotAccess(AccessScope::Global, _) = expression {
+        if let Expression::Access(_, AccessScope::Global) = expression {
             reports.push(Self::generate_report(position.clone()))
         }
     }
