@@ -1,5 +1,5 @@
 use crate::{
-    parsing::{expression::Expression, statement::Statement},
+    parsing::{statement::Statement},
     Duck, Lint, LintCategory, LintReport, Position,
 };
 

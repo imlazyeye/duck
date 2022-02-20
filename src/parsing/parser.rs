@@ -515,10 +515,7 @@ impl<'a> Parser<'a> {
         {
             if !matches!(
                 *expression,
-                Expression::Identifier(..)
-                    | Expression::Access(..)
-                    | Expression::Access(..)
-                    | Expression::Call(..) // idiotically, this does compile in GM. We have a lint for this!
+                Expression::Identifier(..) | Expression::Access(..) | Expression::Call(..) // idiotically, this does compile in GM. We have a lint for this!
             ) {
                 Err(ParseError::InvalidAssignmentTarget(
                     self.position(),

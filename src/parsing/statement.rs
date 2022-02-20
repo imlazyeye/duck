@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    slice::Iter,
-};
+use std::ops::{Deref, DerefMut};
 
 use super::expression::ExpressionBox;
 

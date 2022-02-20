@@ -1,4 +1,9 @@
-use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
+use heck::ToShoutySnakeCase;
+
+use crate::{
+    parsing::{statement::Statement},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct NonScreamCase;
@@ -14,17 +19,27 @@ impl Lint for NonScreamCase {
 		}
     }
 
-    // fn run(duck: &Duck) -> Vec<LintReport> {
-    //     let mut reports = vec![];
-    //     for mac in duck.macros() {
-    //         let name = mac.name();
-    //         let ideal_name = Duck::scream_case(name);
-    //         if name != ideal_name {
-    //             reports.push(LintReport {
-    //                 position: mac.position().clone(),
-    //             })
-    //         }
-    //     }
-    //     reports
-    // }
+    fn visit_statement(
+        _duck: &Duck,
+        statement: &Statement,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Statement::MacroDeclaration(name, ..) = statement {
+            if name != &scream_case(name) {
+                reports.push(Self::generate_report(position.clone()))
+            }
+        }
+    }
+}
+
+/// Returns the given string under Duck's definition of SCREAM_CASE.
+pub fn scream_case(string: &str) -> String {
+    let output = string.to_shouty_snake_case();
+    let mut prefix = String::new();
+    let mut chars = string.chars();
+    while let Some('_') = chars.next() {
+        prefix.push('_');
+    }
+    prefix + &output
 }

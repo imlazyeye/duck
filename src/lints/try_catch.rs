@@ -1,4 +1,7 @@
-use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
+use crate::{
+    parsing::{statement::Statement},
+    Duck, Lint, LintCategory, LintReport, Position,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct TryCatch;
@@ -14,15 +17,14 @@ impl Lint for TryCatch {
 		}
     }
 
-    // fn run(duck: &Duck) -> Vec<LintReport> {
-    //     let mut reports = vec![];
-    //     for keyword in duck.keywords() {
-    //         if let (Token::Try, position) = keyword {
-    //             reports.push(LintReport {
-    //                 position: position.clone(),
-    //             })
-    //         }
-    //     }
-    //     reports
-    // }
+    fn visit_statement(
+        _duck: &Duck,
+        statement: &crate::parsing::statement::Statement,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Statement::TryCatch(..) = statement {
+            reports.push(Self::generate_report(position.clone()))
+        }
+    }
 }

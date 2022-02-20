@@ -11,8 +11,6 @@ use duck::parsing::expression::{AccessScope, Expression};
 use duck::parsing::statement::Statement;
 use duck::{Duck, Lint, LintLevel};
 use duck::{DuckConfig, LintReport, Position};
-use enum_map::{enum_map, EnumMap};
-use strum::IntoEnumIterator;
 use yy_boss::{Resource, YyResource, YypBoss};
 
 #[macro_use]

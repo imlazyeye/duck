@@ -1,28 +1,18 @@
 use colored::Colorize;
 use enum_map::{enum_map, EnumMap};
-use heck::{ToShoutySnakeCase, ToUpperCamelCase};
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
+    path::{Path},
 };
 
 use crate::{
-    gml::{GmlEnum, GmlSwitchStatement},
     lint::LintLevel,
-    parsing::{parser::Ast, ParseError, Parser, Token},
-    GmlComment, GmlConstructor, GmlMacro, Lint, LintCategory, LintReport, LintTag,
+    parsing::{parser::Ast, ParseError, Parser}, LintCategory, LintTag,
 };
 
 pub struct Duck {
+    config: DuckConfig,
     lint_tags: HashMap<(String, usize), LintTag>,
-    asts: HashMap<PathBuf, Ast>,
-    enums: Vec<GmlEnum>,
-    macros: Vec<GmlMacro>,
-    constructors: Vec<GmlConstructor>,
-    switches: Vec<GmlSwitchStatement>,
-    keywords: Vec<(Token, Position)>,
-    comments: Vec<GmlComment>,
-    pub lint_levels: HashMap<String, LintLevel>,
     pub category_levels: EnumMap<LintCategory, LintLevel>,
 }
 
@@ -31,15 +21,8 @@ impl Duck {
     /// Creates a new, blank Duck.
     pub fn new() -> Self {
         Self {
+            config: Default::default(),
             lint_tags: HashMap::new(),
-            asts: HashMap::new(),
-            enums: vec![],
-            macros: vec![],
-            constructors: vec![],
-            switches: vec![],
-            keywords: vec![],
-            comments: vec![],
-            lint_levels: HashMap::new(),
             category_levels: enum_map! {
                 LintCategory::Correctness => LintLevel::Deny,
                 LintCategory::Suspicious => LintLevel::Warn,
@@ -52,97 +35,13 @@ impl Duck {
     /// Creates a new Duck based on a DuckConfig.
     pub fn new_with_config(config: DuckConfig) -> Self {
         let mut duck = Self::new();
-        duck.lint_levels = config.lint_levels;
+        duck.config = config;
         duck
     }
 
     /// Parses the given String of GML, collecting data for Duck.
     pub fn parse_gml(&mut self, source_code: &str, path: &Path) -> Result<Ast, ParseError> {
         Parser::new(source_code, path.to_path_buf()).into_ast()
-    }
-
-    pub fn report_lint<L: Lint>(&self, _lint: &L, report: LintReport, position: &Position) {
-        // let user_provided_level = self.get_user_provided_level(L::tag(), position);
-        // let actual_level =
-        //     user_provided_level.unwrap_or_else(|| self.category_levels[L::category()]);
-        // let level_string = match actual_level {
-        //     LintLevel::Allow => return, // allow this!
-        //     LintLevel::Warn => "warning".yellow().bold(),
-        //     LintLevel::Deny => "error".bright_red().bold(),
-        // };
-        // let path_message = position.path_message();
-        // let snippet_message = position.snippet_message();
-        // let show_suggestions = true;
-        // let suggestion_message = if show_suggestions {
-        //     let mut suggestions: Vec<String> = L::suggestions()
-        //         .into_iter()
-        //         .map(|s| s.to_string())
-        //         .collect();
-        //     suggestions.push(format!(
-        //         "Ignore this by placing `// #[allow({})]` above this code",
-        //         L::tag()
-        //     ));
-        //     format!(
-        //         "\n\n {}: You can resolve this by doing one of the following:\n{}",
-        //         "suggestions".bold(),
-        //         suggestions
-        //             .iter()
-        //             .enumerate()
-        //             .map(|(i, suggestion)| format!("  {}: {}\n", i + 1, suggestion))
-        //             .collect::<String>(),
-        //     )
-        // } else {
-        //     "".into()
-        // };
-        // let note_message = format!(
-        //     "\n {}: {}",
-        //     "note".bold(),
-        //     if user_provided_level.is_some() {
-        //         "This lint was specifically requested by in line above this source code".into()
-        //     } else {
-        //         format!(
-        //             "#[{}({})] is enabled by default",
-        //             actual_level.to_str(),
-        //             L::tag()
-        //         )
-        //     }
-        // )
-        // .bright_black();
-        // println!(
-        //     "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
-        //     level_string,
-        //     L::display_name().bright_white(),
-        // );
-    }
-
-    /// Get an iterator to the duck's switches.
-    pub fn switches(&self) -> &[GmlSwitchStatement] {
-        self.switches.as_ref()
-    }
-
-    /// Get a reference to the duck's enums.
-    pub fn enums(&self) -> &[GmlEnum] {
-        self.enums.as_ref()
-    }
-
-    /// Get a reference to the collected keywords.
-    pub fn keywords(&self) -> &[(Token, Position)] {
-        self.keywords.as_ref()
-    }
-
-    /// Get a reference to the collected macros.
-    pub fn macros(&self) -> &[GmlMacro] {
-        self.macros.as_ref()
-    }
-
-    /// Get a reference to the the collected constructors.
-    pub fn constructors(&self) -> &[GmlConstructor] {
-        self.constructors.as_ref()
-    }
-
-    /// Get a reference to the colllected comments.
-    pub fn comments(&self) -> &[GmlComment] {
-        self.comments.as_ref()
     }
 
     // /// Gets the user-specified level for the given position (if one exists)
@@ -164,33 +63,51 @@ impl Duck {
         }
 
         // Check if there is a config-based rule for this lint
-        if let Some((_, level)) = self.lint_levels.iter().find(|(key, _)| key == &lint_tag) {
+        if let Some((_, level)) = self
+            .config
+            .lint_levels
+            .iter()
+            .find(|(key, _)| key == &lint_tag)
+        {
             return Some(*level);
         }
 
         // User has specificed nada
         None
     }
-}
 
-// Utils
-impl Duck {
-
-    /// Returns the given string under Duck's definition of SCREAM_CASE.
-    pub fn scream_case(string: &str) -> String {
-        let output = string.to_shouty_snake_case();
-        let mut prefix = String::new();
-        let mut chars = string.chars();
-        while let Some('_') = chars.next() {
-            prefix.push('_');
-        }
-        prefix + &output
+    /// Get a reference to the duck's config.
+    pub fn config(&self) -> &DuckConfig {
+        &self.config
     }
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct DuckConfig {
+    pub todo_keyword: Option<String>,
+    pub max_arguments: Option<usize>,
     pub lint_levels: HashMap<String, LintLevel>,
+}
+impl Default for DuckConfig {
+    fn default() -> Self {
+        Self {
+            todo_keyword: Default::default(),
+            max_arguments: Some(7),
+            lint_levels: Default::default(),
+        }
+    }
+}
+
+impl DuckConfig {
+    /// Get a reference to the duck config's todo keyword.
+    pub fn todo_keyword(&self) -> Option<&String> {
+        self.todo_keyword.as_ref()
+    }
+
+    /// Get the duck config's max arguments.
+    pub fn max_arguments(&self) -> Option<usize> {
+        self.max_arguments
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

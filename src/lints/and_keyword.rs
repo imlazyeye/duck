@@ -1,4 +1,4 @@
-use crate::{parsing::Token, Duck, Lint, LintCategory, LintReport, Position};
+use crate::{Lint, LintCategory, LintReport, Position};
 
 #[derive(Debug, PartialEq)]
 pub struct AndKeyword;

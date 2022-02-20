@@ -16,4 +16,19 @@ impl Lint for TooManyArguments {
 			position,
 		}
     }
+
+    fn visit_expression(
+        duck: &Duck,
+        expression: &Expression,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Some(max) = duck.config().max_arguments() {
+            if let Expression::FunctionDeclaration(_, params, ..) = expression {
+                if params.len() > max {
+                    reports.push(Self::generate_report(position.clone()))
+                }
+            }
+        }
+    }
 }

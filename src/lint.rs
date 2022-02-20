@@ -1,14 +1,7 @@
 use colored::Colorize;
 
 use crate::{
-    lints::{
-        AndKeyword, AnonymousConstructor, ConstructorWithoutNew, DrawSprite, DrawText, Exit,
-        Global, Globalvar, MissingCaseMember, MissingDefaultCase, ModKeyword,
-        NoSpaceBeginingComment, NonPascalCase, NonScreamCase, OrKeyword, RoomGoto,
-        ShowDebugMessage, SingleSwitchCase, Todo, TooManyArguments, TooManyLines, TryCatch,
-        WithLoop,
-    },
-    parsing::{expression::Expression, statement::Statement, Token},
+    parsing::{expression::Expression, statement::Statement},
     Duck, Position,
 };
 
@@ -97,6 +90,7 @@ pub struct LintReport {
     pub(super) display_name: &'static str,
     pub(super) tag: &'static str,
     pub(super) category: LintCategory,
+    #[allow(dead_code)]
     pub(super) explanation: &'static str,
     pub(super) suggestions: Vec<&'static str>,
     pub(super) position: Position,

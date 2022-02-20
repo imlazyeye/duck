@@ -13,4 +13,23 @@ impl Lint for RoomGoto {
 			position,
 		}
     }
+
+    fn visit_expression(
+        _duck: &Duck,
+        expression: &Expression,
+        position: &Position,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Expression::Call(caller, _, _) = expression {
+            if let Expression::Identifier(name) = caller.inner() {
+                if gm_room_goto_functions().contains(&name.as_str()) {
+                    reports.push(Self::generate_report(position.clone()))
+                }
+            }
+        }
+    }
+}
+
+fn gm_room_goto_functions() -> &'static [&'static str] {
+    &["room_goto", "room_goto_next", "room_goto_previous"]
 }

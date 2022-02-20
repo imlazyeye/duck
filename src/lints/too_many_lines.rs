@@ -1,4 +1,6 @@
-use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
+use crate::{
+    Lint, LintCategory, LintReport, Position,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct TooManyLines;

@@ -10,7 +10,7 @@ pub struct NonPascalCase;
 impl Lint for NonPascalCase {
     fn generate_report(position: Position) -> LintReport {
         LintReport {
-			display_name: "Identifier should be SCREAM_CASE",
+			display_name: "Identifier should be PascalCase",
 			tag: "non_pascal_case",
 			explanation: "Pascal case is the ideal casing for \"types\" to distinguish them from other values.",
 			suggestions: vec!["Change your casing to PascalCase"],
@@ -25,7 +25,7 @@ impl Lint for NonPascalCase {
         position: &Position,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::FunctionDeclaration(Some(name), ..) = expression {
+        if let Expression::FunctionDeclaration(Some(name), _, Some(_), ..) = expression {
             if name != &pascal_case(name) {
                 reports.push(Self::generate_report(position.clone()))
             }
@@ -33,8 +33,8 @@ impl Lint for NonPascalCase {
     }
 
     fn visit_statement(
-        duck: &Duck,
-        statement: &crate::parsing::statement::Statement,
+        _duck: &Duck,
+        statement: &Statement,
         position: &Position,
         reports: &mut Vec<LintReport>,
     ) {
@@ -42,21 +42,16 @@ impl Lint for NonPascalCase {
             if name != &pascal_case(name) {
                 reports.push(Self::generate_report(position.clone()))
             }
-            // for member in members {
-            //     match member {
-            //         Expression::Identifier(name) => {
-            //             if name != &pascal_case(name) {
-            //                 reports.push(Self::generate_report(position.clone()))
-            //             }
-            //         }
-            //         Expression::Assignment(left, ..) => {}
-            //         _ => {}
-            //     }
-            // }
+            members.iter().map(|(n, _)| n).for_each(|name| {
+                if name != &pascal_case(name) {
+                    reports.push(Self::generate_report(position.clone()))
+                }
+            });
         }
     }
 }
 
+/// Returns the given string under Duck's definition of PascalCase.
 pub fn pascal_case(string: &str) -> String {
     let output = string.to_upper_camel_case();
     let mut prefix = String::new();
