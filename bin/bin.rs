@@ -7,7 +7,7 @@ use duck::lints::{
     NonPascalCase, NonScreamCase, OrKeyword, RoomGoto, ShowDebugMessage, SingleSwitchCase, Todo,
     TooManyArguments, TooManyLines, TryCatch, WithLoop,
 };
-use duck::parsing::expression::Expression;
+use duck::parsing::expression::{AccessScope, Expression, Function};
 use duck::parsing::statement::Statement;
 use duck::{Duck, Lint, LintLevel};
 use duck::{DuckConfig, LintReport, Position};
@@ -228,21 +228,77 @@ fn lint_expression(
 
     // Recurse...
     match expression {
-        Expression::FunctionDeclaration(function) => {}
-        Expression::Logical(_, _, _) => todo!(),
-        Expression::Equality(_, _, _) => todo!(),
-        Expression::Evaluation(_, _, _) => todo!(),
-        Expression::NullCoalecence(_, _) => todo!(),
-        Expression::Ternary(_, _, _) => todo!(),
-        Expression::Assignment(_, _, _) => todo!(),
-        Expression::Unary(_, _) => todo!(),
-        Expression::Postfix(_, _) => todo!(),
-        Expression::Access(_, _) => todo!(),
-        Expression::Access(_, _) => todo!(),
-        Expression::Call(_, _, _) => todo!(),
-        Expression::Grouping(_) => todo!(),
-        Expression::Literal(_) => todo!(),
-        Expression::Identifier(_) => todo!(),
+        Expression::FunctionDeclaration(function) => match function {
+            Function::Anonymous(parameters, constructor, body, _)
+            | Function::Named(_, parameters, constructor, body, _) => {
+                for parameter in parameters.iter() {
+                    if let Some(default_value) = &parameter.1 {
+                        lint_expression(duck, &*default_value, position, reports);
+                    }
+                }
+                if let Some(Some(inheritance_call)) = constructor.as_ref().map(|c| &c.0) {
+                    lint_expression(duck, &*inheritance_call, position, reports);
+                }
+                lint_statement(duck, &*body, position, reports);
+            }
+        },
+        Expression::Logical(left, _, right)
+        | Expression::Equality(left, _, right)
+        | Expression::Evaluation(left, _, right)
+        | Expression::Assignment(left, _, right)
+        | Expression::NullCoalecence(left, right) => {
+            lint_expression(duck, &*left, position, reports);
+            lint_expression(duck, &*right, position, reports);
+        }
+        Expression::Ternary(condition, left, right) => {
+            lint_expression(duck, &*condition, position, reports);
+            lint_expression(duck, &*left, position, reports);
+            lint_expression(duck, &*right, position, reports);
+        }
+        Expression::Unary(_, right) => {
+            lint_expression(duck, &*right, position, reports);
+        }
+        Expression::Postfix(left, _) => {
+            lint_expression(duck, &*left, position, reports);
+        }
+        Expression::Access(expression, access) => {
+            lint_expression(duck, &*expression, position, reports);
+            match access {
+                AccessScope::Dot(other) => {
+                    lint_expression(duck, &*other, position, reports);
+                }
+                AccessScope::Array(x, y, _) => {
+                    lint_expression(duck, &*x, position, reports);
+                    if let Some(y) = y {
+                        lint_expression(duck, &*y, position, reports);
+                    }
+                }
+                AccessScope::Map(key) => {
+                    lint_expression(duck, &*key, position, reports);
+                }
+                AccessScope::Grid(x, y) => {
+                    lint_expression(duck, &*x, position, reports);
+                    lint_expression(duck, &*y, position, reports);
+                }
+                AccessScope::List(index) => {
+                    lint_expression(duck, &*index, position, reports);
+                }
+                AccessScope::Struct(key) => {
+                    lint_expression(duck, &*key, position, reports);
+                }
+                AccessScope::Global | AccessScope::Current => {}
+            }
+        }
+        Expression::Call(left, arguments, _) => {
+            lint_expression(duck, &*left, position, reports);
+            for arg in arguments {
+                lint_expression(duck, &*arg, position, reports);
+            }
+        }
+        Expression::Grouping(expression) => {
+            lint_expression(duck, &*expression, position, reports);
+        }
+        Expression::Literal(_) | Expression::Identifier(_) => {}
     }
 }
 
