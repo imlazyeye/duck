@@ -7,5 +7,6 @@ pub enum ParseError {
     InvalidLintLevel(usize, String),
     InvalidAssignmentTarget(usize, ExpressionBox),
     InvalidNewTarget(usize, ExpressionBox),
+    IncompleteStatement(usize, ExpressionBox),
     UnexpectedEnd,
 }

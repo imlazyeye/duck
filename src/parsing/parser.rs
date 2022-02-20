@@ -51,6 +51,7 @@ impl<'a> Parser<'a> {
             Token::LeftBrace => self.block(),
             Token::Return => self.return_statement(),
             Token::Break => self.break_statement(),
+            Token::Continue => self.continue_statement(),
             Token::Exit => self.exit(),
             Token::Globalvar => self.globalvar_declaration(),
             Token::Var => self.local_variable_series(),
@@ -96,7 +97,8 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::For)?;
         self.pilot.match_take(Token::LeftParenthesis);
         let initializer = self.statement()?;
-        let condition = self.statement()?;
+        let condition = self.expression()?;
+        self.pilot.match_take_repeating(Token::SemiColon);
         let tick = self.statement()?;
         self.pilot.match_take(Token::RightParenthesis);
         let body = self.statement()?;
@@ -215,6 +217,12 @@ impl<'a> Parser<'a> {
         Ok(Statement::Break.into())
     }
 
+    fn continue_statement(&mut self) -> Result<StatementBox, ParseError> {
+        self.pilot.require(Token::Continue)?;
+        self.pilot.match_take_repeating(Token::SemiColon);
+        Ok(Statement::Continue.into())
+    }
+
     fn exit(&mut self) -> Result<StatementBox, ParseError> {
         self.pilot.require(Token::Exit)?;
         self.pilot.match_take_repeating(Token::SemiColon);
@@ -257,6 +265,31 @@ impl<'a> Parser<'a> {
 
     fn expression_statement(&mut self) -> Result<StatementBox, ParseError> {
         let expression = self.expression()?;
+        match *expression {
+            Expression::FunctionDeclaration(..)
+            | Expression::Assignment(..)
+            | Expression::Postfix(..)
+            | Expression::Unary(..)
+            | Expression::Call(..) => {}
+
+            // We have to do this to allow:
+            // ```
+            // foo.bar();
+            // ```
+            // Because, while that *really* is a call, it's a dot access...
+            // that should change...
+            Expression::DotAccess(..) => {}
+
+            _ => {
+                // Temporarily ignoring!!!
+                if *expression != Expression::Identifier("unsafe".into()) {
+                    return Err(ParseError::IncompleteStatement(
+                        self.pilot.cursor(),
+                        expression,
+                    ));
+                }
+            }
+        }
         self.pilot.match_take_repeating(Token::SemiColon);
         Ok(Statement::Expression(expression).into())
     }
@@ -266,6 +299,8 @@ impl<'a> Parser<'a> {
     }
 
     fn function(&mut self) -> Result<ExpressionBox, ParseError> {
+        let static_position = self.pilot.cursor();
+        let static_token = self.pilot.match_take(Token::Static);
         if self.pilot.match_take(Token::Function).is_some() {
             let name = self.pilot.match_take_identifier()?;
             self.pilot.require(Token::LeftParenthesis)?;
@@ -304,9 +339,9 @@ impl<'a> Parser<'a> {
             };
             let body = self.block()?;
             let function = if let Some(name) = name {
-                Function::Named(name, parameters, constructor, body)
+                Function::Named(name, parameters, constructor, body, static_token.is_some())
             } else {
-                Function::Anonymous(parameters, constructor, body)
+                Function::Anonymous(parameters, constructor, body, static_token.is_some())
             };
             Ok(Expression::FunctionDeclaration(function).into())
         } else {
@@ -652,13 +687,14 @@ impl<'a> Parser<'a> {
                 DSAccess::Grid(first, second)
             }
             _ => {
+                let has_accessor = self.pilot.match_take(Token::AtSign).is_some();
                 let left = self.expression()?;
                 let right = if self.pilot.match_take(Token::Comma).is_some() {
                     Some(self.expression()?)
                 } else {
                     None
                 };
-                DSAccess::Array(left, right)
+                DSAccess::Array(left, right, has_accessor)
             }
         };
         self.pilot.require(Token::RightSquareBracket)?;
@@ -666,6 +702,9 @@ impl<'a> Parser<'a> {
     }
 
     fn identifier(&mut self) -> Result<ExpressionBox, ParseError> {
+        // TODO: TEMPORARY!!!
+        self.pilot.match_take(Token::Static);
+
         if let Some(lexeme) = self.pilot.peek()?.as_identifier().map(|s| s.to_string()) {
             self.pilot.take()?;
             Ok(Expression::Identifier(lexeme).into())

@@ -79,8 +79,12 @@ pub enum Token {
     PipeEqual,
     AmpersandEqual,
     CirumflexEqual,
+    Tilde,
     BitShiftLeft,
     BitShiftRight,
+    AtSign,
+    Continue,
+    Static,
     Macro(String, Option<String>, String),
     Comment(String),
     Identifier(String),
@@ -88,6 +92,7 @@ pub enum Token {
     StringLiteral(String),
     LintTag(String),
     Hex(String),
+    Invalid(String),
     Eof,
 }
 impl Token {
@@ -153,6 +158,7 @@ impl Token {
             Token::DoubleMinus => Some(UnaryOperator::Decrement),
             Token::Bang => Some(UnaryOperator::Not),
             Token::Minus => Some(UnaryOperator::Negative),
+            Token::Tilde => Some(UnaryOperator::BitwiseNot),
             _ => None,
         }
     }

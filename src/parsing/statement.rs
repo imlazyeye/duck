@@ -9,7 +9,7 @@ pub enum Statement {
     GlobalvarDeclaration(String),
     LocalVariableSeries(Vec<(String, Option<ExpressionBox>)>),
     TryCatch(StatementBox, ExpressionBox, StatementBox),
-    For(StatementBox, StatementBox, StatementBox, StatementBox),
+    For(StatementBox, ExpressionBox, StatementBox, StatementBox),
     With(ExpressionBox, StatementBox),
     Repeat(ExpressionBox, StatementBox),
     DoUntil(StatementBox, ExpressionBox),
@@ -19,6 +19,7 @@ pub enum Statement {
     Block(Vec<StatementBox>),
     Return(Option<ExpressionBox>),
     Break,
+    Continue,
     Exit,
     Expression(ExpressionBox),
 }

@@ -20,6 +20,21 @@ fn function() {
             vec![],
             None,
             Statement::Block(vec![]).into(),
+            false,
+        )),
+    )
+}
+
+#[test]
+fn static_function() {
+    harness_expr(
+        "static function foo() {}",
+        Expression::FunctionDeclaration(Function::Named(
+            "foo".into(),
+            vec![],
+            None,
+            Statement::Block(vec![]).into(),
+            true,
         )),
     )
 }
@@ -33,6 +48,7 @@ fn function_with_parameters() {
             vec![Parameter("bar".into(), None), Parameter("baz".into(), None)],
             None,
             Statement::Block(vec![]).into(),
+            false,
         )),
     )
 }
@@ -52,6 +68,7 @@ fn default_parameters() {
             ],
             None,
             Statement::Block(vec![]).into(),
+            false,
         )),
     )
 }
@@ -64,6 +81,7 @@ fn anonymous_function() {
             vec![],
             None,
             Statement::Block(vec![]).into(),
+            false,
         )),
     )
 }
@@ -77,6 +95,7 @@ fn constructor() {
             vec![],
             Some(Constructor(None)),
             Statement::Block(vec![]).into(),
+            false,
         )),
     )
 }
@@ -92,6 +111,7 @@ fn inheritance() {
                 Expression::Call(Expression::Identifier("bar".into()).into(), vec![], false).into(),
             ))),
             Statement::Block(vec![]).into(),
+            false,
         )),
     )
 }
@@ -104,6 +124,7 @@ fn function_return_no_semi_colon() {
             vec![],
             None,
             Statement::Block(vec![Statement::Return(None).into()]).into(),
+            false,
         )),
     )
 }
@@ -448,6 +469,18 @@ fn assign() {
 }
 
 #[test]
+fn static_assign() {
+    harness_expr(
+        "static foo = 1",
+        Expression::Assignment(
+            Expression::Identifier("foo".into()).into(),
+            AssignmentOperator::Equal,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
 fn plus_equal() {
     harness_expr(
         "foo += 1",
@@ -588,6 +621,17 @@ fn prefix_decrement() {
 }
 
 #[test]
+fn bitwise_not() {
+    harness_expr(
+        "~1",
+        Expression::Unary(
+            UnaryOperator::BitwiseNot,
+            Expression::Literal(Literal::Real(1.0)).into(),
+        ),
+    );
+}
+
+#[test]
 fn postfix_increment() {
     harness_expr(
         "1++",
@@ -696,7 +740,18 @@ fn array_access() {
         "foo[bar]",
         Expression::DSAccess(
             Expression::Identifier("foo".into()).into(),
-            DSAccess::Array(Expression::Identifier("bar".into()).into(), None),
+            DSAccess::Array(Expression::Identifier("bar".into()).into(), None, false),
+        ),
+    );
+}
+
+#[test]
+fn array_direct_access() {
+    harness_expr(
+        "foo[@ bar]",
+        Expression::DSAccess(
+            Expression::Identifier("foo".into()).into(),
+            DSAccess::Array(Expression::Identifier("bar".into()).into(), None, true),
         ),
     );
 }
@@ -710,6 +765,7 @@ fn array_access_2d() {
             DSAccess::Array(
                 Expression::Identifier("bar".into()).into(),
                 Some(Expression::Identifier("buzz".into()).into()),
+                false,
             ),
         ),
     );
@@ -769,10 +825,10 @@ fn chained_ds_accesses() {
         Expression::DSAccess(
             Expression::DSAccess(
                 Expression::Identifier("foo".into()).into(),
-                DSAccess::Array(Expression::Identifier("bar".into()).into(), None),
+                DSAccess::Array(Expression::Identifier("bar".into()).into(), None, false),
             )
             .into(),
-            DSAccess::Array(Expression::Identifier("buzz".into()).into(), None),
+            DSAccess::Array(Expression::Identifier("buzz".into()).into(), None, false),
         ),
     );
 }
@@ -784,7 +840,7 @@ fn ds_access_call() {
         Expression::Call(
             Expression::DSAccess(
                 Expression::Identifier("foo".into()).into(),
-                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None),
+                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
             )
             .into(),
             vec![],
@@ -838,7 +894,7 @@ fn dot_access_to_ds_access() {
             AccessScope::Other(Expression::Identifier("foo".into()).into()),
             Expression::DSAccess(
                 Expression::Identifier("bar".into()).into(),
-                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None),
+                DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
             )
             .into(),
         ),
@@ -934,7 +990,7 @@ fn ds_dot_access() {
             AccessScope::Other(
                 Expression::DSAccess(
                     Expression::Identifier("foo".into()).into(),
-                    DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None),
+                    DSAccess::Array(Expression::Literal(Literal::Real(0.0)).into(), None, false),
                 )
                 .into(),
             ),
@@ -986,9 +1042,17 @@ fn string() {
 }
 
 #[test]
-fn hex() {
+fn dollar_hex() {
     harness_expr(
         "$a0f9a0",
+        Expression::Literal(Literal::Hex("a0f9a0".into())),
+    );
+}
+
+#[test]
+fn oh_x_hex() {
+    harness_expr(
+        "0xa0f9a0",
         Expression::Literal(Literal::Hex("a0f9a0".into())),
     );
 }

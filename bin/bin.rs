@@ -149,6 +149,10 @@ fn parse_all_gml(duck: &mut Duck) {
                     let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
                     error!(target: &target.file_string, "Invalid new target: {:?}", expr)
                 }
+                ParseError::IncompleteStatement(cursor, expr) => {
+                    let target = Position::new(&gml_file, path.to_str().unwrap(), cursor);
+                    error!(target: &target.file_string, "Incomplete statement: {:?}", expr)
+                }
             }
         }
     }

@@ -95,6 +95,7 @@ pub enum UnaryOperator {
     Decrement,
     Not,
     Negative,
+    BitwiseNot,
 }
 
 #[derive(Debug, PartialEq)]
@@ -114,7 +115,7 @@ pub enum Literal {
 
 #[derive(Debug, PartialEq)]
 pub enum DSAccess {
-    Array(ExpressionBox, Option<ExpressionBox>),
+    Array(ExpressionBox, Option<ExpressionBox>, bool),
     Map(ExpressionBox),
     Grid(ExpressionBox, ExpressionBox),
     List(ExpressionBox),
@@ -123,8 +124,14 @@ pub enum DSAccess {
 
 #[derive(Debug, PartialEq)]
 pub enum Function {
-    Anonymous(Vec<Parameter>, Option<Constructor>, StatementBox),
-    Named(String, Vec<Parameter>, Option<Constructor>, StatementBox),
+    Anonymous(Vec<Parameter>, Option<Constructor>, StatementBox, bool),
+    Named(
+        String,
+        Vec<Parameter>,
+        Option<Constructor>,
+        StatementBox,
+        bool,
+    ),
 }
 
 #[derive(Debug, PartialEq)]

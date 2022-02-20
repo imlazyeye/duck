@@ -33,6 +33,8 @@ impl<'a> Lexer<'a> {
                 ']' => Some(Token::RightSquareBracket),
                 ',' => Some(Token::Comma),
                 ';' => Some(Token::SemiColon),
+                '@' => Some(Token::AtSign),
+                '~' => Some(Token::Tilde),
                 '%' => {
                     if self.match_take('=') {
                         Some(Token::PercentEqual)
@@ -159,14 +161,7 @@ impl<'a> Lexer<'a> {
                 }
                 '$' => {
                     let mut lexeme = String::new();
-                    while let Some(chr) = self.peek() {
-                        match chr {
-                            'A'..='F' | 'a'..='f' | '0'..='9' => {
-                                lexeme.push(self.take().unwrap().1);
-                            }
-                            _ => break,
-                        }
-                    }
+                    self.construct_hex(&mut lexeme);
                     if lexeme.len() == 6 {
                         Some(Token::Hex(lexeme))
                     } else {
@@ -253,6 +248,17 @@ impl<'a> Lexer<'a> {
                 // Check for whitespace
                 id if id.is_whitespace() => return self.lex(),
 
+                // Another possible hex format...
+                '0' if self.match_take('x') => {
+                    let mut lexeme = String::new();
+                    self.construct_hex(&mut lexeme);
+                    if !lexeme.is_empty() {
+                        Some(Token::Hex(lexeme))
+                    } else {
+                        Some(Token::Invalid(lexeme))
+                    }
+                }
+
                 // Check for numbers
                 '.' => {
                     if self.peek().map(|c| matches!(c, '0'..='9')).unwrap_or(false) {
@@ -307,12 +313,14 @@ impl<'a> Lexer<'a> {
                         "self" => Some(Token::SelfKeyword),
                         "xor" => Some(Token::Xor),
                         "catch" => Some(Token::Catch),
+                        "continue" => Some(Token::Continue),
+                        "static" => Some(Token::Static),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
 
                 // Literally anything else!
-                _ => None,
+                invalid => Some(Token::Invalid(invalid.into())),
             };
 
             if let Some(token_type) = token_type {
@@ -374,6 +382,19 @@ impl<'a> Lexer<'a> {
             lexeme.push('.');
             while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
                 lexeme.push(self.take().unwrap().1);
+            }
+        }
+    }
+
+    /// Will keep eating charcters into the given string so long as they are valid hex-characters
+    /// (ie: 4ab02f)
+    fn construct_hex(&mut self, lexeme: &mut String) {
+        while let Some(chr) = self.peek() {
+            match chr {
+                'A'..='F' | 'a'..='f' | '0'..='9' => {
+                    lexeme.push(self.take().unwrap().1);
+                }
+                _ => break,
             }
         }
     }

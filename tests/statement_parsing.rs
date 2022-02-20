@@ -152,7 +152,7 @@ fn try_catch() {
 }
 
 #[test]
-fn r#for() {
+fn for_loop() {
     harness_stmt(
         "for (var i = 0; i < 1; i++) {}",
         Statement::For(
@@ -161,13 +161,10 @@ fn r#for() {
                 Some(Expression::Literal(Literal::Real(0.0)).into()),
             )])
             .into(),
-            Statement::Expression(
-                Expression::Equality(
-                    Expression::Identifier("i".into()).into(),
-                    EqualityOperator::LessThan,
-                    Expression::Literal(Literal::Real(1.0)).into(),
-                )
-                .into(),
+            Expression::Equality(
+                Expression::Identifier("i".into()).into(),
+                EqualityOperator::LessThan,
+                Expression::Literal(Literal::Real(1.0)).into(),
             )
             .into(),
             Statement::Expression(
@@ -356,7 +353,7 @@ fn block() {
 }
 
 #[test]
-fn r#return() {
+fn return_statement() {
     harness_stmt("return;", Statement::Return(None))
 }
 
