@@ -195,7 +195,7 @@ impl<'a> Lexer<'a> {
                             self.lex()
                         }
                         "#" => (start_index, Token::Hash),
-                        _ => todo!("We don't have a good set up for this error right now!"),
+                        invalid => (start_index, Token::Invalid(invalid.to_string())),
                     };
                 }
 
