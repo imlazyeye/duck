@@ -1,29 +1,29 @@
 use colored::Colorize;
 
-use crate::Position;
+use crate::{Position, Span};
 
 use super::{expression::ExpressionBox, token::Token};
 
 #[derive(Debug, PartialEq)]
 pub enum ParseError {
-    UnexpectedToken(Position, Token),
-    ExpectedToken(Position, Token),
-    InvalidLintLevel(Position, String),
-    InvalidAssignmentTarget(Position, ExpressionBox),
-    InvalidNewTarget(Position, ExpressionBox),
-    IncompleteStatement(Position, ExpressionBox),
-    UnexpectedEnd(Position),
+    UnexpectedToken(Span, Token),
+    ExpectedToken(Span, Token),
+    InvalidLintLevel(Span, String),
+    InvalidAssignmentTarget(Span, ExpressionBox),
+    InvalidNewTarget(Span, ExpressionBox),
+    IncompleteStatement(Span, ExpressionBox),
+    UnexpectedEnd(Span),
 }
 impl ParseError {
-    pub fn position(&self) -> &Position {
+    pub fn span(&self) -> &Span {
         match self {
-            ParseError::UnexpectedToken(position, _) => position,
-            ParseError::ExpectedToken(position, _) => position,
-            ParseError::InvalidLintLevel(position, _) => position,
-            ParseError::InvalidAssignmentTarget(position, _) => position,
-            ParseError::InvalidNewTarget(position, _) => position,
-            ParseError::IncompleteStatement(position, _) => position,
-            ParseError::UnexpectedEnd(position) => position,
+            ParseError::UnexpectedToken(span, _) => span,
+            ParseError::ExpectedToken(span, _) => span,
+            ParseError::InvalidLintLevel(span, _) => span,
+            ParseError::InvalidAssignmentTarget(span, _) => span,
+            ParseError::InvalidNewTarget(span, _) => span,
+            ParseError::IncompleteStatement(span, _) => span,
+            ParseError::UnexpectedEnd(span) => span,
         }
     }
 
@@ -41,10 +41,10 @@ impl ParseError {
 }
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let path_message = self.position().path_message();
-        let snippet_message = self.position().snippet_message();
+        // let path_message = self.span().path_message();
+        // let snippet_message = self.span().snippet_message();
         f.pad(&format!(
-            "{}: {}\n{path_message}\n{snippet_message}\n",
+            "{}: {}",
             "parse error".bright_red().bold(),
             self.error_message().bright_white(),
         ))

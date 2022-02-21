@@ -1,9 +1,9 @@
-use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
 pub struct AnonymousConstructor;
 impl Lint for AnonymousConstructor {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
             display_name: "Use of an anonymous constructor",
             tag: "anonymous_constructor",
@@ -13,18 +13,18 @@ impl Lint for AnonymousConstructor {
                 "Change this to a function that returns a struct literal",
             ],
             category: LintCategory::Style,
-            position,
+            span,
         }
     }
 
     fn visit_expression(
         _duck: &Duck,
         expression: &Expression,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::FunctionDeclaration(None, _, Some(_), _, _) = expression {
-            reports.push(Self::generate_report(position.clone()))
+            reports.push(Self::generate_report(span))
         }
     }
 }

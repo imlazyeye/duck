@@ -1,12 +1,9 @@
-use crate::{
-    parsing::{statement::Statement},
-    Duck, Lint, LintCategory, LintReport, Position,
-};
+use crate::{parsing::statement::Statement, Duck, Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
 pub struct WithLoop;
 impl Lint for WithLoop {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
 			tag: "with_loop",
 			display_name: "Use of `with`",
@@ -16,18 +13,18 @@ impl Lint for WithLoop {
             "Use direct dot reference `foo.bar` to manipulate single objects",
         ],
 			category: LintCategory::Pedantic,
-			position,
+			span,
 		}
     }
 
     fn visit_statement(
         _duck: &Duck,
         statement: &crate::parsing::statement::Statement,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
         if let Statement::With(..) = statement {
-            reports.push(Self::generate_report(position.clone()))
+            reports.push(Self::generate_report(span))
         }
     }
 }

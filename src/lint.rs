@@ -2,7 +2,7 @@ use colored::Colorize;
 
 use crate::{
     parsing::{expression::Expression, statement::Statement},
-    Duck, Position,
+    Duck, Position, Span,
 };
 
 /// An individual lint in duck.
@@ -13,7 +13,7 @@ use crate::{
 /// read more clearly (ie: `#[allow(missing_default_case)])`).
 pub trait Lint {
     /// Genreates a LintReport;
-    fn generate_report(position: Position) -> LintReport;
+    fn generate_report(span: Span) -> LintReport;
 
     /// Ran on all expressions.
     #[allow(unused_mut)]
@@ -21,7 +21,7 @@ pub trait Lint {
     fn visit_expression(
         duck: &Duck,
         expression: &Expression,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
     }
@@ -32,7 +32,7 @@ pub trait Lint {
     fn visit_statement(
         duck: &Duck,
         statement: &Statement,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
     }
@@ -93,23 +93,23 @@ pub struct LintReport {
     #[allow(dead_code)]
     pub(super) explanation: &'static str,
     pub(super) suggestions: Vec<&'static str>,
-    pub(super) position: Position,
+    pub span: Span,
 }
 impl LintReport {
     pub fn get_true_level(&self, duck: &Duck) -> LintLevel {
-        let user_provided_level = duck.get_user_provided_level(self.tag, &self.position);
+        let user_provided_level = duck.get_user_provided_level(self.tag, &self.span);
         user_provided_level.unwrap_or_else(|| duck.category_levels[self.category])
     }
-    pub fn raise(self, duck: &Duck) {
-        let user_provided_level = duck.get_user_provided_level(self.tag, &self.position);
+    pub fn raise(self, duck: &Duck, position: &Position) {
+        let user_provided_level = duck.get_user_provided_level(self.tag, &self.span);
         let actual_level = self.get_true_level(duck);
         let level_string = match actual_level {
             LintLevel::Allow => return, // allow this!
             LintLevel::Warn => "warning".yellow().bold(),
             LintLevel::Deny => "error".bright_red().bold(),
         };
-        let path_message = self.position.path_message();
-        let snippet_message = self.position.snippet_message();
+        let path_message = position.path_message();
+        let snippet_message = position.snippet_message();
         let show_suggestions = true;
         let suggestion_message = if show_suggestions {
             let mut suggestions: Vec<String> = self

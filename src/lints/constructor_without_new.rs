@@ -1,16 +1,16 @@
-use crate::{Lint, LintCategory, LintReport, Position};
+use crate::{Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
 pub struct ConstructorWithoutNew;
 impl Lint for ConstructorWithoutNew {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Invokation of constructor without `new`",
 			tag: "constructor_without_new",
 			explanation: "Constructors invoked without the `new` keyword do not return the newly constructed struct.",
 			suggestions: vec!["Add the `new` operator before the call"],
 			category: LintCategory::Correctness,
-			position,
+			span,
 		}
     }
 }

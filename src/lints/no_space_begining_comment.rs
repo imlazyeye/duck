@@ -1,16 +1,16 @@
-use crate::{Lint, LintCategory, LintReport, Position};
+use crate::{Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
 pub struct NoSpaceBeginingComment;
 impl Lint for NoSpaceBeginingComment {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "No space begining comment",
 			tag: "no_space_begining_comment",
 			explanation: "Comments should begin with a space after them to increase readability and consistency.",
 			suggestions: vec!["Add a space to the begining of the comment"],
 			category: LintCategory::Style,
-			position,
+			span,
 		}
     }
 
@@ -25,7 +25,7 @@ impl Lint for NoSpaceBeginingComment {
     //                     break;
     //                 }
     //                 _ => reports.push(LintReport {
-    //                     position: comment.position().clone(),
+    //                     span: comment.span().clone(),
     //                 }),
     //             }
     //         }

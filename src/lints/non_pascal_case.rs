@@ -2,32 +2,32 @@ use heck::ToUpperCamelCase;
 
 use crate::{
     parsing::{expression::Expression, statement::Statement},
-    Duck, Lint, LintCategory, LintReport, Position,
+    Duck, Lint, LintCategory, LintReport, Span,
 };
 
 #[derive(Debug, PartialEq)]
 pub struct NonPascalCase;
 impl Lint for NonPascalCase {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Identifier should be PascalCase",
 			tag: "non_pascal_case",
 			explanation: "Pascal case is the ideal casing for \"types\" to distinguish them from other values.",
 			suggestions: vec!["Change your casing to PascalCase"],
 			category: LintCategory::Style,
-			position,
+			span,
 		}
     }
 
     fn visit_expression(
         _duck: &Duck,
         expression: &Expression,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::FunctionDeclaration(Some(name), _, Some(_), ..) = expression {
             if name != &pascal_case(name) {
-                reports.push(Self::generate_report(position.clone()))
+                reports.push(Self::generate_report(span))
             }
         }
     }
@@ -35,16 +35,16 @@ impl Lint for NonPascalCase {
     fn visit_statement(
         _duck: &Duck,
         statement: &Statement,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
         if let Statement::EnumDeclaration(name, members) = statement {
             if name != &pascal_case(name) {
-                reports.push(Self::generate_report(position.clone()))
+                reports.push(Self::generate_report(span))
             }
             members.iter().map(|(n, _)| n).for_each(|name| {
                 if name != &pascal_case(name) {
-                    reports.push(Self::generate_report(position.clone()))
+                    reports.push(Self::generate_report(span))
                 }
             });
         }

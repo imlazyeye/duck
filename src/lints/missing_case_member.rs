@@ -1,9 +1,9 @@
-use crate::{Lint, LintCategory, LintReport, Position};
+use crate::{Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
 pub struct MissingCaseMember;
 impl Lint for MissingCaseMember {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
             display_name: "Missing case member",
             tag: "missing_case_member",
@@ -13,7 +13,7 @@ impl Lint for MissingCaseMember {
             "Add cases for the missing members",
             "Remove the imtentional crash from your default case",
         ],
-            position,
+            span,
         }
     }
 
@@ -38,7 +38,7 @@ impl Lint for MissingCaseMember {
 
     //                 if missing_members {
     //                     reports.push(LintReport {
-    //                         position: switch.position().clone(),
+    //                         span: switch.span().clone(),
     //                     })
     //                 }
     //             }

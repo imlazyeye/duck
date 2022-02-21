@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-use crate::Position;
+use crate::{Position, Span};
 
 use super::{lexer::Lexer, token::Token, utils::ParseError};
 
@@ -25,7 +25,7 @@ impl<'a> TokenPilot<'a> {
         if let Some((_, token)) = self.lexer.peek() {
             Ok(token)
         } else {
-            Err(ParseError::UnexpectedEnd(Position::default())) // todo: bad, give the pilot its own error type
+            Err(ParseError::UnexpectedEnd(Span::default())) // todo: bad, give the pilot its own error type
         }
     }
 
@@ -66,7 +66,7 @@ impl<'a> TokenPilot<'a> {
         if found_token == token {
             Ok(found_token)
         } else {
-            Err(ParseError::ExpectedToken(Position::default(), token)) // same issue here
+            Err(ParseError::ExpectedToken(Span::default(), token)) // same issue here
         }
     }
 
@@ -76,7 +76,7 @@ impl<'a> TokenPilot<'a> {
         if let Token::Identifier(v) = next {
             Ok(v)
         } else {
-            Err(ParseError::UnexpectedToken(Position::default(), next)) // and here (oh no)
+            Err(ParseError::UnexpectedToken(Span::default(), next)) // and here (oh no)
         }
     }
 
@@ -95,7 +95,7 @@ impl<'a> TokenPilot<'a> {
             self.cursor = position;
             Ok(token)
         } else {
-            Err(ParseError::UnexpectedEnd(Position::default())) // okay maybe this was a mistake
+            Err(ParseError::UnexpectedEnd(Span::default())) // okay maybe this was a mistake
         }
     }
 }

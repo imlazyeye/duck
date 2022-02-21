@@ -1,9 +1,9 @@
-use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Position};
+use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
 pub struct TooManyArguments;
 impl Lint for TooManyArguments {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
 			tag: "too_many_arguments",
 			display_name: "Too many arguments",
@@ -13,20 +13,20 @@ impl Lint for TooManyArguments {
             "Create a struct that holds the fields required by this function",
         ],
 			category: LintCategory::Style,
-			position,
+			span,
 		}
     }
 
     fn visit_expression(
         duck: &Duck,
         expression: &Expression,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
         if let Some(max) = duck.config().max_arguments() {
             if let Expression::FunctionDeclaration(_, params, ..) = expression {
                 if params.len() > max {
-                    reports.push(Self::generate_report(position.clone()))
+                    reports.push(Self::generate_report(span))
                 }
             }
         }

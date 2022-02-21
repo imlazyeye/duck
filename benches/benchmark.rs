@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use duck::{parsing::Parser, Duck, Position};
+use duck::{parsing::Parser, Duck};
 use yy_boss::{Resource, YyResource, YypBoss};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -58,7 +58,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     .unwrap()
                 {
                     let mut reports = vec![];
-                    duck.lint_statement(statement.statement(), &Position::default(), &mut reports);
+                    duck.lint_statement(statement.statement(), statement.span(), &mut reports);
                 }
             }
         });

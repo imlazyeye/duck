@@ -1,30 +1,27 @@
-use crate::{
-    parsing::{statement::Statement},
-    Duck, Lint, LintCategory, LintReport, Position,
-};
+use crate::{parsing::statement::Statement, Duck, Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
 pub struct MissingDefaultCase;
 impl Lint for MissingDefaultCase {
-    fn generate_report(position: Position) -> LintReport {
+    fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Missing default case",
 			tag: "missing_default_case",
 			explanation: "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.",
 			suggestions: vec!["Add a default case to the switch statement"],
 			category: LintCategory::Pedantic,
-			position,
+			span,
 		}
     }
 
     fn visit_statement(
         _duck: &Duck,
         statement: &Statement,
-        position: &Position,
+        span: Span,
         reports: &mut Vec<LintReport>,
     ) {
         if let Statement::Switch(_, _, None) = statement {
-            reports.push(Self::generate_report(position.clone()))
+            reports.push(Self::generate_report(span))
         }
     }
 }

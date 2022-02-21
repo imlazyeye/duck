@@ -1,5 +1,5 @@
 use super::statement::StatementBox;
-use crate::Position;
+use crate::{Position, Span};
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
@@ -25,19 +25,22 @@ pub enum Expression {
     Identifier(String),
 }
 impl Expression {
-    pub fn into_box(self, position: Position) -> ExpressionBox {
-        ExpressionBox(Box::new(self), position)
+    pub fn into_box(self, span: Span) -> ExpressionBox {
+        ExpressionBox(Box::new(self), span)
     }
     pub fn lazy_box(self) -> ExpressionBox {
-        ExpressionBox(Box::new(self), Position::default())
+        ExpressionBox(Box::new(self), Span::default())
     }
 }
 
 #[derive(Debug, PartialEq)]
-pub struct ExpressionBox(pub Box<Expression>, pub Position);
+pub struct ExpressionBox(pub Box<Expression>, pub Span);
 impl ExpressionBox {
     pub fn expression(&self) -> &Expression {
         self.0.as_ref()
+    }
+    pub fn span(&self) -> Span {
+        self.1
     }
 }
 

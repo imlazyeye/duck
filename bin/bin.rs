@@ -1,6 +1,6 @@
 use colored::Colorize;
-use duck::{Duck, LintLevel};
-use duck::{DuckConfig, LintReport, Position};
+use duck::{Duck, LintLevel, Position};
+use duck::{DuckConfig, LintReport};
 use std::path::PathBuf;
 use yy_boss::{Resource, YyResource, YypBoss};
 
@@ -30,21 +30,20 @@ fn main() {
         Duck::new()
     };
 
-    let reports = parse_all_gml(&mut duck);
-    let deny_count = reports
-        .iter()
-        .filter(|v| v.get_true_level(&duck) == LintLevel::Deny)
-        .count();
-    let warn_count = reports
-        .iter()
-        .filter(|v| v.get_true_level(&duck) == LintLevel::Warn)
-        .count();
-    let allow_count = reports
-        .iter()
-        .filter(|v| v.get_true_level(&duck) == LintLevel::Allow)
-        .count();
-    for report in reports {
-        report.raise(&duck);
+    let registrar = parse_all_gml(&mut duck);
+    let mut deny_count = 0;
+    let mut warn_count = 0;
+    let mut allow_count = 0;
+    for (file, path, reports) in registrar {
+        for report in reports {
+            match report.get_true_level(&duck) {
+                LintLevel::Allow => allow_count += 1,
+                LintLevel::Warn => warn_count += 1,
+                LintLevel::Deny => deny_count += 1,
+            }
+            let cursor = report.span.0;
+            report.raise(&duck, &Position::new(&file, &path, cursor));
+        }
     }
 
     // Print the results
@@ -72,7 +71,7 @@ fn main() {
     println!("\n{output}\n");
 }
 
-fn parse_all_gml(duck: &mut Duck) -> Vec<LintReport> {
+fn parse_all_gml(duck: &mut Duck) -> Vec<(String, String, Vec<LintReport>)> {
     let boss = YypBoss::with_startup_injest(
         "../SwordAndField/FieldsOfMistria.yyp",
         &[Resource::Script, Resource::Object],
@@ -80,7 +79,7 @@ fn parse_all_gml(duck: &mut Duck) -> Vec<LintReport> {
     .unwrap();
 
     // Parse it all
-    let mut reports = vec![];
+    let mut registrar = vec![];
     let gml = boss
         .scripts
         .into_iter()
@@ -110,13 +109,15 @@ fn parse_all_gml(duck: &mut Duck) -> Vec<LintReport> {
                 })
         }));
 
-    for (gml_file, path) in gml {
-        match duck.parse_gml(&gml_file, &path) {
+    for (gml, path) in gml {
+        match duck.parse_gml(&gml, &path) {
             Ok(ast) => ast.into_iter().for_each(|statement| {
-                duck.lint_statement(statement.statement(), &Position::default(), &mut reports);
+                let mut reports = vec![];
+                duck.lint_statement(statement.statement(), statement.span(), &mut reports);
+                registrar.push((gml.to_string(), path.to_str().unwrap().into(), reports));
             }),
-            Err(error) => error!(target: &error.position().file_string, "{}", error),
+            Err(error) => error!("{}", error),
         }
     }
-    reports
+    registrar
 }

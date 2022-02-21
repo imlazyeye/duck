@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     parsing::{expression::EvaluationOperator, ParseError},
-    Position,
+    Position, Span,
 };
 
 use super::{
@@ -79,15 +79,19 @@ impl<'a> Parser<'a> {
     }
 
     fn macro_declaration(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         match self.pilot.take()? {
-            Token::Macro(name, config, body) => {
-                Ok(Statement::MacroDeclaration(name, config, body).into_box(self.position()))
-            }
-            token => Err(ParseError::UnexpectedToken(self.position(), token)),
+            Token::Macro(name, config, body) => Ok(Statement::MacroDeclaration(name, config, body)
+                .into_box(Span(start, self.pilot.cursor()))),
+            token => Err(ParseError::UnexpectedToken(
+                Span(start, self.pilot.cursor()),
+                token,
+            )),
         }
     }
 
     fn enum_declaration(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Enum)?;
         let name = self.pilot.require_identifier()?;
         self.pilot.require(Token::LeftBrace)?;
@@ -106,19 +110,22 @@ impl<'a> Parser<'a> {
                 self.pilot.match_take(Token::Comma);
             }
         }
-        Ok(Statement::EnumDeclaration(name, members).into_box(self.position()))
+        Ok(Statement::EnumDeclaration(name, members).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn try_catch(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Try)?;
         let try_body = self.block()?;
         self.pilot.require(Token::Catch)?;
         let catch_expr = self.expression()?;
         let catch_body = self.block()?;
-        Ok(Statement::TryCatch(try_body, catch_expr, catch_body).into_box(self.position()))
+        Ok(Statement::TryCatch(try_body, catch_expr, catch_body)
+            .into_box(Span(start, self.pilot.cursor())))
     }
 
     fn for_loop(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::For)?;
         self.pilot.match_take(Token::LeftParenthesis);
         let initializer = self.statement()?;
@@ -127,40 +134,46 @@ impl<'a> Parser<'a> {
         let tick = self.statement()?;
         self.pilot.match_take(Token::RightParenthesis);
         let body = self.statement()?;
-        Ok(Statement::For(initializer, condition, tick, body).into_box(self.position()))
+        Ok(Statement::For(initializer, condition, tick, body)
+            .into_box(Span(start, self.pilot.cursor())))
     }
 
     fn with(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::With)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(Statement::With(condition, body).into_box(self.position()))
+        Ok(Statement::With(condition, body).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn repeat(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Repeat)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(Statement::Repeat(condition, body).into_box(self.position()))
+        Ok(Statement::Repeat(condition, body).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn do_until(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Do)?;
         let body = self.statement()?;
         self.pilot.require(Token::Until)?;
         let condition = self.expression()?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::DoUntil(body, condition).into_box(self.position()))
+        Ok(Statement::DoUntil(body, condition).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn while_loop(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::While)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(Statement::While(condition, body).into_box(self.position()))
+        Ok(Statement::While(condition, body).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn if_statement(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::If)?;
         let condition = self.expression()?;
         let body = self.statement()?;
@@ -169,11 +182,13 @@ impl<'a> Parser<'a> {
         } else {
             None
         };
-        Ok(Statement::If(condition, body, else_branch).into_box(self.position()))
+        Ok(Statement::If(condition, body, else_branch).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn switch(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         fn case_body(parser: &mut Parser) -> Result<Vec<StatementBox>, ParseError> {
+            let start = parser.pilot.cursor();
             let mut body = vec![];
             loop {
                 match parser.pilot.peek()? {
@@ -209,16 +224,18 @@ impl<'a> Parser<'a> {
                 }
                 _ => {
                     return Err(ParseError::UnexpectedToken(
-                        self.position(),
+                        Span(start, self.pilot.cursor()),
                         self.pilot.take()?,
                     ))
                 }
             }
         }
-        Ok(Statement::Switch(expression, members, default).into_box(self.position()))
+        Ok(Statement::Switch(expression, members, default)
+            .into_box(Span(start, self.pilot.cursor())))
     }
 
     fn block(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::LeftBrace)?;
         let mut statements: Vec<StatementBox> = vec![];
         while *self.pilot.peek()? != Token::RightBrace {
@@ -226,42 +243,48 @@ impl<'a> Parser<'a> {
         }
         self.pilot.require(Token::RightBrace)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Block(statements).into_box(self.position()))
+        Ok(Statement::Block(statements).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn return_statement(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Return)?;
         let expression = self.expression().ok();
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Return(expression).into_box(self.position()))
+        Ok(Statement::Return(expression).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn break_statement(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Break)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Break.into_box(self.position()))
+        Ok(Statement::Break.into_box(Span(start, self.pilot.cursor())))
     }
 
     fn continue_statement(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Continue)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Continue.into_box(self.position()))
+        Ok(Statement::Continue.into_box(Span(start, self.pilot.cursor())))
     }
 
     fn exit(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Exit)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Exit.into_box(self.position()))
+        Ok(Statement::Exit.into_box(Span(start, self.pilot.cursor())))
     }
 
     fn globalvar_declaration(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Globalvar)?;
         let name = self.pilot.require_identifier()?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::GlobalvarDeclaration(name).into_box(self.position()))
+        Ok(Statement::GlobalvarDeclaration(name).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn local_variable_series(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Var)?;
         let mut declarations = vec![];
         loop {
@@ -280,10 +303,11 @@ impl<'a> Parser<'a> {
             }
         }
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::LocalVariableSeries(declarations).into_box(self.position()))
+        Ok(Statement::LocalVariableSeries(declarations).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn expression_statement(&mut self) -> Result<StatementBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.expression()?;
         match expression.expression() {
             Expression::FunctionDeclaration(..)
@@ -303,19 +327,24 @@ impl<'a> Parser<'a> {
             _ => {
                 // Temporarily ignoring!!!
                 if expression.expression() != &Expression::Identifier("unsafe".into()) {
-                    return Err(ParseError::IncompleteStatement(self.position(), expression));
+                    return Err(ParseError::IncompleteStatement(
+                        Span(start, self.pilot.cursor()),
+                        expression,
+                    ));
                 }
             }
         }
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Expression(expression).into_box(self.position()))
+        Ok(Statement::Expression(expression).into_box(Span(start, self.pilot.cursor())))
     }
 
     pub fn expression(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         self.function()
     }
 
     fn function(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let static_token = self.pilot.match_take(Token::Static);
         if self.pilot.match_take(Token::Function).is_some() {
             let name = self.pilot.match_take_identifier()?;
@@ -361,35 +390,40 @@ impl<'a> Parser<'a> {
                 body,
                 static_token.is_some(),
             )
-            .into_box(self.position()))
+            .into_box(Span(start, self.pilot.cursor())))
         } else {
             self.null_coalecence()
         }
     }
 
     fn null_coalecence(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.ternary()?;
         if self.pilot.match_take(Token::DoubleInterrobang).is_some() {
             let value = self.expression()?;
-            Ok(Expression::NullCoalecence(expression, value).into_box(self.position()))
+            Ok(Expression::NullCoalecence(expression, value)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn ternary(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.logical()?;
         if self.pilot.match_take(Token::Interrobang).is_some() {
             let true_value = self.expression()?;
             self.pilot.require(Token::Colon)?;
             let false_value = self.expression()?;
-            Ok(Expression::Ternary(expression, true_value, false_value).into_box(self.position()))
+            Ok(Expression::Ternary(expression, true_value, false_value)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn logical(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.equality()?;
         if let Some(operator) = self
             .pilot
@@ -399,13 +433,15 @@ impl<'a> Parser<'a> {
         {
             self.pilot.take()?;
             let right = self.logical()?;
-            Ok(Expression::Logical(expression, operator, right).into_box(self.position()))
+            Ok(Expression::Logical(expression, operator, right)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn equality(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.binary()?;
         if let Some(operator) = self
             .pilot
@@ -415,13 +451,15 @@ impl<'a> Parser<'a> {
         {
             self.pilot.take()?;
             let right = self.binary()?;
-            Ok(Expression::Equality(expression, operator, right).into_box(self.position()))
+            Ok(Expression::Equality(expression, operator, right)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn binary(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.bitshift()?;
         if let Some(operator) = self
             .pilot
@@ -439,13 +477,15 @@ impl<'a> Parser<'a> {
         {
             self.pilot.take()?;
             let right = self.bitshift()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.position()))
+            Ok(Expression::Evaluation(expression, operator, right)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn bitshift(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.addition()?;
         if let Some(operator) = self
             .pilot
@@ -462,13 +502,15 @@ impl<'a> Parser<'a> {
         {
             self.pilot.take()?;
             let right = self.addition()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.position()))
+            Ok(Expression::Evaluation(expression, operator, right)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn addition(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.multiplication()?;
         if let Some(operator) = self
             .pilot
@@ -484,13 +526,15 @@ impl<'a> Parser<'a> {
         {
             self.pilot.take()?;
             let right = self.addition()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.position()))
+            Ok(Expression::Evaluation(expression, operator, right)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn multiplication(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.assignment()?;
         if let Some(operator) = self
             .pilot
@@ -509,13 +553,15 @@ impl<'a> Parser<'a> {
         {
             self.pilot.take()?;
             let right = self.multiplication()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.position()))
+            Ok(Expression::Evaluation(expression, operator, right)
+                .into_box(Span(start, self.pilot.cursor())))
         } else {
             Ok(expression)
         }
     }
 
     fn assignment(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.unary()?;
         if let Some(operator) = self
             .pilot
@@ -528,13 +574,14 @@ impl<'a> Parser<'a> {
                 Expression::Identifier(..) | Expression::Access(..) | Expression::Call(..) // idiotically, this does compile in GM. We have a lint for this!
             ) {
                 Err(ParseError::InvalidAssignmentTarget(
-                    self.position(),
+                    Span(start, self.pilot.cursor()),
                     expression,
                 ))
             } else {
                 self.pilot.take()?;
                 let right = self.expression()?;
-                Ok(Expression::Assignment(expression, operator, right).into_box(self.position()))
+                Ok(Expression::Assignment(expression, operator, right)
+                    .into_box(Span(start, self.pilot.cursor())))
             }
         } else {
             Ok(expression)
@@ -542,16 +589,18 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         if let Some(operator) = self.pilot.peek()?.as_unary_operator() {
             self.pilot.take()?;
             let right = self.expression()?;
-            Ok(Expression::Unary(operator, right).into_box(self.position()))
+            Ok(Expression::Unary(operator, right).into_box(Span(start, self.pilot.cursor())))
         } else {
             self.postfix()
         }
     }
 
     fn postfix(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         let expression = self.grouping()?;
         if let Some(operator) = self
             .pilot
@@ -560,33 +609,37 @@ impl<'a> Parser<'a> {
             .flatten()
         {
             self.pilot.take()?;
-            Ok(Expression::Postfix(expression, operator).into_box(self.position()))
+            Ok(
+                Expression::Postfix(expression, operator)
+                    .into_box(Span(start, self.pilot.cursor())),
+            )
         } else {
             Ok(expression)
         }
     }
 
     fn grouping(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         if self.pilot.match_take(Token::LeftParenthesis).is_some() {
             let expression = self.expression()?;
             self.pilot.require(Token::RightParenthesis)?;
-            Ok(Expression::Grouping(expression).into_box(self.position()))
+            Ok(Expression::Grouping(expression).into_box(Span(start, self.pilot.cursor())))
         } else {
             self.literal()
         }
     }
 
     fn literal(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         if let Some(literal) = self.pilot.peek()?.to_literal() {
             self.pilot.take()?;
-            Ok(Expression::Literal(literal).into_box(self.position()))
+            Ok(Expression::Literal(literal).into_box(Span(start, self.pilot.cursor())))
         } else if self.pilot.match_take(Token::LeftSquareBracket).is_some() {
             let mut elements = vec![];
             loop {
                 if self.pilot.match_take(Token::RightSquareBracket).is_some() {
-                    break Ok(
-                        Expression::Literal(Literal::Array(elements)).into_box(self.position())
-                    );
+                    break Ok(Expression::Literal(Literal::Array(elements))
+                        .into_box(Span(start, self.pilot.cursor())));
                 } else {
                     elements.push(self.expression()?);
                     self.pilot.match_take(Token::Comma);
@@ -596,9 +649,8 @@ impl<'a> Parser<'a> {
             let mut elements = vec![];
             loop {
                 if self.pilot.match_take(Token::RightBrace).is_some() {
-                    break Ok(
-                        Expression::Literal(Literal::Struct(elements)).into_box(self.position())
-                    );
+                    break Ok(Expression::Literal(Literal::Struct(elements))
+                        .into_box(Span(start, self.pilot.cursor())));
                 } else {
                     let name = self.pilot.require_identifier()?;
                     self.pilot.require(Token::Colon)?;
@@ -612,6 +664,7 @@ impl<'a> Parser<'a> {
     }
 
     fn supreme(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         // Get the first expression...
         let mut has_new = self.pilot.match_take(Token::New).is_some();
         let mut expression = match self.pilot.peek()? {
@@ -624,7 +677,7 @@ impl<'a> Parser<'a> {
                 if self.pilot.soft_peek() == Some(&Token::Dot) {
                     self.dot_access(AccessScope::Current)?
                 } else {
-                    Expression::Identifier("self".into()).into_box(self.position())
+                    Expression::Identifier("self".into()).into_box(Span(start, self.pilot.cursor()))
                 }
             }
             _ => self.identifier()?,
@@ -646,6 +699,7 @@ impl<'a> Parser<'a> {
     }
 
     fn call(&mut self, left: ExpressionBox, has_new: bool) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::LeftParenthesis)?;
         let mut arguments = vec![];
         if self.pilot.match_take(Token::RightParenthesis).is_none() {
@@ -658,20 +712,27 @@ impl<'a> Parser<'a> {
                         }
                     }
                     Token::RightParenthesis => break,
-                    token => return Err(ParseError::UnexpectedToken(self.position(), token)),
+                    token => {
+                        return Err(ParseError::UnexpectedToken(
+                            Span(start, self.pilot.cursor()),
+                            token,
+                        ))
+                    }
                 }
             }
         }
-        Ok(Expression::Call(left, arguments, has_new).into_box(self.position()))
+        Ok(Expression::Call(left, arguments, has_new).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn dot_access(&mut self, access: AccessScope) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::Dot)?;
         let right = self.expression()?;
-        Ok(Expression::Access(right, access).into_box(self.position()))
+        Ok(Expression::Access(right, access).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn ds_access(&mut self, left: ExpressionBox) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         self.pilot.require(Token::LeftSquareBracket)?;
         let ds_access = match self.pilot.peek()? {
             Token::DollarSign => {
@@ -705,27 +766,29 @@ impl<'a> Parser<'a> {
             }
         };
         self.pilot.require(Token::RightSquareBracket)?;
-        Ok(Expression::Access(left, ds_access).into_box(self.position()))
+        Ok(Expression::Access(left, ds_access).into_box(Span(start, self.pilot.cursor())))
     }
 
     fn identifier(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         // TODO: TEMPORARY!!!
         self.pilot.match_take(Token::Static);
 
         if let Some(lexeme) = self.pilot.peek()?.as_identifier().map(|s| s.to_string()) {
             self.pilot.take()?;
-            Ok(Expression::Identifier(lexeme).into_box(self.position()))
+            Ok(Expression::Identifier(lexeme).into_box(Span(start, self.pilot.cursor())))
         } else {
             self.unexpected_token()
         }
     }
 
     fn unexpected_token(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
         // Note: the clone below (instead of .take()) is very intentional!
         // Users should be able to use `self.expression().ok()` and similar patterns
         // without losing tokens.
         Err(ParseError::UnexpectedToken(
-            self.position(),
+            Span(start, self.pilot.cursor()),
             self.pilot.soft_peek().unwrap().clone(),
         ))
     }
