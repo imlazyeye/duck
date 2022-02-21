@@ -1,5 +1,5 @@
 use super::statement::StatementBox;
-use crate::{Position, Span};
+use crate::{Span};
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {

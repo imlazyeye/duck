@@ -1,6 +1,6 @@
 use std::iter::Peekable;
 
-use crate::{Position, Span};
+use crate::Span;
 
 use super::{lexer::Lexer, token::Token, utils::ParseError};
 

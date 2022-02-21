@@ -1,9 +1,9 @@
+use crate::parsing::parser::Parser;
 use crate::parsing::{
     expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator},
     statement::{Case, Statement},
 };
 use pretty_assertions::assert_eq;
-use crate::parsing::parser::Parser;
 
 fn harness_stmt(source: &str, expected: Statement) {
     let mut parser = Parser::new(source, "test".into());

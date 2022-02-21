@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{Position, Span};
+use crate::Span;
 
 use super::{expression::ExpressionBox, token::Token};
 
