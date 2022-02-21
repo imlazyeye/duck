@@ -5,10 +5,10 @@ pub struct TryCatch;
 impl Lint for TryCatch {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `try` / `catch`",
+			display_name: "Use of `try` / `catch`".into(),
 			tag: "try_catch",
 			explanation: "GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.",
-			suggestions: vec!["Adjust the architecture to inspect for an issue prior to the crash"],
+			suggestions: vec!["Adjust the architecture to inspect for an issue prior to the crash".into()],
 			category: LintCategory::Pedantic,
 			span,
 		}

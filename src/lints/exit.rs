@@ -5,10 +5,10 @@ pub struct Exit;
 impl Lint for Exit {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `exit`",
+			display_name: "Use of `exit`".into(),
 			tag: "exit",
 			explanation: "`return` can always be used in place of exit, which provides more consistency across your codebase.",
-			suggestions: vec!["Use `return` instead of `exit`"],
+			suggestions: vec!["Use `return` instead of `exit`".into()],
 			category: LintCategory::Style,
 			span,
 		}

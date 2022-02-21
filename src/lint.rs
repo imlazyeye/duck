@@ -12,8 +12,21 @@ use crate::{
 /// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes tagging
 /// read more clearly (ie: `#[allow(missing_default_case)])`).
 pub trait Lint {
-    /// Genreates a LintReport;
+    /// Genreates a LintReport.
     fn generate_report(span: Span) -> LintReport;
+
+    /// Generates a LintReport based on `Lint::generate_report`, but replaces its name
+    /// and extends any provided suggestions into it.
+    fn generate_report_with<const COUNT: usize>(
+        span: Span,
+        name: impl Into<String>,
+        additional_suggestions: [String; COUNT],
+    ) -> LintReport {
+        let mut report = Self::generate_report(span);
+        report.display_name = name.into();
+        report.suggestions.extend(additional_suggestions);
+        report
+    }
 
     /// Ran on all expressions.
     #[allow(unused_mut)]
@@ -87,21 +100,21 @@ pub enum LintCategory {
 
 /// A report returned by a lint if it fails.
 pub struct LintReport {
-    pub(super) display_name: &'static str,
+    pub(super) display_name: String,
     pub(super) tag: &'static str,
     pub(super) category: LintCategory,
     #[allow(dead_code)]
     pub(super) explanation: &'static str,
-    pub(super) suggestions: Vec<&'static str>,
+    pub(super) suggestions: Vec<String>,
     pub span: Span,
 }
 impl LintReport {
     pub fn get_true_level(&self, duck: &Duck) -> LintLevel {
-        let user_provided_level = duck.get_user_provided_level(self.tag, &self.span);
+        let user_provided_level = duck.get_user_provided_level(self.tag);
         user_provided_level.unwrap_or_else(|| duck.category_levels[self.category])
     }
     pub fn raise(self, duck: &Duck, position: &Position) {
-        let user_provided_level = duck.get_user_provided_level(self.tag, &self.span);
+        let user_provided_level = duck.get_user_provided_level(self.tag);
         let actual_level = self.get_true_level(duck);
         let level_string = match actual_level {
             LintLevel::Allow => return, // allow this!
@@ -112,11 +125,7 @@ impl LintReport {
         let snippet_message = position.snippet_message();
         let show_suggestions = true;
         let suggestion_message = if show_suggestions {
-            let mut suggestions: Vec<String> = self
-                .suggestions
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect();
+            let mut suggestions: Vec<String> = self.suggestions.clone();
             suggestions.push(format!(
                 "Ignore this by placing `// #[allow({})]` above this code",
                 self.tag,

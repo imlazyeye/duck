@@ -8,10 +8,10 @@ pub struct Global;
 impl Lint for Global {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `global`",
+			display_name: "Use of `global`".into(),
 			tag: "global",
 			explanation: "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere.",
-			suggestions: vec!["Scope this variable to an individual object"],
+			suggestions: vec!["Scope this variable to an individual object".into()],
 			category: LintCategory::Pedantic,
 			span,
 		}

@@ -7,10 +7,10 @@ pub struct NonScreamCase;
 impl Lint for NonScreamCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Identifier should be SCREAM_CASE",
+			display_name: "Identifier should be SCREAM_CASE".into(),
 			tag: "non_scream_case",
 			explanation: "Scream case is the ideal casing for constants to distingusih them from other values.",
-			suggestions: vec!["Change your casing to SCREAM_CASE"],
+			suggestions: vec!["Change your casing to SCREAM_CASE".into()],
 			category: LintCategory::Style,
 			span,
 		}
@@ -23,8 +23,13 @@ impl Lint for NonScreamCase {
         reports: &mut Vec<LintReport>,
     ) {
         if let Statement::MacroDeclaration(name, ..) = statement {
-            if name != &scream_case(name) {
-                reports.push(Self::generate_report(span))
+            let ideal = scream_case(name);
+            if name != &ideal {
+                reports.push(Self::generate_report_with(
+                    span,
+                    "Macro should be PascalCase",
+                    [format!("Change this to `{}`", ideal)],
+                ));
             }
         }
     }

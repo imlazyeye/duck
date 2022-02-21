@@ -6,11 +6,11 @@ impl Lint for TooManyArguments {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			tag: "too_many_arguments",
-			display_name: "Too many arguments",
+			display_name: "Too many arguments".into(),
 			explanation: "Functions with lots of parameters quickly become confusing and indicate a need for structural change.",
 			suggestions: vec![
-            "Split this into multiple functions",
-            "Create a struct that holds the fields required by this function",
+            "Split this into multiple functions".into(),
+            "Create a struct that holds the fields required by this function".into(),
         ],
 			category: LintCategory::Style,
 			span,

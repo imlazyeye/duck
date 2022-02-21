@@ -18,12 +18,11 @@ use std::{collections::HashMap, path::Path};
 use crate::{
     lint::LintLevel,
     parsing::{parser::Ast, ParseError, Parser},
-    LintCategory, LintTag,
+    LintCategory,
 };
 
 pub struct Duck {
     config: DuckConfig,
-    lint_tags: HashMap<(String, usize), LintTag>,
     pub category_levels: EnumMap<LintCategory, LintLevel>,
 }
 
@@ -33,7 +32,6 @@ impl Duck {
     pub fn new() -> Self {
         Self {
             config: Default::default(),
-            lint_tags: HashMap::new(),
             category_levels: enum_map! {
                 LintCategory::Correctness => LintLevel::Deny,
                 LintCategory::Suspicious => LintLevel::Warn,
@@ -56,22 +54,7 @@ impl Duck {
     }
 
     // /// Gets the user-specified level for the given position (if one exists)
-    pub fn get_user_provided_level(&self, lint_tag: &str, position: &Span) -> Option<LintLevel> {
-        // Check if the line above this position has a lint tag
-
-        // TODO OH NO
-
-        // if let Some(tag) = self
-        //     .lint_tags
-        //     // that clone there... look, we're all just doing our best here, okay?
-        //     .get(&(position.file_name.clone(), position.line))
-        // {
-        // // Check if its the right one?
-        // if tag.0 == lint_tag {
-        //     return Some(tag.1);
-        // }
-        // }
-
+    pub fn get_user_provided_level(&self, lint_tag: &str) -> Option<LintLevel> {
         // Check if there is a config-based rule for this lint
         if let Some((_, level)) = self
             .config
@@ -92,7 +75,7 @@ impl Duck {
     }
 
     pub fn lint_statement(&self, statement: &Statement, span: Span, reports: &mut Vec<LintReport>) {
-        // Run every lint...
+        // Otherwise, run every lint...
         AndKeyword::visit_statement(self, statement, span, reports);
         AnonymousConstructor::visit_statement(self, statement, span, reports);
         ConstructorWithoutNew::visit_statement(self, statement, span, reports);

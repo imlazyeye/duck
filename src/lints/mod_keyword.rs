@@ -5,10 +5,10 @@ pub struct ModKeyword;
 impl Lint for ModKeyword {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `mod`",
+			display_name: "Use of `mod`".into(),
 			tag: "mod_keyword",
 			explanation: "GML supports both `mod` and `%` to perform modulo division -- `%` is more consistent with other languages and is preferred.",
-			suggestions: vec!["Use `%` instead of `mod`"],
+			suggestions: vec!["Use `%` instead of `mod`".into()],
 			category: LintCategory::Style,
 			span,
 		}

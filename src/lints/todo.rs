@@ -5,10 +5,10 @@ pub struct Todo;
 impl Lint for Todo {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of todo marker",
+			display_name: "Use of todo marker".into(),
 			tag: "todo",
 			explanation: "Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.",
-			suggestions: vec!["Remove this todo marker"],
+			suggestions: vec!["Remove this todo marker".into()],
 			category: LintCategory::Pedantic,
 			span,
 		}

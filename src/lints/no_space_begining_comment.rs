@@ -5,10 +5,10 @@ pub struct NoSpaceBeginingComment;
 impl Lint for NoSpaceBeginingComment {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "No space begining comment",
+			display_name: "No space begining comment".into(),
 			tag: "no_space_begining_comment",
 			explanation: "Comments should begin with a space after them to increase readability and consistency.",
-			suggestions: vec!["Add a space to the begining of the comment"],
+			suggestions: vec!["Add a space to the begining of the comment".into()],
 			category: LintCategory::Style,
 			span,
 		}

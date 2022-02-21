@@ -5,10 +5,10 @@ pub struct MissingDefaultCase;
 impl Lint for MissingDefaultCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Missing default case",
+			display_name: "Missing default case".into(),
 			tag: "missing_default_case",
 			explanation: "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.",
-			suggestions: vec!["Add a default case to the switch statement"],
+			suggestions: vec!["Add a default case to the switch statement".into()],
 			category: LintCategory::Pedantic,
 			span,
 		}

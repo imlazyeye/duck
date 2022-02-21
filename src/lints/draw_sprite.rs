@@ -5,10 +5,10 @@ pub struct DrawSprite;
 impl Lint for DrawSprite {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `draw_sprite*`",
+			display_name: "Use of `draw_sprite*`".into(),
 			tag: "draw_sprite",
 			explanation: "Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called.",
-			suggestions: vec!["Replace this call with your API's ideal function"],
+			suggestions: vec!["Replace this call with your API's ideal function".into()],
 			category: LintCategory::Pedantic,
 			span,
 		}

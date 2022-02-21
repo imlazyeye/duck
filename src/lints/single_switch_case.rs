@@ -5,10 +5,10 @@ pub struct SingleSwitchCase;
 impl Lint for SingleSwitchCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Single switch case",
+			display_name: "Single switch case".into(),
 			tag: "single_switch_case",
 			explanation: "Switch statements that only match on a single element can be reduced to an `if` statement.",
-			suggestions: vec!["Use an `if` statement instead of a `switch` statement"],
+			suggestions: vec!["Use an `if` statement instead of a `switch` statement".into()],
 			category: LintCategory::Style,
 			span,
 		}

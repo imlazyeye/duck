@@ -5,10 +5,10 @@ pub struct DrawText;
 impl Lint for DrawText {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `draw_text_*`",
+			display_name: "Use of `draw_text_*`".into(),
 			tag: "draw_text",
 			explanation: "Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called.",
-			suggestions: vec!["Replace this call with your API's ideal function"],
+			suggestions: vec!["Replace this call with your API's ideal function".into()],
 			category: LintCategory::Pedantic,
 			span,
 		}

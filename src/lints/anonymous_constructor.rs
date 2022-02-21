@@ -5,12 +5,12 @@ pub struct AnonymousConstructor;
 impl Lint for AnonymousConstructor {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-            display_name: "Use of an anonymous constructor",
+            display_name: "Use of an anonymous constructor".into(),
             tag: "anonymous_constructor",
             explanation: "Constructors should be reserved for larger, higher scoped types.",
             suggestions: vec![
-                "Change this to a named function",
-                "Change this to a function that returns a struct literal",
+                "Change this to a named function".into(),
+                "Change this to a function that returns a struct literal".into(),
             ],
             category: LintCategory::Style,
             span,

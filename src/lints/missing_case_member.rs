@@ -5,13 +5,13 @@ pub struct MissingCaseMember;
 impl Lint for MissingCaseMember {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-            display_name: "Missing case member",
+            display_name: "Missing case member".into(),
             tag: "missing_case_member",
             category:  LintCategory::Correctness,
             explanation:  "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
             suggestions:  vec![
-            "Add cases for the missing members",
-            "Remove the imtentional crash from your default case",
+            "Add cases for the missing members".into(),
+            "Remove the imtentional crash from your default case".into(),
         ],
             span,
         }
@@ -26,11 +26,11 @@ impl Lint for MissingCaseMember {
     //                     .members()
     //                     .iter()
     //                     .filter(|member| {
-    //                         !matches!(member.name(), "Len" | "LEN" | "count" | "COUNT")
+    //                         !matches!(member.name(), "Len".into() | "LEN".into() | "count".into() | "COUNT".into())
     //                     })
     //                     .any(|member| {
     //                         !switch.cases().contains(&format!(
-    //                             "{}.{}",
+    //                             "{}.{}".into(),
     //                             gml_enum.name(),
     //                             member.name()
     //                         ))

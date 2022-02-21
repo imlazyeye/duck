@@ -12,7 +12,7 @@ impl Lint for Deprecated {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             tag: "deprecated",
-            display_name: "Use of deprecated feature",
+            display_name: "Use of deprecated feature".into(),
             explanation:
                 "Deprecated features are liable to be removed at any time and should be avoided.",
             suggestions: vec![],
@@ -27,8 +27,15 @@ impl Lint for Deprecated {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Statement::GlobalvarDeclaration(..) = statement {
-            reports.push(Self::generate_report(span))
+        if let Statement::GlobalvarDeclaration(name) = statement {
+            reports.push(Self::generate_report_with(
+                span,
+                "Use of globalvar",
+                [
+                    format!("Change this to the newer `global.{}` syntax.", name),
+                    "Scope this variable to a singular object".into(),
+                ],
+            ));
         }
     }
 
@@ -41,11 +48,19 @@ impl Lint for Deprecated {
         if let Expression::Call(caller, _, _) = expression {
             if let Expression::Identifier(name) = caller.expression() {
                 if gm_deprecated_functions().contains(&name.as_str()) {
-                    reports.push(Self::generate_report(span))
+                    reports.push(Self::generate_report_with(
+                        span,
+                        format!("Use of deprecated function: {}", name),
+                        [],
+                    ));
                 }
             }
         } else if let Expression::Access(_, AccessScope::Array(_, Some(_), ..)) = expression {
-            reports.push(Self::generate_report(span))
+            reports.push(Self::generate_report_with(
+                span,
+                "Use of 2d array",
+                ["Use chained arrays instead (`foo[0][0]).".into()],
+            ));
         }
     }
 }
