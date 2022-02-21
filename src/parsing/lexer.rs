@@ -1,20 +1,19 @@
-use std::{
-    iter::{Enumerate, Peekable},
-    str::Chars,
-};
+use std::iter::Peekable;
+
+use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 
 use super::token::Token;
 
 /// Takes gml  and converts it into tokens as an iterator.
 pub struct Lexer<'a> {
-    input_characters: Peekable<Enumerate<Chars<'a>>>,
+    input_characters: Peekable<GraphemeIndices<'a>>,
     cursor: usize,
 }
 impl<'a> Lexer<'a> {
     /// Creates a new Lexer, taking a string of gml source.
     pub fn new(content: &'a str) -> Self {
         Lexer {
-            input_characters: content.chars().enumerate().peekable(),
+            input_characters: content.grapheme_indices(true).peekable(),
             cursor: 0,
         }
     }
@@ -401,12 +400,17 @@ impl<'a> Lexer<'a> {
 
     /// Returns the next character in the source code.
     fn peek(&mut self) -> Option<char> {
-        self.input_characters.peek().map(|(_, chr)| *chr)
+        self.input_characters
+            .peek()
+            .map(|(_, g)| g.chars().next()) // TODO OH NO
+            .flatten()
     }
 
     /// Consumes and returns the next character in the source code.
     fn take(&mut self) -> Option<(usize, char)> {
-        self.input_characters.next()
+        self.input_characters
+            .next()
+            .map(|(c, g)| (c, g.chars().next().unwrap())) // TODO OH NO
     }
 
     /// Consumes the next character in the source code if it matches the given character.
@@ -430,7 +434,7 @@ impl<'a> Lexer<'a> {
     fn consume_whitespace_on_line(&mut self, lexeme: &mut String) {
         while self
             .peek()
-            .filter(|c| c.is_whitespace() && c != &'\n')
+            .filter(|c| c.is_whitespace() && c != &'\n' && c != &'\r')
             .is_some()
         {
             lexeme.push(self.take().unwrap().1);
