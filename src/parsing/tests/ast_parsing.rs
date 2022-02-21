@@ -1,7 +1,6 @@
-use duck::parsing::parser::Ast;
+use crate::parsing::parser::Ast;
+use crate::parsing::Parser;
 use pretty_assertions::assert_eq;
-
-use duck::parsing::parser::Parser;
 
 #[allow(dead_code)]
 fn harness_ast(source: &str, expected: Ast) {

@@ -113,7 +113,7 @@ fn parse_all_gml(duck: &mut Duck) -> Vec<LintReport> {
     for (gml_file, path) in gml {
         match duck.parse_gml(&gml_file, &path) {
             Ok(ast) => ast.into_iter().for_each(|statement| {
-                duck.lint_statement(&*statement, &Position::default(), &mut reports);
+                duck.lint_statement(statement.statement(), &Position::default(), &mut reports);
             }),
             Err(error) => error!(target: &error.position().file_string, "{}", error),
         }

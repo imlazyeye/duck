@@ -1,6 +1,5 @@
-use std::ops::{Deref, DerefMut};
-
 use super::statement::StatementBox;
+use crate::Position;
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
@@ -25,28 +24,20 @@ pub enum Expression {
     Literal(Literal),
     Identifier(String),
 }
+impl Expression {
+    pub fn into_box(self, position: Position) -> ExpressionBox {
+        ExpressionBox(Box::new(self), position)
+    }
+    pub fn lazy_box(self) -> ExpressionBox {
+        ExpressionBox(Box::new(self), Position::default())
+    }
+}
 
 #[derive(Debug, PartialEq)]
-pub struct ExpressionBox(pub Box<Expression>);
+pub struct ExpressionBox(pub Box<Expression>, pub Position);
 impl ExpressionBox {
-    pub fn inner(&self) -> &Expression {
+    pub fn expression(&self) -> &Expression {
         self.0.as_ref()
-    }
-}
-impl From<Expression> for ExpressionBox {
-    fn from(exp: Expression) -> Self {
-        Self(Box::new(exp))
-    }
-}
-impl Deref for ExpressionBox {
-    type Target = Expression;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl DerefMut for ExpressionBox {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 

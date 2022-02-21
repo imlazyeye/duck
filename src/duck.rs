@@ -6,7 +6,10 @@ use crate::{
         ShowDebugMessage, SingleSwitchCase, Todo, TooManyArguments, TooManyLines, TryCatch,
         WithLoop,
     },
-    parsing::{expression::{Expression, AccessScope}, statement::Statement},
+    parsing::{
+        expression::{AccessScope, Expression},
+        statement::Statement,
+    },
     Lint, LintReport,
 };
 use colored::Colorize;
@@ -126,79 +129,77 @@ impl Duck {
             Statement::MacroDeclaration(_, _, _) => {}
             Statement::EnumDeclaration(_, members) => {
                 members.iter().flat_map(|(_, i)| i).for_each(|member| {
-                    self.lint_expression(&*member, position, reports);
+                    self.lint_expression(member.expression(), position, reports);
                 });
             }
             Statement::GlobalvarDeclaration(_) => {}
             Statement::LocalVariableSeries(members) => {
                 for member in members {
-                    self.lint_expression(&*member, position, reports);
+                    self.lint_expression(member.expression(), position, reports);
                 }
             }
             Statement::TryCatch(try_stmt, condition, catch_stmt) => {
-                self.lint_statement(&*try_stmt, position, reports);
-                self.lint_expression(&*condition, position, reports);
-                self.lint_statement(&*catch_stmt, position, reports);
+                self.lint_statement(try_stmt.statement(), position, reports);
+                self.lint_expression(condition.expression(), position, reports);
+                self.lint_statement(catch_stmt.statement(), position, reports);
             }
             Statement::For(initializer, condition, tick, body) => {
-                self.lint_statement(&*initializer, position, reports);
-                self.lint_expression(&*condition, position, reports);
-                self.lint_statement(&*tick, position, reports);
-                self.lint_statement(&*body, position, reports);
+                self.lint_statement(initializer.statement(), position, reports);
+                self.lint_expression(condition.expression(), position, reports);
+                self.lint_statement(tick.statement(), position, reports);
+                self.lint_statement(body.statement(), position, reports);
             }
             Statement::With(expression, body) => {
-                self.lint_expression(&*expression, position, reports);
-                self.lint_statement(&*body, position, reports);
+                self.lint_expression(expression.expression(), position, reports);
+                self.lint_statement(body.statement(), position, reports);
             }
             Statement::Repeat(expression, body) => {
-                self.lint_expression(&*expression, position, reports);
-                self.lint_statement(&*body, position, reports);
+                self.lint_expression(expression.expression(), position, reports);
+                self.lint_statement(body.statement(), position, reports);
             }
             Statement::DoUntil(body, condition) => {
-                self.lint_expression(&*condition, position, reports);
-                self.lint_statement(&*body, position, reports);
+                self.lint_expression(condition.expression(), position, reports);
+                self.lint_statement(body.statement(), position, reports);
             }
             Statement::While(condition, body) => {
-                self.lint_expression(&*condition, position, reports);
-                self.lint_statement(&*body, position, reports);
+                self.lint_expression(condition.expression(), position, reports);
+                self.lint_statement(body.statement(), position, reports);
             }
             Statement::If(condition, body, else_branch) => {
-                self.lint_expression(&*condition, position, reports);
-                self.lint_statement(&*body, position, reports);
+                self.lint_expression(condition.expression(), position, reports);
+                self.lint_statement(body.statement(), position, reports);
                 if let Some(else_branch) = else_branch {
-                    self.lint_statement(&*else_branch, position, reports);
+                    self.lint_statement(else_branch.statement(), position, reports);
                 }
             }
             Statement::Switch(identity, cases, default) => {
-                self.lint_expression(&*identity, position, reports);
+                self.lint_expression(identity.expression(), position, reports);
                 for case in cases {
-                    self.lint_expression(&*case.0, position, reports);
+                    self.lint_expression(case.0.expression(), position, reports);
                     for statement in case.1.iter() {
-                        self.lint_statement(&*statement, position, reports);
+                        self.lint_statement(statement.statement(), position, reports);
                     }
                 }
                 if let Some(default) = default {
                     for statement in default.iter() {
-                        self.lint_statement(&*statement, position, reports);
+                        self.lint_statement(statement.statement(), position, reports);
                     }
                 }
             }
             Statement::Block(statements) => {
                 for statement in statements {
-                    self.lint_statement(&*statement, position, reports);
+                    self.lint_statement(statement.statement(), position, reports);
                 }
             }
             Statement::Return(value) => {
                 if let Some(value) = value {
-                    self.lint_expression(&*value, position, reports);
+                    self.lint_expression(value.expression(), position, reports);
                 }
             }
-            Statement::Break => {}
-            Statement::Continue => {}
-            Statement::Exit => {}
             Statement::Expression(expression) => {
-                self.lint_expression(&*expression, position, reports);
+                self.lint_expression(expression.expression(), position, reports);
             }
+            Statement::Break | Statement::Continue | Statement::Exit => {}
         }
     }
 
@@ -238,69 +239,69 @@ impl Duck {
             Expression::FunctionDeclaration(_, parameters, constructor, body, _) => {
                 for parameter in parameters.iter() {
                     if let Some(default_value) = &parameter.1 {
-                        self.lint_expression(&*default_value, position, reports);
+                        self.lint_expression(default_value.expression(), position, reports);
                     }
                 }
                 if let Some(Some(inheritance_call)) = constructor.as_ref().map(|c| &c.0) {
-                    self.lint_expression(&*inheritance_call, position, reports);
+                    self.lint_expression(inheritance_call.expression(), position, reports);
                 }
-                self.lint_statement(&*body, position, reports);
+                self.lint_statement(body.statement(), position, reports);
             }
             Expression::Logical(left, _, right)
             | Expression::Equality(left, _, right)
             | Expression::Evaluation(left, _, right)
             | Expression::Assignment(left, _, right)
             | Expression::NullCoalecence(left, right) => {
-                self.lint_expression(&*left, position, reports);
-                self.lint_expression(&*right, position, reports);
+                self.lint_expression(left.expression(), position, reports);
+                self.lint_expression(right.expression(), position, reports);
             }
             Expression::Ternary(condition, left, right) => {
-                self.lint_expression(&*condition, position, reports);
-                self.lint_expression(&*left, position, reports);
-                self.lint_expression(&*right, position, reports);
+                self.lint_expression(condition.expression(), position, reports);
+                self.lint_expression(left.expression(), position, reports);
+                self.lint_expression(right.expression(), position, reports);
             }
             Expression::Unary(_, right) => {
-                self.lint_expression(&*right, position, reports);
+                self.lint_expression(right.expression(), position, reports);
             }
             Expression::Postfix(left, _) => {
-                self.lint_expression(&*left, position, reports);
+                self.lint_expression(left.expression(), position, reports);
             }
             Expression::Access(expression, access) => {
-                self.lint_expression(&*expression, position, reports);
+                self.lint_expression(expression.expression(), position, reports);
                 match access {
                     AccessScope::Dot(other) => {
-                        self.lint_expression(&*other, position, reports);
+                        self.lint_expression(other.expression(), position, reports);
                     }
                     AccessScope::Array(x, y, _) => {
-                        self.lint_expression(&*x, position, reports);
+                        self.lint_expression(x.expression(), position, reports);
                         if let Some(y) = y {
-                            self.lint_expression(&*y, position, reports);
+                            self.lint_expression(y.expression(), position, reports);
                         }
                     }
                     AccessScope::Map(key) => {
-                        self.lint_expression(&*key, position, reports);
+                        self.lint_expression(key.expression(), position, reports);
                     }
                     AccessScope::Grid(x, y) => {
-                        self.lint_expression(&*x, position, reports);
-                        self.lint_expression(&*y, position, reports);
+                        self.lint_expression(x.expression(), position, reports);
+                        self.lint_expression(y.expression(), position, reports);
                     }
                     AccessScope::List(index) => {
-                        self.lint_expression(&*index, position, reports);
+                        self.lint_expression(index.expression(), position, reports);
                     }
                     AccessScope::Struct(key) => {
-                        self.lint_expression(&*key, position, reports);
+                        self.lint_expression(key.expression(), position, reports);
                     }
                     AccessScope::Global | AccessScope::Current => {}
                 }
             }
             Expression::Call(left, arguments, _) => {
-                self.lint_expression(&*left, position, reports);
+                self.lint_expression(left.expression(), position, reports);
                 for arg in arguments {
-                    self.lint_expression(&*arg, position, reports);
+                    self.lint_expression(arg.expression(), position, reports);
                 }
             }
             Expression::Grouping(expression) => {
-                self.lint_expression(&*expression, position, reports);
+                self.lint_expression(expression.expression(), position, reports);
             }
             Expression::Literal(_) | Expression::Identifier(_) => {}
         }

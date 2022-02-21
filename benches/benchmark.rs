@@ -58,7 +58,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     .unwrap()
                 {
                     let mut reports = vec![];
-                    duck.lint_statement(&*statement, &Position::default(), &mut reports);
+                    duck.lint_statement(statement.statement(), &Position::default(), &mut reports);
                 }
             }
         });

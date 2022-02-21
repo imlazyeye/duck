@@ -1,9 +1,6 @@
 use heck::ToShoutySnakeCase;
 
-use crate::{
-    parsing::{statement::Statement},
-    Duck, Lint, LintCategory, LintReport, Position,
-};
+use crate::{parsing::statement::Statement, Duck, Lint, LintCategory, LintReport, Position};
 
 #[derive(Debug, PartialEq)]
 pub struct NonScreamCase;
@@ -34,7 +31,7 @@ impl Lint for NonScreamCase {
 }
 
 /// Returns the given string under Duck's definition of SCREAM_CASE.
-pub fn scream_case(string: &str) -> String {
+fn scream_case(string: &str) -> String {
     let output = string.to_shouty_snake_case();
     let mut prefix = String::new();
     let mut chars = string.chars();

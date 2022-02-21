@@ -1,4 +1,4 @@
-use std::iter::{Peekable};
+use std::iter::Peekable;
 
 use crate::Position;
 
@@ -15,6 +15,7 @@ impl<'a> TokenPilot<'a> {
     }
 
     /// Get the gml tokens's cursor.
+    #[allow(dead_code)] // rust analyzer
     pub(super) fn cursor(&self) -> usize {
         self.cursor
     }

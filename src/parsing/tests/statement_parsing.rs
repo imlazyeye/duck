@@ -1,14 +1,13 @@
-use duck::parsing::{
+use crate::parsing::{
     expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator},
     statement::{Case, Statement},
 };
 use pretty_assertions::assert_eq;
-
-use duck::parsing::parser::Parser;
+use crate::parsing::parser::Parser;
 
 fn harness_stmt(source: &str, expected: Statement) {
     let mut parser = Parser::new(source, "test".into());
-    assert_eq!(*parser.statement().unwrap(), expected);
+    assert_eq!(*parser.statement().unwrap().statement(), expected);
 }
 
 #[test]
@@ -47,7 +46,7 @@ fn enum_with_values() {
             vec![
                 (
                     "Bar".into(),
-                    Some(Expression::Literal(Literal::Real(20.0)).into()),
+                    Some(Expression::Literal(Literal::Real(20.0)).lazy_box()),
                 ),
                 ("Baz".into(), None),
             ],
@@ -67,7 +66,7 @@ fn globalvar() {
 fn local_variable() {
     harness_stmt(
         "var i;",
-        Statement::LocalVariableSeries(vec![Expression::Identifier("i".into()).into()]),
+        Statement::LocalVariableSeries(vec![Expression::Identifier("i".into()).lazy_box()]),
     )
 }
 
@@ -76,11 +75,11 @@ fn local_variable_with_value() {
     harness_stmt(
         "var i = 0;",
         Statement::LocalVariableSeries(vec![Expression::Assignment(
-            Expression::Identifier("i".into()).into(),
+            Expression::Identifier("i".into()).lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(0.0)).into(),
+            Expression::Literal(Literal::Real(0.0)).lazy_box(),
         )
-        .into()]),
+        .lazy_box()]),
     )
 }
 
@@ -89,14 +88,14 @@ fn local_variable_series() {
     harness_stmt(
         "var i, j = 0, h;",
         Statement::LocalVariableSeries(vec![
-            Expression::Identifier("i".into()).into(),
+            Expression::Identifier("i".into()).lazy_box(),
             Expression::Assignment(
-                Expression::Identifier("j".into()).into(),
+                Expression::Identifier("j".into()).lazy_box(),
                 AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).into(),
+                Expression::Literal(Literal::Real(0.0)).lazy_box(),
             )
-            .into(),
-            Expression::Identifier("h".into()).into(),
+            .lazy_box(),
+            Expression::Identifier("h".into()).lazy_box(),
         ]),
     )
 }
@@ -106,11 +105,11 @@ fn local_variable_trailling_comma() {
     harness_stmt(
         "var i = 0,",
         Statement::LocalVariableSeries(vec![Expression::Assignment(
-            Expression::Identifier("i".into()).into(),
+            Expression::Identifier("i".into()).lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(0.0)).into(),
+            Expression::Literal(Literal::Real(0.0)).lazy_box(),
         )
-        .into()]),
+        .lazy_box()]),
     )
 }
 
@@ -120,21 +119,21 @@ fn local_variable_series_ending_without_marker() {
         "{ var i = 0 j = 0 }",
         Statement::Block(vec![
             Statement::LocalVariableSeries(vec![Expression::Assignment(
-                Expression::Identifier("i".into()).into(),
+                Expression::Identifier("i".into()).lazy_box(),
                 AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).into(),
+                Expression::Literal(Literal::Real(0.0)).lazy_box(),
             )
-            .into()])
-            .into(),
+            .lazy_box()])
+            .lazy_box(),
             Statement::Expression(
                 Expression::Assignment(
-                    Expression::Identifier("j".into()).into(),
+                    Expression::Identifier("j".into()).lazy_box(),
                     AssignmentOperator::Equal,
-                    Expression::Literal(Literal::Real(0.0)).into(),
+                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
                 )
-                .into(),
+                .lazy_box(),
             )
-            .into(),
+            .lazy_box(),
         ]),
     )
 }
@@ -144,9 +143,9 @@ fn try_catch() {
     harness_stmt(
         "try {} catch (e) {}",
         Statement::TryCatch(
-            Statement::Block(vec![]).into(),
-            Expression::Grouping(Expression::Identifier("e".into()).into()).into(),
-            Statement::Block(vec![]).into(),
+            Statement::Block(vec![]).lazy_box(),
+            Expression::Grouping(Expression::Identifier("e".into()).lazy_box()).lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
         ),
     )
 }
@@ -157,27 +156,27 @@ fn for_loop() {
         "for (var i = 0; i < 1; i++) {}",
         Statement::For(
             Statement::LocalVariableSeries(vec![Expression::Assignment(
-                Expression::Identifier("i".into()).into(),
+                Expression::Identifier("i".into()).lazy_box(),
                 AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).into(),
+                Expression::Literal(Literal::Real(0.0)).lazy_box(),
             )
-            .into()])
-            .into(),
+            .lazy_box()])
+            .lazy_box(),
             Expression::Equality(
-                Expression::Identifier("i".into()).into(),
+                Expression::Identifier("i".into()).lazy_box(),
                 EqualityOperator::LessThan,
-                Expression::Literal(Literal::Real(1.0)).into(),
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .into(),
+            .lazy_box(),
             Statement::Expression(
                 Expression::Postfix(
-                    Expression::Identifier("i".into()).into(),
+                    Expression::Identifier("i".into()).lazy_box(),
                     PostfixOperator::Increment,
                 )
-                .into(),
+                .lazy_box(),
             )
-            .into(),
-            Statement::Block(vec![]).into(),
+            .lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
         ),
     );
 }
@@ -187,8 +186,8 @@ fn with() {
     harness_stmt(
         "with foo {}",
         Statement::With(
-            Expression::Identifier("foo".into()).into(),
-            Statement::Block(vec![]).into(),
+            Expression::Identifier("foo".into()).lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
         ),
     )
 }
@@ -198,8 +197,8 @@ fn repeat() {
     harness_stmt(
         "repeat 1 {}",
         Statement::Repeat(
-            Expression::Literal(Literal::Real(1.0)).into(),
-            Statement::Block(vec![]).into(),
+            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
         ),
     )
 }
@@ -211,20 +210,20 @@ fn do_until() {
         Statement::DoUntil(
             Statement::Block(vec![Statement::Expression(
                 Expression::Assignment(
-                    Expression::Identifier("foo".into()).into(),
+                    Expression::Identifier("foo".into()).lazy_box(),
                     AssignmentOperator::PlusEqual,
-                    Expression::Literal(Literal::Real(1.0)).into(),
+                    Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 )
-                .into(),
+                .lazy_box(),
             )
-            .into()])
-            .into(),
+            .lazy_box()])
+            .lazy_box(),
             Expression::Equality(
-                Expression::Identifier("foo".into()).into(),
+                Expression::Identifier("foo".into()).lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).into(),
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .into(),
+            .lazy_box(),
         ),
     )
 }
@@ -235,21 +234,21 @@ fn while_loop() {
         "while foo == 1 { foo += 1; }",
         Statement::While(
             Expression::Equality(
-                Expression::Identifier("foo".into()).into(),
+                Expression::Identifier("foo".into()).lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).into(),
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .into(),
+            .lazy_box(),
             Statement::Block(vec![Statement::Expression(
                 Expression::Assignment(
-                    Expression::Identifier("foo".into()).into(),
+                    Expression::Identifier("foo".into()).lazy_box(),
                     AssignmentOperator::PlusEqual,
-                    Expression::Literal(Literal::Real(1.0)).into(),
+                    Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 )
-                .into(),
+                .lazy_box(),
             )
-            .into()])
-            .into(),
+            .lazy_box()])
+            .lazy_box(),
         ),
     )
 }
@@ -260,12 +259,12 @@ fn if_statement() {
         "if foo == 1 {}",
         Statement::If(
             Expression::Equality(
-                Expression::Identifier("foo".into()).into(),
+                Expression::Identifier("foo".into()).lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).into(),
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .into(),
-            Statement::Block(vec![]).into(),
+            .lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
             None,
         ),
     )
@@ -277,13 +276,13 @@ fn if_else() {
         "if foo == 1 {} else {}",
         Statement::If(
             Expression::Equality(
-                Expression::Identifier("foo".into()).into(),
+                Expression::Identifier("foo".into()).lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).into(),
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .into(),
-            Statement::Block(vec![]).into(),
-            Some(Statement::Block(vec![]).into()),
+            .lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
+            Some(Statement::Block(vec![]).lazy_box()),
         ),
     )
 }
@@ -292,7 +291,11 @@ fn if_else() {
 fn switch() {
     harness_stmt(
         "switch foo {}",
-        Statement::Switch(Expression::Identifier("foo".into()).into(), vec![], None),
+        Statement::Switch(
+            Expression::Identifier("foo".into()).lazy_box(),
+            vec![],
+            None,
+        ),
     )
 }
 
@@ -301,10 +304,10 @@ fn switch_with_case() {
     harness_stmt(
         "switch foo { case bar: break; }",
         Statement::Switch(
-            Expression::Identifier("foo".into()).into(),
+            Expression::Identifier("foo".into()).lazy_box(),
             vec![Case(
-                Expression::Identifier("bar".into()).into(),
-                vec![Statement::Break.into()],
+                Expression::Identifier("bar".into()).lazy_box(),
+                vec![Statement::Break.lazy_box()],
             )],
             None,
         ),
@@ -316,12 +319,12 @@ fn switch_case_fallthrough() {
     harness_stmt(
         "switch foo { case bar: case baz: break; }",
         Statement::Switch(
-            Expression::Identifier("foo".into()).into(),
+            Expression::Identifier("foo".into()).lazy_box(),
             vec![
-                Case(Expression::Identifier("bar".into()).into(), vec![]),
+                Case(Expression::Identifier("bar".into()).lazy_box(), vec![]),
                 Case(
-                    Expression::Identifier("baz".into()).into(),
-                    vec![Statement::Break.into()],
+                    Expression::Identifier("baz".into()).lazy_box(),
+                    vec![Statement::Break.lazy_box()],
                 ),
             ],
             None,
@@ -334,9 +337,9 @@ fn switch_default() {
     harness_stmt(
         "switch foo { default: break; }",
         Statement::Switch(
-            Expression::Identifier("foo".into()).into(),
+            Expression::Identifier("foo".into()).lazy_box(),
             vec![],
-            Some(vec![Statement::Break.into()]),
+            Some(vec![Statement::Break.lazy_box()]),
         ),
     )
 }
@@ -350,7 +353,7 @@ fn empty_block() {
 fn block() {
     harness_stmt(
         "{ return; }",
-        Statement::Block(vec![Statement::Return(None).into()]),
+        Statement::Block(vec![Statement::Return(None).lazy_box()]),
     )
 }
 
@@ -363,7 +366,7 @@ fn return_statement() {
 fn return_with_value() {
     harness_stmt(
         "return 0;",
-        Statement::Return(Some(Expression::Literal(Literal::Real(0.0)).into())),
+        Statement::Return(Some(Expression::Literal(Literal::Real(0.0)).lazy_box())),
     )
 }
 

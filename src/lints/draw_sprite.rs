@@ -21,7 +21,7 @@ impl Lint for DrawSprite {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(name) = caller.inner() {
+            if let Expression::Identifier(name) = caller.expression() {
                 if gm_draw_sprite_functions().contains(&name.as_str()) {
                     reports.push(Self::generate_report(position.clone()))
                 }

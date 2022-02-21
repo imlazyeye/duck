@@ -52,7 +52,7 @@ impl Lint for NonPascalCase {
 }
 
 /// Returns the given string under Duck's definition of PascalCase.
-pub fn pascal_case(string: &str) -> String {
+fn pascal_case(string: &str) -> String {
     let output = string.to_upper_camel_case();
     let mut prefix = String::new();
     let mut chars = string.chars();

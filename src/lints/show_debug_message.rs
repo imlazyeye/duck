@@ -24,7 +24,7 @@ impl Lint for ShowDebugMessage {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(name) = caller.inner() {
+            if let Expression::Identifier(name) = caller.expression() {
                 if name == "show_debug_message" {
                     reports.push(Self::generate_report(position.clone()))
                 }

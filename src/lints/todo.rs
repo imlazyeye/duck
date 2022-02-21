@@ -22,7 +22,7 @@ impl Lint for Todo {
     ) {
         if let Some(todo_keyword) = duck.config().todo_keyword() {
             if let Expression::Call(caller, _, _) = expression {
-                if let Expression::Identifier(name) = caller.inner() {
+                if let Expression::Identifier(name) = caller.expression() {
                     if name == todo_keyword {
                         reports.push(Self::generate_report(position.clone()))
                     }
