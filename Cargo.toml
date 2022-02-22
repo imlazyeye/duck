@@ -30,6 +30,8 @@ toml = "0.5"
 pretty_assertions = "1.1"
 hex = "0.4"
 unicode-segmentation = "1.9"
+bimap = "0.6"
+lazy_static = "1.4"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

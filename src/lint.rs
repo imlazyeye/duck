@@ -2,7 +2,7 @@ use colored::Colorize;
 
 use crate::{
     parsing::{expression::Expression, statement::Statement},
-    Duck, Position, Span,
+    Duck, FilePreviewUtil, Span,
 };
 
 /// An individual lint in duck.
@@ -55,7 +55,7 @@ pub trait Lint {
 #[derive(Debug, PartialEq, Copy, Clone, enum_map::Enum, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LintLevel {
-    /// These lints will be ran, but their results will not affect the outcome of duck.
+    /// These lints will be ignored.
     Allow,
     /// These lints will be reported to the user, but will not fail the run by default.
     Warn,
@@ -88,13 +88,13 @@ pub struct LintTag(pub String, pub LintLevel);
 /// The category a lint falls into. This effects duck's default permission level for all lints.
 #[derive(Debug, Copy, Clone, enum_map::Enum)]
 pub enum LintCategory {
-    /// Code that is outright wrong or useless
+    /// Code that is outright wrong or useless.
     Correctness,
-    /// Code that is most likely wrong or useless
+    /// Code that is irregular and likely doing something unintended.
     Suspicious,
-    /// Code that could be written in a more idomatic way
+    /// Code that could be written in a more idomatic way.
     Style,
-    /// Lints that express strict opinions over GML, or may have false positives
+    /// Lints that express strict opinions over GML and depend on preference greatly.
     Pedantic,
 }
 
@@ -113,7 +113,7 @@ impl LintReport {
         let user_provided_level = duck.get_user_provided_level(self.tag);
         user_provided_level.unwrap_or_else(|| duck.category_levels[self.category])
     }
-    pub fn raise(self, duck: &Duck, position: &Position) {
+    pub fn raise(self, duck: &Duck, position: &FilePreviewUtil) {
         let user_provided_level = duck.get_user_provided_level(self.tag);
         let actual_level = self.get_true_level(duck);
         let level_string = match actual_level {

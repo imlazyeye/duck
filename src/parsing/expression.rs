@@ -1,7 +1,7 @@
 use super::statement::StatementBox;
-use crate::{Span};
+use crate::Span;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     FunctionDeclaration(
         Option<String>,
@@ -33,7 +33,7 @@ impl Expression {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct ExpressionBox(pub Box<Expression>, pub Span);
 impl ExpressionBox {
     pub fn expression(&self) -> &Expression {
@@ -44,7 +44,7 @@ impl ExpressionBox {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum EvaluationOperator {
     Plus,
     Minus,
@@ -59,7 +59,7 @@ pub enum EvaluationOperator {
     BitShiftRight,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum EqualityOperator {
     Equal,
     NotEqual,
@@ -69,14 +69,14 @@ pub enum EqualityOperator {
     LessThanOrEqual,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum LogicalOperator {
     And,
     Or,
     Xor,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum AssignmentOperator {
     Equal,
@@ -91,7 +91,7 @@ pub enum AssignmentOperator {
     ModEqual,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum UnaryOperator {
     Increment,
     Decrement,
@@ -100,13 +100,13 @@ pub enum UnaryOperator {
     BitwiseNot,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PostfixOperator {
     Increment,
     Decrement,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     True,
     False,
@@ -117,7 +117,7 @@ pub enum Literal {
     Struct(Vec<(String, ExpressionBox)>),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AccessScope {
     Global,
     Current,
@@ -129,8 +129,8 @@ pub enum AccessScope {
     Struct(ExpressionBox),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Constructor(pub Option<ExpressionBox>);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Parameter(pub String, pub Option<ExpressionBox>);

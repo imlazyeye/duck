@@ -42,7 +42,7 @@ impl<'a> Parser<'a> {
     }
 
     #[cfg(not(test))]
-    pub fn span(&self, start: usize) -> Span {
+    pub fn span(&mut self, start: usize) -> Span {
         Span(start, self.pilot.cursor())
     }
 
@@ -278,8 +278,13 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Var)?;
         let mut declarations = vec![];
         loop {
-            let expression = self.assignment()?;
-            declarations.push(expression);
+            let name = self.pilot.require_identifier()?;
+            let initializer = if self.pilot.match_take(Token::Equal).is_some() {
+                Some(self.expression()?)
+            } else {
+                None
+            };
+            declarations.push((name, initializer));
             if self.pilot.match_take(Token::Comma).is_none() {
                 break;
             }

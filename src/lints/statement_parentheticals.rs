@@ -1,0 +1,57 @@
+use crate::{
+    parsing::{expression::Expression, statement::Statement},
+    Duck, Lint, LintCategory, LintReport, Span,
+};
+
+#[derive(Debug, PartialEq)]
+pub struct StatementParentheticals;
+impl Lint for StatementParentheticals {
+    fn generate_report(span: Span) -> LintReport {
+        LintReport {
+			display_name: "Statement Parentheticals".into(),
+			tag: "statement_parenthteicals",
+			explanation: "Parenthesis surrounding statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.",
+			suggestions: vec![],
+			category: LintCategory::Style,
+			span,
+		}
+    }
+
+    fn visit_statement(
+        duck: &Duck,
+        statement: &Statement,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        match statement {
+            Statement::Switch(expression, ..)
+            | Statement::If(expression, ..)
+            | Statement::DoUntil(_, expression)
+            | Statement::While(expression, ..)
+            | Statement::With(expression, ..)
+            | Statement::Repeat(expression, ..) => {
+                let has_grouping = matches!(expression.expression(), Expression::Grouping(_));
+                if has_grouping && !duck.config().statement_parentheticals {
+                    reports.push(Self::generate_report_with(
+                        span,
+                        "Parenthetical in statement expression",
+                        [
+                            "Remove the wrapping parenthesis from this expression".into(),
+                            "Change your preferences for this lint in .duck.toml".into(),
+                        ],
+                    ))
+                } else if !has_grouping && duck.config().statement_parentheticals {
+                    reports.push(Self::generate_report_with(
+                        span,
+                        "Lacking parenthetical in statement expression",
+                        [
+                            "Add wrapping parenthesis from this expression".into(),
+                            "Change your preferences for this lint in .duck.toml".into(),
+                        ],
+                    ))
+                }
+            }
+            _ => {}
+        }
+    }
+}

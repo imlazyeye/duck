@@ -5,7 +5,7 @@ pub struct DrawText;
 impl Lint for DrawText {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `draw_text_*`".into(),
+			display_name: "Use of `draw_text`".into(),
 			tag: "draw_text",
 			explanation: "Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called.",
 			suggestions: vec!["Replace this call with your API's ideal function".into()],
@@ -23,7 +23,11 @@ impl Lint for DrawText {
         if let Expression::Call(caller, _, _) = expression {
             if let Expression::Identifier(name) = caller.expression() {
                 if gm_draw_text_functions().contains(&name.as_str()) {
-                    reports.push(Self::generate_report(span))
+                    reports.push(Self::generate_report_with(
+                        span,
+                        format!("Use of `{}`", name),
+                        [],
+                    ))
                 }
             }
         }

@@ -1,12 +1,12 @@
 use super::expression::ExpressionBox;
 use crate::Span;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     MacroDeclaration(String, Option<String>, String),
     EnumDeclaration(String, Vec<(String, Option<ExpressionBox>)>),
     GlobalvarDeclaration(String),
-    LocalVariableSeries(Vec<ExpressionBox>),
+    LocalVariableSeries(Vec<(String, Option<ExpressionBox>)>),
     TryCatch(StatementBox, ExpressionBox, StatementBox),
     For(StatementBox, ExpressionBox, StatementBox, StatementBox),
     With(ExpressionBox, StatementBox),
@@ -15,7 +15,7 @@ pub enum Statement {
     While(ExpressionBox, StatementBox),
     If(ExpressionBox, StatementBox, Option<StatementBox>),
     Switch(ExpressionBox, Vec<Case>, Option<Vec<StatementBox>>),
-    Block(Vec<StatementBox>),
+    Block(Vec<StatementBox>), 
     Return(Option<ExpressionBox>),
     Break,
     Continue,
@@ -31,7 +31,7 @@ impl Statement {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct StatementBox(pub Box<Statement>, pub Span);
 impl StatementBox {
     pub fn statement(&self) -> &Statement {
@@ -42,5 +42,5 @@ impl StatementBox {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Case(pub ExpressionBox, pub Vec<StatementBox>); // kinda a block?

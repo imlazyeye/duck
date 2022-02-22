@@ -16,8 +16,8 @@ impl<'a> TokenPilot<'a> {
 
     /// Get the gml tokens's cursor.
     #[allow(dead_code)] // rust analyzer
-    pub(super) fn cursor(&self) -> usize {
-        self.cursor
+    pub(super) fn cursor(&mut self) -> usize {
+        self.lexer.peek().map(|(c, _)| *c).unwrap_or(self.cursor)
     }
 
     /// Returns the type of the next Token, or returns an error if there is none.

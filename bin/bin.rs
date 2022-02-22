@@ -1,5 +1,5 @@
 use colored::Colorize;
-use duck::{Duck, LintLevel, Position};
+use duck::{Duck, LintLevel, FilePreviewUtil};
 use duck::{DuckConfig, LintReport};
 use std::path::PathBuf;
 use yy_boss::{Resource, YyResource, YypBoss};
@@ -42,7 +42,7 @@ fn main() {
                 LintLevel::Deny => deny_count += 1,
             }
             let cursor = report.span.0;
-            report.raise(&duck, &Position::new(&file, &path, cursor));
+            report.raise(&duck, &FilePreviewUtil::new(&file, &path, cursor));
         }
     }
 
@@ -113,7 +113,7 @@ fn parse_all_gml(duck: &mut Duck) -> Vec<(String, String, Vec<LintReport>)> {
         match duck.parse_gml(&gml, &path) {
             Ok(ast) => ast.into_iter().for_each(|statement| {
                 let mut reports = vec![];
-                duck.lint_statement(statement.statement(), statement.span(), &mut reports);
+                duck.lint_statement(&statement, &mut reports);
                 registrar.push((gml.to_string(), path.to_str().unwrap().into(), reports));
             }),
             Err(error) => error!("{}", error),

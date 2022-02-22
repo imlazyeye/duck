@@ -80,6 +80,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bimap"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc0455254eb5c6964c4545d8bac815e1a1be4f3afe0ae695ea539c12d728d44b"
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -371,12 +377,14 @@ checksum = "0e25ea47919b1560c4e3b7fe0aaab9becf5b84a10325ddf7db0f0ba5e1026499"
 name = "duck"
 version = "0.1.0"
 dependencies = [
+ "bimap",
  "color-eyre",
  "colored",
  "criterion",
  "enum-map",
  "heck 0.4.0",
  "hex",
+ "lazy_static",
  "log",
  "pretty_assertions",
  "pretty_env_logger",

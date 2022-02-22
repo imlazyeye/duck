@@ -66,7 +66,7 @@ fn globalvar() {
 fn local_variable() {
     harness_stmt(
         "var i;",
-        Statement::LocalVariableSeries(vec![Expression::Identifier("i".into()).lazy_box()]),
+        Statement::LocalVariableSeries(vec![("i".into(), None)]),
     )
 }
 
@@ -74,12 +74,10 @@ fn local_variable() {
 fn local_variable_with_value() {
     harness_stmt(
         "var i = 0;",
-        Statement::LocalVariableSeries(vec![Expression::Assignment(
-            Expression::Identifier("i".into()).lazy_box(),
-            AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(0.0)).lazy_box(),
-        )
-        .lazy_box()]),
+        Statement::LocalVariableSeries(vec![(
+            "i".into(),
+            Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+        )]),
     )
 }
 
@@ -88,14 +86,12 @@ fn local_variable_series() {
     harness_stmt(
         "var i, j = 0, h;",
         Statement::LocalVariableSeries(vec![
-            Expression::Identifier("i".into()).lazy_box(),
-            Expression::Assignment(
-                Expression::Identifier("j".into()).lazy_box(),
-                AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).lazy_box(),
-            )
-            .lazy_box(),
-            Expression::Identifier("h".into()).lazy_box(),
+            ("i".into(), None),
+            (
+                "j".into(),
+                Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+            ),
+            ("h".into(), None),
         ]),
     )
 }
@@ -104,12 +100,10 @@ fn local_variable_series() {
 fn local_variable_trailling_comma() {
     harness_stmt(
         "var i = 0,",
-        Statement::LocalVariableSeries(vec![Expression::Assignment(
-            Expression::Identifier("i".into()).lazy_box(),
-            AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(0.0)).lazy_box(),
-        )
-        .lazy_box()]),
+        Statement::LocalVariableSeries(vec![(
+            "i".into(),
+            Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+        )]),
     )
 }
 
@@ -118,12 +112,10 @@ fn local_variable_series_ending_without_marker() {
     harness_stmt(
         "{ var i = 0 j = 0 }",
         Statement::Block(vec![
-            Statement::LocalVariableSeries(vec![Expression::Assignment(
-                Expression::Identifier("i".into()).lazy_box(),
-                AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).lazy_box(),
-            )
-            .lazy_box()])
+            Statement::LocalVariableSeries(vec![(
+                "i".into(),
+                Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+            )])
             .lazy_box(),
             Statement::Expression(
                 Expression::Assignment(
@@ -155,12 +147,10 @@ fn for_loop() {
     harness_stmt(
         "for (var i = 0; i < 1; i++) {}",
         Statement::For(
-            Statement::LocalVariableSeries(vec![Expression::Assignment(
-                Expression::Identifier("i".into()).lazy_box(),
-                AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).lazy_box(),
-            )
-            .lazy_box()])
+            Statement::LocalVariableSeries(vec![(
+                "i".into(),
+                Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+            )])
             .lazy_box(),
             Expression::Equality(
                 Expression::Identifier("i".into()).lazy_box(),

@@ -5,7 +5,7 @@ pub struct DrawSprite;
 impl Lint for DrawSprite {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `draw_sprite*`".into(),
+			display_name: "Use of `draw_sprite`".into(),
 			tag: "draw_sprite",
 			explanation: "Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called.",
 			suggestions: vec!["Replace this call with your API's ideal function".into()],
@@ -23,7 +23,11 @@ impl Lint for DrawSprite {
         if let Expression::Call(caller, _, _) = expression {
             if let Expression::Identifier(name) = caller.expression() {
                 if gm_draw_sprite_functions().contains(&name.as_str()) {
-                    reports.push(Self::generate_report(span))
+                    reports.push(Self::generate_report_with(
+                        span,
+                        format!("Use of `{}`", name),
+                        [],
+                    ))
                 }
             }
         }

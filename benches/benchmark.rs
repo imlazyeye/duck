@@ -1,5 +1,8 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use duck::{parsing::Parser, Duck};
+use duck::{
+    parsing::{statement::StatementBox, Parser},
+    Duck,
+};
 use yy_boss::{Resource, YyResource, YypBoss};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
@@ -50,17 +53,16 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 
     let duck = Duck::new();
-    c.bench_function("FoM -> Lint", |b| {
+    let statements = gml
+        .into_iter()
+        .flat_map(|(gml_file, path)| Parser::new(&gml_file, path).into_ast().unwrap())
+        .collect::<Vec<StatementBox>>();
+    c.bench_function("Ast -> Lint", |b| {
         b.iter(|| {
-            for (gml_file, path) in gml.clone() {
-                for statement in Parser::new(&gml_file, path.to_path_buf())
-                    .into_ast()
-                    .unwrap()
-                {
-                    let mut reports = vec![];
-                    duck.lint_statement(statement.statement(), statement.span(), &mut reports);
-                }
-            }
+            let mut reports = vec![];
+            statements.clone().into_iter().for_each(|statement| {
+                duck.lint_statement(&statement, &mut reports);
+            })
         });
     });
 }
