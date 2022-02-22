@@ -20,7 +20,8 @@ use crate::{
 
 pub struct Duck {
     config: DuckConfig,
-    pub category_levels: EnumMap<LintCategory, LintLevel>,
+    parsing_errors: Vec<ParseError>,
+    category_levels: EnumMap<LintCategory, LintLevel>,
 }
 
 impl Duck {
@@ -29,6 +30,7 @@ impl Duck {
     pub fn new() -> Self {
         Self {
             config: Default::default(),
+            parsing_errors: vec![],
             category_levels: enum_map! {
                 LintCategory::Correctness => LintLevel::Deny,
                 LintCategory::Suspicious => LintLevel::Warn,
@@ -45,30 +47,33 @@ impl Duck {
         duck
     }
 
-    /// Parses the given String of GML, collecting data for Duck.
-    pub fn parse_gml(&mut self, source_code: &str, path: &Path) -> Result<Ast, ParseError> {
-        Parser::new(source_code, path.to_path_buf()).into_ast()
-    }
-
-    // /// Gets the user-specified level for the given position (if one exists)
-    pub fn get_user_provided_level(&self, lint_tag: &str) -> Option<LintLevel> {
-        // Check if there is a config-based rule for this lint
-        if let Some((_, level)) = self
-            .config
-            .lint_levels
-            .iter()
-            .find(|(key, _)| key == &lint_tag)
-        {
-            return Some(*level);
+    pub fn lint_gml(
+        &mut self,
+        gml_source: String,
+        path: &Path,
+        reports: &mut Vec<LintReport>,
+    ) -> Result<(), ParseError> {
+        let mut source: &'static str = Box::leak(Box::new(gml_source));
+        self.parse_gml(source, path)?
+            .into_iter()
+            .for_each(|statement| {
+                self.lint_statement(&statement, reports);
+            });
+        unsafe {
+            drop(Box::from_raw(&mut source));
         }
-
-        // User has specificed nada
-        None
+        Ok(())
     }
 
-    /// Get a reference to the duck's config.
-    pub fn config(&self) -> &DuckConfig {
-        &self.config
+    /// Parses the given String of GML, collecting data for Duck.
+    pub fn parse_gml(&mut self, source_code: &'static str, path: &Path) -> Result<Ast, ParseError> {
+        match Parser::new(source_code, path.to_path_buf()).into_ast() {
+            Ok(ast) => Ok(ast),
+            Err(e) => {
+                self.parsing_errors.push(e.clone());
+                Err(e)
+            }
+        }
     }
 
     pub fn lint_statement(&self, statement_box: &StatementBox, reports: &mut Vec<LintReport>) {
@@ -261,6 +266,37 @@ impl Duck {
             }
             Expression::Literal(_) | Expression::Identifier(_) => {}
         }
+    }
+
+    // /// Gets the user-specified level for the given position (if one exists)
+    pub fn get_user_provided_level(&self, lint_tag: &str) -> Option<LintLevel> {
+        // Check if there is a config-based rule for this lint
+        if let Some((_, level)) = self
+            .config
+            .lint_levels
+            .iter()
+            .find(|(key, _)| key == &lint_tag)
+        {
+            return Some(*level);
+        }
+
+        // User has specificed nada
+        None
+    }
+
+    /// Get a reference to the duck's config.
+    pub fn config(&self) -> &DuckConfig {
+        &self.config
+    }
+
+    /// Get the duck's category levels.
+    pub fn category_levels(&self) -> EnumMap<LintCategory, LintLevel> {
+        self.category_levels
+    }
+
+    /// Get a reference to the duck's parsing errors.
+    pub fn parsing_errors(&self) -> &[ParseError] {
+        self.parsing_errors.as_ref()
     }
 }
 

@@ -94,8 +94,18 @@ pub enum LintCategory {
     Suspicious,
     /// Code that could be written in a more idomatic way.
     Style,
-    /// Lints that express strict opinions over GML and depend on preference greatly.
+    /// Lints that express strict opinions over GML and depend greatly on preference.
     Pedantic,
+}
+impl LintCategory {
+    pub fn default_level(&self) -> LintLevel {
+        match self {
+            LintCategory::Correctness => LintLevel::Deny,
+            LintCategory::Suspicious => LintLevel::Warn,
+            LintCategory::Style => LintLevel::Allow,
+            LintCategory::Pedantic => LintLevel::Allow,
+        }
+    }
 }
 
 /// A report returned by a lint if it fails.
@@ -111,7 +121,7 @@ pub struct LintReport {
 impl LintReport {
     pub fn get_true_level(&self, duck: &Duck) -> LintLevel {
         let user_provided_level = duck.get_user_provided_level(self.tag);
-        user_provided_level.unwrap_or_else(|| duck.category_levels[self.category])
+        user_provided_level.unwrap_or_else(|| duck.category_levels()[self.category])
     }
     pub fn raise(self, duck: &Duck, position: &FilePreviewUtil) {
         let user_provided_level = duck.get_user_provided_level(self.tag);
@@ -142,20 +152,14 @@ impl LintReport {
         } else {
             "".into()
         };
-        let note_message = format!(
-            "\n {}: {}",
-            "note".bold(),
-            if user_provided_level.is_some() {
-                "This lint was specifically requested by in line above this source code".into()
-            } else {
-                format!(
-                    "#[{}({})] is enabled by default",
-                    actual_level.to_str(),
-                    self.tag,
-                )
-            }
-        )
-        .bright_black();
+        let note_message = if user_provided_level.is_some() {
+            "\n note: This lint was activated by your config,"
+                .to_string()
+                .bold()
+                .bright_black()
+        } else {
+            "".into()
+        };
         println!(
             "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
             level_string,

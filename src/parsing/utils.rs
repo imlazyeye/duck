@@ -4,7 +4,7 @@ use crate::Span;
 
 use super::{expression::ExpressionBox, token::Token};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ParseError {
     UnexpectedToken(Span, Token),
     ExpectedToken(Span, Token),

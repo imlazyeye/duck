@@ -45,9 +45,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("FoM -> Ast", |b| {
         b.iter(|| {
             for (gml_file, path) in gml.clone() {
-                Parser::new(&gml_file, path.to_path_buf())
-                    .into_ast()
-                    .unwrap();
+                let mut source: &'static str = Box::leak(Box::new(gml_file));
+                Parser::new(source, path.to_path_buf()).into_ast().unwrap();
+                unsafe {
+                    drop(Box::from_raw(&mut source));
+                }
             }
         });
     });
@@ -55,7 +57,11 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let duck = Duck::new();
     let statements = gml
         .into_iter()
-        .flat_map(|(gml_file, path)| Parser::new(&gml_file, path).into_ast().unwrap())
+        .flat_map(|(gml_file, path)| {
+            Parser::new(Box::leak(Box::new(gml_file)), path)
+                .into_ast()
+                .unwrap()
+        })
         .collect::<Vec<StatementBox>>();
     c.bench_function("Ast -> Lint", |b| {
         b.iter(|| {
