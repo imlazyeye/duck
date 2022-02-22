@@ -6,12 +6,20 @@ impl Lint for MultiVarDeclaration {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Multiple local variables declared at once".into(),
-			tag: "multi_var_declaration",
+            tag: Self::tag(),
 			explanation: "While GML allows you to create multiple local variables at once, it can often lead to confusing syntax that would read better with each variable seperated.",
 			suggestions: vec!["Break these down into seperate declarations".into()],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "multi_var_declaration"
     }
 
     fn visit_statement(

@@ -6,12 +6,20 @@ impl Lint for OrKeyword {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of `or`".into(),
-			tag: "or_keyword",
+            tag: Self::tag(),
 			explanation: "GML supports both `or` and `||` to refer to logical or -- `||` is more consistent with other languages and is preferred.",
 			suggestions: vec!["Use `||` instead of `or`".into()],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "or_keyword"
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

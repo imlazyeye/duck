@@ -9,12 +9,20 @@ impl Lint for BoolEquality {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             display_name: "Equality check on bool".into(),
-            tag: "bool_equality",
+            tag: Self::tag(),
             explanation: "Comparing a bool with a bool literal is more verbose than neccesary.",
             suggestions: vec![],
-            category: LintCategory::Style,
+            category: Self::category(),
             span,
         }
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "bool_equality"
     }
 
     fn visit_expression(

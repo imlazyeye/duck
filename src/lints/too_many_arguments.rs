@@ -5,16 +5,24 @@ pub struct TooManyArguments;
 impl Lint for TooManyArguments {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			tag: "too_many_arguments",
+            tag: Self::tag(),
 			display_name: "Too many arguments".into(),
 			explanation: "Functions with lots of parameters quickly become confusing and indicate a need for structural change.",
 			suggestions: vec![
             "Split this into multiple functions".into(),
             "Create a struct that holds the fields required by this function".into(),
         ],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "too_many_arguments"
     }
 
     fn visit_expression(

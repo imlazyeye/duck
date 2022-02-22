@@ -2,9 +2,7 @@ use clap::{Parser, Subcommand};
 use colored::Colorize;
 use duck::{Duck, FilePreviewUtil, LintLevel};
 use duck::{DuckConfig, LintReport};
-use std::ffi::OsStr;
 use std::path::PathBuf;
-use yy_boss::{Resource, YyResource, YypBoss};
 
 #[macro_use]
 extern crate log;
@@ -28,13 +26,6 @@ fn run_lint(path: Option<PathBuf>) {
     let timer = std::time::Instant::now();
     let current_directory = path
         .unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
-    let yyp_path = current_directory
-        .read_dir()
-        .unwrap()
-        .flatten()
-        .find(|file| file.path().extension() == Some(OsStr::new("yyp")))
-        .expect("No yyp found in active directory!")
-        .path();
 
     let mut config_usage = ConfigUsage::None;
     let mut duck = if let Ok(text) = std::fs::read_to_string(current_directory.join(".duck.toml")) {
@@ -52,26 +43,44 @@ fn run_lint(path: Option<PathBuf>) {
         Duck::new()
     };
 
-    let registrar = parse_all_gml(&mut duck, yyp_path);
+    let mut registrar: Vec<(String, PathBuf, Vec<LintReport>)> = vec![];
+    let mut io_errors: Vec<std::io::Error> = vec![];
+    duck::fs::visit_all_gml_files(current_directory, &mut io_errors, |gml, path| {
+        let mut reports = vec![];
+        if duck.lint_gml(gml.clone(), &path, &mut reports).is_ok() {
+            registrar.push((gml, path, reports))
+        }
+    });
     let mut deny_count = 0;
     let mut warn_count = 0;
+    let mut report_strings = vec![];
     for (file, path, reports) in registrar {
         for report in reports {
-            match report.get_true_level(&duck) {
+            match *duck.get_level_for_lint(report.tag(), report.category()) {
                 LintLevel::Allow => {}
                 LintLevel::Warn => warn_count += 1,
                 LintLevel::Deny => deny_count += 1,
             }
             let cursor = report.span.0;
-            report.raise(&duck, &FilePreviewUtil::new(&file, &path, cursor));
+            report_strings.push(report.generate_string(
+                &duck,
+                &FilePreviewUtil::new(&file, path.to_str().unwrap(), cursor),
+            ));
         }
     }
 
+    // Doing things this way let's us disclude the time it takes to print from our report...
+    let total_duration = std::time::Instant::now()
+        .duration_since(timer)
+        .as_secs_f32();
+    println!(
+        "{}",
+        report_strings.into_iter().flatten().collect::<String>()
+    );
+
     let output = format!(
         "🦆 <( Finished lint in {:.2}s with {} errors and {} warnings! )",
-        std::time::Instant::now()
-            .duration_since(timer)
-            .as_secs_f32(),
+        total_duration,
         deny_count.to_string().bright_red(),
         warn_count.to_string().yellow(),
     )
@@ -85,8 +94,14 @@ fn run_lint(path: Option<PathBuf>) {
         ConfigUsage::Failed(error) => warn!("Your config was not used in this run, as duck encountered the following error while being parsed: {}\n", error),
         ConfigUsage::Some => {}
     }
+    if !io_errors.is_empty() {
+        warn!("The following errors occured while trying to read your project's files...\n");
+        io_errors.iter().for_each(|error| {
+            println!("{error}");
+        })
+    }
     if !duck.parsing_errors().is_empty() {
-        println!("The following errors occured while trying to parse the project...\n");
+        warn!("The following errors occured while trying to parse the project...\n");
         warn!("In the future, we will actually give you file information here...");
         duck.parsing_errors().iter().for_each(|error| {
             // Todo: add file information here
@@ -97,51 +112,6 @@ fn run_lint(path: Option<PathBuf>) {
 
 fn new_config() {
     todo!("lol sorry make it yourself");
-}
-
-fn parse_all_gml(duck: &mut Duck, yyp_path: PathBuf) -> Vec<(String, String, Vec<LintReport>)> {
-    let boss =
-        YypBoss::with_startup_injest(yyp_path, &[Resource::Script, Resource::Object]).unwrap();
-
-    // Parse it all
-    let mut registrar = vec![];
-    let gml = boss
-        .scripts
-        .into_iter()
-        .map(|script| {
-            (
-                script.associated_data.clone().unwrap(),
-                script
-                    .yy_resource
-                    .relative_yy_directory()
-                    .join(format!("{}.gml", &script.yy_resource.resource_data.name)),
-            )
-        })
-        .chain(boss.objects.into_iter().flat_map(|object| {
-            object
-                .associated_data
-                .as_ref()
-                .unwrap()
-                .iter()
-                .map(|(event_type, gml_content)| {
-                    (
-                        gml_content.to_string(),
-                        object
-                            .yy_resource
-                            .relative_yy_directory()
-                            .join(format!("{}.gml", event_type.filename_simple())),
-                    )
-                })
-        }));
-
-    for (gml, path) in gml {
-        let mut reports = vec![];
-        match duck.lint_gml(gml.clone(), &path, &mut reports) {
-            Ok(_) => registrar.push((gml, path.to_str().unwrap().into(), reports)),
-            Err(error) => error!("{}", error),
-        }
-    }
-    registrar
 }
 
 #[derive(Parser, Debug)]

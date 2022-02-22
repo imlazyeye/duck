@@ -6,8 +6,8 @@ impl Lint for MissingCaseMember {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             display_name: "Missing case member".into(),
-            tag: "missing_case_member",
-            category:  LintCategory::Correctness,
+            tag: Self::tag(),
+            category: Self::category(),
             explanation:  "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
             suggestions:  vec![
             "Add cases for the missing members".into(),
@@ -15,6 +15,14 @@ impl Lint for MissingCaseMember {
         ],
             span,
         }
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Correctness
+    }
+
+    fn tag() -> &'static str {
+        "missing_case_member"
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

@@ -6,12 +6,20 @@ impl Lint for Todo {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of todo marker".into(),
-			tag: "todo",
+            tag: Self::tag(),
 			explanation: "Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.",
 			suggestions: vec!["Remove this todo marker".into()],
-			category: LintCategory::Pedantic,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Pedantic
+    }
+
+    fn tag() -> &'static str {
+        "todo"
     }
 
     fn visit_expression(

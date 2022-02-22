@@ -6,12 +6,20 @@ impl Lint for RoomGoto {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of `room_goto_*`".into(),
-			tag: "room_goto",
+            tag: Self::tag(),
 			explanation: "Projects that implement their own frameworks for room management may wish to be restrictive around when and where the `room_goto` functions are called.",
 			suggestions: vec!["Replace this call with your API's ideal function".into()],
-			category: LintCategory::Pedantic,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Pedantic
+    }
+
+    fn tag() -> &'static str {
+        "room_goto"
     }
 
     fn visit_expression(

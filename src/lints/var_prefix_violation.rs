@@ -1,17 +1,25 @@
 use crate::{parsing::statement::Statement, Duck, Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
-pub struct VarPrefixes;
-impl Lint for VarPrefixes {
+pub struct VarPrefixViolation;
+impl Lint for VarPrefixViolation {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Var Prefixes".into(),
-			tag: "var_prefixes",
+			display_name: "Var Prefix Violation".into(),
+            tag: Self::tag(),
 			explanation: "It is common practice in GML to prefix local variables (longer than one charcter) with an underscore as it helps to visually distinguish them from instance (or global) variables. You can select either option via the config.",
 			suggestions: vec![],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "var_prefix_violation"
     }
 
     fn visit_statement(

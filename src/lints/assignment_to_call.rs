@@ -6,12 +6,20 @@ impl Lint for AssignmentToCall {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             display_name: "Assignment to call".into(),
-            tag: "assignment_to_call",
+            tag: Self::tag(),
             explanation: "While possible to compile, assigning a value to the call of a function does not do anything.",
             suggestions: vec!["Re-evaluate this code -- this assignment does not do anything.".into()],
-            category: LintCategory::Suspicious,
+            category: Self::category(),
             span,
         }
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Suspicious
+    }
+
+    fn tag() -> &'static str {
+        "assignment_to_call"
     }
 
     fn visit_expression(

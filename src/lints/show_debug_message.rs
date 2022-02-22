@@ -5,16 +5,24 @@ pub struct ShowDebugMessage;
 impl Lint for ShowDebugMessage {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			tag: "show_debug_message",
+            tag: Self::tag(),
 			display_name: "Use of `show_debug_message`".into(),
 			explanation: "Projects often implement their own logging framework and wish to avoid unwrapped prints to the console.",
 			suggestions: vec![
             "Replace `show_debug_message` with a better logging function".into(),
             "Remove this debug message".into(),
         ],
-			category: LintCategory::Pedantic,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Pedantic
+    }
+
+    fn tag() -> &'static str {
+        "show_debug_message"
     }
 
     fn visit_expression(

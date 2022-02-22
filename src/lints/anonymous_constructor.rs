@@ -6,15 +6,23 @@ impl Lint for AnonymousConstructor {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             display_name: "Use of an anonymous constructor".into(),
-            tag: "anonymous_constructor",
+            tag: Self::tag(),
             explanation: "Constructors should be reserved for larger, higher scoped types.",
             suggestions: vec![
                 "Change this to a named function".into(),
                 "Change this to a function that returns a struct literal".into(),
             ],
-            category: LintCategory::Style,
+            category: Self::category(),
             span,
         }
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "anonymous_constructor"
     }
 
     fn visit_expression(

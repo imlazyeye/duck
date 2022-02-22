@@ -6,12 +6,20 @@ impl Lint for SingleSwitchCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Single switch case".into(),
-			tag: "single_switch_case",
+            tag: Self::tag(),
 			explanation: "Switch statements that only match on a single element can be reduced to an `if` statement.",
 			suggestions: vec!["Use an `if` statement instead of a `switch` statement".into()],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "single_switch_case"
     }
 
     fn visit_statement(

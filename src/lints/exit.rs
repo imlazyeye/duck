@@ -6,12 +6,20 @@ impl Lint for Exit {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of `exit`".into(),
-			tag: "exit",
+            tag: Self::tag(),
 			explanation: "`return` can always be used in place of exit, which provides more consistency across your codebase.",
 			suggestions: vec!["Use `return` instead of `exit`".into()],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "exit"
     }
 
     fn visit_statement(

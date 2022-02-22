@@ -9,12 +9,20 @@ impl Lint for AccessorAlternative {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of function with accessor alternative".into(),
-			tag: "accessor_alternative",
+            tag: Self::tag(),
 			explanation: "GML offers accessors as an alternative to many common functions which are preferable for their readability and brevity.",
 			suggestions: vec!["Scope this variable to an individual object".into()],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "accessor_alternative"
     }
 
     fn visit_expression(

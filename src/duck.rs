@@ -1,6 +1,7 @@
-use crate::lints::*;
+use crate::lint::LintLevelSetting;
 use crate::parsing::expression::ExpressionBox;
 use crate::parsing::statement::StatementBox;
+use crate::{lints::*, LintCategory};
 use crate::{
     parsing::{
         expression::{AccessScope, Expression},
@@ -9,19 +10,16 @@ use crate::{
     Lint, LintReport,
 };
 use colored::Colorize;
-use enum_map::{enum_map, EnumMap};
 use std::{collections::HashMap, path::Path};
 
 use crate::{
     lint::LintLevel,
     parsing::{parser::Ast, ParseError, Parser},
-    LintCategory,
 };
 
 pub struct Duck {
     config: DuckConfig,
     parsing_errors: Vec<ParseError>,
-    category_levels: EnumMap<LintCategory, LintLevel>,
 }
 
 impl Duck {
@@ -31,12 +29,6 @@ impl Duck {
         Self {
             config: Default::default(),
             parsing_errors: vec![],
-            category_levels: enum_map! {
-                LintCategory::Correctness => LintLevel::Deny,
-                LintCategory::Suspicious => LintLevel::Warn,
-                LintCategory::Style => LintLevel::Warn,
-                LintCategory::Pedantic => LintLevel::Allow,
-            },
         }
     }
 
@@ -81,17 +73,17 @@ impl Duck {
         let span = statement_box.span();
 
         // @statement calls. Do not remove this comment, it used for our autogeneration!
-        Deprecated::visit_statement(self, statement, span, reports);
-        Exit::visit_statement(self, statement, span, reports);
-        MissingDefaultCase::visit_statement(self, statement, span, reports);
-        MultiVarDeclaration::visit_statement(self, statement, span, reports);
-        NonPascalCase::visit_statement(self, statement, span, reports);
-        NonScreamCase::visit_statement(self, statement, span, reports);
-        SingleSwitchCase::visit_statement(self, statement, span, reports);
-        StatementParentheticals::visit_statement(self, statement, span, reports);
-        TryCatch::visit_statement(self, statement, span, reports);
-        VarPrefixes::visit_statement(self, statement, span, reports);
-        WithLoop::visit_statement(self, statement, span, reports);
+        self.try_run_lint_on_statement::<Deprecated>(statement, span, reports);
+        self.try_run_lint_on_statement::<Exit>(statement, span, reports);
+        self.try_run_lint_on_statement::<MissingDefaultCase>(statement, span, reports);
+        self.try_run_lint_on_statement::<MultiVarDeclaration>(statement, span, reports);
+        self.try_run_lint_on_statement::<NonPascalCase>(statement, span, reports);
+        self.try_run_lint_on_statement::<NonScreamCase>(statement, span, reports);
+        self.try_run_lint_on_statement::<SingleSwitchCase>(statement, span, reports);
+        self.try_run_lint_on_statement::<StatementParentheticalViolation>(statement, span, reports);
+        self.try_run_lint_on_statement::<TryCatch>(statement, span, reports);
+        self.try_run_lint_on_statement::<VarPrefixViolation>(statement, span, reports);
+        self.try_run_lint_on_statement::<WithLoop>(statement, span, reports);
         // @end statement calls. Do not remove this comment, it used for our autogeneration!
 
         // Recurse...
@@ -173,26 +165,25 @@ impl Duck {
         }
     }
 
-    pub fn lint_expression(&self, expression_box: &ExpressionBox, reports: &mut Vec<LintReport>) {
+    fn lint_expression(&self, expression_box: &ExpressionBox, reports: &mut Vec<LintReport>) {
         let expression = expression_box.expression();
         let span = expression_box.span();
 
         // @expression calls. Do not remove this comment, it used for our autogeneration!
-        AccessorAlternative::visit_expression(self, expression, span, reports);
-        American::visit_expression(self, expression, span, reports);
-        AnonymousConstructor::visit_expression(self, expression, span, reports);
-        AssignmentToCall::visit_expression(self, expression, span, reports);
-        BoolEquality::visit_expression(self, expression, span, reports);
-        British::visit_expression(self, expression, span, reports);
-        Deprecated::visit_expression(self, expression, span, reports);
-        DrawSprite::visit_expression(self, expression, span, reports);
-        DrawText::visit_expression(self, expression, span, reports);
-        Global::visit_expression(self, expression, span, reports);
-        NonPascalCase::visit_expression(self, expression, span, reports);
-        RoomGoto::visit_expression(self, expression, span, reports);
-        ShowDebugMessage::visit_expression(self, expression, span, reports);
-        Todo::visit_expression(self, expression, span, reports);
-        TooManyArguments::visit_expression(self, expression, span, reports);
+        self.try_run_lint_on_expression::<AccessorAlternative>(expression, span, reports);
+        self.try_run_lint_on_expression::<AnonymousConstructor>(expression, span, reports);
+        self.try_run_lint_on_expression::<AssignmentToCall>(expression, span, reports);
+        self.try_run_lint_on_expression::<BoolEquality>(expression, span, reports);
+        self.try_run_lint_on_expression::<Deprecated>(expression, span, reports);
+        self.try_run_lint_on_expression::<DrawSprite>(expression, span, reports);
+        self.try_run_lint_on_expression::<DrawText>(expression, span, reports);
+        self.try_run_lint_on_expression::<EnglishFlavorViolation>(expression, span, reports);
+        self.try_run_lint_on_expression::<Global>(expression, span, reports);
+        self.try_run_lint_on_expression::<NonPascalCase>(expression, span, reports);
+        self.try_run_lint_on_expression::<RoomGoto>(expression, span, reports);
+        self.try_run_lint_on_expression::<ShowDebugMessage>(expression, span, reports);
+        self.try_run_lint_on_expression::<Todo>(expression, span, reports);
+        self.try_run_lint_on_expression::<TooManyArguments>(expression, span, reports);
         // @end expression calls. Do not remove this comment, it used for our autogeneration!
 
         // Recurse...
@@ -268,8 +259,34 @@ impl Duck {
         }
     }
 
-    // /// Gets the user-specified level for the given position (if one exists)
-    pub fn get_user_provided_level(&self, lint_tag: &str) -> Option<LintLevel> {
+    fn try_run_lint_on_statement<T: Lint>(
+        &self,
+        statement: &Statement,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_statement(self, statement, span, reports);
+        }
+    }
+
+    fn try_run_lint_on_expression<T: Lint>(
+        &self,
+        expression: &Expression,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_expression(self, expression, span, reports);
+        }
+    }
+
+    // /// Gets the user-desired level for the lint tag.
+    pub fn get_level_for_lint(
+        &self,
+        lint_tag: &str,
+        lint_category: LintCategory,
+    ) -> LintLevelSetting {
         // Check if there is a config-based rule for this lint
         if let Some((_, level)) = self
             .config
@@ -277,21 +294,16 @@ impl Duck {
             .iter()
             .find(|(key, _)| key == &lint_tag)
         {
-            return Some(*level);
+            return LintLevelSetting::ConfigSpecified(*level);
         }
 
         // User has specificed nada
-        None
+        LintLevelSetting::Default(lint_category.default_level())
     }
 
     /// Get a reference to the duck's config.
     pub fn config(&self) -> &DuckConfig {
         &self.config
-    }
-
-    /// Get the duck's category levels.
-    pub fn category_levels(&self) -> EnumMap<LintCategory, LintLevel> {
-        self.category_levels
     }
 
     /// Get a reference to the duck's parsing errors.
@@ -306,6 +318,7 @@ pub struct DuckConfig {
     pub max_arguments: Option<usize>,
     pub statement_parentheticals: bool,
     pub var_prefixes: bool,
+    pub english_flavor: Option<EnglishFlavor>,
     pub lint_levels: HashMap<String, LintLevel>,
 }
 impl Default for DuckConfig {
@@ -316,10 +329,10 @@ impl Default for DuckConfig {
             statement_parentheticals: true,
             var_prefixes: true,
             lint_levels: Default::default(),
+            english_flavor: Some(EnglishFlavor::American),
         }
     }
 }
-
 impl DuckConfig {
     /// Get a reference to the duck config's todo keyword.
     pub fn todo_keyword(&self) -> Option<&String> {
@@ -330,6 +343,18 @@ impl DuckConfig {
     pub fn max_arguments(&self) -> Option<usize> {
         self.max_arguments
     }
+
+    /// Get the duck config's english flavor.
+    pub fn english_flavor(&self) -> Option<EnglishFlavor> {
+        self.english_flavor
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone, enum_map::Enum, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EnglishFlavor {
+    American,
+    British,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

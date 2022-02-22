@@ -6,12 +6,20 @@ impl Lint for MissingDefaultCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Missing default case".into(),
-			tag: "missing_default_case",
+            tag: Self::tag(),
 			explanation: "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.",
 			suggestions: vec!["Add a default case to the switch statement".into()],
-			category: LintCategory::Pedantic,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Pedantic
+    }
+
+    fn tag() -> &'static str {
+        "missing_default_case"
     }
 
     fn visit_statement(

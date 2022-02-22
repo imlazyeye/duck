@@ -1,37 +1,66 @@
 use bimap::BiHashMap;
 
-use crate::{parsing::expression::Expression, Lint, LintCategory, LintReport, Span};
+use crate::{parsing::expression::Expression, EnglishFlavor, Lint, LintCategory, LintReport, Span};
 
 #[derive(Debug, PartialEq)]
-pub struct British;
-impl Lint for British {
+pub struct EnglishFlavorViolation;
+impl Lint for EnglishFlavorViolation {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of British spelling".into(),
-			tag: "british",
+			display_name: "English Flavor Violation".into(),
+            tag: Self::tag(),
 			explanation: "GML has many duplicated function names for the sake of supporting both British and American spelling. For consistency, codebases should stick to one.",
 			suggestions: vec![],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
     }
 
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "british"
+    }
+
     fn visit_expression(
-        _duck: &crate::Duck,
+        duck: &crate::Duck,
         expression: &crate::parsing::expression::Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
+        let english_flavor = if let Some(english_flavor) = duck.config().english_flavor() {
+            english_flavor
+        } else {
+            // Todo: we should avoid this somehow
+            return;
+        };
         if let Expression::Call(caller, _, _) = expression {
             if let Expression::Identifier(name) = caller.expression() {
-                if let Some(american_spelling) =
-                    BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(name.as_str())
-                {
-                    reports.push(Self::generate_report_with(
-                        span,
-                        format!("Use of British spelling: {}", name),
-                        [format!("Use `{}` instead", american_spelling)],
-                    ))
+                match english_flavor {
+                    EnglishFlavor::American => {
+                        if let Some(british_spelling) =
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(name.as_str())
+                        {
+                            reports.push(Self::generate_report_with(
+                                span,
+                                format!("Use of British spelling: {}", name),
+                                [format!("Use `{}` instead", british_spelling)],
+                            ))
+                        }
+                    }
+                    EnglishFlavor::British => {
+                        if let Some(american_spelling) =
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(name.as_str())
+                        {
+                            reports.push(Self::generate_report_with(
+                                span,
+                                format!("Use of American spelling: {}", name),
+                                [format!("Use `{}` instead", american_spelling)],
+                            ))
+                        }
+                    }
                 }
             }
         }

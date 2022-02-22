@@ -8,12 +8,20 @@ impl Lint for NonScreamCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Identifier should be SCREAM_CASE".into(),
-			tag: "non_scream_case",
+            tag: Self::tag(),
 			explanation: "Scream case is the ideal casing for constants to distingusih them from other values.",
 			suggestions: vec!["Change your casing to SCREAM_CASE".into()],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "non_scream_case"
     }
 
     fn visit_statement(

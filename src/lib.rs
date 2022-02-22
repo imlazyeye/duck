@@ -1,6 +1,7 @@
 pub type AnyResult<T = ()> = color_eyre::Result<T>;
 mod duck;
 pub use crate::duck::*;
+pub mod fs;
 
 pub mod lints;
 

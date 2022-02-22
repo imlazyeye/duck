@@ -6,12 +6,20 @@ impl Lint for ModKeyword {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of `mod`".into(),
-			tag: "mod_keyword",
+            tag: Self::tag(),
 			explanation: "GML supports both `mod` and `%` to perform modulo division -- `%` is more consistent with other languages and is preferred.",
 			suggestions: vec!["Use `%` instead of `mod`".into()],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "mod_keyword"
     }
 
     // fn run(duck: &Duck) -> Vec<LintReport> {

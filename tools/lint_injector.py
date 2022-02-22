@@ -20,7 +20,6 @@ for root, dirs, files in os.walk('../src/lints/'):
 
 # Sort them alphabetically
 lints = sorted(lints, key=lambda i: i['name'])
-print(lints)
 
 # Declare everything in the mod's file
 new_mods = ''
@@ -47,7 +46,8 @@ old_statement_call = search.group(2)
 # Print what we'll be adding to expressions...
 old_lints = []
 for line in old_expression_call.splitlines():
-    lint = re.search(r'(\w+)::visit_expression', line).group(1)
+    lint = re.search(
+        r'self.try_run_lint_on_expression::<(\w+)>', line).group(1)
     old_lints.append(lint)
     if not any(d['name'] == lint for d in lints if d['visits_expression']):
         print("Removing '{lint}'...".format(lint=lint))
@@ -60,7 +60,7 @@ for lint in lints:
 new_expression_call = ''
 for lint in lints:
     if lint['visits_expression']:
-        new_expression_call += '{tabs}{lint}::visit_expression(self, expression, span, reports);\n'.format(
+        new_expression_call += '{tabs}self.try_run_lint_on_expression::<{lint}>(expression, span, reports);\n'.format(
             tabs=expression_tabs,
             lint=lint['name']
         )
@@ -69,7 +69,7 @@ for lint in lints:
 # Print what we'll be adding to statements...
 old_lints = []
 for line in old_statement_call.splitlines():
-    lint = re.search(r'(\w+)::visit_statement', line).group(1)
+    lint = re.search(r'self.try_run_lint_on_statement::<(\w+)>', line).group(1)
     old_lints.append(lint)
     if not any(d['name'] == lint for d in lints if d['visits_statement']):
         print("Removing '{lint}'...".format(lint=lint))
@@ -81,7 +81,7 @@ for lint in lints:
 new_statement_call = ''
 for lint in lints:
     if lint['visits_statement']:
-        new_statement_call += '{tabs}{lint}::visit_statement(self, statement, span, reports);\n'.format(
+        new_statement_call += '{tabs}self.try_run_lint_on_statement::<{lint}>(statement, span, reports);\n'.format(
             tabs=statement_tabs, lint=lint['name']
         )
 

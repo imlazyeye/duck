@@ -11,12 +11,20 @@ impl Lint for NonPascalCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Identifier should be PascalCase".into(),
-			tag: "non_pascal_case",
+            tag: Self::tag(),
 			explanation: "Pascal case is the ideal casing for \"types\" to distinguish them from other values.",
 			suggestions: vec![],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "non_pascal_case"
     }
 
     fn visit_expression(

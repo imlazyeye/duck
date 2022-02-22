@@ -9,12 +9,20 @@ impl Lint for Global {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of `global`".into(),
-			tag: "global",
+            tag: Self::tag(),
 			explanation: "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere.",
 			suggestions: vec!["Scope this variable to an individual object".into()],
-			category: LintCategory::Pedantic,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Pedantic
+    }
+
+    fn tag() -> &'static str {
+        "global"
     }
 
     fn visit_expression(

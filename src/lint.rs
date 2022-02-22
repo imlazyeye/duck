@@ -1,3 +1,5 @@
+use std::ops::DerefMut;
+
 use colored::Colorize;
 
 use crate::{
@@ -14,6 +16,12 @@ use crate::{
 pub trait Lint {
     /// Genreates a LintReport.
     fn generate_report(span: Span) -> LintReport;
+
+    /// Returns the string tag for this Lint.
+    fn tag() -> &'static str;
+
+    /// Returns the LintCategory for this Lint.
+    fn category() -> LintCategory;
 
     /// Generates a LintReport based on `Lint::generate_report`, but replaces its name
     /// and extends any provided suggestions into it.
@@ -80,6 +88,21 @@ impl LintLevel {
         }
     }
 }
+pub enum LintLevelSetting {
+    Default(LintLevel),
+    CodeSpecified(LintLevel),
+    ConfigSpecified(LintLevel),
+}
+impl core::ops::Deref for LintLevelSetting {
+    type Target = LintLevel;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            LintLevelSetting::Default(level)
+            | LintLevelSetting::CodeSpecified(level)
+            | LintLevelSetting::ConfigSpecified(level) => level,
+        }
+    }
+}
 
 /// The data from a user-written tag (ie: #[allow(draw_text)])
 #[derive(Debug)]
@@ -119,15 +142,10 @@ pub struct LintReport {
     pub span: Span,
 }
 impl LintReport {
-    pub fn get_true_level(&self, duck: &Duck) -> LintLevel {
-        let user_provided_level = duck.get_user_provided_level(self.tag);
-        user_provided_level.unwrap_or_else(|| duck.category_levels()[self.category])
-    }
-    pub fn raise(self, duck: &Duck, position: &FilePreviewUtil) {
-        let user_provided_level = duck.get_user_provided_level(self.tag);
-        let actual_level = self.get_true_level(duck);
-        let level_string = match actual_level {
-            LintLevel::Allow => return, // allow this!
+    pub fn generate_string(self, duck: &Duck, position: &FilePreviewUtil) -> Option<String> {
+        let level = duck.get_level_for_lint(self.tag, self.category);
+        let level_string = match *level {
+            LintLevel::Allow => return None, // allow this!
             LintLevel::Warn => "warning".yellow().bold(),
             LintLevel::Deny => "error".bright_red().bold(),
         };
@@ -152,18 +170,32 @@ impl LintReport {
         } else {
             "".into()
         };
-        let note_message = if user_provided_level.is_some() {
-            "\n note: This lint was activated by your config,"
-                .to_string()
-                .bold()
-                .bright_black()
-        } else {
-            "".into()
-        };
-        println!(
+        let note_message = match level {
+            LintLevelSetting::Default(_) => "",
+            LintLevelSetting::CodeSpecified(_) => {
+                "\n note: This lint was requested by the line above it."
+            }
+            LintLevelSetting::ConfigSpecified(_) => {
+                "\n note: This lint was activated by your config,"
+            }
+        }
+        .to_string()
+        .bold()
+        .bright_black();
+        Some(format!(
             "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
             level_string,
             self.display_name.bright_white(),
-        );
+        ))
+    }
+
+    /// Get the lint report's tag.
+    pub fn tag(&self) -> &str {
+        self.tag
+    }
+
+    /// Get the lint report's category.
+    pub fn category(&self) -> LintCategory {
+        self.category
     }
 }

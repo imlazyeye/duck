@@ -11,14 +11,22 @@ pub struct Deprecated;
 impl Lint for Deprecated {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-            tag: "deprecated",
+            tag: Self::tag(),
             display_name: "Use of deprecated feature".into(),
             explanation:
                 "Deprecated features are liable to be removed at any time and should be avoided.",
             suggestions: vec![],
-            category: LintCategory::Correctness,
+            category: Self::category(),
             span,
         }
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Correctness
+    }
+
+    fn tag() -> &'static str {
+        "deprecated"
     }
 
     fn visit_statement(

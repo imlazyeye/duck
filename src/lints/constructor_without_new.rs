@@ -6,11 +6,19 @@ impl Lint for ConstructorWithoutNew {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Invokation of constructor without `new`".into(),
-			tag: "constructor_without_new",
+            tag: Self::tag(),
 			explanation: "Constructors invoked without the `new` keyword do not return the newly constructed struct.",
 			suggestions: vec!["Add the `new` operator before the call".into()],
-			category: LintCategory::Correctness,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Correctness
+    }
+
+    fn tag() -> &'static str {
+        "constructor_without_new"
     }
 }

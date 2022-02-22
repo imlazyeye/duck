@@ -4,17 +4,25 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct StatementParentheticals;
-impl Lint for StatementParentheticals {
+pub struct StatementParentheticalViolation;
+impl Lint for StatementParentheticalViolation {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Statement Parentheticals".into(),
-			tag: "statement_parenthteicals",
+            tag: Self::tag(),
 			explanation: "Parenthesis surrounding statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.",
 			suggestions: vec![],
-			category: LintCategory::Style,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Style
+    }
+
+    fn tag() -> &'static str {
+        "statement_parenthetical_violation"
     }
 
     fn visit_statement(

@@ -6,12 +6,20 @@ impl Lint for DrawText {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
 			display_name: "Use of `draw_text`".into(),
-			tag: "draw_text",
+            tag: Self::tag(),
 			explanation: "Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called.",
 			suggestions: vec!["Replace this call with your API's ideal function".into()],
-			category: LintCategory::Pedantic,
+			category: Self::category(),
 			span,
 		}
+    }
+
+    fn category() -> LintCategory {
+        LintCategory::Pedantic
+    }
+
+    fn tag() -> &'static str {
+        "draw_text"
     }
 
     fn visit_expression(
