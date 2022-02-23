@@ -31,7 +31,11 @@ impl Lint for RoomGoto {
         if let Expression::Call(caller, _, _) = expression {
             if let Expression::Identifier(name) = caller.expression() {
                 if gm_room_goto_functions().contains(&name.as_str()) {
-                    reports.push(Self::generate_report(span))
+                    reports.push(Self::generate_report_with(
+                        span,
+                        format!("Use of `{}`", name),
+                        [],
+                    ))
                 }
             }
         }

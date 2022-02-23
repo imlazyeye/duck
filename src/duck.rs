@@ -4,7 +4,7 @@ use crate::parsing::statement::StatementBox;
 use crate::{lints::*, LintCategory};
 use crate::{
     parsing::{
-        expression::{AccessScope, Expression},
+        expression::{Expression, Scope},
         statement::Statement,
     },
     Lint, LintReport,
@@ -19,7 +19,6 @@ use crate::{
 
 pub struct Duck {
     config: DuckConfig,
-    parsing_errors: Vec<ParseError>,
 }
 
 impl Duck {
@@ -28,7 +27,6 @@ impl Duck {
     pub fn new() -> Self {
         Self {
             config: Default::default(),
-            parsing_errors: vec![],
         }
     }
 
@@ -57,14 +55,25 @@ impl Duck {
         Ok(())
     }
 
-    /// Parses the given String of GML, collecting data for Duck.
-    pub fn parse_gml(&mut self, source_code: &'static str, path: &Path) -> Result<Ast, ParseError> {
-        match Parser::new(source_code, path.to_path_buf()).into_ast() {
-            Ok(ast) => Ok(ast),
-            Err(e) => {
-                self.parsing_errors.push(e.clone());
-                Err(e)
-            }
+    fn try_run_lint_on_statement<T: Lint>(
+        &self,
+        statement: &Statement,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_statement(self, statement, span, reports);
+        }
+    }
+
+    fn try_run_lint_on_expression<T: Lint>(
+        &self,
+        expression: &Expression,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_expression(self, expression, span, reports);
         }
     }
 
@@ -100,10 +109,13 @@ impl Duck {
                     self.lint_expression(expression, reports);
                 }
             }
-            Statement::TryCatch(try_stmt, condition, catch_stmt) => {
+            Statement::TryCatch(try_stmt, condition, catch_stmt, finally_stmt) => {
                 self.lint_statement(try_stmt, reports);
                 self.lint_expression(condition, reports);
                 self.lint_statement(catch_stmt, reports);
+                if let Some(finally_stmt) = finally_stmt {
+                    self.lint_statement(finally_stmt, reports);
+                }
             }
             Statement::For(initializer, condition, tick, body) => {
                 self.lint_statement(initializer, reports);
@@ -127,7 +139,7 @@ impl Duck {
                 self.lint_expression(condition, reports);
                 self.lint_statement(body, reports);
             }
-            Statement::If(condition, body, else_branch) => {
+            Statement::If(condition, body, else_branch, _) => {
                 self.lint_expression(condition, reports);
                 self.lint_statement(body, reports);
                 if let Some(else_branch) = else_branch {
@@ -179,9 +191,11 @@ impl Duck {
         self.try_run_lint_on_expression::<DrawText>(expression, span, reports);
         self.try_run_lint_on_expression::<EnglishFlavorViolation>(expression, span, reports);
         self.try_run_lint_on_expression::<Global>(expression, span, reports);
+        self.try_run_lint_on_expression::<NonConstantDefaultParameter>(expression, span, reports);
         self.try_run_lint_on_expression::<NonPascalCase>(expression, span, reports);
         self.try_run_lint_on_expression::<RoomGoto>(expression, span, reports);
         self.try_run_lint_on_expression::<ShowDebugMessage>(expression, span, reports);
+        self.try_run_lint_on_expression::<SuspicousBoolUsage>(expression, span, reports);
         self.try_run_lint_on_expression::<Todo>(expression, span, reports);
         self.try_run_lint_on_expression::<TooManyArguments>(expression, span, reports);
         // @end expression calls. Do not remove this comment, it used for our autogeneration!
@@ -218,32 +232,32 @@ impl Duck {
             Expression::Postfix(left, _) => {
                 self.lint_expression(left, reports);
             }
-            Expression::Access(expression, access) => {
+            Expression::Access(scope, expression) => {
                 self.lint_expression(expression, reports);
-                match access {
-                    AccessScope::Dot(other) => {
+                match scope {
+                    Scope::Dot(other) => {
                         self.lint_expression(other, reports);
                     }
-                    AccessScope::Array(x, y, _) => {
+                    Scope::Array(x, y, _) => {
                         self.lint_expression(x, reports);
                         if let Some(y) = y {
                             self.lint_expression(y, reports);
                         }
                     }
-                    AccessScope::Map(key) => {
+                    Scope::Map(key) => {
                         self.lint_expression(key, reports);
                     }
-                    AccessScope::Grid(x, y) => {
+                    Scope::Grid(x, y) => {
                         self.lint_expression(x, reports);
                         self.lint_expression(y, reports);
                     }
-                    AccessScope::List(index) => {
+                    Scope::List(index) => {
                         self.lint_expression(index, reports);
                     }
-                    AccessScope::Struct(key) => {
+                    Scope::Struct(key) => {
                         self.lint_expression(key, reports);
                     }
-                    AccessScope::Global | AccessScope::Current => {}
+                    Scope::Global | Scope::Current => {}
                 }
             }
             Expression::Call(left, arguments, _) => {
@@ -259,26 +273,9 @@ impl Duck {
         }
     }
 
-    fn try_run_lint_on_statement<T: Lint>(
-        &self,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_statement(self, statement, span, reports);
-        }
-    }
-
-    fn try_run_lint_on_expression<T: Lint>(
-        &self,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_expression(self, expression, span, reports);
-        }
+    /// Parses the given String of GML, collecting data for Duck.
+    pub fn parse_gml(&mut self, source_code: &'static str, path: &Path) -> Result<Ast, ParseError> {
+        Parser::new(source_code, path.to_path_buf()).into_ast()
     }
 
     // /// Gets the user-desired level for the lint tag.
@@ -304,11 +301,6 @@ impl Duck {
     /// Get a reference to the duck's config.
     pub fn config(&self) -> &DuckConfig {
         &self.config
-    }
-
-    /// Get a reference to the duck's parsing errors.
-    pub fn parsing_errors(&self) -> &[ParseError] {
-        self.parsing_errors.as_ref()
     }
 }
 

@@ -18,7 +18,7 @@ pub enum Expression {
     Assignment(ExpressionBox, AssignmentOperator, ExpressionBox),
     Unary(UnaryOperator, ExpressionBox),
     Postfix(ExpressionBox, PostfixOperator),
-    Access(ExpressionBox, AccessScope),
+    Access(Scope, ExpressionBox),
     Call(ExpressionBox, Vec<ExpressionBox>, bool),
     Grouping(ExpressionBox),
     Literal(Literal),
@@ -118,7 +118,7 @@ pub enum Literal {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum AccessScope {
+pub enum Scope {
     Global,
     Current,
     Dot(ExpressionBox),

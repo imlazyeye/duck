@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    expression::{AccessScope, Constructor, Expression, ExpressionBox, Literal, Parameter},
+    expression::{Constructor, Expression, ExpressionBox, Literal, Parameter, Scope},
     statement::{Case, Statement, StatementBox},
     token_pilot::TokenPilot,
     Token,
@@ -114,7 +114,15 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Catch)?;
         let catch_expr = self.expression()?;
         let catch_body = self.block()?;
-        Ok(Statement::TryCatch(try_body, catch_expr, catch_body).into_box(self.span(start)))
+        let finally_body = if self.pilot.match_take(Token::Finally).is_some() {
+            Some(self.block()?)
+        } else {
+            None
+        };
+        Ok(
+            Statement::TryCatch(try_body, catch_expr, catch_body, finally_body)
+                .into_box(self.span(start)),
+        )
     }
 
     fn for_loop(&mut self) -> Result<StatementBox, ParseError> {
@@ -168,13 +176,14 @@ impl<'a> Parser<'a> {
         let start = self.pilot.cursor();
         self.pilot.require(Token::If)?;
         let condition = self.expression()?;
+        let then = self.pilot.match_take(Token::Then);
         let body = self.statement()?;
         let else_branch = if self.pilot.match_take(Token::Else).is_some() {
             Some(self.statement()?)
         } else {
             None
         };
-        Ok(Statement::If(condition, body, else_branch).into_box(self.span(start)))
+        Ok(Statement::If(condition, body, else_branch, then.is_some()).into_box(self.span(start)))
     }
 
     fn switch(&mut self) -> Result<StatementBox, ParseError> {
@@ -311,22 +320,17 @@ impl<'a> Parser<'a> {
             | Expression::Unary(..)
             | Expression::Call(..) => {}
 
-            // We have to do this to allow:
-            // ```
-            // foo.bar();
-            // ```
-            // Because, while that *really* is a call, it's a dot access...
-            // that should change...
-            Expression::Access(..) => {}
+            Expression::Identifier(..) => {
+                // Unfortunately, we can't (currently) understand if this is actually a mistake or is a macro.
+                // In the future, we may unfold code in an early pass that will help with this.
+            }
 
+            // Anything else is invalid.
             _ => {
-                // Temporarily ignoring!!!
-                if expression.expression() != &Expression::Identifier("unsafe".into()) {
-                    return Err(ParseError::IncompleteStatement(
-                        self.span(start),
-                        expression,
-                    ));
-                }
+                return Err(ParseError::IncompleteStatement(
+                    self.span(start),
+                    expression,
+                ));
             }
         }
         self.pilot.match_take_repeating(Token::SemiColon);
@@ -364,7 +368,7 @@ impl<'a> Parser<'a> {
             }
             let inheritance = if self.pilot.match_take(Token::Colon).is_some() {
                 let name = self.identifier()?;
-                Some(self.call(name, false)?)
+                Some(self.call(Some(name), false)?)
             } else {
                 None
             };
@@ -649,41 +653,37 @@ impl<'a> Parser<'a> {
 
     fn supreme(&mut self) -> Result<ExpressionBox, ParseError> {
         let start = self.pilot.cursor();
-        // Get the first expression...
-        let mut has_new = self.pilot.match_take(Token::New).is_some();
-        let mut expression = match self.pilot.peek()? {
-            Token::Global => {
-                self.pilot.take()?;
-                self.dot_access(AccessScope::Global)?
-            }
-            Token::SelfKeyword => {
-                self.pilot.take()?;
-                if self.pilot.soft_peek() == Some(&Token::Dot) {
-                    self.dot_access(AccessScope::Current)?
-                } else {
-                    Expression::Identifier("self".into()).into_box(self.span(start))
-                }
-            }
-            _ => self.identifier()?,
-        };
-
-        // Now continue to chain more things on as long as we need!
+        let mut has_new = self.pilot.match_take(Token::New);
+        let mut expression = Some(self.call(None, has_new.take().is_some())?);
         loop {
             expression = match self.pilot.soft_peek() {
-                Some(Token::Dot) => self.dot_access(AccessScope::Dot(expression))?,
-                Some(Token::LeftSquareBracket) => self.ds_access(expression)?,
                 Some(Token::LeftParenthesis) => {
-                    let call = self.call(expression, has_new)?;
-                    has_new = false;
-                    call
+                    Some(self.call(expression, has_new.take().is_some())?)
                 }
-                _ => break Ok(expression),
-            };
+                Some(Token::LeftSquareBracket) => Some(self.ds_access(expression)?),
+                Some(Token::Dot) => Some(self.dot_access(expression)?),
+                _ => break Ok(expression.unwrap()),
+            }
         }
     }
 
-    fn call(&mut self, left: ExpressionBox, has_new: bool) -> Result<ExpressionBox, ParseError> {
+    fn call(
+        &mut self,
+        left: Option<ExpressionBox>,
+        has_new: bool,
+    ) -> Result<ExpressionBox, ParseError> {
         let start = self.pilot.cursor();
+        // If we've been provided a leftside expression, we *must* parse for a call.
+        // Otherwise, the call is merely possible.
+        let left = if let Some(left) = left {
+            left
+        } else {
+            let dot = self.dot_access(None)?;
+            if self.pilot.soft_peek() != Some(&Token::LeftParenthesis) {
+                return Ok(dot);
+            }
+            dot
+        };
         self.pilot.require(Token::LeftParenthesis)?;
         let mut arguments = vec![];
         if self.pilot.match_take(Token::RightParenthesis).is_none() {
@@ -703,35 +703,73 @@ impl<'a> Parser<'a> {
         Ok(Expression::Call(left, arguments, has_new).into_box(self.span(start)))
     }
 
-    fn dot_access(&mut self, access: AccessScope) -> Result<ExpressionBox, ParseError> {
+    fn dot_access(
+        &mut self,
+        expression: Option<ExpressionBox>,
+    ) -> Result<ExpressionBox, ParseError> {
         let start = self.pilot.cursor();
+        let scope = if let Some(expression) = expression {
+            Scope::Dot(expression)
+        } else {
+            match self.pilot.peek()? {
+                Token::Global => {
+                    self.pilot.take()?;
+                    Scope::Global
+                }
+                Token::SelfKeyword => {
+                    self.pilot.take()?;
+                    if self.pilot.soft_peek() == Some(&Token::Dot) {
+                        Scope::Current
+                    } else {
+                        // Using self as a referencce!
+                        return Ok(Expression::Identifier("self".into()).into_box(self.span(start)));
+                    }
+                }
+                _ => {
+                    let left = self.ds_access(None)?;
+                    if self.pilot.soft_peek() != Some(&Token::Dot) {
+                        return Ok(left);
+                    }
+                    Scope::Dot(left)
+                }
+            }
+        };
         self.pilot.require(Token::Dot)?;
-        let right = self.expression()?;
-        Ok(Expression::Access(right, access).into_box(self.span(start)))
+        let right = self.identifier()?;
+        Ok(Expression::Access(scope, right).into_box(self.span(start)))
     }
 
-    fn ds_access(&mut self, left: ExpressionBox) -> Result<ExpressionBox, ParseError> {
+    fn ds_access(&mut self, left: Option<ExpressionBox>) -> Result<ExpressionBox, ParseError> {
         let start = self.pilot.cursor();
+        let left = if let Some(left) = left {
+            left
+        } else {
+            let left = self.identifier()?;
+            if self.pilot.soft_peek() != Some(&Token::LeftSquareBracket) {
+                return Ok(left);
+            }
+            left
+        };
         self.pilot.require(Token::LeftSquareBracket)?;
-        let ds_access = match self.pilot.peek()? {
+        let scope = match self.pilot.peek()? {
             Token::DollarSign => {
                 self.pilot.take()?;
-                AccessScope::Struct(self.expression()?)
+                Scope::Struct(self.expression()?)
             }
             Token::Interrobang => {
                 self.pilot.take()?;
-                AccessScope::Map(self.expression()?)
+                Scope::Map(self.expression()?)
             }
             Token::Pipe => {
                 self.pilot.take()?;
-                AccessScope::List(self.expression()?)
+                Scope::List(self.expression()?)
             }
             Token::Hash => {
                 self.pilot.take()?;
                 let first = self.expression()?;
                 self.pilot.require(Token::Comma)?;
                 let second = self.expression()?;
-                AccessScope::Grid(first, second)
+                Scope::Grid(first, second)
             }
             _ => {
                 let has_accessor = self.pilot.match_take(Token::AtSign).is_some();
@@ -741,11 +779,11 @@ impl<'a> Parser<'a> {
                 } else {
                     None
                 };
-                AccessScope::Array(left, right, has_accessor)
+                Scope::Array(left, right, has_accessor)
             }
         };
         self.pilot.require(Token::RightSquareBracket)?;
-        Ok(Expression::Access(left, ds_access).into_box(self.span(start)))
+        Ok(Expression::Access(scope, left).into_box(self.span(start)))
     }
 
     fn identifier(&mut self) -> Result<ExpressionBox, ParseError> {
@@ -753,7 +791,8 @@ impl<'a> Parser<'a> {
         // TODO: TEMPORARY!!!
         self.pilot.match_take(Token::Static);
 
-        if let Some(lexeme) = self.pilot.peek()?.as_identifier().map(|s| s.to_string()) {
+        let peek = self.pilot.peek()?;
+        if let Some(lexeme) = peek.as_identifier().map(|s| s.to_string()) {
             self.pilot.take()?;
             Ok(Expression::Identifier(lexeme).into_box(self.span(start)))
         } else {

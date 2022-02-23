@@ -1,6 +1,6 @@
 use crate::{
     parsing::{
-        expression::{AccessScope, Expression},
+        expression::{Expression, Scope},
         statement::Statement,
     },
     Duck, Lint, LintCategory, LintReport, Span,
@@ -63,7 +63,7 @@ impl Lint for Deprecated {
                     ));
                 }
             }
-        } else if let Expression::Access(_, AccessScope::Array(_, Some(_), ..)) = expression {
+        } else if let Expression::Access(Scope::Array(_, Some(_), ..), _) = expression {
             reports.push(Self::generate_report_with(
                 span,
                 "Use of 2d array",

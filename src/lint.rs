@@ -1,11 +1,8 @@
-use std::ops::DerefMut;
-
-use colored::Colorize;
-
 use crate::{
     parsing::{expression::Expression, statement::Statement},
     Duck, FilePreviewUtil, Span,
 };
+use colored::Colorize;
 
 /// An individual lint in duck.
 ///
@@ -142,15 +139,15 @@ pub struct LintReport {
     pub span: Span,
 }
 impl LintReport {
-    pub fn generate_string(self, duck: &Duck, position: &FilePreviewUtil) -> Option<String> {
+    pub fn generate_string(self, duck: &Duck, preview: &FilePreviewUtil) -> String {
         let level = duck.get_level_for_lint(self.tag, self.category);
         let level_string = match *level {
-            LintLevel::Allow => return None, // allow this!
+            LintLevel::Allow => "allowed".bright_black().bold(), // I dunno why you'd ever do this, but for now I don't wanna crash...
             LintLevel::Warn => "warning".yellow().bold(),
             LintLevel::Deny => "error".bright_red().bold(),
         };
-        let path_message = position.path_message();
-        let snippet_message = position.snippet_message();
+        let path_message = preview.path_message();
+        let snippet_message = preview.snippet_message();
         let show_suggestions = true;
         let suggestion_message = if show_suggestions {
             let mut suggestions: Vec<String> = self.suggestions.clone();
@@ -182,11 +179,11 @@ impl LintReport {
         .to_string()
         .bold()
         .bright_black();
-        Some(format!(
+        format!(
             "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
             level_string,
             self.display_name.bright_white(),
-        ))
+        )
     }
 
     /// Get the lint report's tag.

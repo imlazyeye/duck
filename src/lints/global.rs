@@ -1,5 +1,5 @@
 use crate::{
-    parsing::expression::{AccessScope, Expression},
+    parsing::expression::{Scope, Expression},
     Duck, Lint, LintCategory, LintReport, Span,
 };
 
@@ -31,7 +31,7 @@ impl Lint for Global {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Access(_, AccessScope::Global) = expression {
+        if let Expression::Access(Scope::Global, _) = expression {
             reports.push(Self::generate_report(span))
         }
     }

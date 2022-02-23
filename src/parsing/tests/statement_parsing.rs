@@ -138,6 +138,20 @@ fn try_catch() {
             Statement::Block(vec![]).lazy_box(),
             Expression::Grouping(Expression::Identifier("e".into()).lazy_box()).lazy_box(),
             Statement::Block(vec![]).lazy_box(),
+            None,
+        ),
+    )
+}
+
+#[test]
+fn try_catch_finally() {
+    harness_stmt(
+        "try {} catch (e) {} finally {}",
+        Statement::TryCatch(
+            Statement::Block(vec![]).lazy_box(),
+            Expression::Grouping(Expression::Identifier("e".into()).lazy_box()).lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
+            Some(Statement::Block(vec![]).lazy_box()),
         ),
     )
 }
@@ -256,6 +270,25 @@ fn if_statement() {
             .lazy_box(),
             Statement::Block(vec![]).lazy_box(),
             None,
+            false,
+        ),
+    )
+}
+
+#[test]
+fn if_then() {
+    harness_stmt(
+        "if foo == 1 then {}",
+        Statement::If(
+            Expression::Equality(
+                Expression::Identifier("foo".into()).lazy_box(),
+                EqualityOperator::Equal,
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            )
+            .lazy_box(),
+            Statement::Block(vec![]).lazy_box(),
+            None,
+            true,
         ),
     )
 }
@@ -273,6 +306,7 @@ fn if_else() {
             .lazy_box(),
             Statement::Block(vec![]).lazy_box(),
             Some(Statement::Block(vec![]).lazy_box()),
+            false,
         ),
     )
 }

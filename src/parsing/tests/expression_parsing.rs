@@ -1,14 +1,26 @@
 use crate::parsing::expression::{
-    AccessScope, AssignmentOperator, Constructor, EqualityOperator, EvaluationOperator, Expression,
-    Literal, LogicalOperator, Parameter, PostfixOperator, UnaryOperator,
+    AssignmentOperator, Constructor, EqualityOperator, EvaluationOperator, Expression, Literal,
+    LogicalOperator, Parameter, PostfixOperator, Scope, UnaryOperator,
 };
 use crate::parsing::parser::Parser;
 use crate::parsing::statement::Statement;
-use pretty_assertions::assert_eq;
+use colored::Colorize;
+//use pretty_assertions::assert_eq;
 
 fn harness_expr(source: &str, expected: Expression) {
     let mut parser = Parser::new(source, "test".into());
-    assert_eq!(*parser.expression().unwrap().expression(), expected);
+    let outputed = parser.expression().unwrap();
+    if *outputed.expression() != expected {
+        panic!(
+            "\n{}\n\n{}\n\n{}: {:?}\n\n{}: {:?}\n",
+            "Failed a test on the following gml: ".yellow().bold(),
+            source,
+            "Expected".green().bold(),
+            expected,
+            "Outputed".red().bold(),
+            *outputed.expression(),
+        )
+    }
 }
 
 #[test]
@@ -476,6 +488,60 @@ fn assign() {
 }
 
 #[test]
+fn dot_assign() {
+    harness_expr(
+        "self.foo = 1",
+        Expression::Assignment(
+            Expression::Access(
+                Scope::Current,
+                Expression::Identifier("foo".into()).lazy_box(),
+            )
+            .lazy_box(),
+            AssignmentOperator::Equal,
+            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn ds_assign() {
+    harness_expr(
+        "foo[0] = 1",
+        Expression::Assignment(
+            Expression::Access(
+                Scope::Array(
+                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                    None,
+                    false,
+                ),
+                Expression::Identifier("foo".into()).lazy_box(),
+            )
+            .lazy_box(),
+            AssignmentOperator::Equal,
+            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+        ),
+    );
+}
+
+#[test]
+// Valid GML, as much as it hurts. See `assignment_to_call`
+fn call_assign() {
+    harness_expr(
+        "foo() = 1",
+        Expression::Assignment(
+            Expression::Call(
+                Expression::Identifier("foo".into()).lazy_box(),
+                vec![],
+                false,
+            )
+            .lazy_box(),
+            AssignmentOperator::Equal,
+            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn static_assign() {
     harness_expr(
         "static foo = 1",
@@ -606,6 +672,36 @@ fn neagtive() {
 }
 
 #[test]
+fn dot_unary() {
+    harness_expr(
+        "!self.foo",
+        Expression::Unary(
+            UnaryOperator::Not,
+            Expression::Access(
+                Scope::Current,
+                Expression::Identifier("foo".into()).lazy_box(),
+            )
+            .lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn ds_unary() {
+    harness_expr(
+        "!foo[bar]",
+        Expression::Unary(
+            UnaryOperator::Not,
+            Expression::Access(
+                Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
+                Expression::Identifier("foo".into()).lazy_box(),
+            )
+            .lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn prefix_increment() {
     harness_expr(
         "++1",
@@ -656,6 +752,36 @@ fn postfix_decrement() {
         Expression::Postfix(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             PostfixOperator::Decrement,
+        ),
+    );
+}
+
+#[test]
+fn dot_postfix() {
+    harness_expr(
+        "self.foo++",
+        Expression::Postfix(
+            Expression::Access(
+                Scope::Current,
+                Expression::Identifier("foo".into()).lazy_box(),
+            )
+            .lazy_box(),
+            PostfixOperator::Increment,
+        ),
+    );
+}
+
+#[test]
+fn ds_postfix() {
+    harness_expr(
+        "foo[bar]++",
+        Expression::Postfix(
+            Expression::Access(
+                Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
+                Expression::Identifier("foo".into()).lazy_box(),
+            )
+            .lazy_box(),
+            PostfixOperator::Increment,
         ),
     );
 }
@@ -760,8 +886,8 @@ fn array_access() {
     harness_expr(
         "foo[bar]",
         Expression::Access(
+            Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
             Expression::Identifier("foo".into()).lazy_box(),
-            AccessScope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
         ),
     );
 }
@@ -771,8 +897,8 @@ fn array_direct_access() {
     harness_expr(
         "foo[@ bar]",
         Expression::Access(
+            Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, true),
             Expression::Identifier("foo".into()).lazy_box(),
-            AccessScope::Array(Expression::Identifier("bar".into()).lazy_box(), None, true),
         ),
     );
 }
@@ -782,12 +908,12 @@ fn array_access_2d() {
     harness_expr(
         "foo[bar, buzz]",
         Expression::Access(
-            Expression::Identifier("foo".into()).lazy_box(),
-            AccessScope::Array(
+            Scope::Array(
                 Expression::Identifier("bar".into()).lazy_box(),
                 Some(Expression::Identifier("buzz".into()).lazy_box()),
                 false,
             ),
+            Expression::Identifier("foo".into()).lazy_box(),
         ),
     );
 }
@@ -797,8 +923,8 @@ fn ds_map_access() {
     harness_expr(
         "foo[? bar]",
         Expression::Access(
+            Scope::Map(Expression::Identifier("bar".into()).lazy_box()),
             Expression::Identifier("foo".into()).lazy_box(),
-            AccessScope::Map(Expression::Identifier("bar".into()).lazy_box()),
         ),
     );
 }
@@ -808,8 +934,8 @@ fn ds_list_access() {
     harness_expr(
         "foo[| bar]",
         Expression::Access(
+            Scope::List(Expression::Identifier("bar".into()).lazy_box()),
             Expression::Identifier("foo".into()).lazy_box(),
-            AccessScope::List(Expression::Identifier("bar".into()).lazy_box()),
         ),
     );
 }
@@ -819,11 +945,11 @@ fn ds_grid_access() {
     harness_expr(
         "foo[# bar, buzz]",
         Expression::Access(
-            Expression::Identifier("foo".into()).lazy_box(),
-            AccessScope::Grid(
+            Scope::Grid(
                 Expression::Identifier("bar".into()).lazy_box(),
                 Expression::Identifier("buzz".into()).lazy_box(),
             ),
+            Expression::Identifier("foo".into()).lazy_box(),
         ),
     );
 }
@@ -833,8 +959,8 @@ fn struct_access() {
     harness_expr(
         "foo[$ bar]",
         Expression::Access(
+            Scope::Struct(Expression::Identifier("bar".into()).lazy_box()),
             Expression::Identifier("foo".into()).lazy_box(),
-            AccessScope::Struct(Expression::Identifier("bar".into()).lazy_box()),
         ),
     );
 }
@@ -844,16 +970,16 @@ fn chained_ds_accesses() {
     harness_expr(
         "foo[bar][buzz]",
         Expression::Access(
-            Expression::Access(
-                Expression::Identifier("foo".into()).lazy_box(),
-                AccessScope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
-            )
-            .lazy_box(),
-            AccessScope::Array(
+            Scope::Array(
                 Expression::Identifier("buzz".into()).lazy_box(),
                 None,
                 false,
             ),
+            Expression::Access(
+                Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
+                Expression::Identifier("foo".into()).lazy_box(),
+            )
+            .lazy_box(),
         ),
     );
 }
@@ -864,12 +990,12 @@ fn ds_access_call() {
         "foo[0]()",
         Expression::Call(
             Expression::Access(
-                Expression::Identifier("foo".into()).lazy_box(),
-                AccessScope::Array(
+                Scope::Array(
                     Expression::Literal(Literal::Real(0.0)).lazy_box(),
                     None,
                     false,
                 ),
+                Expression::Identifier("foo".into()).lazy_box(),
             )
             .lazy_box(),
             vec![],
@@ -883,8 +1009,8 @@ fn dot_access() {
     harness_expr(
         "foo.bar",
         Expression::Access(
+            Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
             Expression::Identifier("bar".into()).lazy_box(),
-            AccessScope::Dot(Expression::Identifier("foo".into()).lazy_box()),
         ),
     );
 }
@@ -894,12 +1020,14 @@ fn chained_dot_access() {
     harness_expr(
         "foo.bar.buzz",
         Expression::Access(
-            Expression::Access(
-                Expression::Identifier("buzz".into()).lazy_box(),
-                AccessScope::Dot(Expression::Identifier("bar".into()).lazy_box()),
-            )
-            .lazy_box(),
-            AccessScope::Dot(Expression::Identifier("foo".into()).lazy_box()),
+            Scope::Dot(
+                Expression::Access(
+                    Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
+                    Expression::Identifier("bar".into()).lazy_box(),
+                )
+                .lazy_box(),
+            ),
+            Expression::Identifier("buzz".into()).lazy_box(),
         ),
     );
 }
@@ -908,16 +1036,16 @@ fn chained_dot_access() {
 fn dot_access_to_call() {
     harness_expr(
         "foo.bar()",
-        Expression::Access(
-            Expression::Call(
+        Expression::Call(
+            Expression::Access(
+                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
                 Expression::Identifier("bar".into()).lazy_box(),
-                vec![],
-                false,
             )
             .lazy_box(),
-            AccessScope::Dot(Expression::Identifier("foo".into()).lazy_box()),
+            vec![],
+            false,
         ),
-    );
+    )
 }
 
 #[test]
@@ -925,16 +1053,16 @@ fn dot_access_to_ds_access() {
     harness_expr(
         "foo.bar[0]",
         Expression::Access(
+            Scope::Array(
+                Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                None,
+                false,
+            ),
             Expression::Access(
+                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
                 Expression::Identifier("bar".into()).lazy_box(),
-                AccessScope::Array(
-                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
-                    None,
-                    false,
-                ),
             )
             .lazy_box(),
-            AccessScope::Dot(Expression::Identifier("foo".into()).lazy_box()),
         ),
     );
 }
@@ -944,8 +1072,7 @@ fn dot_access_from_call() {
     harness_expr(
         "foo().bar",
         Expression::Access(
-            Expression::Identifier("bar".into()).lazy_box(),
-            AccessScope::Dot(
+            Scope::Dot(
                 Expression::Call(
                     Expression::Identifier("foo".into()).lazy_box(),
                     vec![],
@@ -953,6 +1080,7 @@ fn dot_access_from_call() {
                 )
                 .lazy_box(),
             ),
+            Expression::Identifier("bar".into()).lazy_box(),
         ),
     );
 }
@@ -961,21 +1089,21 @@ fn dot_access_from_call() {
 fn chained_calls() {
     harness_expr(
         "foo().bar()",
-        Expression::Access(
-            Expression::Call(
+        Expression::Call(
+            Expression::Access(
+                Scope::Dot(
+                    Expression::Call(
+                        Expression::Identifier("foo".into()).lazy_box(),
+                        vec![],
+                        false,
+                    )
+                    .lazy_box(),
+                ),
                 Expression::Identifier("bar".into()).lazy_box(),
-                vec![],
-                false,
             )
             .lazy_box(),
-            AccessScope::Dot(
-                Expression::Call(
-                    Expression::Identifier("foo".into()).lazy_box(),
-                    vec![],
-                    false,
-                )
-                .lazy_box(),
-            ),
+            vec![],
+            false,
         ),
     );
 }
@@ -984,26 +1112,26 @@ fn chained_calls() {
 fn chain_calls_with_call_parameter() {
     harness_expr(
         "foo().bar(buzz())",
-        Expression::Access(
-            Expression::Call(
+        Expression::Call(
+            Expression::Access(
+                Scope::Dot(
+                    Expression::Call(
+                        Expression::Identifier("foo".into()).lazy_box(),
+                        vec![],
+                        false,
+                    )
+                    .lazy_box(),
+                ),
                 Expression::Identifier("bar".into()).lazy_box(),
-                vec![Expression::Call(
-                    Expression::Identifier("buzz".into()).lazy_box(),
-                    vec![],
-                    false,
-                )
-                .lazy_box()],
-                false,
             )
             .lazy_box(),
-            AccessScope::Dot(
-                Expression::Call(
-                    Expression::Identifier("foo".into()).lazy_box(),
-                    vec![],
-                    false,
-                )
-                .lazy_box(),
-            ),
+            vec![Expression::Call(
+                Expression::Identifier("buzz".into()).lazy_box(),
+                vec![],
+                false,
+            )
+            .lazy_box()],
+            false,
         ),
     )
 }
@@ -1013,8 +1141,8 @@ fn global_dot_access() {
     harness_expr(
         "global.bar",
         Expression::Access(
+            Scope::Global,
             Expression::Identifier("bar".into()).lazy_box(),
-            AccessScope::Global,
         ),
     );
 }
@@ -1024,8 +1152,8 @@ fn self_dot_access() {
     harness_expr(
         "self.bar",
         Expression::Access(
+            Scope::Current,
             Expression::Identifier("bar".into()).lazy_box(),
-            AccessScope::Current,
         ),
     );
 }
@@ -1047,18 +1175,18 @@ fn ds_dot_access() {
     harness_expr(
         "foo[0].bar",
         Expression::Access(
-            Expression::Identifier("bar".into()).lazy_box(),
-            AccessScope::Dot(
+            Scope::Dot(
                 Expression::Access(
-                    Expression::Identifier("foo".into()).lazy_box(),
-                    AccessScope::Array(
+                    Scope::Array(
                         Expression::Literal(Literal::Real(0.0)).lazy_box(),
                         None,
                         false,
                     ),
+                    Expression::Identifier("foo".into()).lazy_box(),
                 )
                 .lazy_box(),
             ),
+            Expression::Identifier("bar".into()).lazy_box(),
         ),
     );
 }

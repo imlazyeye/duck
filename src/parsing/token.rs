@@ -85,6 +85,8 @@ pub enum Token {
     AtSign,
     Continue,
     Static,
+    Then,
+    Finally,
     Macro(String, Option<String>, String),
     Comment(String),
     Identifier(String),

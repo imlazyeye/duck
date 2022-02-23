@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use duck::parsing::ParseError;
 use duck::{Duck, FilePreviewUtil, LintLevel};
 use duck::{DuckConfig, LintReport};
 use std::path::PathBuf;
@@ -43,18 +44,21 @@ fn run_lint(path: Option<PathBuf>) {
         Duck::new()
     };
 
-    let mut registrar: Vec<(String, PathBuf, Vec<LintReport>)> = vec![];
+    let mut lint_report_registrar: Vec<(String, PathBuf, Vec<LintReport>)> = vec![];
+    let mut parse_error_registrar: Vec<(String, PathBuf, ParseError)> = vec![];
     let mut io_errors: Vec<std::io::Error> = vec![];
     duck::fs::visit_all_gml_files(current_directory, &mut io_errors, |gml, path| {
         let mut reports = vec![];
-        if duck.lint_gml(gml.clone(), &path, &mut reports).is_ok() {
-            registrar.push((gml, path, reports))
+        match duck.lint_gml(gml.clone(), &path, &mut reports) {
+            Ok(_) => lint_report_registrar.push((gml, path, reports)),
+            Err(e) => parse_error_registrar.push((gml, path, e)),
         }
     });
+
     let mut deny_count = 0;
     let mut warn_count = 0;
     let mut report_strings = vec![];
-    for (file, path, reports) in registrar {
+    for (file, path, reports) in lint_report_registrar {
         for report in reports {
             match *duck.get_level_for_lint(report.tag(), report.category()) {
                 LintLevel::Allow => {}
@@ -73,10 +77,7 @@ fn run_lint(path: Option<PathBuf>) {
     let total_duration = std::time::Instant::now()
         .duration_since(timer)
         .as_secs_f32();
-    println!(
-        "{}",
-        report_strings.into_iter().flatten().collect::<String>()
-    );
+    println!("{}", report_strings.into_iter().collect::<String>());
 
     let output = format!(
         "🦆 <( Finished lint in {:.2}s with {} errors and {} warnings! )",
@@ -100,13 +101,22 @@ fn run_lint(path: Option<PathBuf>) {
             println!("{error}");
         })
     }
-    if !duck.parsing_errors().is_empty() {
+    if !parse_error_registrar.is_empty() {
         warn!("The following errors occured while trying to parse the project...\n");
         warn!("In the future, we will actually give you file information here...");
-        duck.parsing_errors().iter().for_each(|error| {
-            // Todo: add file information here
-            println!("{error}");
-        })
+        parse_error_registrar
+            .iter()
+            .for_each(|(file, path, error)| {
+                println!(
+                    "{}",
+                    error.generate_report(&FilePreviewUtil::new(
+                        file,
+                        path.to_str().unwrap(),
+                        error.span().0
+                    ))
+                )
+                // Todo: add file information here
+            })
     }
 }
 

@@ -314,6 +314,8 @@ impl<'a> Lexer<'a> {
                         "catch" => Some(Token::Catch),
                         "continue" => Some(Token::Continue),
                         "static" => Some(Token::Static),
+                        "then" => Some(Token::Then),
+                        "finally" => Some(Token::Finally),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }

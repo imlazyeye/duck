@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::Span;
+use crate::{FilePreviewUtil, Span};
 
 use super::{expression::ExpressionBox, token::Token};
 
@@ -15,6 +15,16 @@ pub enum ParseError {
     UnexpectedEnd(Span),
 }
 impl ParseError {
+    pub fn generate_report(&self, preview: &FilePreviewUtil) -> String {
+        let path_message = preview.path_message();
+        let snippet_message = preview.snippet_message();
+        format!(
+            "{}: {}\n{path_message}\n{snippet_message}\n",
+            "parse error".bright_red().bold(),
+            self.error_message().bright_white(),
+        )
+    }
+
     pub fn span(&self) -> &Span {
         match self {
             ParseError::UnexpectedToken(span, _) => span,
@@ -37,16 +47,5 @@ impl ParseError {
             ParseError::IncompleteStatement(_, _) => "Incomplete statement".into(),
             ParseError::UnexpectedEnd(_) => "Unexpected end".into(),
         }
-    }
-}
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // let path_message = self.span().path_message();
-        // let snippet_message = self.span().snippet_message();
-        f.pad(&format!(
-            "{}: {}",
-            "parse error".bright_red().bold(),
-            self.error_message().bright_white(),
-        ))
     }
 }
