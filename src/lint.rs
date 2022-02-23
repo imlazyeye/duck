@@ -115,15 +115,15 @@ pub enum LintCategory {
     /// Code that could be written in a more idomatic way.
     Style,
     /// Lints that express strict opinions over GML and depend greatly on preference.
-    Pedantic,
+    Strict,
 }
 impl LintCategory {
     pub fn default_level(&self) -> LintLevel {
         match self {
             LintCategory::Correctness => LintLevel::Deny,
             LintCategory::Suspicious => LintLevel::Warn,
-            LintCategory::Style => LintLevel::Allow,
-            LintCategory::Pedantic => LintLevel::Allow,
+            LintCategory::Style => LintLevel::Warn,
+            LintCategory::Strict => LintLevel::Allow,
         }
     }
 }

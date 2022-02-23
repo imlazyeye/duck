@@ -17,7 +17,7 @@ impl Lint for NonConstantDefaultParameter {
     }
 
     fn category() -> LintCategory {
-        LintCategory::Pedantic
+        LintCategory::Strict
     }
 
     fn tag() -> &'static str {

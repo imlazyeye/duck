@@ -15,7 +15,7 @@ impl Lint for RoomGoto {
     }
 
     fn category() -> LintCategory {
-        LintCategory::Pedantic
+        LintCategory::Strict
     }
 
     fn tag() -> &'static str {

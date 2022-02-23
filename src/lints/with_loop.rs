@@ -18,7 +18,7 @@ impl Lint for WithLoop {
     }
 
     fn category() -> LintCategory {
-        LintCategory::Pedantic
+        LintCategory::Strict
     }
 
     fn tag() -> &'static str {

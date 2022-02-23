@@ -1,3 +1,4 @@
+use crate::parsing::expression::Scope;
 use crate::parsing::parser::Parser;
 use crate::parsing::{
     expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator},
@@ -49,6 +50,29 @@ fn enum_with_values() {
                     Some(Expression::Literal(Literal::Real(20.0)).lazy_box()),
                 ),
                 ("Baz".into(), None),
+            ],
+        ),
+    )
+}
+
+#[test]
+fn enum_with_neighbor_values() {
+    harness_stmt(
+        "enum Foo { Bar, Baz = Foo.Bar }",
+        Statement::EnumDeclaration(
+            "Foo".into(),
+            vec![
+                ("Bar".into(), None),
+                (
+                    "Baz".into(),
+                    Some(
+                        Expression::Access(
+                            Scope::Dot(Expression::Identifier("Foo".into()).lazy_box()),
+                            Expression::Identifier("Bar".into()).lazy_box(),
+                        )
+                        .lazy_box(),
+                    ),
+                ),
             ],
         ),
     )

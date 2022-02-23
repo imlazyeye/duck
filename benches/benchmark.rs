@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use duck::{parsing::Parser, Duck};
-use yy_boss::{Resource, YyResource, YypBoss};
+// use yy_boss::{Resource, YyResource, YypBoss};
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     // let boss = YypBoss::with_startup_injest(

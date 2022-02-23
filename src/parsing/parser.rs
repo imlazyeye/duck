@@ -445,7 +445,7 @@ impl<'a> Parser<'a> {
             .flatten()
         {
             self.pilot.take()?;
-            let right = self.binary()?;
+            let right = self.equality()?;
             Ok(Expression::Equality(expression, operator, right).into_box(self.span(start)))
         } else {
             Ok(expression)
@@ -470,7 +470,7 @@ impl<'a> Parser<'a> {
             .flatten()
         {
             self.pilot.take()?;
-            let right = self.bitshift()?;
+            let right = self.binary()?;
             Ok(Expression::Evaluation(expression, operator, right).into_box(self.span(start)))
         } else {
             Ok(expression)
@@ -494,7 +494,7 @@ impl<'a> Parser<'a> {
             .flatten()
         {
             self.pilot.take()?;
-            let right = self.addition()?;
+            let right = self.bitshift()?;
             Ok(Expression::Evaluation(expression, operator, right).into_box(self.span(start)))
         } else {
             Ok(expression)
@@ -652,7 +652,6 @@ impl<'a> Parser<'a> {
     }
 
     fn supreme(&mut self) -> Result<ExpressionBox, ParseError> {
-        let start = self.pilot.cursor();
         let mut has_new = self.pilot.match_take(Token::New);
         let mut expression = Some(self.call(None, has_new.take().is_some())?);
         loop {

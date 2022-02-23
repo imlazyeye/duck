@@ -313,6 +313,23 @@ fn bitwise_or() {
 }
 
 #[test]
+fn bitwise_chain() {
+    harness_expr(
+        "1 | 1 | 1",
+        Expression::Evaluation(
+            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            EvaluationOperator::Or,
+            Expression::Evaluation(
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                EvaluationOperator::Or,
+                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            )
+            .lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn bitwise_xor() {
     harness_expr(
         "1 ^ 1",
@@ -320,6 +337,26 @@ fn bitwise_xor() {
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Xor,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn dot_access_bitwise() {
+    harness_expr(
+        "foo.bar | foo.bar",
+        Expression::Evaluation(
+            Expression::Access(
+                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
+                Expression::Identifier("bar".into()).lazy_box(),
+            )
+            .lazy_box(),
+            EvaluationOperator::Or,
+            Expression::Access(
+                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
+                Expression::Identifier("bar".into()).lazy_box(),
+            )
+            .lazy_box(),
         ),
     );
 }
