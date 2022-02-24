@@ -1,4 +1,7 @@
-use crate::{parsing::expression::Expression, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Duck, Lint,
+    LintCategory, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct AnonymousConstructor;
@@ -24,8 +27,10 @@ impl Lint for AnonymousConstructor {
     fn tag() -> &'static str {
         "anonymous_constructor"
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for AnonymousConstructor {
+    fn visit_expression_early(
         _duck: &Duck,
         expression: &Expression,
         span: Span,

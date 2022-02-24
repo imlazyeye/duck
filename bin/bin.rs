@@ -1,10 +1,12 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use duck::config::Config;
+use duck::gml::GmlCollection;
+use duck::parsing::parser::Ast;
 use duck::parsing::ParseError;
 use duck::LintReport;
 use duck::{utils::FilePreviewUtil, Duck, LintLevel};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[macro_use]
 extern crate log;
@@ -45,16 +47,36 @@ fn run_lint(path: Option<PathBuf>) {
         Duck::new()
     };
 
-    let mut lint_report_registrar: Vec<(String, PathBuf, Vec<LintReport>)> = vec![];
+    // Collect all the asts...
+    let mut lint_report_registrar: Vec<(&str, &Path, Vec<LintReport>)> = vec![];
     let mut parse_error_registrar: Vec<(String, PathBuf, ParseError)> = vec![];
     let mut io_errors: Vec<std::io::Error> = vec![];
+    let mut collection = GmlCollection::new();
+    let mut asts: Vec<(String, PathBuf, Ast)> = vec![];
     duck::fs::visit_all_gml_files(current_directory, &mut io_errors, |gml, path| {
-        let mut reports = vec![];
-        match duck.lint_gml(gml.clone(), &path, &mut reports) {
-            Ok(_) => lint_report_registrar.push((gml, path, reports)),
+        match duck.parse_gml(&gml, &path) {
+            Ok(ast) => asts.push((gml, path, ast)),
             Err(e) => parse_error_registrar.push((gml, path, e)),
         }
     });
+
+    // Early pass
+    for (gml, path, ast) in asts.iter() {
+        let mut reports = vec![];
+        for statement in ast.iter() {
+            duck.process_statement_early(statement, &mut collection, &mut reports);
+        }
+        lint_report_registrar.push((gml, path, reports));
+    }
+
+    // Late pass
+    for (gml, path, ast) in asts.iter() {
+        let mut reports = vec![];
+        for statement in ast.iter() {
+            duck.process_statement_late(statement, &collection, &mut reports);
+        }
+        lint_report_registrar.push((gml, path, reports));
+    }
 
     let mut deny_count = 0;
     let mut warn_count = 0;

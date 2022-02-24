@@ -1,6 +1,6 @@
-use std::iter::Peekable;
-use crate::utils::Span;
 use super::{lexer::Lexer, token::Token, utils::ParseError};
+use crate::utils::Span;
+use std::iter::Peekable;
 
 pub(super) struct TokenPilot<'a> {
     lexer: Peekable<Lexer<'a>>,

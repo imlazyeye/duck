@@ -2,6 +2,16 @@ use async_walkdir::{DirEntry, Filtering, WalkDir};
 use futures_lite::StreamExt;
 use std::path::PathBuf;
 
+pub fn collect_all_gml_files(
+    project_path: PathBuf,
+    errors: &mut Vec<std::io::Error>,
+    collection: &mut Vec<(String, PathBuf)>,
+) {
+    visit_all_gml_files(project_path, errors, |gml, path| {
+        collection.push((gml, path))
+    });
+}
+
 pub fn visit_all_gml_files<F: FnMut(String, PathBuf)>(
     project_path: PathBuf,
     errors: &mut Vec<std::io::Error>,

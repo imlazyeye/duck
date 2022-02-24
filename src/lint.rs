@@ -1,4 +1,5 @@
 use crate::{
+    gml::GmlCollection,
     parsing::{expression::Expression, statement::Statement},
     utils::FilePreviewUtil,
     utils::Span,
@@ -34,28 +35,48 @@ pub trait Lint {
         report.suggestions.extend(additional_suggestions);
         report
     }
+}
 
-    /// Ran on all expressions.
-    #[allow(unused_mut)]
-    #[allow(unused_variables)]
-    fn visit_expression(
-        duck: &Duck,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-    }
-
-    /// Ran on all statements.
-    #[allow(unused_mut)]
-    #[allow(unused_variables)]
-    fn visit_statement(
+/// Lints who run an early pass on statements (before type information has been collected).
+pub trait EarlyStatementPass {
+    fn visit_statement_early(
         duck: &Duck,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
-    ) {
-    }
+    );
+}
+
+/// Lints who run an early pass on expressions (before type information has been collected).
+pub trait EarlyExpressionPass {
+    fn visit_expression_early(
+        duck: &Duck,
+        expression: &Expression,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    );
+}
+
+/// Lints who run a late pass on statements (after type information has been collected).
+pub trait LateStatementPass {
+    fn visit_statement_late(
+        duck: &Duck,
+        gml_collection: &GmlCollection,
+        statement: &Statement,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    );
+}
+
+/// Lints who run a late pass on expresions (after type information has been collected).
+pub trait LateExpressionPass {
+    fn visit_expression_late(
+        duck: &Duck,
+        gml_collection: &GmlCollection,
+        expression: &Expression,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    );
 }
 
 /// The three different levels a lint can be set to, changing how it will be treated.

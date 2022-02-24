@@ -1,10 +1,13 @@
 use super::expression::ExpressionBox;
-use crate::utils::Span;
+use crate::{
+    gml::{GmlEnum, GmlSwitch},
+    utils::Span,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     MacroDeclaration(String, Option<String>, String),
-    EnumDeclaration(String, Vec<(String, Option<ExpressionBox>)>),
+    EnumDeclaration(GmlEnum),
     GlobalvarDeclaration(String),
     LocalVariableSeries(Vec<(String, Option<ExpressionBox>)>),
     TryCatch(
@@ -19,7 +22,7 @@ pub enum Statement {
     DoUntil(StatementBox, ExpressionBox),
     While(ExpressionBox, StatementBox),
     If(ExpressionBox, StatementBox, Option<StatementBox>, bool),
-    Switch(ExpressionBox, Vec<Case>, Option<Vec<StatementBox>>),
+    Switch(GmlSwitch),
     Block(Vec<StatementBox>),
     Return(Option<ExpressionBox>),
     Break,
@@ -65,13 +68,13 @@ impl Statement {
                     statement_visitor(else_branch);
                 }
             }
-            Statement::Switch(_, cases, default) => {
-                for case in cases {
-                    for statement in case.1.iter() {
+            Statement::Switch(switch) => {
+                for case in switch.cases() {
+                    for statement in case.iter_body_statement_boxes() {
                         statement_visitor(statement);
                     }
                 }
-                if let Some(default) = default {
+                if let Some(default) = switch.default_case() {
                     for statement in default.iter() {
                         statement_visitor(statement);
                     }
@@ -83,7 +86,7 @@ impl Statement {
                 }
             }
             Statement::MacroDeclaration(_, _, _)
-            | Statement::EnumDeclaration(_, _)
+            | Statement::EnumDeclaration(_)
             | Statement::GlobalvarDeclaration(_)
             | Statement::LocalVariableSeries(_)
             | Statement::Return(_)
@@ -99,10 +102,14 @@ impl Statement {
         E: FnMut(&ExpressionBox),
     {
         match self {
-            Statement::EnumDeclaration(_, members) => {
-                members.iter().flat_map(|(_, i)| i).for_each(|member| {
-                    expression_visitor(member);
-                });
+            Statement::EnumDeclaration(gml_enum) => {
+                gml_enum
+                    .members()
+                    .iter()
+                    .flat_map(|member| member.initializer())
+                    .for_each(|initializer| {
+                        expression_visitor(initializer);
+                    });
             }
             Statement::GlobalvarDeclaration(_) => {}
             Statement::LocalVariableSeries(members) => {
@@ -110,10 +117,10 @@ impl Statement {
                     expression_visitor(member);
                 }
             }
-            Statement::Switch(identity, cases, _) => {
-                expression_visitor(identity);
-                for case in cases {
-                    expression_visitor(&case.0);
+            Statement::Switch(switch) => {
+                expression_visitor(switch.matching_value());
+                for case in switch.cases() {
+                    expression_visitor(case.identity_box());
                 }
             }
             Statement::Return(value) => {
@@ -150,6 +157,3 @@ impl StatementBox {
         self.1
     }
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Case(pub ExpressionBox, pub Vec<StatementBox>); // kinda a block?

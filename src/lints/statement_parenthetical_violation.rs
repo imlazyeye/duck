@@ -1,4 +1,5 @@
 use crate::{
+    lint::EarlyStatementPass,
     parsing::{expression::Expression, statement::Statement},
     utils::Span,
     Duck, Lint, LintCategory, LintReport,
@@ -25,42 +26,45 @@ impl Lint for StatementParentheticalViolation {
     fn tag() -> &'static str {
         "statement_parenthetical_violation"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for StatementParentheticalViolation {
+    fn visit_statement_early(
         duck: &Duck,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        match statement {
-            Statement::Switch(expression, ..)
-            | Statement::If(expression, ..)
+        let expression = match statement {
+            Statement::Switch(switch) => Some(switch.matching_value()),
+            Statement::If(expression, ..)
             | Statement::DoUntil(_, expression)
             | Statement::While(expression, ..)
             | Statement::With(expression, ..)
-            | Statement::Repeat(expression, ..) => {
-                let has_grouping = matches!(expression.expression(), Expression::Grouping(_));
-                if has_grouping && !duck.config().statement_parentheticals {
-                    reports.push(Self::generate_report_with(
-                        span,
-                        "Parenthetical in statement expression",
-                        [
-                            "Remove the wrapping parenthesis from this expression".into(),
-                            "Change your preferences for this lint in .duck.toml".into(),
-                        ],
-                    ))
-                } else if !has_grouping && duck.config().statement_parentheticals {
-                    reports.push(Self::generate_report_with(
-                        span,
-                        "Lacking parenthetical in statement expression",
-                        [
-                            "Add wrapping parenthesis from this expression".into(),
-                            "Change your preferences for this lint in .duck.toml".into(),
-                        ],
-                    ))
-                }
+            | Statement::Repeat(expression, ..) => Some(expression),
+            _ => None,
+        };
+        if let Some(expression) = expression {
+            let has_grouping = matches!(expression.expression(), Expression::Grouping(_));
+            if has_grouping && !duck.config().statement_parentheticals {
+                reports.push(Self::generate_report_with(
+                    span,
+                    "Parenthetical in statement expression",
+                    [
+                        "Remove the wrapping parenthesis from this expression".into(),
+                        "Change your preferences for this lint in .duck.toml".into(),
+                    ],
+                ))
+            } else if !has_grouping && duck.config().statement_parentheticals {
+                reports.push(Self::generate_report_with(
+                    span,
+                    "Lacking parenthetical in statement expression",
+                    [
+                        "Add wrapping parenthesis from this expression".into(),
+                        "Change your preferences for this lint in .duck.toml".into(),
+                    ],
+                ))
             }
-            _ => {}
         }
     }
 }

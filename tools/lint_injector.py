@@ -14,8 +14,10 @@ for root, dirs, files in os.walk('../src/lints/'):
         lints.append({
             'name': lint_name,
             'file_name':  file_name.replace('.rs', ''),
-            'visits_expression': 'fn visit_expression' in lint_file,
-            'visits_statement': 'fn visit_statement' in lint_file,
+            'visits_expression_early': 'impl EarlyExpressionPass' in lint_file,
+            'visits_statement_early': 'impl EarlyStatementPass' in lint_file,
+            'visits_expression_late': 'impl LateExpressionPass' in lint_file,
+            'visits_statement_late': 'impl LateStatementPass' in lint_file,
         })
 
 # Sort them alphabetically
@@ -33,60 +35,75 @@ with open('../src/lints.rs', 'w') as f:
 # Gather the old calls
 duck = open('../src/duck.rs', "r").read()
 
-search = re.search(
-    r'( +)// @expression calls.+\n((\n|.)+?) +// @end expression calls.+', duck)
-expression_tabs = search.group(1)
-old_expression_call = search.group(2)
+opreations = [
+    {
+        'name': 'early expression',
+        'tag': 'visits_expression_early',
+        'function_name': 'run_early_lint_on_expression',
+        'args': 'expression, span, reports'
+    },
+    {
+        'name': 'early statement',
+        'tag': 'visits_statement_early',
+        'function_name': 'run_early_lint_on_statement',
+        'args': 'statement, span, reports'
+    },
+    {
+        'name': 'late expression',
+        'tag': 'visits_expression_late',
+        'function_name': 'run_late_lint_on_expression',
+        'args': 'expression, collection, span, reports'
+    },
+    {
+        'name': 'late statement',
+        'tag': 'visits_statement_late',
+        'function_name': 'run_late_lint_on_statement',
+        'args': 'statement, collection, span, reports'
+    }
+]
 
-search = re.search(
-    r'( +)// @statement calls.+\n((\n|.)+?) +// @end statement calls.+', duck)
-statement_tabs = search.group(1)
-old_statement_call = search.group(2)
+for operation in opreations:
+    name = operation['name']
+    tag = operation['tag']
+    function_name = operation['function_name']
+    args = operation['args']
 
-# Print what we'll be adding to expressions...
-old_lints = []
-for line in old_expression_call.splitlines():
-    lint = re.search(
-        r'self.try_run_lint_on_expression::<(\w+)>', line).group(1)
-    old_lints.append(lint)
-    if not any(d['name'] == lint for d in lints if d['visits_expression']):
-        print("Removing '{lint}'...".format(lint=lint))
-for lint in lints:
-    if lint['visits_expression'] and not lint['name'] in old_lints:
-        print("Adding '{lint}'...".format(lint=lint['name']))
+    search = re.search(
+        r'( +)// @{name} calls.+\n((\n|.)+?) +// @end {name} calls.+'.format(name=name), duck)
+    tabs = search.group(1)
+    old_call = search.group(2)
 
+    # Print what we'll be adding...
+    old_lints = []
+    for line in old_call.splitlines():
+        search = re.search(function_name + r'::<(\w+)>', line)
+        if search != None:
+            lint = search.group(1)
+            old_lints.append(lint)
+            if not any(d['name'] == lint for d in lints if d[tag]):
+                print(
+                    "Removing '{lint}' from the {name} call...".format(lint=lint, name=name))
+    for lint in lints:
+        if lint[tag] and not lint['name'] in old_lints:
+            print("Adding '{lint}' to the {name} call...".format(
+                lint=lint['name'],
+                name=name,
+            ))
 
-# Make the new expression calls
-new_expression_call = ''
-for lint in lints:
-    if lint['visits_expression']:
-        new_expression_call += '{tabs}self.try_run_lint_on_expression::<{lint}>(expression, span, reports);\n'.format(
-            tabs=expression_tabs,
-            lint=lint['name']
-        )
+    # Make the new calls
+    new_call = ''
+    for lint in lints:
+        if lint[tag]:
+            new_call += '{tabs}self.{function_name}::<{lint}>({args});\n'.format(
+                tabs=tabs,
+                function_name=function_name,
+                lint=lint['name'],
+                args=args,
+            )
 
+    # Replace the calls in the file
+    duck = duck.replace(old_call, new_call)
 
-# Print what we'll be adding to statements...
-old_lints = []
-for line in old_statement_call.splitlines():
-    lint = re.search(r'self.try_run_lint_on_statement::<(\w+)>', line).group(1)
-    old_lints.append(lint)
-    if not any(d['name'] == lint for d in lints if d['visits_statement']):
-        print("Removing '{lint}'...".format(lint=lint))
-for lint in lints:
-    if lint['visits_statement'] and not lint['name'] in old_lints:
-        print("Adding '{lint}'...".format(lint=lint['name']))
-
-# Make the new statement calls
-new_statement_call = ''
-for lint in lints:
-    if lint['visits_statement']:
-        new_statement_call += '{tabs}self.try_run_lint_on_statement::<{lint}>(statement, span, reports);\n'.format(
-            tabs=statement_tabs, lint=lint['name']
-        )
-
-# Replace the calls in the file
-duck = duck.replace(old_expression_call, new_expression_call)
-duck = duck.replace(old_statement_call, new_statement_call)
+# Flush to the file
 open('../src/duck.rs', 'w').write(duck)
 print("Finished updating lint calls!")

@@ -1,4 +1,7 @@
-use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct WithLoop;
@@ -24,8 +27,10 @@ impl Lint for WithLoop {
     fn tag() -> &'static str {
         "with_loop"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for WithLoop {
+    fn visit_statement_early(
         _duck: &Duck,
         statement: &crate::parsing::statement::Statement,
         span: Span,

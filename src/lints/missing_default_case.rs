@@ -1,4 +1,7 @@
-use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct MissingDefaultCase;
@@ -21,15 +24,19 @@ impl Lint for MissingDefaultCase {
     fn tag() -> &'static str {
         "missing_default_case"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for MissingDefaultCase {
+    fn visit_statement_early(
         _duck: &Duck,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Statement::Switch(_, _, None) = statement {
-            reports.push(Self::generate_report(span))
+        if let Statement::Switch(switch) = statement {
+            if switch.default_case().is_none() {
+                reports.push(Self::generate_report(span))
+            }
         }
     }
 }

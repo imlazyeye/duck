@@ -1,4 +1,5 @@
 use crate::{
+    lint::EarlyExpressionPass,
     parsing::expression::{EqualityOperator, Expression, Literal},
     utils::Span,
     Duck, Lint, LintCategory, LintReport,
@@ -25,8 +26,10 @@ impl Lint for BoolEquality {
     fn tag() -> &'static str {
         "bool_equality"
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for BoolEquality {
+    fn visit_expression_early(
         _duck: &Duck,
         expression: &Expression,
         span: Span,

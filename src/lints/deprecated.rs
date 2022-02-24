@@ -1,4 +1,5 @@
 use crate::{
+    lint::{EarlyExpressionPass, EarlyStatementPass},
     parsing::{
         expression::{Expression, Scope},
         statement::Statement,
@@ -29,8 +30,10 @@ impl Lint for Deprecated {
     fn tag() -> &'static str {
         "deprecated"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for Deprecated {
+    fn visit_statement_early(
         _duck: &Duck,
         statement: &Statement,
         span: Span,
@@ -47,8 +50,10 @@ impl Lint for Deprecated {
             ));
         }
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for Deprecated {
+    fn visit_expression_early(
         _duck: &Duck,
         expression: &crate::parsing::expression::Expression,
         span: Span,

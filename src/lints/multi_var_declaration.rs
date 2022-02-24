@@ -1,4 +1,7 @@
-use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct MultiVarDeclaration;
@@ -21,8 +24,10 @@ impl Lint for MultiVarDeclaration {
     fn tag() -> &'static str {
         "multi_var_declaration"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for MultiVarDeclaration {
+    fn visit_statement_early(
         _duck: &Duck,
         statement: &Statement,
         span: Span,

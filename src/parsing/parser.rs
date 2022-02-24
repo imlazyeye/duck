@@ -1,13 +1,14 @@
 use std::path::PathBuf;
 
 use crate::{
+    gml::{GmlEnum, GmlSwitch, GmlSwitchCase},
     parsing::{expression::EvaluationOperator, ParseError},
     utils::Span,
 };
 
 use super::{
     expression::{Constructor, Expression, ExpressionBox, Literal, Parameter, Scope},
-    statement::{Case, Statement, StatementBox},
+    statement::{Statement, StatementBox},
     token_pilot::TokenPilot,
     Token,
 };
@@ -88,8 +89,8 @@ impl<'a> Parser<'a> {
         let start = self.pilot.cursor();
         self.pilot.require(Token::Enum)?;
         let name = self.pilot.require_identifier()?;
+        let mut gml_enum = GmlEnum::new(name);
         self.pilot.require(Token::LeftBrace)?;
-        let mut members = vec![];
         loop {
             if self.pilot.match_take(Token::RightBrace).is_some() {
                 break;
@@ -100,12 +101,12 @@ impl<'a> Parser<'a> {
                 } else {
                     None
                 };
-                members.push((name, initializer));
+                gml_enum.register_member(name, initializer);
                 self.pilot.match_take(Token::Comma);
             }
         }
         // gml_collector.register_enum(enum.clone());
-        Ok(Statement::EnumDeclaration(name, members).into_box(self.span(start)))
+        Ok(Statement::EnumDeclaration(gml_enum).into_box(self.span(start)))
     }
 
     fn try_catch(&mut self) -> Result<StatementBox, ParseError> {
@@ -212,7 +213,7 @@ impl<'a> Parser<'a> {
                     // todo: validate constant
                     self.pilot.require(Token::Colon)?;
                     let body = case_body(self)?;
-                    members.push(Case(identity, body))
+                    members.push(GmlSwitchCase::new(identity, body))
                 }
                 Token::Default => {
                     self.pilot.take()?;
@@ -231,7 +232,10 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        Ok(Statement::Switch(expression, members, default).into_box(self.span(start)))
+        Ok(
+            Statement::Switch(GmlSwitch::new(expression, members, default))
+                .into_box(self.span(start)),
+        )
     }
 
     fn block(&mut self) -> Result<StatementBox, ParseError> {

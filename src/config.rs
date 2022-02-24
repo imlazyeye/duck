@@ -9,6 +9,7 @@ pub struct Config {
     pub statement_parentheticals: bool,
     pub var_prefixes: bool,
     pub english_flavor: Option<EnglishFlavor>,
+    pub length_enum_member_name: Option<String>,
     pub lint_levels: HashMap<String, LintLevel>,
 }
 impl Default for Config {
@@ -19,6 +20,7 @@ impl Default for Config {
             statement_parentheticals: true,
             var_prefixes: true,
             lint_levels: Default::default(),
+            length_enum_member_name: None,
             english_flavor: Some(EnglishFlavor::American),
         }
     }
@@ -37,6 +39,11 @@ impl Config {
     /// Get the duck config's english flavor.
     pub fn english_flavor(&self) -> Option<EnglishFlavor> {
         self.english_flavor
+    }
+
+    /// Get a reference to the config's length enum member name.
+    pub fn length_enum_member_name(&self) -> Option<&String> {
+        self.length_enum_member_name.as_ref()
     }
 }
 

@@ -1,4 +1,7 @@
-use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct VarPrefixViolation;
@@ -21,8 +24,10 @@ impl Lint for VarPrefixViolation {
     fn tag() -> &'static str {
         "var_prefix_violation"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for VarPrefixViolation {
+    fn visit_statement_early(
         duck: &Duck,
         statement: &Statement,
         span: Span,

@@ -1,8 +1,9 @@
+use crate::gml::{GmlEnum, GmlEnumMember, GmlSwitch, GmlSwitchCase};
 use crate::parsing::expression::Scope;
 use crate::parsing::parser::Parser;
 use crate::parsing::{
     expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator},
-    statement::{Case, Statement},
+    statement::Statement,
 };
 use pretty_assertions::assert_eq;
 
@@ -31,10 +32,13 @@ fn config_macro() {
 fn enum_declaration() {
     harness_stmt(
         "enum Foo { Bar, Baz }",
-        Statement::EnumDeclaration(
-            "Foo".into(),
-            vec![("Bar".into(), None), ("Baz".into(), None)],
-        ),
+        Statement::EnumDeclaration(GmlEnum::new_with_members(
+            "Foo",
+            vec![
+                GmlEnumMember::new("Bar", None),
+                GmlEnumMember::new("Baz", None),
+            ],
+        )),
     )
 }
 
@@ -42,16 +46,16 @@ fn enum_declaration() {
 fn enum_with_values() {
     harness_stmt(
         "enum Foo { Bar = 20, Baz }",
-        Statement::EnumDeclaration(
-            "Foo".into(),
+        Statement::EnumDeclaration(GmlEnum::new_with_members(
+            "Foo",
             vec![
-                (
-                    "Bar".into(),
+                GmlEnumMember::new(
+                    "Bar",
                     Some(Expression::Literal(Literal::Real(20.0)).lazy_box()),
                 ),
-                ("Baz".into(), None),
+                GmlEnumMember::new("Baz", None),
             ],
-        ),
+        )),
     )
 }
 
@@ -59,12 +63,12 @@ fn enum_with_values() {
 fn enum_with_neighbor_values() {
     harness_stmt(
         "enum Foo { Bar, Baz = Foo.Bar }",
-        Statement::EnumDeclaration(
-            "Foo".into(),
+        Statement::EnumDeclaration(GmlEnum::new_with_members(
+            "Foo",
             vec![
-                ("Bar".into(), None),
-                (
-                    "Baz".into(),
+                GmlEnumMember::new("Bar", None),
+                GmlEnumMember::new(
+                    "Baz",
                     Some(
                         Expression::Access(
                             Scope::Dot(Expression::Identifier("Foo".into()).lazy_box()),
@@ -74,7 +78,7 @@ fn enum_with_neighbor_values() {
                     ),
                 ),
             ],
-        ),
+        )),
     )
 }
 
@@ -339,11 +343,11 @@ fn if_else() {
 fn switch() {
     harness_stmt(
         "switch foo {}",
-        Statement::Switch(
+        Statement::Switch(GmlSwitch::new(
             Expression::Identifier("foo".into()).lazy_box(),
             vec![],
             None,
-        ),
+        )),
     )
 }
 
@@ -351,14 +355,14 @@ fn switch() {
 fn switch_with_case() {
     harness_stmt(
         "switch foo { case bar: break; }",
-        Statement::Switch(
+        Statement::Switch(GmlSwitch::new(
             Expression::Identifier("foo".into()).lazy_box(),
-            vec![Case(
+            vec![GmlSwitchCase::new(
                 Expression::Identifier("bar".into()).lazy_box(),
                 vec![Statement::Break.lazy_box()],
             )],
             None,
-        ),
+        )),
     )
 }
 
@@ -366,17 +370,17 @@ fn switch_with_case() {
 fn switch_case_fallthrough() {
     harness_stmt(
         "switch foo { case bar: case baz: break; }",
-        Statement::Switch(
+        Statement::Switch(GmlSwitch::new(
             Expression::Identifier("foo".into()).lazy_box(),
             vec![
-                Case(Expression::Identifier("bar".into()).lazy_box(), vec![]),
-                Case(
+                GmlSwitchCase::new(Expression::Identifier("bar".into()).lazy_box(), vec![]),
+                GmlSwitchCase::new(
                     Expression::Identifier("baz".into()).lazy_box(),
                     vec![Statement::Break.lazy_box()],
                 ),
             ],
             None,
-        ),
+        )),
     )
 }
 
@@ -384,11 +388,11 @@ fn switch_case_fallthrough() {
 fn switch_default() {
     harness_stmt(
         "switch foo { default: break; }",
-        Statement::Switch(
+        Statement::Switch(GmlSwitch::new(
             Expression::Identifier("foo".into()).lazy_box(),
             vec![],
             Some(vec![Statement::Break.lazy_box()]),
-        ),
+        )),
     )
 }
 

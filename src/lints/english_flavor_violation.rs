@@ -1,8 +1,8 @@
 use bimap::BiHashMap;
 
 use crate::{
-    config::EnglishFlavor, parsing::expression::Expression, utils::Span, Lint, LintCategory,
-    LintReport,
+    config::EnglishFlavor, lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span,
+    Lint, LintCategory, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -26,8 +26,10 @@ impl Lint for EnglishFlavorViolation {
     fn tag() -> &'static str {
         "british"
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for EnglishFlavorViolation {
+    fn visit_expression_early(
         duck: &crate::Duck,
         expression: &crate::parsing::expression::Expression,
         span: Span,

@@ -1,4 +1,5 @@
 use crate::{
+    lint::EarlyExpressionPass,
     parsing::expression::{Expression, Literal},
     utils::Span,
     Duck, Lint, LintCategory, LintReport,
@@ -25,8 +26,10 @@ impl Lint for AccessorAlternative {
     fn tag() -> &'static str {
         "accessor_alternative"
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for AccessorAlternative {
+    fn visit_expression_early(
         _duck: &Duck,
         expression: &Expression,
         span: Span,

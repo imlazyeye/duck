@@ -1,4 +1,5 @@
 use crate::{
+    lint::EarlyExpressionPass,
     parsing::expression::{AssignmentOperator, Expression, Literal},
     utils::Span,
     Duck, Lint, LintCategory, LintReport,
@@ -25,8 +26,10 @@ impl Lint for SuspicousConstantUsage {
     fn tag() -> &'static str {
         "suspicious_constant_usage"
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for SuspicousConstantUsage {
+    fn visit_expression_early(
         _duck: &Duck,
         expression: &Expression,
         span: Span,

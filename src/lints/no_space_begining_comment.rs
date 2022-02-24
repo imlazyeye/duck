@@ -21,23 +21,4 @@ impl Lint for NoSpaceBeginingComment {
     fn tag() -> &'static str {
         "no_space_begining_comment"
     }
-
-    // fn run(duck: &Duck) -> Vec<LintReport> {
-    //     let mut reports = vec![];
-    //     for comment in duck.comments() {
-    //         // Seek out that space
-    //         for c in comment.body().chars() {
-    //             match c {
-    //                 '/' | '*' => {}
-    //                 ' ' => {
-    //                     break;
-    //                 }
-    //                 _ => reports.push(LintReport {
-    //                     span: comment.span().clone(),
-    //                 }),
-    //             }
-    //         }
-    //     }
-    //     reports
-    // }
 }

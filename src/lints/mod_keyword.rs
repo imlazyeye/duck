@@ -21,16 +21,4 @@ impl Lint for ModKeyword {
     fn tag() -> &'static str {
         "mod_keyword"
     }
-
-    // fn run(duck: &Duck) -> Vec<LintReport> {
-    //     let mut reports = vec![];
-    //     for keyword in duck.keywords() {
-    //         if let (Token::Mod, span) = keyword {
-    //             reports.push(LintReport {
-    //                 span: span,
-    //             })
-    //         }
-    //     }
-    //     reports
-    // }
 }

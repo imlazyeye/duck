@@ -1,4 +1,8 @@
-use crate::{utils::Span, Lint, LintCategory, LintReport};
+use crate::{
+    gml::GmlCollection, lint::LateStatementPass, parsing::statement::Statement, utils::Span, Lint,
+    LintCategory, LintReport,
+};
+use itertools::Itertools;
 
 #[derive(Debug, PartialEq)]
 pub struct MissingCaseMember;
@@ -11,47 +15,99 @@ impl Lint for MissingCaseMember {
             explanation:  "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
             suggestions:  vec![
             "Add cases for the missing members".into(),
-            "Remove the imtentional crash from your default case".into(),
+            "Remove the intentional crash from your default case".into(),
         ],
             span,
         }
-    }
-
-    fn category() -> LintCategory {
-        LintCategory::Correctness
     }
 
     fn tag() -> &'static str {
         "missing_case_member"
     }
 
-    // fn run(duck: &Duck) -> Vec<LintReport> {
-    //     let mut reports = vec![];
-    //     for switch in duck.switches() {
-    //         if let GmlSwitchStatementDefault::TypeAssert(type_name) = switch.default_case() {
-    //             if let Some(gml_enum) = duck.enums().iter().find(|e| e.name() == type_name) {
-    //                 let missing_members = gml_enum
-    //                     .members()
-    //                     .iter()
-    //                     .filter(|member| {
-    //                         !matches!(member.name(), "Len".into() | "LEN".into() | "count".into() | "COUNT".into())
-    //                     })
-    //                     .any(|member| {
-    //                         !switch.cases().contains(&format!(
-    //                             "{}.{}".into(),
-    //                             gml_enum.name(),
-    //                             member.name()
-    //                         ))
-    //                     });
+    fn category() -> LintCategory {
+        LintCategory::Correctness
+    }
+}
 
-    //                 if missing_members {
-    //                     reports.push(LintReport {
-    //                         span: switch.span().clone(),
-    //                     })
-    //                 }
-    //             }
-    //         }
-    //     }
-    //     reports
-    // }
+impl LateStatementPass for MissingCaseMember {
+    fn visit_statement_late(
+        duck: &crate::Duck,
+        gml_collection: &GmlCollection,
+        statement: &crate::parsing::statement::Statement,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Statement::Switch(switch) = statement {
+            // Ignore switches that don't pertain to this lint
+            if switch.cases().is_empty() || !switch.all_case_members_dot_access()
+            // || switch.default_case().is_some() // TODO: detect crashing?
+            {
+                return;
+            }
+
+            // See if this is potentially switching over an enum
+            let gml_enum = if let Some(enum_name) = switch.potential_enum_type() {
+                if let Some(gml_enum) = gml_collection.find_enum(enum_name) {
+                    gml_enum
+                } else {
+                    // We don't recognize this enum -- abort
+                    return;
+                }
+            } else {
+                return;
+            };
+
+            // Let's assume the user isn't matching over multiple types (`multi_type_switch` will catch that)
+            // and check to make sure that every member of the enum is present.
+            // We could check here for EXTRA values -- as in, a case that has a member of the enum that does not
+            // exist -- but that won't compile in GM anyway, so we will ignore the possibility.
+            let mut member_names_discovered = vec![];
+            for case in switch.cases().iter() {
+                // Retrieve the dot access (we made sure this `unwrap` is safe with `all_case_members_dot_access` earlier!)
+                let (left, right) = case.identity().as_dot_access().unwrap();
+
+                // We are not safe to assume that the left and right are identifiers. It would be invalid gml if they weren't,
+                // but we don't want to panic regardless.
+
+                if let Some(this_identity_enum_name) = left.as_identifier() {
+                    if this_identity_enum_name != gml_enum.name() {
+                        // The user has different enums in the same switch statement -- abandon this lint, and rely on `multi_type_switch`
+                        return;
+                    }
+                } else {
+                    return; // invalid gml -- abandon this lint
+                }
+                if let Some(member_name) = right.as_identifier() {
+                    member_names_discovered.push(member_name);
+                } else {
+                    return; // invalid gml -- abandon this lint
+                };
+            }
+
+            // We have now collected all of members in this switch. Let's gather any missing members of the enum, and reduce them
+            // down into a string that lists them out.
+            let ignore_name = duck.config().length_enum_member_name();
+            let missing_members = gml_enum
+                .members()
+                .iter()
+                .map(|member| member.name())
+                .filter(|member| {
+                    ignore_name
+                        .map(|ignore_name| ignore_name != member)
+                        .unwrap_or(true)
+                        && !member_names_discovered.contains(member)
+                })
+                .join(", ");
+
+            // If we have any, make a report!
+            if !missing_members.is_empty() {
+                reports.push(Self::generate_report_with(
+                    span,
+                    format!("Missing case members: {}", missing_members),
+                    [],
+                ));
+            }
+        }
+    }
 }

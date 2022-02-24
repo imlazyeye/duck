@@ -116,6 +116,22 @@ impl Expression {
             Expression::Literal(_) | Expression::Identifier(_) => {}
         }
     }
+
+    pub fn as_identifier(&self) -> Option<&str> {
+        match self {
+            Expression::Identifier(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    pub fn as_dot_access(&self) -> Option<(&Expression, &Expression)> {
+        match self {
+            Expression::Access(Scope::Dot(left), right) => {
+                Some((left.expression(), right.expression()))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

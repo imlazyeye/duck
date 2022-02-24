@@ -1,4 +1,5 @@
 use crate::{
+    lint::EarlyExpressionPass,
     parsing::expression::{Expression, Scope},
     utils::Span,
     Duck, Lint, LintCategory, LintReport,
@@ -25,8 +26,10 @@ impl Lint for Global {
     fn tag() -> &'static str {
         "global"
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for Global {
+    fn visit_expression_early(
         _duck: &Duck,
         expression: &Expression,
         span: Span,

@@ -1,4 +1,7 @@
-use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct SingleSwitchCase;
@@ -21,15 +24,17 @@ impl Lint for SingleSwitchCase {
     fn tag() -> &'static str {
         "single_switch_case"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for SingleSwitchCase {
+    fn visit_statement_early(
         _duck: &Duck,
         statement: &crate::parsing::statement::Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Statement::Switch(_, cases, _) = statement {
-            if cases.len() == 1 {
+        if let Statement::Switch(switch) = statement {
+            if switch.cases().len() == 1 {
                 reports.push(Self::generate_report(span));
             }
         }

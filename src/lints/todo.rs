@@ -1,4 +1,7 @@
-use crate::{parsing::expression::Expression, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Duck, Lint,
+    LintCategory, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct Todo;
@@ -21,8 +24,10 @@ impl Lint for Todo {
     fn tag() -> &'static str {
         "todo"
     }
+}
 
-    fn visit_expression(
+impl EarlyExpressionPass for Todo {
+    fn visit_expression_early(
         duck: &Duck,
         expression: &Expression,
         span: Span,

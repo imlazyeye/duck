@@ -1,4 +1,7 @@
-use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct Exit;
@@ -21,8 +24,10 @@ impl Lint for Exit {
     fn tag() -> &'static str {
         "exit"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for Exit {
+    fn visit_statement_early(
         _duck: &Duck,
         statement: &Statement,
         span: Span,

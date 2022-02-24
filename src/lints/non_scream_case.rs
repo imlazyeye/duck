@@ -1,6 +1,9 @@
 use heck::ToShoutySnakeCase;
 
-use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
+use crate::{
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct NonScreamCase;
@@ -23,8 +26,10 @@ impl Lint for NonScreamCase {
     fn tag() -> &'static str {
         "non_scream_case"
     }
+}
 
-    fn visit_statement(
+impl EarlyStatementPass for NonScreamCase {
+    fn visit_statement_early(
         _duck: &Duck,
         statement: &Statement,
         span: Span,
