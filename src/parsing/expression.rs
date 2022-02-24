@@ -1,5 +1,5 @@
 use super::statement::StatementBox;
-use crate::Span;
+use crate::utils::Span;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
@@ -28,8 +28,93 @@ impl Expression {
     pub fn into_box(self, span: Span) -> ExpressionBox {
         ExpressionBox(Box::new(self), span)
     }
+
     pub fn lazy_box(self) -> ExpressionBox {
         ExpressionBox(Box::new(self), Span::default())
+    }
+
+    pub fn visit_child_statements<S>(&self, mut statement_visitor: S)
+    where
+        S: FnMut(&StatementBox),
+    {
+        if let Expression::FunctionDeclaration(_, _, _, body, _) = self {
+            statement_visitor(body);
+        }
+    }
+
+    pub fn visit_child_expressions<E>(&self, mut expression_visitor: E)
+    where
+        E: FnMut(&ExpressionBox),
+    {
+        match self {
+            Expression::FunctionDeclaration(_, parameters, constructor, _, _) => {
+                for parameter in parameters.iter() {
+                    if let Some(default_value) = &parameter.1 {
+                        expression_visitor(default_value);
+                    }
+                }
+                if let Some(Some(inheritance_call)) = constructor.as_ref().map(|c| &c.0) {
+                    expression_visitor(inheritance_call);
+                }
+            }
+            Expression::Logical(left, _, right)
+            | Expression::Equality(left, _, right)
+            | Expression::Evaluation(left, _, right)
+            | Expression::Assignment(left, _, right)
+            | Expression::NullCoalecence(left, right) => {
+                expression_visitor(left);
+                expression_visitor(right);
+            }
+            Expression::Ternary(condition, left, right) => {
+                expression_visitor(condition);
+                expression_visitor(left);
+                expression_visitor(right);
+            }
+            Expression::Unary(_, right) => {
+                expression_visitor(right);
+            }
+            Expression::Postfix(left, _) => {
+                expression_visitor(left);
+            }
+            Expression::Access(scope, expression) => {
+                expression_visitor(expression);
+                match scope {
+                    Scope::Dot(other) => {
+                        expression_visitor(other);
+                    }
+                    Scope::Array(x, y, _) => {
+                        expression_visitor(x);
+                        if let Some(y) = y {
+                            expression_visitor(y);
+                        }
+                    }
+                    Scope::Map(key) => {
+                        expression_visitor(key);
+                    }
+                    Scope::Grid(x, y) => {
+                        expression_visitor(x);
+                        expression_visitor(y);
+                    }
+                    Scope::List(index) => {
+                        expression_visitor(index);
+                    }
+                    Scope::Struct(key) => {
+                        expression_visitor(key);
+                    }
+                    Scope::Global | Scope::Current => {}
+                }
+            }
+            Expression::Call(left, arguments, _) => {
+                expression_visitor(left);
+                for arg in arguments {
+                    expression_visitor(arg);
+                }
+            }
+            Expression::Grouping(expression) => {
+                expression_visitor(expression);
+            }
+            Expression::Literal(_) | Expression::Identifier(_) => {}
+        }
     }
 }
 
@@ -110,6 +195,12 @@ pub enum PostfixOperator {
 pub enum Literal {
     True,
     False,
+    PointerNull,
+    PointerInvalid,
+    Undefined,
+    NaN,
+    Infinity,
+    Pi,
     String(String),
     Real(f64),
     Hex(String),

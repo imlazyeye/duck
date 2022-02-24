@@ -1,6 +1,9 @@
 use bimap::BiHashMap;
 
-use crate::{parsing::expression::Expression, EnglishFlavor, Lint, LintCategory, LintReport, Span};
+use crate::{
+    config::EnglishFlavor, parsing::expression::Expression, utils::Span, Lint, LintCategory,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct EnglishFlavorViolation;

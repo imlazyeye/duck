@@ -316,6 +316,12 @@ impl<'a> Lexer<'a> {
                         "static" => Some(Token::Static),
                         "then" => Some(Token::Then),
                         "finally" => Some(Token::Finally),
+                        "pointer_null" => Some(Token::PointerNull),
+                        "pointer_invalid" => Some(Token::PointerInvalid),
+                        "undefined" => Some(Token::Undefined),
+                        "NaN" => Some(Token::NaN),
+                        "infinity" => Some(Token::Infinity),
+                        "pi" => Some(Token::Pi),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }

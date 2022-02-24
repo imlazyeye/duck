@@ -1,7 +1,5 @@
 use std::iter::Peekable;
-
-use crate::Span;
-
+use crate::utils::Span;
 use super::{lexer::Lexer, token::Token, utils::ParseError};
 
 pub(super) struct TokenPilot<'a> {

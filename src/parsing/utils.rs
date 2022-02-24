@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::{FilePreviewUtil, Span};
+use crate::utils::{FilePreviewUtil, Span};
 
 use super::{expression::ExpressionBox, token::Token};
 

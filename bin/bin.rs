@@ -1,8 +1,9 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use duck::config::Config;
 use duck::parsing::ParseError;
-use duck::{Duck, FilePreviewUtil, LintLevel};
-use duck::{DuckConfig, LintReport};
+use duck::LintReport;
+use duck::{utils::FilePreviewUtil, Duck, LintLevel};
 use std::path::PathBuf;
 
 #[macro_use]
@@ -30,7 +31,7 @@ fn run_lint(path: Option<PathBuf>) {
 
     let mut config_usage = ConfigUsage::None;
     let mut duck = if let Ok(text) = std::fs::read_to_string(current_directory.join(".duck.toml")) {
-        match toml::from_str::<DuckConfig>(&text) {
+        match toml::from_str::<Config>(&text) {
             Ok(config) => {
                 config_usage = ConfigUsage::Some;
                 Duck::new_with_config(config)

@@ -1,4 +1,4 @@
-use crate::{Lint, LintCategory, LintReport, Span};
+use crate::{Lint, LintCategory, LintReport, utils::Span};
 
 #[derive(Debug, PartialEq)]
 pub struct AndKeyword;

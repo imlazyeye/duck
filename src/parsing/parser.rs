@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     parsing::{expression::EvaluationOperator, ParseError},
-    Span,
+    utils::Span,
 };
 
 use super::{
@@ -104,6 +104,7 @@ impl<'a> Parser<'a> {
                 self.pilot.match_take(Token::Comma);
             }
         }
+        // gml_collector.register_enum(enum.clone());
         Ok(Statement::EnumDeclaration(name, members).into_box(self.span(start)))
     }
 

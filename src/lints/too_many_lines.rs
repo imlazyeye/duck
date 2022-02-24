@@ -1,4 +1,4 @@
-use crate::{Lint, LintCategory, LintReport, Span};
+use crate::{utils::Span, Lint, LintCategory, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct TooManyLines;

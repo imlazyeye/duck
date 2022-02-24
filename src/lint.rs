@@ -1,6 +1,8 @@
 use crate::{
     parsing::{expression::Expression, statement::Statement},
-    Duck, FilePreviewUtil, Span,
+    utils::FilePreviewUtil,
+    utils::Span,
+    Duck,
 };
 use colored::Colorize;
 

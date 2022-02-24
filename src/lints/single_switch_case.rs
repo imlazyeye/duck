@@ -1,4 +1,4 @@
-use crate::{parsing::statement::Statement, Duck, Lint, LintCategory, LintReport, Span};
+use crate::{parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct SingleSwitchCase;

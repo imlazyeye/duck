@@ -1,4 +1,4 @@
-use crate::{parsing::expression::Expression, Duck, Lint, LintCategory, LintReport, Span};
+use crate::{parsing::expression::Expression, utils::Span, Duck, Lint, LintCategory, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct RoomGoto;

@@ -76,7 +76,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let mut reports = vec![];
             asts.clone().into_iter().flatten().for_each(|statement| {
-                duck.lint_statement(&statement, &mut reports);
+                duck.process_statement(&statement, &mut reports);
             })
         });
     });

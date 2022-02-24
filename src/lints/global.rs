@@ -1,6 +1,7 @@
 use crate::{
-    parsing::expression::{Scope, Expression},
-    Duck, Lint, LintCategory, LintReport, Span,
+    parsing::expression::{Expression, Scope},
+    utils::Span,
+    Duck, Lint, LintCategory, LintReport,
 };
 
 #[derive(Debug, PartialEq)]

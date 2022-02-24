@@ -3,7 +3,8 @@ use crate::{
         expression::{Expression, Scope},
         statement::Statement,
     },
-    Duck, Lint, LintCategory, LintReport, Span,
+    utils::Span,
+    Duck, Lint, LintCategory, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
