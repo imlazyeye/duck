@@ -152,6 +152,7 @@ impl LintCategory {
 }
 
 /// A report returned by a lint if it fails.
+#[derive(Debug)]
 pub struct LintReport {
     pub(super) display_name: String,
     pub(super) tag: &'static str,

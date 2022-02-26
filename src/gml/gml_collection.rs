@@ -18,4 +18,8 @@ impl GmlCollection {
     pub fn find_enum(&self, name: impl Into<String>) -> Option<&GmlEnum> {
         self.enums.get(&name.into())
     }
+
+    pub fn extend(&mut self, other: Self) {
+        self.enums.extend(other.enums)
+    }
 }

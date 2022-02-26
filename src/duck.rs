@@ -19,6 +19,7 @@ use crate::{
     parsing::{parser::Ast, ParseError, Parser},
 };
 
+#[derive(Debug)]
 pub struct Duck {
     config: Config,
 }
