@@ -1,9 +1,8 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use duck::{utils::FilePreviewUtil, Duck, LintLevel};
-use duck::{Config, DuckTask};
+use duck::Config;
+use duck::{utils::FilePreviewUtil, Duck};
 use std::path::PathBuf;
-use std::sync::Arc;
 
 #[macro_use]
 extern crate log;

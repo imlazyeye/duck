@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use duck::{parsing::TokenPilot, Config, Duck, DuckTask};
+use duck::{parsing::TokenPilot, Config, DuckTask};
 use std::{path::Path, sync::Arc};
 
 const DEMO_PROJECT_PATH: &str = "../SwordAndField";

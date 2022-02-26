@@ -42,15 +42,11 @@ impl GmlSwitch {
     /// }
     /// ```
     pub fn potential_enum_type(&self) -> Option<&str> {
-        self.cases
-            .first()
-            .map(|case| {
-                case.identity()
-                    .as_dot_access()
-                    .map(|(left, _)| left.as_identifier())
-                    .flatten()
-            })
-            .flatten()
+        self.cases.first().and_then(|case| {
+            case.identity()
+                .as_dot_access()
+                .and_then(|(left, _)| left.as_identifier())
+        })
     }
 
     /// Get a reference to the gml switch's matching value.

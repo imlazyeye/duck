@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Duck, Lint,
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Lint,
     LintCategory, LintReport,
 };
 

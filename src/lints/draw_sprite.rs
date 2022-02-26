@@ -1,6 +1,6 @@
 use crate::{
-    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Duck, Lint,
-    LintCategory, LintReport,
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Lint, LintCategory,
+    LintReport,
 };
 
 #[derive(Debug, PartialEq)]

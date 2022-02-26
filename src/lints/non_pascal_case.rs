@@ -4,7 +4,7 @@ use crate::{
     lint::{EarlyExpressionPass, EarlyStatementPass},
     parsing::{expression::Expression, statement::Statement},
     utils::Span,
-    Duck, Lint, LintCategory, LintReport,
+    Lint, LintCategory, LintReport,
 };
 
 #[derive(Debug, PartialEq)]

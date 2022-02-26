@@ -2,7 +2,7 @@ use crate::{
     lint::EarlyExpressionPass,
     parsing::expression::{Expression, Scope},
     utils::Span,
-    Duck, Lint, LintCategory, LintReport,
+    Lint, LintCategory, LintReport,
 };
 
 #[derive(Debug, PartialEq)]

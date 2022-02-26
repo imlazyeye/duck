@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter::Peekable};
+use std::iter::Peekable;
 
 use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 
@@ -402,15 +402,14 @@ impl<'a> Lexer<'a> {
     fn peek(&mut self) -> Option<char> {
         self.input_characters
             .peek()
-            .map(|(_, g)| g.chars().next()) // TODO OH NO
-            .flatten()
+            .and_then(|(_, g)| g.chars().next()) // TODO this is terrible!
     }
 
     /// Consumes and returns the next character in the source code.
     fn take(&mut self) -> Option<(usize, char)> {
         self.input_characters
             .next()
-            .map(|(c, g)| (c, g.chars().next().unwrap())) // TODO OH NO
+            .map(|(c, g)| (c, g.chars().next().unwrap())) // TODO this is terrible!
     }
 
     /// Consumes the next character in the source code if it matches the given character.

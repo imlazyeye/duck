@@ -1,7 +1,7 @@
 use heck::ToShoutySnakeCase;
 
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Duck, Lint, LintCategory,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
     LintReport,
 };
 

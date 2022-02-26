@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Duck, Lint,
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Lint,
     LintCategory, LintReport,
 };
 
@@ -28,7 +28,7 @@ impl Lint for DrawText {
 
 impl EarlyExpressionPass for DrawText {
     fn visit_expression_early(
-        _config: &crate::Config,
+        _config: &Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,

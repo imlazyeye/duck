@@ -113,7 +113,7 @@ impl Statement {
             }
             Statement::GlobalvarDeclaration(_) => {}
             Statement::LocalVariableSeries(members) => {
-                for member in members.iter().map(|(_, e)| e).flatten() {
+                for member in members.iter().flat_map(|(_, e)| e) {
                     expression_visitor(member);
                 }
             }

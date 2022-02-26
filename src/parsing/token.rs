@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::expression::{
     AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator,
     PostfixOperator, UnaryOperator,

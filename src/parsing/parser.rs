@@ -429,8 +429,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = self
             .pilot
             .soft_peek()
-            .map(|token| token.as_logical_operator())
-            .flatten()
+            .and_then(|token| token.as_logical_operator())
         {
             self.pilot.take()?;
             let right = self.logical()?;
@@ -446,8 +445,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = self
             .pilot
             .soft_peek()
-            .map(|token| token.as_equality_operator())
-            .flatten()
+            .and_then(|token| token.as_equality_operator())
         {
             self.pilot.take()?;
             let right = self.equality()?;
@@ -561,8 +559,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = self
             .pilot
             .soft_peek()
-            .map(|token| token.as_assignment_operator())
-            .flatten()
+            .and_then(|token| token.as_assignment_operator())
         {
             if !matches!(
                 expression.expression(),
@@ -599,8 +596,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = self
             .pilot
             .soft_peek()
-            .map(|token| token.as_postfix_operator())
-            .flatten()
+            .and_then(|token| token.as_postfix_operator())
         {
             self.pilot.take()?;
             Ok(Expression::Postfix(expression, operator).into_box(self.span(start)))

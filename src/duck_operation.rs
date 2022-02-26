@@ -163,6 +163,7 @@ impl DuckOperation {
     /// Runs an [Expression] through the late pass, running any lint that implements [LateExpressionPass].
     ///
     ///  NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for more information.
+    #[allow(dead_code)]
     fn process_expression_late(
         config: &Config,
         expression_box: &ExpressionBox,
@@ -170,6 +171,7 @@ impl DuckOperation {
         reports: &mut Vec<LintReport>,
     ) {
         let expression = expression_box.expression();
+        #[allow(unused_variables)]
         let span = expression_box.span();
 
         // @late expression calls. Do not remove this comment, it used for our autogeneration!
@@ -222,6 +224,7 @@ impl DuckOperation {
     }
 
     /// Performs a given [LateExpressionPass] on a statement.
+    #[allow(dead_code)]
     fn run_late_lint_on_expression<T: Lint + LateExpressionPass>(
         config: &Config,
         expression: &Expression,
