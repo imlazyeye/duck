@@ -4,6 +4,7 @@ pub mod parser;
 pub mod statement;
 pub mod token;
 mod token_pilot;
+pub use token_pilot::TokenPilot;
 pub mod utils;
 
 pub use parser::Parser;

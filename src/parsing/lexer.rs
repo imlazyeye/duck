@@ -1,4 +1,4 @@
-use std::iter::Peekable;
+use std::{collections::HashMap, iter::Peekable};
 
 use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 
@@ -22,48 +22,50 @@ impl<'a> Lexer<'a> {
     fn lex(&mut self) -> (usize, Token) {
         if let Some((start_index, chr)) = self.take() {
             let token_type = match chr {
-                // Match single tokens
-                ':' => Some(Token::Colon),
-                '{' => Some(Token::LeftBrace),
-                '}' => Some(Token::RightBrace),
+                id if id.is_whitespace() => return self.lex(),
+                '.' => {
+                    if self.peek().map(|c| matches!(c, '0'..='9')).unwrap_or(false) {
+                        let mut lexeme = String::from(chr);
+                        self.construct_number(&mut lexeme);
+                        Some(Token::Real(lexeme.parse().unwrap()))
+                    } else {
+                        Some(Token::Dot)
+                    }
+                }
+                ',' => Some(Token::Comma),
                 '(' => Some(Token::LeftParenthesis),
                 ')' => Some(Token::RightParenthesis),
-                '[' => Some(Token::LeftSquareBracket),
-                ']' => Some(Token::RightSquareBracket),
-                ',' => Some(Token::Comma),
                 ';' => Some(Token::SemiColon),
-                '@' => Some(Token::AtSign),
-                '~' => Some(Token::Tilde),
-                '%' => {
-                    if self.match_take('=') {
-                        Some(Token::PercentEqual)
+                '0' if self.match_take('x') => {
+                    let mut lexeme = String::new();
+                    self.construct_hex(&mut lexeme);
+                    if !lexeme.is_empty() {
+                        Some(Token::Hex(lexeme))
                     } else {
-                        Some(Token::Percent)
+                        Some(Token::Invalid(lexeme))
                     }
                 }
-                '?' => {
-                    if self.match_take('?') {
-                        if self.match_take('=') {
-                            Some(Token::DoubleInterrobangEquals)
-                        } else {
-                            Some(Token::DoubleInterrobang)
-                        }
+                '0'..='9' => {
+                    let mut lexeme = String::from(chr);
+                    self.construct_number(&mut lexeme);
+                    Some(Token::Real(lexeme.parse().unwrap()))
+                }
+                '=' => {
+                    if self.match_take('=') {
+                        Some(Token::DoubleEqual)
                     } else {
-                        Some(Token::Interrobang)
+                        Some(Token::Equal)
                     }
                 }
-                '^' => {
+                '{' => Some(Token::LeftBrace),
+                '}' => Some(Token::RightBrace),
+                '-' => {
                     if self.match_take('=') {
-                        Some(Token::CirumflexEqual)
+                        Some(Token::MinusEqual)
+                    } else if self.match_take('-') {
+                        Some(Token::DoubleMinus)
                     } else {
-                        Some(Token::Circumflex)
-                    }
-                }
-                '!' => {
-                    if self.match_take('=') {
-                        Some(Token::BangEqual)
-                    } else {
-                        Some(Token::Bang)
+                        Some(Token::Minus)
                     }
                 }
                 '+' => {
@@ -75,52 +77,12 @@ impl<'a> Lexer<'a> {
                         Some(Token::Plus)
                     }
                 }
-                '-' => {
-                    if self.match_take('=') {
-                        Some(Token::MinusEqual)
-                    } else if self.match_take('-') {
-                        Some(Token::DoubleMinus)
-                    } else {
-                        Some(Token::Minus)
-                    }
-                }
                 '*' => {
                     if self.match_take('=') {
                         Some(Token::StarEqual)
                     } else {
                         Some(Token::Star)
                     }
-                }
-                '=' => {
-                    if self.match_take('=') {
-                        Some(Token::DoubleEqual)
-                    } else {
-                        Some(Token::Equal)
-                    }
-                }
-                '"' => {
-                    let mut lexeme = String::new();
-                    let mut in_escape = false;
-                    loop {
-                        match self.take() {
-                            Some((_, chr)) => {
-                                if in_escape {
-                                    lexeme.push(chr);
-                                    in_escape = false;
-                                } else {
-                                    match chr {
-                                        '"' if !in_escape => break,
-                                        '\\' => {
-                                            in_escape = true;
-                                        }
-                                        _ => lexeme.push(chr),
-                                    }
-                                }
-                            }
-                            None => return (start_index, Token::Eof),
-                        }
-                    }
-                    Some(Token::StringLiteral(lexeme))
                 }
                 '<' => {
                     if self.match_take('=') {
@@ -158,6 +120,67 @@ impl<'a> Lexer<'a> {
                         Some(Token::Pipe)
                     }
                 }
+                ':' => Some(Token::Colon),
+                '[' => Some(Token::LeftSquareBracket),
+                ']' => Some(Token::RightSquareBracket),
+                '@' => Some(Token::AtSign),
+                '~' => Some(Token::Tilde),
+                '%' => {
+                    if self.match_take('=') {
+                        Some(Token::PercentEqual)
+                    } else {
+                        Some(Token::Percent)
+                    }
+                }
+                '?' => {
+                    if self.match_take('?') {
+                        if self.match_take('=') {
+                            Some(Token::DoubleInterrobangEquals)
+                        } else {
+                            Some(Token::DoubleInterrobang)
+                        }
+                    } else {
+                        Some(Token::Interrobang)
+                    }
+                }
+                '^' => {
+                    if self.match_take('=') {
+                        Some(Token::CirumflexEqual)
+                    } else {
+                        Some(Token::Circumflex)
+                    }
+                }
+                '!' => {
+                    if self.match_take('=') {
+                        Some(Token::BangEqual)
+                    } else {
+                        Some(Token::Bang)
+                    }
+                }
+                '"' => {
+                    let mut lexeme = String::new();
+                    let mut in_escape = false;
+                    loop {
+                        match self.take() {
+                            Some((_, chr)) => {
+                                if in_escape {
+                                    lexeme.push(chr);
+                                    in_escape = false;
+                                } else {
+                                    match chr {
+                                        '"' if !in_escape => break,
+                                        '\\' => {
+                                            in_escape = true;
+                                        }
+                                        _ => lexeme.push(chr),
+                                    }
+                                }
+                            }
+                            None => return (start_index, Token::Eof),
+                        }
+                    }
+                    Some(Token::StringLiteral(lexeme))
+                }
                 '$' => {
                     let mut lexeme = String::new();
                     self.construct_hex(&mut lexeme);
@@ -167,7 +190,6 @@ impl<'a> Lexer<'a> {
                         Some(Token::DollarSign)
                     }
                 }
-
                 // Regions / Macros
                 '#' => {
                     let mut lexeme = chr.into();
@@ -244,36 +266,6 @@ impl<'a> Lexer<'a> {
                     }
                 }
 
-                // Check for whitespace
-                id if id.is_whitespace() => return self.lex(),
-
-                // Another possible hex format...
-                '0' if self.match_take('x') => {
-                    let mut lexeme = String::new();
-                    self.construct_hex(&mut lexeme);
-                    if !lexeme.is_empty() {
-                        Some(Token::Hex(lexeme))
-                    } else {
-                        Some(Token::Invalid(lexeme))
-                    }
-                }
-
-                // Check for numbers
-                '.' => {
-                    if self.peek().map(|c| matches!(c, '0'..='9')).unwrap_or(false) {
-                        let mut lexeme = String::from(chr);
-                        self.construct_number(&mut lexeme);
-                        Some(Token::Real(lexeme.parse().unwrap()))
-                    } else {
-                        Some(Token::Dot)
-                    }
-                }
-                '0'..='9' => {
-                    let mut lexeme = String::from(chr);
-                    self.construct_number(&mut lexeme);
-                    Some(Token::Real(lexeme.parse().unwrap()))
-                }
-
                 // Check for keywords / identifiers
                 id if id.is_alphabetic() || id == '_' => {
                     let mut lexeme = chr.into();
@@ -281,47 +273,47 @@ impl<'a> Lexer<'a> {
 
                     // Now let's check for keywords
                     match lexeme.as_ref() {
-                        "switch" => Some(Token::Switch),
-                        "case" => Some(Token::Case),
-                        "break" => Some(Token::Break),
+                        "self" => Some(Token::SelfKeyword),
+                        "var" => Some(Token::Var),
                         "return" => Some(Token::Return),
-                        "default" => Some(Token::Default),
-                        "enum" => Some(Token::Enum),
-                        "and" => Some(Token::And),
-                        "or" => Some(Token::Or),
-                        "function" => Some(Token::Function),
-                        "constructor" => Some(Token::Constructor),
-                        "exit" => Some(Token::Exit),
+                        "case" => Some(Token::Case),
+                        "if" => Some(Token::If),
+                        "undefined" => Some(Token::Undefined),
+                        "break" => Some(Token::Break),
                         "new" => Some(Token::New),
-                        "global" => Some(Token::Global),
-                        "globalvar" => Some(Token::Globalvar),
-                        "mod" => Some(Token::Mod),
-                        "try" => Some(Token::Try),
-                        "with" => Some(Token::With),
+                        "function" => Some(Token::Function),
                         "true" => Some(Token::True),
                         "false" => Some(Token::False),
-                        "div" => Some(Token::Div),
-                        "if" => Some(Token::If),
-                        "else" => Some(Token::Else),
+                        "static" => Some(Token::Static),
                         "for" => Some(Token::For),
                         "while" => Some(Token::While),
+                        "and" => Some(Token::And),
+                        "or" => Some(Token::Or),
+                        "switch" => Some(Token::Switch),
+                        "constructor" => Some(Token::Constructor),
+                        "default" => Some(Token::Default),
+                        "continue" => Some(Token::Continue),
+                        "global" => Some(Token::Global),
+                        "div" => Some(Token::Div),
+                        "mod" => Some(Token::Mod),
+                        "enum" => Some(Token::Enum),
+                        "exit" => Some(Token::Exit),
+                        "repeat" => Some(Token::Repeat),
                         "do" => Some(Token::Do),
                         "until" => Some(Token::Until),
-                        "repeat" => Some(Token::Repeat),
-                        "var" => Some(Token::Var),
-                        "self" => Some(Token::SelfKeyword),
+                        "globalvar" => Some(Token::Globalvar),
+                        "with" => Some(Token::With),
+                        "else" => Some(Token::Else),
                         "xor" => Some(Token::Xor),
+                        "try" => Some(Token::Try),
                         "catch" => Some(Token::Catch),
-                        "continue" => Some(Token::Continue),
-                        "static" => Some(Token::Static),
-                        "then" => Some(Token::Then),
                         "finally" => Some(Token::Finally),
                         "pointer_null" => Some(Token::PointerNull),
                         "pointer_invalid" => Some(Token::PointerInvalid),
-                        "undefined" => Some(Token::Undefined),
                         "NaN" => Some(Token::NaN),
                         "infinity" => Some(Token::Infinity),
                         "pi" => Some(Token::Pi),
+                        "then" => Some(Token::Then),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
