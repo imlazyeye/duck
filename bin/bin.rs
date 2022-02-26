@@ -4,6 +4,7 @@ use duck::config::Config;
 use duck::fs::GmlWalker;
 use duck::gml::GmlCollection;
 use duck::parsing::parser::Ast;
+use duck::parsing::statement::StatementBox;
 use duck::parsing::ParseError;
 use duck::LintReport;
 use duck::{utils::FilePreviewUtil, Duck, LintLevel};
@@ -32,7 +33,6 @@ async fn main() {
 }
 
 async fn run_lint(path: Option<PathBuf>) {
-    info!("Starting up duck...");
     let timer = std::time::Instant::now();
     let current_directory = path
         .unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
@@ -63,9 +63,9 @@ async fn run_lint(path: Option<PathBuf>) {
     let lint_reports_arc = Arc::new(Mutex::new(lint_reports));
     let parse_errors_arc = Arc::new(Mutex::new(parse_errors));
     let mut gml_walker = GmlWalker::new(&current_directory);
-    let (path_sender, mut path_reciever) = channel::<PathBuf>(1000);
-    let (file_sender, mut file_reciever) = channel::<(PathBuf, String)>(1000);
-    let (ast_sender, mut ast_receiever) = channel::<(Ast, PathBuf, String)>(1000);
+    let (path_sender, mut path_reciever) = channel::<PathBuf>(1);
+    let (file_sender, mut file_reciever) = channel::<(PathBuf, String)>(1);
+    let (ast_sender, mut ast_receiever) = channel::<StatementBox>(1);
 
     // Look for files
     let walker_handle = tokio::task::spawn(async move {
@@ -78,32 +78,41 @@ async fn run_lint(path: Option<PathBuf>) {
     let file_handle = tokio::task::spawn(async move {
         while let Some(path) = path_reciever.recv().await {
             match tokio::fs::read_to_string(&path).await {
-                Ok(gml) => file_sender.send((path, gml)).await.unwrap(),
+                Ok(gml) => {
+                    file_sender.send((path, gml)).await.unwrap();
+                }
                 Err(io_error) => todo!(),
             };
         }
     });
 
     // Parse files
+    let lints_remaining_arc = Arc::new(Mutex::new(0));
+    let lints_remaining = lints_remaining_arc.clone();
     let duck = duck_arc.clone();
     let parse_handle = tokio::task::spawn(async move {
         while let Some((path, gml)) = file_reciever.recv().await {
-            match duck.lock().await.parse_gml(&gml, &path) {
-                Ok(ast) => ast_sender.send((ast, path, gml)).await.unwrap(),
+            match Duck::parse_gml(&gml, &path) {
+                Ok(ast) => {
+                    *lints_remaining.lock().await += ast.len();
+                    for statement in ast {
+                        let duck = duck.clone();
+                        let lint_reports = lint_reports_arc.clone();
+                        let lints_remaining = lints_remaining.clone();
+                        tokio::task::spawn(async move {
+                            let mut duck = duck.lock().await;
+                            let mut reports = lint_reports.lock().await;
+                            let mut gml_collection = GmlCollection::new(); // todo
+                            duck.process_statement_early(
+                                &statement,
+                                &mut gml_collection,
+                                &mut vec![],
+                            );
+                            *lints_remaining.lock().await -= 1;
+                        });
+                    }
+                }
                 Err(parse_error) => parse_errors_arc.lock().await.push((gml, path, parse_error)),
-            }
-        }
-    });
-
-    let duck = duck_arc.clone();
-    let lint_reports_arc = lint_reports_arc.clone();
-    let lint_handle = tokio::task::spawn(async move {
-        while let Some((ast, path, gml)) = ast_receiever.recv().await {
-            for statement in ast {
-                let mut duck = duck.lock().await;
-                let mut reports = lint_reports_arc.lock().await;
-                let mut gml_collection = GmlCollection::new(); // todo
-                duck.process_statement_early(&statement, &mut gml_collection, &mut vec![]);
             }
         }
     });
@@ -111,7 +120,12 @@ async fn run_lint(path: Option<PathBuf>) {
     walker_handle.await.unwrap();
     file_handle.await.unwrap();
     parse_handle.await.unwrap();
-    lint_handle.await.unwrap();
+    loop {
+        if *lints_remaining_arc.lock().await != 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_micros(100)).await;
+    }
 
     // duck::fs::gml_walker(current_directory, &mut io_errors, |gml, path| {
     //     match duck.parse_gml(&gml, &path) {

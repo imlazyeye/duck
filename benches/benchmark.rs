@@ -1,12 +1,16 @@
-use std::path::Path;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use duck::{
     fs::GmlWalker,
     gml::GmlCollection,
-    parsing::{Parser, TokenPilot},
-    Duck,
+    parsing::{parser::Ast, statement::StatementBox, ParseError, Parser, TokenPilot},
+    Duck, LintReport,
 };
+use tokio::sync::{mpsc::channel, Mutex};
 // use yy_boss::{Resource, YyResource, YypBoss};
 
 const DEMO_PROJECT_PATH: &str = "../SwordAndField";
@@ -47,30 +51,82 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     //         });
     // });
 
-    c.bench_function("FoM Ast -> Lint", |b| {
-        let duck = Duck::new();
-        let (project, _) = GmlWalker::new(Path::new(DEMO_PROJECT_PATH)).collect_all();
-        let asts = project
-            .into_iter()
-            .map(|(path, gml)| {
-                let mut source: &'static str = Box::leak(Box::new(gml));
-                let result = Parser::new(source, path).into_ast();
-                unsafe {
-                    drop(Box::from_raw(&mut source));
+    c.bench_function("Full Test", |b| {
+        b.to_async(tokio::runtime::Runtime::new().unwrap())
+            .iter(|| async {
+                let duck = Duck::new();
+                let mut lint_reports: Vec<(&str, &Path, Vec<LintReport>)> = vec![];
+                let mut parse_errors: Vec<(String, PathBuf, ParseError)> = vec![];
+                let mut io_errors: Vec<std::io::Error> = vec![];
+                let mut collection = GmlCollection::new();
+                let mut asts: Vec<(String, PathBuf, Ast)> = vec![];
+                let duck_arc = Arc::new(Mutex::new(duck));
+                let lint_reports_arc = Arc::new(Mutex::new(lint_reports));
+                let parse_errors_arc = Arc::new(Mutex::new(parse_errors));
+                let mut gml_walker = GmlWalker::new(Path::new(DEMO_PROJECT_PATH));
+                let (path_sender, mut path_reciever) = channel::<PathBuf>(1);
+                let (file_sender, mut file_reciever) = channel::<(PathBuf, String)>(1);
+                let (ast_sender, mut ast_receiever) = channel::<StatementBox>(1);
+
+                // Look for files
+                let walker_handle = tokio::task::spawn(async move {
+                    while let Some(path) = gml_walker.next().await {
+                        path_sender.send(path).await.unwrap();
+                    }
+                });
+
+                // Read files
+                let file_handle = tokio::task::spawn(async move {
+                    while let Some(path) = path_reciever.recv().await {
+                        match tokio::fs::read_to_string(&path).await {
+                            Ok(gml) => {
+                                file_sender.send((path, gml)).await.unwrap();
+                            }
+                            Err(io_error) => todo!(),
+                        };
+                    }
+                });
+
+                // Parse files
+                let lints_remaining_arc = Arc::new(Mutex::new(0));
+                let lints_remaining = lints_remaining_arc.clone();
+                let duck = duck_arc.clone();
+                let parse_handle = tokio::task::spawn(async move {
+                    while let Some((path, gml)) = file_reciever.recv().await {
+                        match Duck::parse_gml(&gml, &path) {
+                            Ok(ast) => {
+                                *lints_remaining.lock().await += ast.len();
+                                for statement in ast {
+                                    let duck = duck.clone();
+                                    let lint_reports = lint_reports_arc.clone();
+                                    let lints_remaining = lints_remaining.clone();
+                                    tokio::task::spawn(async move {
+                                        let mut duck = duck.lock().await;
+                                        let mut reports = lint_reports.lock().await;
+                                        let mut gml_collection = GmlCollection::new(); // todo
+                                        duck.process_statement_early(
+                                            &statement,
+                                            &mut gml_collection,
+                                            &mut vec![],
+                                        );
+                                        *lints_remaining.lock().await -= 1;
+                                    });
+                                }
+                            }
+                            Err(parse_error) => {
+                                parse_errors_arc.lock().await.push((gml, path, parse_error))
+                            }
+                        }
+                    }
+                });
+
+                walker_handle.await.unwrap();
+                file_handle.await.unwrap();
+                parse_handle.await.unwrap();
+                while *lints_remaining_arc.lock().await != 0 {
+                    tokio::time::sleep(std::time::Duration::from_micros(100)).await;
                 }
-                result.ok()
-            })
-            .flatten();
-        b.iter(|| {
-            let mut reports = vec![];
-            let mut collection = GmlCollection::new();
-            asts.clone().into_iter().flatten().for_each(|statement| {
-                duck.process_statement_early(&statement, &mut collection, &mut reports);
             });
-            // asts.clone().into_iter().flatten().for_each(|statement| {
-            //     duck.process_statement_late(&statement, &collection, &mut reports);
-            // });
-        });
     });
 }
 

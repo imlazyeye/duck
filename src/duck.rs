@@ -40,7 +40,7 @@ impl Duck {
     }
 
     /// Parses the given String of GML, collecting data for Duck.
-    pub fn parse_gml(&mut self, source_code: &str, path: &Path) -> Result<Ast, ParseError> {
+    pub fn parse_gml(source_code: &str, path: &Path) -> Result<Ast, ParseError> {
         let mut source: &'static str = Box::leak(Box::new(source_code.to_string()));
         let ast = Parser::new(source, path.to_path_buf()).into_ast();
         unsafe {
