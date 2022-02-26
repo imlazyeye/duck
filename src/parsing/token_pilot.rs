@@ -1,6 +1,6 @@
 use super::{lexer::Lexer, token::Token, utils::ParseError};
 use crate::utils::Span;
-use std::{collections::HashMap, iter::Peekable};
+use std::iter::Peekable;
 
 pub struct TokenPilot<'a> {
     lexer: Peekable<Lexer<'a>>,
@@ -9,10 +9,7 @@ pub struct TokenPilot<'a> {
 impl<'a> TokenPilot<'a> {
     pub fn new(source_code: &'a str) -> Self {
         let lexer = Lexer::new(source_code).peekable();
-        Self {
-            lexer,
-            cursor: 0,
-        }
+        Self { lexer, cursor: 0 }
     }
 
     /// Get the gml tokens's cursor.

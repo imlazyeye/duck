@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use super::GmlEnum;
 
 #[derive(Debug, Default)]
-pub struct GmlCollection {
+pub struct Environment {
     enums: HashMap<String, GmlEnum>,
 }
-impl GmlCollection {
+impl Environment {
     pub fn new() -> Self {
         Self::default()
     }
@@ -19,7 +19,7 @@ impl GmlCollection {
         self.enums.get(&name.into())
     }
 
-    pub fn extend(&mut self, other: Self) {
-        self.enums.extend(other.enums)
+    pub fn copy_from(&mut self, other: &Self) {
+        self.enums.extend(other.enums.clone().into_iter())
     }
 }

@@ -1,10 +1,12 @@
-pub type AnyResult<T = ()> = color_eyre::Result<T>;
 mod config;
+mod duck_operation;
+pub use duck_operation::*;
+mod duck_task;
 pub use config::Config;
+pub use duck_task::*;
 mod duck;
 pub mod utils;
 pub use crate::duck::*;
-pub mod fs;
 
 pub mod lints;
 

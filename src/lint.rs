@@ -1,14 +1,13 @@
 use crate::{
     config::Config,
-    gml::GmlCollection,
+    gml::Environment,
     parsing::{expression::Expression, statement::Statement},
     utils::FilePreviewUtil,
     utils::Span,
-    Duck,
 };
 use colored::Colorize;
 
-/// An individual lint in duck.
+/// An individual lint in .
 ///
 /// Lints should be named after the *bad* action, not the good one. For example,
 /// a lint that prevents switch statements from having no default case should be
@@ -62,7 +61,7 @@ pub trait EarlyExpressionPass {
 pub trait LateStatementPass {
     fn visit_statement_late(
         config: &Config,
-        gml_collection: &GmlCollection,
+        environment: &Environment,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
@@ -73,7 +72,7 @@ pub trait LateStatementPass {
 pub trait LateExpressionPass {
     fn visit_expression_late(
         config: &Config,
-        gml_collection: &GmlCollection,
+        environment: &Environment,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
@@ -164,7 +163,7 @@ pub struct LintReport {
     pub span: Span,
 }
 impl LintReport {
-    pub fn generate_string(self, config: &Config, preview: &FilePreviewUtil) -> String {
+    pub fn generate_string(&self, config: &Config, preview: &FilePreviewUtil) -> String {
         let level = config.get_level_for_lint(self.tag, self.category);
         let level_string = match *level {
             LintLevel::Allow => "allowed".bright_black().bold(), // I dunno why you'd ever do this, but for now I don't wanna crash...

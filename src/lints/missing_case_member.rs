@@ -1,5 +1,5 @@
 use crate::{
-    gml::GmlCollection, lint::LateStatementPass, parsing::statement::Statement, utils::Span, Lint,
+    gml::Environment, lint::LateStatementPass, parsing::statement::Statement, utils::Span, Lint,
     LintCategory, LintReport,
 };
 use itertools::Itertools;
@@ -33,7 +33,7 @@ impl Lint for MissingCaseMember {
 impl LateStatementPass for MissingCaseMember {
     fn visit_statement_late(
         config: &crate::Config,
-        gml_collection: &GmlCollection,
+        environment: &Environment,
         statement: &crate::parsing::statement::Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
@@ -48,7 +48,7 @@ impl LateStatementPass for MissingCaseMember {
 
             // See if this is potentially switching over an enum
             let gml_enum = if let Some(enum_name) = switch.potential_enum_type() {
-                if let Some(gml_enum) = gml_collection.find_enum(enum_name) {
+                if let Some(gml_enum) = environment.find_enum(enum_name) {
                     gml_enum
                 } else {
                     // We don't recognize this enum -- abort

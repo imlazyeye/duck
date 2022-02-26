@@ -1,201 +1,169 @@
-use crate::config::Config;
-use crate::gml::GmlCollection;
-use crate::lint::{
-    EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass,
-    LintLevelSetting,
-};
-use crate::parsing::expression::ExpressionBox;
-use crate::parsing::statement::StatementBox;
-use crate::utils::Span;
-use crate::{lints::*, LintCategory};
-use crate::{
-    parsing::{expression::Expression, statement::Statement},
-    Lint, LintReport,
-};
-use std::path::Path;
-
-use crate::{
-    lint::LintLevel,
-    parsing::{parser::Ast, ParseError, Parser},
+use crate::{config::Config, parsing::ParseError, DuckTask, LintLevel, LintReport};
+use enum_map::EnumMap;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
 };
 
-#[derive(Debug)]
+/// ## Duck
+/// The primary point of control for all of duck. For general usage, this is all you need!
+///
+/// ### Basic usage (tokio)
+/// To generate a [RunResult] from a GameMaker Studio 2 project directory, you can use [Duck::run].
+/// ```rs
+/// let duck = Duck::new();
+/// let my_project_path = "~/Users/me/GameMaker Studio 2/My Project";
+/// let run_result = duck.run(my_project_path.into()).await;
+/// ```
+///
+/// ### Basic usage (blocking)
+/// The same result can be achieved without being forced to use async code by usinng [Duck::run_blocking].
+/// ```rs
+/// let duck = Duck::new();
+/// let my_project_path = "~/Users/me/GameMaker Studio 2/My Project";
+/// let run_result = duck.run_blocking(my_project_path.into());
+/// ```
+///
+/// ### Manual operations
+/// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s directly.
+/// ```rs
+/// let gml = show_debug_message("Hello world!");
+/// let path = "../hello_world.gml";
+/// let ast = match DuckOperation::parse_gml(gml, path.into()) {
+///     Ok(ast) => ast,
+///     Err(parse_error) => println!("Failed to parse gml: {parse_error:?}"),
+/// };
+/// ```
+///
+/// You can also manually run the [Lint]s on these [Ast]s.
+/// ```rs
+/// let lint_reports: Vec<LintReport> = vec![];
+/// let environment = Environment::new();
+/// DuckOperation::process_statement_early(
+///     duck.config(),
+///     &ast[0],
+///     &mut environemnt,
+///     &mut reports,
+/// );
+/// DuckOperation::process_statement_late(
+///     duck.config(),
+///     &ast[0],
+///     &environemnt,
+///     &mut reports,
+/// );
+/// ```
+#[derive(Debug, Default)]
 pub struct Duck {
     config: Config,
 }
-
 impl Duck {
-    #[allow(clippy::new_without_default)]
-    /// Creates a new, blank Duck.
-    pub fn new() -> Self {
-        Self {
-            config: Default::default(),
-        }
-    }
-
     /// Creates a new Duck based on a DuckConfig.
-    pub fn new_with_config(config: Config) -> Self {
-        let mut duck = Self::new();
-        duck.config = config;
-        duck
+    pub fn new(config: Config) -> Self {
+        Self { config }
     }
 
-    /// Parses the given String of GML, collecting data for Duck.
-    pub fn parse_gml(source_code: &str, path: &Path) -> Result<Ast, ParseError> {
-        let mut source: &'static str = Box::leak(Box::new(source_code.to_string()));
-        let ast = Parser::new(source, path.to_path_buf()).into_ast();
-        unsafe {
-            drop(Box::from_raw(&mut source));
-        }
-        ast
+    /// Goes through the entire process of finding, loading, parsing, and linting the GML in a given
+    /// project directory. Returns every [LintReport] that was found, as well as [ParseError]s that were
+    /// encountered along the way, and additionally any [std::io::Error]s that were found.
+    ///
+    /// If you are working in a blocking context, see [Duck::run_blocking].
+    pub async fn run(&self, project_directory: &Path) -> RunResult {
+        // Load everything in and await through the early pass
+        let duck_arc = Arc::new(self.config.clone()); // todo this clone sucks
+        let (path_receiver, _) = DuckTask::start_gml_discovery(project_directory);
+        let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
+        let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
+        let (early_receiever, _) = DuckTask::start_early_pass(duck_arc.clone(), parse_receiver);
+        let (iterations, global_environment) =
+            DuckTask::start_environment_assembly(early_receiever)
+                .await
+                .unwrap();
+
+        // Now the late pass
+        // Run the final pass...
+        let late_pass_reports =
+            DuckTask::start_late_pass(duck_arc.clone(), iterations, global_environment)
+                .await
+                .unwrap();
+
+        // Extract any errors that were found...
+        let io_errors = file_handle.await.unwrap();
+        let parse_errors = parse_handle.await.unwrap();
+
+        // Return the result!
+        RunResult::new(
+            &Config::default(),
+            late_pass_reports,
+            parse_errors,
+            io_errors,
+        )
     }
 
-    pub fn process_statement_early(
-        config: &Config,
-        statement_box: &StatementBox,
-        collection: &mut GmlCollection,
-        reports: &mut Vec<LintReport>,
-    ) {
-        let statement = statement_box.statement();
-        let span = statement_box.span();
-
-        // @early statement calls. Do not remove this comment, it used for our autogeneration!
-        //
-        // @end early statement calls. Do not remove this comment, it used for our autogeneration!
-
-        #[allow(clippy::single_match)]
-        match statement {
-            Statement::EnumDeclaration(gml_enum) => {
-                collection.register_enum(gml_enum.clone());
-            }
-            _ => {}
-        }
-
-        // Recurse...
-        statement.visit_child_statements(|stmt| {
-            Self::process_statement_early(config, stmt, collection, reports)
-        });
-        statement.visit_child_expressions(|expr| {
-            Self::process_expression_early(config, expr, collection, reports)
-        });
-    }
-
-    fn process_expression_early(
-        config: &Config,
-        expression_box: &ExpressionBox,
-        collection: &mut GmlCollection,
-        reports: &mut Vec<LintReport>,
-    ) {
-        let expression = expression_box.expression();
-        let span = expression_box.span();
-
-        // @early expression calls. Do not remove this comment, it used for our autogeneration!
-        //
-        // @end early expression calls. Do not remove this comment, it used for our autogeneration!
-
-        // Recurse...
-        expression.visit_child_statements(|stmt| {
-            Self::process_statement_early(config, stmt, collection, reports)
-        });
-        expression.visit_child_expressions(|expr| {
-            Self::process_expression_early(config, expr, collection, reports)
-        });
-    }
-
-    pub fn process_statement_late(
-        config: &Config,
-        statement_box: &StatementBox,
-        collection: &GmlCollection,
-        reports: &mut Vec<LintReport>,
-    ) {
-        let statement = statement_box.statement();
-        let span = statement_box.span();
-
-        // @late statement calls. Do not remove this comment, it used for our autogeneration!
-        Self::run_late_lint_on_statement::<MissingCaseMember>(
-            config, statement, collection, span, reports,
-        );
-        // @end late statement calls. Do not remove this comment, it used for our autogeneration!
-
-        // Recurse...
-        statement.visit_child_statements(|stmt| {
-            Self::process_statement_late(config, stmt, collection, reports)
-        });
-        statement.visit_child_expressions(|expr| {
-            Self::process_expression_late(config, expr, collection, reports)
-        });
-    }
-
-    fn process_expression_late(
-        config: &Config,
-        expression_box: &ExpressionBox,
-        collection: &GmlCollection,
-        reports: &mut Vec<LintReport>,
-    ) {
-        let expression = expression_box.expression();
-        let span = expression_box.span();
-
-        // @late expression calls. Do not remove this comment, it used for our autogeneration!
-        //
-        // @end late expression calls. Do not remove this comment, it used for our autogeneration!
-
-        // Recurse...
-        expression.visit_child_statements(|stmt| {
-            Self::process_statement_late(config, stmt, collection, reports)
-        });
-        expression.visit_child_expressions(|expr| {
-            Self::process_expression_late(config, expr, collection, reports)
-        });
-    }
-
-    fn run_early_lint_on_statement<T: Lint + EarlyStatementPass>(
-        config: &Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_statement_early(config, statement, span, reports);
-        }
-    }
-
-    fn run_early_lint_on_expression<T: Lint + EarlyExpressionPass>(
-        config: &Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_expression_early(config, expression, span, reports);
-        }
-    }
-
-    fn run_late_lint_on_statement<T: Lint + LateStatementPass>(
-        config: &Config,
-        statement: &Statement,
-        gml_collection: &GmlCollection,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_statement_late(config, gml_collection, statement, span, reports);
-        }
-    }
-
-    fn run_late_lint_on_expression<T: Lint + LateExpressionPass>(
-        config: &Config,
-        expression: &Expression,
-        gml_collection: &GmlCollection,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_expression_late(config, gml_collection, expression, span, reports);
-        }
+    /// The blocking counterpart to [Duck::run].
+    pub fn run_blocking(&self, project_directory: &Path) -> RunResult {
+        tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(self.run(project_directory))
     }
 
     /// Get a reference to the duck's config.
     pub fn config(&self) -> &Config {
         &self.config
+    }
+}
+
+/// The data returned by calling [Duck::run].
+pub struct RunResult {
+    report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>>,
+    parse_errors: Vec<(PathBuf, String, ParseError)>,
+    io_errors: Vec<std::io::Error>,
+}
+impl RunResult {
+    fn new(
+        config: &Config,
+        lint_reports: Vec<(PathBuf, String, Vec<LintReport>)>,
+        parse_errors: Vec<(PathBuf, String, ParseError)>,
+        io_errors: Vec<std::io::Error>,
+    ) -> Self {
+        let mut report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>> =
+            EnumMap::default();
+        for (path, gml, reports) in lint_reports {
+            for report in reports {
+                report_collection[*config.get_level_for_lint(report.tag(), report.category())]
+                    .push((path.clone(), gml.clone(), report));
+            }
+        }
+        Self {
+            report_collection,
+            parse_errors,
+            io_errors,
+        }
+    }
+
+    /// Returns the number of warnings present in this [RunResult].
+    pub fn warning_count(&self) -> usize {
+        self.report_collection[LintLevel::Warn].len()
+    }
+
+    /// Returns the number of denials present in this [RunResult].
+    pub fn denial_count(&self) -> usize {
+        self.report_collection[LintLevel::Deny].len()
+    }
+
+    /// Returns an iterator over all of the lint reports.
+    pub fn iter_lint_reports(&self) -> impl Iterator<Item = &(PathBuf, String, LintReport)> {
+        self.report_collection[LintLevel::Warn]
+            .iter()
+            .chain(self.report_collection[LintLevel::Deny].iter())
+    }
+
+    /// Get a reference to the run result's parse errors.
+    pub fn parse_errors(&self) -> &[(PathBuf, String, ParseError)] {
+        self.parse_errors.as_ref()
+    }
+
+    /// Get a reference to the run result's io errors.
+    pub fn io_errors(&self) -> &[std::io::Error] {
+        self.io_errors.as_ref()
     }
 }

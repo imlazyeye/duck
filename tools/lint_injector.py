@@ -33,32 +33,32 @@ with open('../src/lints.rs', 'w') as f:
     f.write(new_mods)
 
 # Gather the old calls
-duck = open('../src/duck.rs', "r").read()
+duck_operation = open('../src/duck_operation.rs', "r").read()
 
 opreations = [
     {
         'name': 'early expression',
         'tag': 'visits_expression_early',
         'function_name': 'run_early_lint_on_expression',
-        'args': 'expression, span, reports'
+        'args': 'config, expression, span, reports'
     },
     {
         'name': 'early statement',
         'tag': 'visits_statement_early',
         'function_name': 'run_early_lint_on_statement',
-        'args': 'statement, span, reports'
+        'args': 'config, statement, span, reports'
     },
     {
         'name': 'late expression',
         'tag': 'visits_expression_late',
         'function_name': 'run_late_lint_on_expression',
-        'args': 'expression, collection, span, reports'
+        'args': 'config, expression, environment, span, reports'
     },
     {
         'name': 'late statement',
         'tag': 'visits_statement_late',
         'function_name': 'run_late_lint_on_statement',
-        'args': 'statement, collection, span, reports'
+        'args': 'config, statement, environment, span, reports'
     }
 ]
 
@@ -69,7 +69,7 @@ for operation in opreations:
     args = operation['args']
 
     search = re.search(
-        r'( +)// @{name} calls.+\n((\n|.)+?) +// @end {name} calls.+'.format(name=name), duck)
+        r'( +)// @{name} calls.+\n((\n|.)+?) +// @end {name} calls.+'.format(name=name), duck_operations)
     tabs = search.group(1)
     old_call = search.group(2)
 
@@ -94,7 +94,7 @@ for operation in opreations:
     new_call = ''
     for lint in lints:
         if lint[tag]:
-            new_call += '{tabs}self.{function_name}::<{lint}>({args});\n'.format(
+            new_call += '{tabs}Self::{function_name}::<{lint}>({args});\n'.format(
                 tabs=tabs,
                 function_name=function_name,
                 lint=lint['name'],
@@ -102,8 +102,9 @@ for operation in opreations:
             )
 
     # Replace the calls in the file
-    duck = duck.replace(old_call, new_call)
+    print(new_call)
+    duck_operations = duck_operations.replace(old_call, new_call)
 
 # Flush to the file
-open('../src/duck.rs', 'w').write(duck)
+open('../src/duck_operations.rs', 'w').write(duck_operations)
 print("Finished updating lint calls!")

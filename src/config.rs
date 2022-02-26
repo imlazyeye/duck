@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{LintLevel, lint::LintLevelSetting, LintCategory};
+use crate::{lint::LintLevelSetting, LintCategory, LintLevel};
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub todo_keyword: Option<String>,
     pub max_arguments: Option<usize>,
@@ -40,7 +40,7 @@ impl Config {
         // User has specificed nada
         LintLevelSetting::Default(lint_category.default_level())
     }
-    
+
     /// Get a reference to the duck config's todo keyword.
     pub fn todo_keyword(&self) -> Option<&String> {
         self.todo_keyword.as_ref()

@@ -77,10 +77,9 @@ impl GmlSwitchCase {
     }
 
     pub fn identity(&self) -> &Expression {
-        &self.0.expression()
+        self.0.expression()
     }
 
-    #[deprecated]
     pub fn identity_box(&self) -> &ExpressionBox {
         &self.0
     }
@@ -89,7 +88,6 @@ impl GmlSwitchCase {
         self.1.iter().map(|stmt| stmt.statement())
     }
 
-    #[deprecated]
     pub fn iter_body_statement_boxes(&self) -> impl Iterator<Item = &StatementBox> {
         self.1.iter()
     }
