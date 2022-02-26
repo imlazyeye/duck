@@ -1,16 +1,13 @@
 use clap::{Parser, Subcommand};
 use colored::Colorize;
-use duck::config::Config;
 use duck::fs::GmlWalker;
 use duck::gml::GmlCollection;
-use duck::parsing::parser::Ast;
 use duck::parsing::statement::StatementBox;
 use duck::parsing::ParseError;
+use duck::Config;
 use duck::LintReport;
 use duck::{utils::FilePreviewUtil, Duck, LintLevel};
-use futures::lock::Mutex;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::mpsc::channel;
 
@@ -38,23 +35,23 @@ async fn run_lint(path: Option<PathBuf>) {
         .unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
 
     let mut config_usage = ConfigUsage::None;
-    let mut duck = if let Ok(text) = std::fs::read_to_string(current_directory.join(".duck.toml")) {
+    let config = if let Ok(text) = std::fs::read_to_string(current_directory.join(".duck.toml")) {
         match toml::from_str::<Config>(&text) {
             Ok(config) => {
                 config_usage = ConfigUsage::Some;
-                Duck::new_with_config(config)
+                config
             }
             Err(e) => {
                 config_usage = ConfigUsage::Failed(e);
-                Duck::new()
+                Config::default()
             }
         }
     } else {
-        Duck::new()
+        Config::default()
     };
 
     // All the data
-    let duck_arc = Arc::new(Mutex::new(duck));
+    let config_arc = Arc::new(config);
 
     // Look for files
     let (path_sender, mut path_reciever) = channel::<PathBuf>(1000);
@@ -88,22 +85,22 @@ async fn run_lint(path: Option<PathBuf>) {
         GmlCollection,
         Vec<LintReport>,
     )>(1000);
-    let duck = duck_arc.clone();
+    let config = config_arc.clone();
     let pass_one_handle = tokio::task::spawn(async move {
         let mut parse_errors: Vec<(String, PathBuf, ParseError)> = vec![];
         while let Some((path, gml)) = file_reciever.recv().await {
             match Duck::parse_gml(&gml, &path) {
                 Ok(ast) => {
                     for statement in ast {
-                        let duck = duck.clone();
+                        let config = config.clone();
                         let gml = gml.clone();
                         let path = path.clone();
                         let sender = pass_one_sender.clone();
                         tokio::task::spawn(async move {
-                            let duck = duck.lock().await;
                             let mut reports = vec![];
                             let mut gml_collection = GmlCollection::new();
-                            duck.process_statement_early(
+                            Duck::process_statement_early(
+                                config.as_ref(),
                                 &statement,
                                 &mut gml_collection,
                                 &mut reports,
@@ -141,7 +138,7 @@ async fn run_lint(path: Option<PathBuf>) {
     let (pass_two_queue, master_collection) = collection_handle.await.unwrap();
 
     // Now we do pass two
-    let duck = duck_arc.clone();
+    let config = config_arc.clone();
     let (lint_report_sender, mut lint_report_reciever) =
         channel::<(String, PathBuf, Vec<LintReport>)>(1000);
     let pass_two_handle = tokio::task::spawn(async move {
@@ -149,9 +146,10 @@ async fn run_lint(path: Option<PathBuf>) {
         for (gml, path, statement, mut lint_reports) in pass_two_queue {
             let sender = lint_report_sender.clone();
             let master_collection = master_collection.clone();
-            let duck = duck.clone();
+            let config = config.clone();
             tokio::task::spawn(async move {
-                duck.lock().await.process_statement_late(
+                Duck::process_statement_late(
+                    config.as_ref(),
                     &statement,
                     master_collection.as_ref(),
                     &mut lint_reports,
@@ -173,23 +171,21 @@ async fn run_lint(path: Option<PathBuf>) {
     // We are done!
     pass_two_handle.await.unwrap();
     let lint_reports = lint_report_handle.await.unwrap();
-
-    // Unwrap everything
-    let duck = Arc::try_unwrap(duck_arc).unwrap().into_inner();
+    let config = Arc::try_unwrap(config_arc).unwrap();
 
     let mut deny_count = 0;
     let mut warn_count = 0;
     let mut report_strings: Vec<String> = vec![];
     for (file, path, reports) in lint_reports {
         for report in reports {
-            match *duck.get_level_for_lint(report.tag(), report.category()) {
+            match *config.get_level_for_lint(report.tag(), report.category()) {
                 LintLevel::Allow => {}
                 LintLevel::Warn => warn_count += 1,
                 LintLevel::Deny => deny_count += 1,
             }
             let cursor = report.span.0;
             report_strings.push(report.generate_string(
-                &duck,
+                &config,
                 &FilePreviewUtil::new(&file, path.to_str().unwrap(), cursor),
             ));
         }

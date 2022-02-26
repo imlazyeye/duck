@@ -28,7 +28,7 @@ impl Lint for DrawSprite {
 
 impl EarlyExpressionPass for DrawSprite {
     fn visit_expression_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,

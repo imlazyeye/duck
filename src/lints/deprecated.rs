@@ -34,7 +34,7 @@ impl Lint for Deprecated {
 
 impl EarlyStatementPass for Deprecated {
     fn visit_statement_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
@@ -54,7 +54,7 @@ impl EarlyStatementPass for Deprecated {
 
 impl EarlyExpressionPass for Deprecated {
     fn visit_expression_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         expression: &crate::parsing::expression::Expression,
         span: Span,
         reports: &mut Vec<LintReport>,

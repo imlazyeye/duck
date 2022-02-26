@@ -32,7 +32,7 @@ impl Lint for NonPascalCase {
 
 impl EarlyStatementPass for NonPascalCase {
     fn visit_statement_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
@@ -66,7 +66,7 @@ impl EarlyStatementPass for NonPascalCase {
 
 impl EarlyExpressionPass for NonPascalCase {
     fn visit_expression_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,

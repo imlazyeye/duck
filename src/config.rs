@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::LintLevel;
+use crate::{LintLevel, lint::LintLevelSetting, LintCategory};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Config {
@@ -26,6 +26,21 @@ impl Default for Config {
     }
 }
 impl Config {
+    /// Gets the user-desired level for the lint tag.
+    pub fn get_level_for_lint(
+        &self,
+        lint_tag: &str,
+        lint_category: LintCategory,
+    ) -> LintLevelSetting {
+        // Check if there is a config-based rule for this lint
+        if let Some((_, level)) = self.lint_levels.iter().find(|(key, _)| key == &lint_tag) {
+            return LintLevelSetting::ConfigSpecified(*level);
+        }
+
+        // User has specificed nada
+        LintLevelSetting::Default(lint_category.default_level())
+    }
+    
     /// Get a reference to the duck config's todo keyword.
     pub fn todo_keyword(&self) -> Option<&String> {
         self.todo_keyword.as_ref()

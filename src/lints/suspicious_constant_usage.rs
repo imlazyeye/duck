@@ -30,7 +30,7 @@ impl Lint for SuspicousConstantUsage {
 
 impl EarlyExpressionPass for SuspicousConstantUsage {
     fn visit_expression_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,

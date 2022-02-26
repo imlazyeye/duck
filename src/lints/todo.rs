@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Duck, Lint,
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Duck, Lint,
     LintCategory, LintReport,
 };
 
@@ -28,12 +28,12 @@ impl Lint for Todo {
 
 impl EarlyExpressionPass for Todo {
     fn visit_expression_early(
-        duck: &Duck,
+        config: &Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Some(todo_keyword) = duck.config().todo_keyword() {
+        if let Some(todo_keyword) = config.todo_keyword() {
             if let Expression::Call(caller, _, _) = expression {
                 if let Expression::Identifier(name) = caller.expression() {
                     if name == todo_keyword {

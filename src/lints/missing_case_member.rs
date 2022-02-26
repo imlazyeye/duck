@@ -32,7 +32,7 @@ impl Lint for MissingCaseMember {
 
 impl LateStatementPass for MissingCaseMember {
     fn visit_statement_late(
-        duck: &crate::Duck,
+        config: &crate::Config,
         gml_collection: &GmlCollection,
         statement: &crate::parsing::statement::Statement,
         span: Span,
@@ -87,7 +87,7 @@ impl LateStatementPass for MissingCaseMember {
 
             // We have now collected all of members in this switch. Let's gather any missing members of the enum, and reduce them
             // down into a string that lists them out.
-            let ignore_name = duck.config().length_enum_member_name();
+            let ignore_name = config.length_enum_member_name();
             let missing_members = gml_enum
                 .members()
                 .iter()

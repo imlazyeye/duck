@@ -51,7 +51,7 @@ impl Duck {
     }
 
     pub fn process_statement_early(
-        &self,
+        config: &Config,
         statement_box: &StatementBox,
         collection: &mut GmlCollection,
         reports: &mut Vec<LintReport>,
@@ -60,19 +60,7 @@ impl Duck {
         let span = statement_box.span();
 
         // @early statement calls. Do not remove this comment, it used for our autogeneration!
-        self.run_early_lint_on_statement::<Deprecated>(statement, span, reports);
-        self.run_early_lint_on_statement::<Exit>(statement, span, reports);
-        self.run_early_lint_on_statement::<MissingDefaultCase>(statement, span, reports);
-        self.run_early_lint_on_statement::<MultiVarDeclaration>(statement, span, reports);
-        self.run_early_lint_on_statement::<NonPascalCase>(statement, span, reports);
-        self.run_early_lint_on_statement::<NonScreamCase>(statement, span, reports);
-        self.run_early_lint_on_statement::<SingleSwitchCase>(statement, span, reports);
-        self.run_early_lint_on_statement::<StatementParentheticalViolation>(
-            statement, span, reports,
-        );
-        self.run_early_lint_on_statement::<TryCatch>(statement, span, reports);
-        self.run_early_lint_on_statement::<VarPrefixViolation>(statement, span, reports);
-        self.run_early_lint_on_statement::<WithLoop>(statement, span, reports);
+        //
         // @end early statement calls. Do not remove this comment, it used for our autogeneration!
 
         #[allow(clippy::single_match)]
@@ -84,15 +72,16 @@ impl Duck {
         }
 
         // Recurse...
-        statement
-            .visit_child_statements(|stmt| self.process_statement_early(stmt, collection, reports));
+        statement.visit_child_statements(|stmt| {
+            Self::process_statement_early(config, stmt, collection, reports)
+        });
         statement.visit_child_expressions(|expr| {
-            self.process_expression_early(expr, collection, reports)
+            Self::process_expression_early(config, expr, collection, reports)
         });
     }
 
     fn process_expression_early(
-        &self,
+        config: &Config,
         expression_box: &ExpressionBox,
         collection: &mut GmlCollection,
         reports: &mut Vec<LintReport>,
@@ -101,34 +90,20 @@ impl Duck {
         let span = expression_box.span();
 
         // @early expression calls. Do not remove this comment, it used for our autogeneration!
-        self.run_early_lint_on_expression::<AccessorAlternative>(expression, span, reports);
-        self.run_early_lint_on_expression::<AnonymousConstructor>(expression, span, reports);
-        self.run_early_lint_on_expression::<AssignmentToCall>(expression, span, reports);
-        self.run_early_lint_on_expression::<BoolEquality>(expression, span, reports);
-        self.run_early_lint_on_expression::<Deprecated>(expression, span, reports);
-        self.run_early_lint_on_expression::<DrawSprite>(expression, span, reports);
-        self.run_early_lint_on_expression::<DrawText>(expression, span, reports);
-        self.run_early_lint_on_expression::<EnglishFlavorViolation>(expression, span, reports);
-        self.run_early_lint_on_expression::<Global>(expression, span, reports);
-        self.run_early_lint_on_expression::<NonConstantDefaultParameter>(expression, span, reports);
-        self.run_early_lint_on_expression::<NonPascalCase>(expression, span, reports);
-        self.run_early_lint_on_expression::<RoomGoto>(expression, span, reports);
-        self.run_early_lint_on_expression::<ShowDebugMessage>(expression, span, reports);
-        self.run_early_lint_on_expression::<SuspicousConstantUsage>(expression, span, reports);
-        self.run_early_lint_on_expression::<Todo>(expression, span, reports);
-        self.run_early_lint_on_expression::<TooManyArguments>(expression, span, reports);
+        //
         // @end early expression calls. Do not remove this comment, it used for our autogeneration!
 
         // Recurse...
-        expression
-            .visit_child_statements(|stmt| self.process_statement_early(stmt, collection, reports));
+        expression.visit_child_statements(|stmt| {
+            Self::process_statement_early(config, stmt, collection, reports)
+        });
         expression.visit_child_expressions(|expr| {
-            self.process_expression_early(expr, collection, reports)
+            Self::process_expression_early(config, expr, collection, reports)
         });
     }
 
     pub fn process_statement_late(
-        &self,
+        config: &Config,
         statement_box: &StatementBox,
         collection: &GmlCollection,
         reports: &mut Vec<LintReport>,
@@ -137,19 +112,22 @@ impl Duck {
         let span = statement_box.span();
 
         // @late statement calls. Do not remove this comment, it used for our autogeneration!
-        self.run_late_lint_on_statement::<MissingCaseMember>(statement, collection, span, reports);
+        Self::run_late_lint_on_statement::<MissingCaseMember>(
+            config, statement, collection, span, reports,
+        );
         // @end late statement calls. Do not remove this comment, it used for our autogeneration!
 
         // Recurse...
-        statement
-            .visit_child_statements(|stmt| self.process_statement_late(stmt, collection, reports));
+        statement.visit_child_statements(|stmt| {
+            Self::process_statement_late(config, stmt, collection, reports)
+        });
         statement.visit_child_expressions(|expr| {
-            self.process_expression_late(expr, collection, reports)
+            Self::process_expression_late(config, expr, collection, reports)
         });
     }
 
     fn process_expression_late(
-        &self,
+        config: &Config,
         expression_box: &ExpressionBox,
         collection: &GmlCollection,
         reports: &mut Vec<LintReport>,
@@ -158,80 +136,62 @@ impl Duck {
         let span = expression_box.span();
 
         // @late expression calls. Do not remove this comment, it used for our autogeneration!
+        //
         // @end late expression calls. Do not remove this comment, it used for our autogeneration!
 
         // Recurse...
-        expression
-            .visit_child_statements(|stmt| self.process_statement_late(stmt, collection, reports));
+        expression.visit_child_statements(|stmt| {
+            Self::process_statement_late(config, stmt, collection, reports)
+        });
         expression.visit_child_expressions(|expr| {
-            self.process_expression_late(expr, collection, reports)
+            Self::process_expression_late(config, expr, collection, reports)
         });
     }
 
     fn run_early_lint_on_statement<T: Lint + EarlyStatementPass>(
-        &self,
+        config: &Config,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_statement_early(self, statement, span, reports);
+        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_statement_early(config, statement, span, reports);
         }
     }
 
     fn run_early_lint_on_expression<T: Lint + EarlyExpressionPass>(
-        &self,
+        config: &Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_expression_early(self, expression, span, reports);
+        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_expression_early(config, expression, span, reports);
         }
     }
 
     fn run_late_lint_on_statement<T: Lint + LateStatementPass>(
-        &self,
+        config: &Config,
         statement: &Statement,
         gml_collection: &GmlCollection,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_statement_late(self, gml_collection, statement, span, reports);
+        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_statement_late(config, gml_collection, statement, span, reports);
         }
     }
 
     fn run_late_lint_on_expression<T: Lint + LateExpressionPass>(
-        &self,
+        config: &Config,
         expression: &Expression,
         gml_collection: &GmlCollection,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *self.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
-            T::visit_expression_late(self, gml_collection, expression, span, reports);
+        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+            T::visit_expression_late(config, gml_collection, expression, span, reports);
         }
-    }
-
-    // /// Gets the user-desired level for the lint tag.
-    pub fn get_level_for_lint(
-        &self,
-        lint_tag: &str,
-        lint_category: LintCategory,
-    ) -> LintLevelSetting {
-        // Check if there is a config-based rule for this lint
-        if let Some((_, level)) = self
-            .config
-            .lint_levels
-            .iter()
-            .find(|(key, _)| key == &lint_tag)
-        {
-            return LintLevelSetting::ConfigSpecified(*level);
-        }
-
-        // User has specificed nada
-        LintLevelSetting::Default(lint_category.default_level())
     }
 
     /// Get a reference to the duck's config.

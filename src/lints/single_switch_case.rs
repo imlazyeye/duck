@@ -28,7 +28,7 @@ impl Lint for SingleSwitchCase {
 
 impl EarlyStatementPass for SingleSwitchCase {
     fn visit_statement_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         statement: &crate::parsing::statement::Statement,
         span: Span,
         reports: &mut Vec<LintReport>,

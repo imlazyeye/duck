@@ -1,4 +1,7 @@
-use crate::{parsing::expression::Expression, utils::Span, Duck, Lint, LintCategory, LintReport, lint::EarlyExpressionPass};
+use crate::{
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Duck, Lint,
+    LintCategory, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct AssignmentToCall;
@@ -25,7 +28,7 @@ impl Lint for AssignmentToCall {
 
 impl EarlyExpressionPass for AssignmentToCall {
     fn visit_expression_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,

@@ -8,7 +8,7 @@ use duck::{
     fs::GmlWalker,
     gml::GmlCollection,
     parsing::{parser::Ast, statement::StatementBox, ParseError, Parser, TokenPilot},
-    Duck, LintReport,
+    Config, Duck, LintReport,
 };
 use tokio::sync::{mpsc::channel, Mutex};
 // use yy_boss::{Resource, YyResource, YypBoss};
@@ -54,9 +54,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Full Test", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap())
             .iter(|| async {
-                let duck = Duck::new();
-                // All the data
-                let duck_arc = Arc::new(Mutex::new(duck));
+                let config_arc = Arc::new(Config::default());
 
                 // Look for files
                 let (path_sender, mut path_reciever) = channel::<PathBuf>(1000);
@@ -90,22 +88,22 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     GmlCollection,
                     Vec<LintReport>,
                 )>(1000);
-                let duck = duck_arc.clone();
+                let config = config_arc.clone();
                 let pass_one_handle = tokio::task::spawn(async move {
                     let mut parse_errors: Vec<(String, PathBuf, ParseError)> = vec![];
                     while let Some((path, gml)) = file_reciever.recv().await {
                         match Duck::parse_gml(&gml, &path) {
                             Ok(ast) => {
                                 for statement in ast {
-                                    let duck = duck.clone();
+                                    let config = config.clone();
                                     let gml = gml.clone();
                                     let path = path.clone();
                                     let sender = pass_one_sender.clone();
                                     tokio::task::spawn(async move {
-                                        let duck = duck.lock().await;
                                         let mut reports = vec![];
                                         let mut gml_collection = GmlCollection::new();
-                                        duck.process_statement_early(
+                                        Duck::process_statement_early(
+                                            config.as_ref(),
                                             &statement,
                                             &mut gml_collection,
                                             &mut reports,
@@ -143,7 +141,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 let (pass_two_queue, master_collection) = collection_handle.await.unwrap();
 
                 // Now we do pass two
-                let duck = duck_arc.clone();
+                let config = config_arc.clone();
                 let (lint_report_sender, mut lint_report_reciever) =
                     channel::<(String, PathBuf, Vec<LintReport>)>(1000);
                 let pass_two_handle = tokio::task::spawn(async move {
@@ -151,9 +149,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                     for (gml, path, statement, mut lint_reports) in pass_two_queue {
                         let sender = lint_report_sender.clone();
                         let master_collection = master_collection.clone();
-                        let duck = duck.clone();
+                        let config = config.clone();
                         tokio::task::spawn(async move {
-                            duck.lock().await.process_statement_late(
+                            Duck::process_statement_late(
+                                config.as_ref(),
                                 &statement,
                                 master_collection.as_ref(),
                                 &mut lint_reports,
@@ -175,9 +174,6 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 // We are done!
                 pass_two_handle.await.unwrap();
                 let lint_reports = lint_report_handle.await.unwrap();
-
-                // Unwrap everything
-                let duck = Arc::try_unwrap(duck_arc).unwrap().into_inner();
             });
     });
 }

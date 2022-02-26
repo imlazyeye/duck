@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Duck, Lint,
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Duck, Lint,
     LintCategory, LintReport,
 };
 
@@ -31,12 +31,12 @@ impl Lint for TooManyArguments {
 
 impl EarlyExpressionPass for TooManyArguments {
     fn visit_expression_early(
-        duck: &Duck,
+        config: &Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Some(max) = duck.config().max_arguments() {
+        if let Some(max) = config.max_arguments() {
             if let Expression::FunctionDeclaration(_, params, ..) = expression {
                 if params.len() > max {
                     reports.push(Self::generate_report(span))

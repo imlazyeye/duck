@@ -30,7 +30,7 @@ impl Lint for NonScreamCase {
 
 impl EarlyStatementPass for NonScreamCase {
     fn visit_statement_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,

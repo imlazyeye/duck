@@ -1,5 +1,6 @@
 pub type AnyResult<T = ()> = color_eyre::Result<T>;
-pub mod config;
+mod config;
+pub use config::Config;
 mod duck;
 pub mod utils;
 pub use crate::duck::*;

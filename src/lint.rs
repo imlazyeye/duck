@@ -1,4 +1,5 @@
 use crate::{
+    config::Config,
     gml::GmlCollection,
     parsing::{expression::Expression, statement::Statement},
     utils::FilePreviewUtil,
@@ -40,7 +41,7 @@ pub trait Lint {
 /// Lints who run an early pass on statements (before type information has been collected).
 pub trait EarlyStatementPass {
     fn visit_statement_early(
-        duck: &Duck,
+        config: &Config,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
@@ -50,7 +51,7 @@ pub trait EarlyStatementPass {
 /// Lints who run an early pass on expressions (before type information has been collected).
 pub trait EarlyExpressionPass {
     fn visit_expression_early(
-        duck: &Duck,
+        config: &Config,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
@@ -60,7 +61,7 @@ pub trait EarlyExpressionPass {
 /// Lints who run a late pass on statements (after type information has been collected).
 pub trait LateStatementPass {
     fn visit_statement_late(
-        duck: &Duck,
+        config: &Config,
         gml_collection: &GmlCollection,
         statement: &Statement,
         span: Span,
@@ -71,7 +72,7 @@ pub trait LateStatementPass {
 /// Lints who run a late pass on expresions (after type information has been collected).
 pub trait LateExpressionPass {
     fn visit_expression_late(
-        duck: &Duck,
+        config: &Config,
         gml_collection: &GmlCollection,
         expression: &Expression,
         span: Span,
@@ -163,8 +164,8 @@ pub struct LintReport {
     pub span: Span,
 }
 impl LintReport {
-    pub fn generate_string(self, duck: &Duck, preview: &FilePreviewUtil) -> String {
-        let level = duck.get_level_for_lint(self.tag, self.category);
+    pub fn generate_string(self, config: &Config, preview: &FilePreviewUtil) -> String {
+        let level = config.get_level_for_lint(self.tag, self.category);
         let level_string = match *level {
             LintLevel::Allow => "allowed".bright_black().bold(), // I dunno why you'd ever do this, but for now I don't wanna crash...
             LintLevel::Warn => "warning".yellow().bold(),

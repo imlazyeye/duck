@@ -30,12 +30,12 @@ impl Lint for EnglishFlavorViolation {
 
 impl EarlyExpressionPass for EnglishFlavorViolation {
     fn visit_expression_early(
-        duck: &crate::Duck,
+        config: &crate::Config,
         expression: &crate::parsing::expression::Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        let english_flavor = if let Some(english_flavor) = duck.config().english_flavor() {
+        let english_flavor = if let Some(english_flavor) = config.english_flavor() {
             english_flavor
         } else {
             // Todo: we should avoid this somehow

@@ -28,7 +28,7 @@ impl Lint for Exit {
 
 impl EarlyStatementPass for Exit {
     fn visit_statement_early(
-        _duck: &Duck,
+        _config: &crate::Config,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
