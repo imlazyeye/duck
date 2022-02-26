@@ -1,25 +1,20 @@
 mod config;
-mod duck_operation;
-pub use duck_operation::*;
-mod duck_task;
 pub use config::Config;
-pub use duck_task::*;
+mod duck_operation;
+pub use duck_operation::DuckOperation;
+mod duck_task;
+pub use duck_task::DuckTask;
 mod duck;
-pub mod utils;
 pub use crate::duck::*;
 
 pub mod lints;
+pub mod utils;
 
 mod lint;
 pub use lint::{Lint, LintCategory, LintLevel, LintReport, LintTag};
 
-pub mod parsing;
-
 pub mod gml;
-
-#[allow(unused_imports)]
-#[macro_use]
-extern crate log;
+pub mod parsing;
 
 #[macro_use]
 extern crate lazy_static;

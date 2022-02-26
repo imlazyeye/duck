@@ -93,6 +93,7 @@ pub enum Token {
     NaN,
     Infinity,
     Pi,
+    Not,
     Macro(String, Option<String>, String),
     Comment(String),
     Identifier(String),
@@ -170,7 +171,8 @@ impl Token {
         match self {
             Token::DoublePlus => Some(UnaryOperator::Increment),
             Token::DoubleMinus => Some(UnaryOperator::Decrement),
-            Token::Bang => Some(UnaryOperator::Not),
+            Token::Bang | Token::Not => Some(UnaryOperator::Not),
+            Token::Plus => Some(UnaryOperator::Positive),
             Token::Minus => Some(UnaryOperator::Negative),
             Token::Tilde => Some(UnaryOperator::BitwiseNot),
             _ => None,

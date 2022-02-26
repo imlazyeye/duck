@@ -323,6 +323,7 @@ impl<'a> Parser<'a> {
             | Expression::Assignment(..)
             | Expression::Postfix(..)
             | Expression::Unary(..)
+            | Expression::Grouping(..)
             | Expression::Call(..) => {}
 
             Expression::Identifier(..) => {
@@ -592,7 +593,7 @@ impl<'a> Parser<'a> {
 
     fn postfix(&mut self) -> Result<ExpressionBox, ParseError> {
         let start = self.pilot.cursor();
-        let expression = self.grouping()?;
+        let expression = self.literal()?;
         if let Some(operator) = self
             .pilot
             .soft_peek()
@@ -602,17 +603,6 @@ impl<'a> Parser<'a> {
             Ok(Expression::Postfix(expression, operator).into_box(self.span(start)))
         } else {
             Ok(expression)
-        }
-    }
-
-    fn grouping(&mut self) -> Result<ExpressionBox, ParseError> {
-        let start = self.pilot.cursor();
-        if self.pilot.match_take(Token::LeftParenthesis).is_some() {
-            let expression = self.expression()?;
-            self.pilot.require(Token::RightParenthesis)?;
-            Ok(Expression::Grouping(expression).into_box(self.span(start)))
-        } else {
-            self.literal()
         }
     }
 
@@ -735,7 +725,7 @@ impl<'a> Parser<'a> {
             }
         };
         self.pilot.require(Token::Dot)?;
-        let right = self.identifier()?;
+        let right = self.grouping()?;
         Ok(Expression::Access(scope, right).into_box(self.span(start)))
     }
 
@@ -744,7 +734,7 @@ impl<'a> Parser<'a> {
         let left = if let Some(left) = left {
             left
         } else {
-            let left = self.identifier()?;
+            let left = self.grouping()?;
             if self.pilot.soft_peek() != Some(&Token::LeftSquareBracket) {
                 return Ok(left);
             }
@@ -784,6 +774,17 @@ impl<'a> Parser<'a> {
         };
         self.pilot.require(Token::RightSquareBracket)?;
         Ok(Expression::Access(scope, left).into_box(self.span(start)))
+    }
+
+    fn grouping(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.pilot.cursor();
+        if self.pilot.match_take(Token::LeftParenthesis).is_some() {
+            let expression = self.expression()?;
+            self.pilot.require(Token::RightParenthesis)?;
+            Ok(Expression::Grouping(expression).into_box(self.span(start)))
+        } else {
+            self.identifier()
+        }
     }
 
     fn identifier(&mut self) -> Result<ExpressionBox, ParseError> {

@@ -7,7 +7,7 @@ use crate::{
 };
 use colored::Colorize;
 
-/// An individual lint in .
+/// An individual lint in duck.
 ///
 /// Lints should be named after the *bad* action, not the good one. For example,
 /// a lint that prevents switch statements from having no default case should be

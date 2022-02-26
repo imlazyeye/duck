@@ -698,6 +698,29 @@ fn not() {
 }
 
 #[test]
+fn not_keyword() {
+    harness_expr(
+        "not foo",
+        Expression::Unary(
+            UnaryOperator::Not,
+            Expression::Identifier("foo".into()).lazy_box(),
+        ),
+    );
+}
+
+
+#[test]
+fn positive() {
+    harness_expr(
+        "+1",
+        Expression::Unary(
+            UnaryOperator::Positive,
+            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn neagtive() {
     harness_expr(
         "-1",
@@ -992,6 +1015,20 @@ fn ds_grid_access() {
 }
 
 #[test]
+fn ds_grid_access_no_space() {
+    harness_expr(
+        "foo[#bar, buzz]",
+        Expression::Access(
+            Scope::Grid(
+                Expression::Identifier("bar".into()).lazy_box(),
+                Expression::Identifier("buzz".into()).lazy_box(),
+            ),
+            Expression::Identifier("foo".into()).lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn struct_access() {
     harness_expr(
         "foo[$ bar]",
@@ -1047,6 +1084,19 @@ fn dot_access() {
         "foo.bar",
         Expression::Access(
             Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
+            Expression::Identifier("bar".into()).lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn grouping_dot_access() {
+    harness_expr(
+        "(foo).bar",
+        Expression::Access(
+            Scope::Dot(
+                Expression::Grouping(Expression::Identifier("foo".into()).lazy_box()).lazy_box(),
+            ),
             Expression::Identifier("bar".into()).lazy_box(),
         ),
     );
@@ -1280,11 +1330,24 @@ fn string() {
 }
 
 #[test]
+fn multi_line_string() {
+    harness_expr(
+        "@\"foo\nfoo\"",
+        Expression::Literal(Literal::String("foo\nfoo".into())),
+    );
+}
+
+#[test]
 fn dollar_hex() {
     harness_expr(
         "$a0f9a0",
         Expression::Literal(Literal::Hex("a0f9a0".into())),
     );
+}
+
+#[test]
+fn short_hex() {
+    harness_expr("$20", Expression::Literal(Literal::Hex("20".into())));
 }
 
 #[test]

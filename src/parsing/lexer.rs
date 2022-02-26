@@ -6,6 +6,7 @@ use super::token::Token;
 
 /// Takes gml  and converts it into tokens as an iterator.
 pub struct Lexer<'a> {
+    content: &'a str,
     input_characters: Peekable<GraphemeIndices<'a>>,
     cursor: usize,
 }
@@ -13,6 +14,7 @@ impl<'a> Lexer<'a> {
     /// Creates a new Lexer, taking a string of gml source.
     pub fn new(content: &'a str) -> Self {
         Lexer {
+            content,
             input_characters: content.grapheme_indices(true).peekable(),
             cursor: 0,
         }
@@ -123,7 +125,34 @@ impl<'a> Lexer<'a> {
                 ':' => Some(Token::Colon),
                 '[' => Some(Token::LeftSquareBracket),
                 ']' => Some(Token::RightSquareBracket),
-                '@' => Some(Token::AtSign),
+                '@' => {
+                    if self.match_take('"') {
+                        let mut lexeme = String::new();
+                        let mut in_escape = false;
+                        loop {
+                            match self.take() {
+                                Some((_, chr)) => {
+                                    if in_escape {
+                                        lexeme.push(chr);
+                                        in_escape = false;
+                                    } else {
+                                        match chr {
+                                            '"' if !in_escape => break,
+                                            '\\' => {
+                                                in_escape = true;
+                                            }
+                                            _ => lexeme.push(chr),
+                                        }
+                                    }
+                                }
+                                None => return (start_index, Token::Eof),
+                            }
+                        }
+                        Some(Token::StringLiteral(lexeme))
+                    } else {
+                        Some(Token::AtSign)
+                    }
+                }
                 '~' => Some(Token::Tilde),
                 '%' => {
                     if self.match_take('=') {
@@ -184,7 +213,7 @@ impl<'a> Lexer<'a> {
                 '$' => {
                     let mut lexeme = String::new();
                     self.construct_hex(&mut lexeme);
-                    if lexeme.len() == 6 {
+                    if !lexeme.is_empty() {
                         Some(Token::Hex(lexeme))
                     } else {
                         Some(Token::DollarSign)
@@ -215,8 +244,7 @@ impl<'a> Lexer<'a> {
                             self.discard_rest_of_line();
                             self.lex()
                         }
-                        "#" => (start_index, Token::Hash),
-                        invalid => (start_index, Token::Invalid(invalid.to_string())),
+                        _ => (start_index, Token::Hash),
                     };
                 }
 
@@ -289,6 +317,7 @@ impl<'a> Lexer<'a> {
                         "while" => Some(Token::While),
                         "and" => Some(Token::And),
                         "or" => Some(Token::Or),
+                        "not" => Some(Token::Not),
                         "switch" => Some(Token::Switch),
                         "constructor" => Some(Token::Constructor),
                         "default" => Some(Token::Default),

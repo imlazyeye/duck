@@ -197,6 +197,7 @@ pub enum UnaryOperator {
     Increment,
     Decrement,
     Not,
+    Positive,
     Negative,
     BitwiseNot,
 }
