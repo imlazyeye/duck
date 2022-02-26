@@ -1,0 +1,40 @@
+name: duck Test
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - '**.py'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - '**.txt'
+      - '**.py'
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TARGET_DIR: '${{ github.workspace }}/target'
+  NO_FMT_TEST: 1
+
+jobs:
+  base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: rust-lang/simpleinfra/github-actions/cancel-outdated-builds@master
+        with:
+          github_token: '${{ secrets.github_token }}'
+
+      - name: Checkout
+        uses: actions/checkout@v2.3.3
+
+      # Run
+      # - name: Set LD_LIBRARY_PATH (Linux)
+      #   run: |
+      #     SYSROOT=$(rustc --print sysroot)
+      #     echo "LD_LIBRARY_PATH=${SYSROOT}/lib${LD_LIBRARY_PATH+:${LD_LIBRARY_PATH}}" >> $GITHUB_ENV
+      - name: Build
+        run: cargo build --release
+
+      - name: Test
+        run: cargo test -- --format=terse
