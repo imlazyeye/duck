@@ -708,7 +708,6 @@ fn not_keyword() {
     );
 }
 
-
 #[test]
 fn positive() {
     harness_expr(
@@ -1332,8 +1331,25 @@ fn string() {
 #[test]
 fn multi_line_string() {
     harness_expr(
-        "@\"foo\nfoo\"",
-        Expression::Literal(Literal::String("foo\nfoo".into())),
+        "@\"\nfoo\nfoo\"",
+        Expression::Literal(Literal::String("\nfoo\nfoo".into())),
+    );
+}
+
+#[test]
+fn multi_line_string_single_quote() {
+    harness_expr(
+        "@'\nfoo\nfoo'",
+        Expression::Literal(Literal::String("\nfoo\nfoo".into())),
+    );
+}
+
+// I hate gamemaker.
+#[test]
+fn multi_line_string_single_quote_with_inner_double_quote() {
+    harness_expr(
+        "@'\nfoo\"\nfoo'",
+        Expression::Literal(Literal::String("\nfoo\"\nfoo".into())),
     );
 }
 

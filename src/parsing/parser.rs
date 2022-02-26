@@ -105,7 +105,7 @@ impl<'a> Parser<'a> {
                 self.pilot.match_take(Token::Comma);
             }
         }
-        // gml_collector.register_enum(enum.clone());
+        self.pilot.match_take_repeating(Token::SemiColon); // todo: maybe lint this in the future
         Ok(Statement::EnumDeclaration(gml_enum).into_box(self.span(start)))
     }
 

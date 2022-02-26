@@ -126,7 +126,9 @@ impl<'a> Lexer<'a> {
                 '[' => Some(Token::LeftSquareBracket),
                 ']' => Some(Token::RightSquareBracket),
                 '@' => {
-                    if self.match_take('"') {
+                    let single_quote = self.match_take('\'');
+                    let double_quote = self.match_take('"');
+                    if single_quote || double_quote {
                         let mut lexeme = String::new();
                         let mut in_escape = false;
                         loop {
@@ -137,7 +139,8 @@ impl<'a> Lexer<'a> {
                                         in_escape = false;
                                     } else {
                                         match chr {
-                                            '"' if !in_escape => break,
+                                            '"' if double_quote && !in_escape => break,
+                                            '\'' if single_quote && !in_escape => break,
                                             '\\' => {
                                                 in_escape = true;
                                             }
