@@ -69,7 +69,7 @@ for operation in opreations:
     args = operation['args']
 
     search = re.search(
-        r'( +)// @{name} calls.+\n((\n|.)+?) +// @end {name} calls.+'.format(name=name), duck_operations)
+        r'( +)// @{name} calls.+\n((\n|.)+?) +// @end {name} calls.+'.format(name=name), duck_operation)
     tabs = search.group(1)
     old_call = search.group(2)
 
@@ -102,9 +102,8 @@ for operation in opreations:
             )
 
     # Replace the calls in the file
-    print(new_call)
-    duck_operations = duck_operations.replace(old_call, new_call)
+    duck_operation = duck_operation.replace(old_call, new_call)
 
 # Flush to the file
-open('../src/duck_operations.rs', 'w').write(duck_operations)
+open('../src/duck_operation.rs', 'w').write(duck_operation)
 print("Finished updating lint calls!")
