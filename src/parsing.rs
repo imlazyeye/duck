@@ -9,6 +9,7 @@ pub mod utils;
 
 pub use parser::Parser;
 pub use token::Token;
+pub use token::TokenId;
 pub use utils::ParseError;
 
 #[cfg(test)]

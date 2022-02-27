@@ -3,7 +3,9 @@ use super::expression::{
     PostfixOperator, UnaryOperator,
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, strum::EnumDiscriminants)]
+#[strum_discriminants(derive(strum::EnumString, strum::EnumIter))]
+#[strum_discriminants(name(TokenId))]
 pub enum Token {
     Switch,
     Case,
