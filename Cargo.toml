@@ -1,7 +1,11 @@
 [package]
 name = "duck"
 version = "0.1.0"
+authors = ["Gabriel Weiner <imlazyeye@gmail.com"]
 edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/imlazyeye/duck"
+description = "A highly opinionated linter for GML. 🦆"
 
 [lib]
 name = "duck"
@@ -17,7 +21,6 @@ harness = false
 
 [dependencies]
 color-eyre = "0.6"
-regex = "1"
 pretty_env_logger = "0.4"
 log = "0.4"
 enum-map = "2.0"
@@ -33,12 +36,9 @@ bimap = "0.6"
 lazy_static = "1.4"
 clap = { version = "3.1.1", features = ["derive"] }
 async-walkdir = "0.2"
-futures-lite = "1.12"
 itertools = "0.10"
 tokio = { version = "1.17.0", features = ["full"] }
 futures = "0.3"
-async-recursion = "1.0"
-logos = "0.12"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports", "async_tokio"] }
