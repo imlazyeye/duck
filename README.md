@@ -1,4 +1,5 @@
 # duck
+
 ![GitHub branch checks state](https://img.shields.io/github/checks-status/imlazyeye/duck/main)
 ![GitHub](https://img.shields.io/github/license/imlazyeye/duck)
 
@@ -107,14 +108,14 @@ This will create a file called `.duck.toml` in your project's directory that wil
 
 ### Configuration options
 
-| Property                 | Possible Values       | Associated Lint                     | Explanation                                                                                         |
-| ------------------------ | --------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| todo_keyword             | Any string            | `todo`                              | The name of a function in your code base used to mark something as unfinished.                      |
-| max_arguments            | Any number            | `too_many_arguments`                | The maximum number of arguments the associated lint will allow.                                     |
-| statement_parentheticals | true, false           | `statement_parenthetical_violation` | Whether or not statements should have parenthesis over their condition (ex: `if (foo)` vs `if foo`) |
-| var_prefixes             | true, false           | `var_prefix_violation`              | Whether or not local variables should be prefixed with an underscore (ex: `var _foo` vs `var foo`)  |
-| english_flavor           | "american", "british" | `english_flavor_violation`          | The spelling of English words you prefer for GameMaker functions (ex: `color` vs `colour`)          |
-| length_enum_member_name  | Any string            | `missing_case_member`               | A name to ignore in enums that denote its length (ie: `Len`, `Count`)                               |
+| Property                 | Possible Values       | Explanation                                                                                                                                       |
+| ------------------------ | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| todo_keyword             | Any string            | The name of a function in your code base used to mark something as unfinished. Used by `todo`.                                                    |
+| max_arguments            | Any number            | The maximum number of arguments the associated lint will allow. Used by `too_many_arguments`.                                                     |
+| statement_parentheticals | true, false           | Whether or not statements should have parenthesis over their condition (ex: `if (foo)` vs `if foo`). Used by `statement_parenthetical_violation`. |
+| var_prefixes             | true, false           | Whether or not local variables should be prefixed with an underscore (ex: `var _foo` vs `var foo`). Used by `var_prefix_violation`.               |
+| english_flavor           | "american", "british" | The spelling of English words you prefer for GameMaker functions (ex: `color` vs `colour`). Used by `english_flavor_violation`.                   |
+| length_enum_member_name  | Any string            | A name to ignore in enums that denote its length (ie: `Len`, `Count`). Used by `missing_case_member`.                                             |
 
 ### Setting lint levels
 
@@ -135,7 +136,9 @@ duck lint --path path/to/project
 ```
 
 ## Contributing
+
 `duck` is designed to be easily extensible, and contributions are extremely welcome! Please see [Contributing](CONTRIBUTING.md) for more information.
 
 ## Support and Requests
+
 Please [open an issue](https://github.com/imlazyeye/duck/issues) if you encounter any problems with `duck`, or if you have any feature requests you would like to make!
