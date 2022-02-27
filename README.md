@@ -1,7 +1,6 @@
 # duck
-
-[![duck Test](https://github.com/imlazyeye/duck/workflows/duck%20Test/badge.svg?branch=auto&event=push)](https://github.com/imlazyeye/duck/actions?query=workflow%3A%22duck+Test%22+event%3Apush+branch%3Aauto)
-[![License: MIT OR Apache-2.0](https://github.com/imlazyeye/duck)](#license)
+![GitHub branch checks state](https://img.shields.io/github/checks-status/imlazyeye/duck/main)
+![GitHub](https://img.shields.io/github/license/imlazyeye/duck)
 
 A collection of customizable lints to identify common mistakes in GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
 
