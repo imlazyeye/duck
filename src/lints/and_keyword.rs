@@ -1,4 +1,4 @@
-use crate::{utils::Span, Lint, LintCategory, LintReport};
+use crate::{utils::Span, Lint, LintReport, LintLevel};
 
 #[derive(Debug, PartialEq)]
 pub struct AndKeyword;
@@ -9,13 +9,13 @@ impl Lint for AndKeyword {
             tag: Self::tag(),
 			explanation: "GML supports both `and` and `&&` to refer to logical and -- `&&` is more consistent with other languages and is preferred.",
 			suggestions: vec!["Use `&&` instead of `and`".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

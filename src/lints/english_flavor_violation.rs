@@ -2,7 +2,7 @@ use bimap::BiHashMap;
 
 use crate::{
     config::EnglishFlavor, lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span,
-    Lint, LintCategory, LintReport,
+    Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,13 +14,13 @@ impl Lint for EnglishFlavorViolation {
             tag: Self::tag(),
 			explanation: "GML has many duplicated function names for the sake of supporting both British and American spelling. For consistency, codebases should stick to one.",
 			suggestions: vec![],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

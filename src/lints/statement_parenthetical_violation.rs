@@ -2,7 +2,7 @@ use crate::{
     lint::EarlyStatementPass,
     parsing::{expression::Expression, statement::Statement},
     utils::Span,
-    Config, Lint, LintCategory, LintReport,
+    Config, Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,13 +14,13 @@ impl Lint for StatementParentheticalViolation {
             tag: Self::tag(),
 			explanation: "Parenthesis surrounding statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.",
 			suggestions: vec![],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

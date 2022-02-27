@@ -4,7 +4,7 @@ use crate::{
     lint::{EarlyExpressionPass, EarlyStatementPass},
     parsing::{expression::Expression, statement::Statement},
     utils::Span,
-    Lint, LintCategory, LintReport,
+    Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -16,13 +16,13 @@ impl Lint for NonPascalCase {
             tag: Self::tag(),
 			explanation: "Pascal case is the ideal casing for \"types\" to distinguish them from other values.",
 			suggestions: vec![],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 
     fn tag() -> &'static str {

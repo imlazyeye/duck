@@ -11,7 +11,7 @@ pub mod lints;
 pub mod utils;
 
 mod lint;
-pub use lint::{Lint, LintCategory, LintLevel, LintReport, LintTag};
+pub use lint::{Lint, LintLevel, LintReport, LintTag};
 
 pub mod gml;
 pub mod parsing;

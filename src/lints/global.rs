@@ -2,7 +2,7 @@ use crate::{
     lint::EarlyExpressionPass,
     parsing::expression::{Expression, Scope},
     utils::Span,
-    Lint, LintCategory, LintReport,
+    Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,13 +14,13 @@ impl Lint for Global {
             tag: Self::tag(),
 			explanation: "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere.",
 			suggestions: vec!["Scope this variable to an individual object".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Strict
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

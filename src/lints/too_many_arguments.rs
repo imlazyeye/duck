@@ -1,6 +1,6 @@
 use crate::{
     lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Lint,
-    LintCategory, LintReport,
+    LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -15,13 +15,13 @@ impl Lint for TooManyArguments {
             "Split this into multiple functions".into(),
             "Create a struct that holds the fields required by this function".into(),
         ],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 
     fn tag() -> &'static str {

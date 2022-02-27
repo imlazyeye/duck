@@ -1,6 +1,6 @@
 use crate::{
     lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Lint,
-    LintCategory, LintReport,
+    LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -12,13 +12,13 @@ impl Lint for DrawText {
             tag: Self::tag(),
 			explanation: "Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called.",
 			suggestions: vec!["Replace this call with your API's ideal function".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Strict
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

@@ -1,4 +1,4 @@
-use crate::{utils::Span, Lint, LintCategory, LintReport};
+use crate::{utils::Span, Lint, LintReport, LintLevel};
 
 #[derive(Debug, PartialEq)]
 pub struct ConstructorWithoutNew;
@@ -9,13 +9,13 @@ impl Lint for ConstructorWithoutNew {
             tag: Self::tag(),
 			explanation: "Constructors invoked without the `new` keyword do not return the newly constructed struct.",
 			suggestions: vec!["Add the `new` operator before the call".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Correctness
+    fn default_level() -> LintLevel {
+        LintLevel::Deny
     }
 
     fn tag() -> &'static str {

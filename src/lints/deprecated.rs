@@ -5,7 +5,7 @@ use crate::{
         statement::Statement,
     },
     utils::Span,
-    Lint, LintCategory, LintReport,
+    Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -18,13 +18,13 @@ impl Lint for Deprecated {
             explanation:
                 "Deprecated features are liable to be removed at any time and should be avoided.",
             suggestions: vec![],
-            category: Self::category(),
+            default_level: Self::default_level(),
             span,
         }
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Correctness
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 
     fn tag() -> &'static str {

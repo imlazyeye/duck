@@ -20,8 +20,8 @@ pub trait Lint {
     /// Returns the string tag for this Lint.
     fn tag() -> &'static str;
 
-    /// Returns the LintCategory for this Lint.
-    fn category() -> LintCategory;
+    /// Returns the default LintLevel for this Lint.
+    fn default_level() -> LintLevel;
 
     /// Generates a LintReport based on `Lint::generate_report`, but replaces its name
     /// and extends any provided suggestions into it.
@@ -128,35 +128,12 @@ impl core::ops::Deref for LintLevelSetting {
 #[derive(Debug)]
 pub struct LintTag(pub String, pub LintLevel);
 
-/// The category a lint falls into. This effects duck's default permission level for all lints.
-#[derive(Debug, Copy, Clone, enum_map::Enum)]
-pub enum LintCategory {
-    /// Code that is outright wrong or useless.
-    Correctness,
-    /// Code that is irregular and likely doing something unintended.
-    Suspicious,
-    /// Code that could be written in a more idomatic way.
-    Style,
-    /// Lints that express strict opinions over GML and depend greatly on preference.
-    Strict,
-}
-impl LintCategory {
-    pub fn default_level(&self) -> LintLevel {
-        match self {
-            LintCategory::Correctness => LintLevel::Deny,
-            LintCategory::Suspicious => LintLevel::Warn,
-            LintCategory::Style => LintLevel::Warn,
-            LintCategory::Strict => LintLevel::Allow,
-        }
-    }
-}
-
 /// A report returned by a lint if it fails.
 #[derive(Debug)]
 pub struct LintReport {
     pub(super) display_name: String,
     pub(super) tag: &'static str,
-    pub(super) category: LintCategory,
+    pub(super) default_level: LintLevel,
     #[allow(dead_code)]
     pub(super) explanation: &'static str,
     pub(super) suggestions: Vec<String>,
@@ -164,7 +141,7 @@ pub struct LintReport {
 }
 impl LintReport {
     pub fn generate_string(&self, config: &Config, preview: &FilePreviewUtil) -> String {
-        let level = config.get_level_for_lint(self.tag, self.category);
+        let level = config.get_lint_level_setting(self.tag, self.default_level);
         let level_string = match *level {
             LintLevel::Allow => "allowed".bright_black().bold(), // I dunno why you'd ever do this, but for now I don't wanna crash...
             LintLevel::Warn => "warning".yellow().bold(),
@@ -215,8 +192,8 @@ impl LintReport {
         self.tag
     }
 
-    /// Get the lint report's category.
-    pub fn category(&self) -> LintCategory {
-        self.category
+    /// Get the lint report's default level.
+    pub fn default_level(&self) -> LintLevel {
+        self.default_level
     }
 }

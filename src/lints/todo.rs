@@ -1,6 +1,6 @@
 use crate::{
     lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Config, Lint,
-    LintCategory, LintReport,
+    LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -12,13 +12,13 @@ impl Lint for Todo {
             tag: Self::tag(),
 			explanation: "Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.",
 			suggestions: vec!["Remove this todo marker".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Strict
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

@@ -129,8 +129,9 @@ impl RunResult {
             EnumMap::default();
         for (path, gml, reports) in lint_reports {
             for report in reports {
-                report_collection[*config.get_level_for_lint(report.tag(), report.category())]
-                    .push((path.clone(), gml.clone(), report));
+                report_collection
+                    [*config.get_lint_level_setting(report.tag(), report.default_level())]
+                .push((path.clone(), gml.clone(), report));
             }
         }
         Self {

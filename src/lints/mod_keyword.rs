@@ -1,4 +1,4 @@
-use crate::{utils::Span, Lint, LintCategory, LintReport};
+use crate::{utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct ModKeyword;
@@ -9,13 +9,13 @@ impl Lint for ModKeyword {
             tag: Self::tag(),
 			explanation: "GML supports both `mod` and `%` to perform modulo division -- `%` is more consistent with other languages and is preferred.",
 			suggestions: vec!["Use `%` instead of `mod`".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

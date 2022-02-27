@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Lint, LintCategory,
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Lint, LintLevel,
     LintReport,
 };
 
@@ -14,13 +14,13 @@ impl Lint for NonConstantDefaultParameter {
 			suggestions: vec![
                 "Create a seperated function for when this value is not provided".into(),
             ],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Strict
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 
     fn tag() -> &'static str {

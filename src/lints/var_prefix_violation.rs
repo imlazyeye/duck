@@ -1,6 +1,6 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Config, Lint,
-    LintCategory, LintReport,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Config, Lint, LintLevel,
+    LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -12,13 +12,13 @@ impl Lint for VarPrefixViolation {
             tag: Self::tag(),
 			explanation: "It is common practice in GML to prefix local variables (longer than one charcter) with an underscore as it helps to visually distinguish them from instance (or global) variables. You can select either option via the config.",
 			suggestions: vec![],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

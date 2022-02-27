@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintLevel,
     LintReport,
 };
 
@@ -15,13 +15,13 @@ impl Lint for WithLoop {
             "Use `instance_find` if looping over objects".into(),
             "Use direct dot reference `foo.bar` to manipulate single objects".into(),
         ],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Strict
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

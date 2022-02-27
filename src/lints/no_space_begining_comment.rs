@@ -1,4 +1,4 @@
-use crate::{utils::Span, Lint, LintCategory, LintReport};
+use crate::{utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct NoSpaceBeginingComment;
@@ -9,13 +9,13 @@ impl Lint for NoSpaceBeginingComment {
             tag: Self::tag(),
 			explanation: "Comments should begin with a space after them to increase readability and consistency.",
 			suggestions: vec!["Add a space to the begining of the comment".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

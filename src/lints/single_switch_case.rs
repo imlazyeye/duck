@@ -1,6 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
-    LintReport,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -12,13 +11,13 @@ impl Lint for SingleSwitchCase {
             tag: Self::tag(),
 			explanation: "Switch statements that only match on a single element can be reduced to an `if` statement.",
 			suggestions: vec!["Use an `if` statement instead of a `switch` statement".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 
     fn tag() -> &'static str {

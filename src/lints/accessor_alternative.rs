@@ -2,7 +2,7 @@ use crate::{
     lint::EarlyExpressionPass,
     parsing::expression::{Expression, Literal},
     utils::Span,
-    Lint, LintCategory, LintReport,
+    Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,13 +14,13 @@ impl Lint for AccessorAlternative {
             tag: Self::tag(),
 			explanation: "GML offers accessors as an alternative to many common functions which are preferable for their readability and brevity.",
 			suggestions: vec!["Scope this variable to an individual object".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 
     fn tag() -> &'static str {

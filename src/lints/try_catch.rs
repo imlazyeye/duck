@@ -1,6 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
-    LintReport,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -12,13 +11,13 @@ impl Lint for TryCatch {
             tag: Self::tag(),
 			explanation: "GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.",
 			suggestions: vec!["Adjust the architecture to inspect for an issue prior to the crash".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Strict
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintLevel,
     LintReport,
 };
 
@@ -12,13 +12,13 @@ impl Lint for Exit {
             tag: Self::tag(),
 			explanation: "`return` can always be used in place of exit, which provides more consistency across your codebase.",
 			suggestions: vec!["Use `return` instead of `exit`".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

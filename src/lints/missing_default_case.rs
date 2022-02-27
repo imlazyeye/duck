@@ -1,6 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
-    LintReport,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -12,13 +11,13 @@ impl Lint for MissingDefaultCase {
             tag: Self::tag(),
 			explanation: "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.",
 			suggestions: vec!["Add a default case to the switch statement".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Strict
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

@@ -1,6 +1,6 @@
 use crate::{
     gml::Environment, lint::LateStatementPass, parsing::statement::Statement, utils::Span, Lint,
-    LintCategory, LintReport,
+    LintLevel, LintReport,
 };
 use itertools::Itertools;
 
@@ -11,7 +11,7 @@ impl Lint for MissingCaseMember {
         LintReport {
             display_name: "Missing case member".into(),
             tag: Self::tag(),
-            category: Self::category(),
+            default_level: Self::default_level(),
             explanation:  "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
             suggestions:  vec![
             "Add cases for the missing members".into(),
@@ -25,8 +25,8 @@ impl Lint for MissingCaseMember {
         "missing_case_member"
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Correctness
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 }
 

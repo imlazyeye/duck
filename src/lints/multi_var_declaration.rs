@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintLevel,
     LintReport,
 };
 
@@ -12,13 +12,13 @@ impl Lint for MultiVarDeclaration {
             tag: Self::tag(),
 			explanation: "While GML allows you to create multiple local variables at once, it can often lead to confusing syntax that would read better with each variable seperated.",
 			suggestions: vec!["Break these down into seperate declarations".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

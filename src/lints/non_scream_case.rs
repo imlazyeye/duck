@@ -1,8 +1,7 @@
 use heck::ToShoutySnakeCase;
 
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintCategory,
-    LintReport,
+    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,13 +13,13 @@ impl Lint for NonScreamCase {
             tag: Self::tag(),
 			explanation: "Scream case is the ideal casing for constants to distingusih them from other values.",
 			suggestions: vec!["Change your casing to SCREAM_CASE".into()],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Warn
     }
 
     fn tag() -> &'static str {

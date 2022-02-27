@@ -193,7 +193,7 @@ impl DuckOperation {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
             T::visit_statement_early(config, statement, span, reports);
         }
     }
@@ -205,7 +205,7 @@ impl DuckOperation {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
             T::visit_expression_early(config, expression, span, reports);
         }
     }
@@ -218,7 +218,7 @@ impl DuckOperation {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
             T::visit_statement_late(config, environment, statement, span, reports);
         }
     }
@@ -232,7 +232,7 @@ impl DuckOperation {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if *config.get_level_for_lint(T::tag(), T::category()) != LintLevel::Allow {
+        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
             T::visit_expression_late(config, environment, expression, span, reports);
         }
     }

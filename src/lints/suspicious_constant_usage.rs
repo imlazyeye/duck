@@ -2,7 +2,7 @@ use crate::{
     lint::EarlyExpressionPass,
     parsing::expression::{AssignmentOperator, Expression, Literal},
     utils::Span,
-    Lint, LintCategory, LintReport,
+    Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,13 +14,13 @@ impl Lint for SuspicousConstantUsage {
 			display_name: "Susipcious constant usage".into(),
 			explanation: "Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.",
 			suggestions: vec![],
-			category: Self::category(),
+			default_level: Self::default_level(),
 			span,
 		}
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Suspicious
+    fn default_level() -> LintLevel {
+        LintLevel::Deny
     }
 
     fn tag() -> &'static str {

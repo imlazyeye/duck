@@ -2,7 +2,7 @@ use crate::{
     lint::EarlyExpressionPass,
     parsing::expression::{EqualityOperator, Expression, Literal},
     utils::Span,
-    Lint, LintCategory, LintReport,
+    Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -14,13 +14,13 @@ impl Lint for BoolEquality {
             tag: Self::tag(),
             explanation: "Comparing a bool with a bool literal is more verbose than neccesary.",
             suggestions: vec![],
-            category: Self::category(),
+            default_level: Self::default_level(),
             span,
         }
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Style
+    fn default_level() -> LintLevel {
+        LintLevel::Allow
     }
 
     fn tag() -> &'static str {

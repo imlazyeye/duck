@@ -1,6 +1,5 @@
 use crate::{
-    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Lint, LintCategory,
-    LintReport,
+    lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span, Lint, LintReport, LintLevel,
 };
 
 #[derive(Debug, PartialEq)]
@@ -12,13 +11,13 @@ impl Lint for AssignmentToCall {
             tag: Self::tag(),
             explanation: "While possible to compile, assigning a value to the call of a function does not do anything.",
             suggestions: vec!["Re-evaluate this code -- this assignment does not do anything.".into()],
-            category: Self::category(),
+            default_level: Self::default_level(),
             span,
         }
     }
 
-    fn category() -> LintCategory {
-        LintCategory::Suspicious
+    fn default_level() -> LintLevel {
+        LintLevel::Deny
     }
 
     fn tag() -> &'static str {
