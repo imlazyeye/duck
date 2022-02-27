@@ -29,6 +29,17 @@ fn config_macro() {
 }
 
 #[test]
+fn two_macro_declaration() {
+    harness_stmt(
+        "{ \n#macro foo 0\n#macro bar 0\n }",
+        Statement::Block(vec![
+            Statement::MacroDeclaration("foo".into(), None, "0".into()).lazy_box(),
+            Statement::MacroDeclaration("bar".into(), None, "0".into()).lazy_box(),
+        ]),
+    )
+}
+
+#[test]
 fn enum_declaration() {
     harness_stmt(
         "enum Foo { Bar, Baz }",

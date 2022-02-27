@@ -224,30 +224,28 @@ impl<'a> Lexer<'a> {
                 }
                 // Regions / Macros
                 '#' => {
-                    let mut lexeme = chr.into();
-                    self.construct_word(&mut lexeme);
-                    return match lexeme.as_ref() {
-                        "#macro" => {
-                            self.discard_whitespace();
-                            let mut iden_one = String::new();
-                            self.construct_word(&mut iden_one);
-                            let (name, config) = if self.match_take(':') {
-                                let mut name = String::new();
-                                self.construct_word(&mut name);
-                                (name, Some(iden_one))
-                            } else {
-                                (iden_one, None)
-                            };
-                            self.discard_whitespace();
-                            let mut body = String::new();
-                            self.consume_rest_of_line(&mut body);
-                            (start_index, Token::Macro(name, config, body))
-                        }
-                        "#region" | "#endregion" => {
-                            self.discard_rest_of_line();
-                            self.lex()
-                        }
-                        _ => (start_index, Token::Hash),
+                    return if self.match_take_str("#macro", start_index) {
+                        self.discard_whitespace();
+                        let mut iden_one = String::new();
+                        self.construct_word(&mut iden_one);
+                        let (name, config) = if self.match_take(':') {
+                            let mut name = String::new();
+                            self.construct_word(&mut name);
+                            (name, Some(iden_one))
+                        } else {
+                            (iden_one, None)
+                        };
+                        self.discard_whitespace();
+                        let mut body = String::new();
+                        self.consume_rest_of_line(&mut body);
+                        (start_index, Token::Macro(name, config, body))
+                    } else if self.match_take_str("#region", start_index)
+                        || self.match_take_str("#endregion", start_index)
+                    {
+                        self.discard_rest_of_line();
+                        self.lex()
+                    } else {
+                        (start_index, Token::Hash)
                     };
                 }
 
@@ -386,6 +384,23 @@ impl<'a> Lexer<'a> {
             .unwrap_or(false)
         {
             self.take();
+        }
+    }
+
+    /// Checks if the the following characters are upcoming in the source. If they are,
+    /// consumes the characters.
+    fn match_take_str(&mut self, lexeme: &str, start_pos: usize) -> bool {
+        if start_pos + lexeme.len() <= self.content.len() {
+            if &self.content[start_pos..start_pos + lexeme.len()] == lexeme {
+                for _ in 0..lexeme.len() - 1 {
+                    self.take();
+                }
+                true
+            } else {
+                false
+            }
+        } else {
+            false
         }
     }
 

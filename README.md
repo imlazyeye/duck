@@ -52,7 +52,7 @@ var_prefixes = false
 
 ### Tags
 
-Sometimes you need to break the rules. Perhaps there is a place in my codebase that I would really like to use a `globalvar`, even though it is depreacted. In general though, I still don't want them to be allowed. You can tag the specific occurance of the issue to acknowledge (and ignore) the lint.
+Sometimes you need to break the rules. Perhaps there is a place in my codebase that I would really like to use a `globalvar` even though it is depreacted. In general though, I still don't want them to be allowed. You can tag the specific occurance of the issue to acknowledge (and ignore) the lint.
 
 ```gml
 // #[allow(deprecated)]
