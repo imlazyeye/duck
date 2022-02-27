@@ -15,6 +15,3 @@ pub use lint::{Lint, LintLevel, LintReport, LintTag};
 
 pub mod gml;
 pub mod parsing;
-
-#[macro_use]
-extern crate lazy_static;

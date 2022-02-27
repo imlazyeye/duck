@@ -1,5 +1,7 @@
 use std::iter::Peekable;
 
+use fnv::{FnvHashMap, FnvHashSet};
+use once_cell::sync::Lazy;
 use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 
 use super::token::Token;
@@ -338,12 +340,10 @@ impl<'a> Lexer<'a> {
                         "try" => Some(Token::Try),
                         "catch" => Some(Token::Catch),
                         "finally" => Some(Token::Finally),
-                        "pointer_null" => Some(Token::PointerNull),
-                        "pointer_invalid" => Some(Token::PointerInvalid),
-                        "NaN" => Some(Token::NaN),
-                        "infinity" => Some(Token::Infinity),
-                        "pi" => Some(Token::Pi),
                         "then" => Some(Token::Then),
+                        id if MISC_GML_CONSTANTS.contains(id) => {
+                            Some(Token::MiscConstant(id.to_string()))
+                        }
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
@@ -508,3 +508,13 @@ impl<'a> Iterator for Lexer<'a> {
         }
     }
 }
+
+static MISC_GML_CONSTANTS: Lazy<FnvHashSet<&'static str>> =
+    Lazy::new(|| serde_json::from_str(&MISC_GML_CONSTANT_FILE_DATA).unwrap());
+
+static MISC_GML_CONSTANT_FILE_DATA: Lazy<String> = Lazy::new(|| {
+    std::fs::read_to_string(dbg!(std::env::current_dir()
+        .unwrap()
+        .join("assets/misc_gml_constants.json")))
+    .unwrap()
+});

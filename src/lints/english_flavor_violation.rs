@@ -1,4 +1,5 @@
 use bimap::BiHashMap;
+use once_cell::sync::Lazy;
 
 use crate::{
     config::EnglishFlavor, lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span,
@@ -72,8 +73,8 @@ impl EarlyExpressionPass for EnglishFlavorViolation {
     }
 }
 
-lazy_static! {
-    pub(super) static ref BRITISH_TO_AMERICAN_KEYWORDS: BiHashMap<&'static str, &'static str> = {
+pub(super) static BRITISH_TO_AMERICAN_KEYWORDS: Lazy<BiHashMap<&'static str, &'static str>> =
+    Lazy::new(|| {
         let mut bimap = BiHashMap::new();
         bimap.insert("bm_dest_colour", "bm_dest_color");
         bimap.insert("bm_inv_dest_colour", "bm_inv_dest_color");
@@ -144,5 +145,4 @@ lazy_static! {
         bimap.insert("vertex_type_colour", "vertex_type_color");
         bimap.insert("vertex_usage_colour", "vertex_usage_color");
         bimap
-    };
-}
+    });

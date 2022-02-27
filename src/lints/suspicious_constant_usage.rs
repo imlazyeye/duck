@@ -2,7 +2,7 @@ use crate::{
     lint::EarlyExpressionPass,
     parsing::expression::{AssignmentOperator, Expression, Literal},
     utils::Span,
-    Lint, LintReport, LintLevel,
+    Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -64,13 +64,10 @@ fn literal_is_suspicous(literal: &Literal) -> bool {
     match literal {
         Literal::True
         | Literal::False
-        | Literal::PointerNull
-        | Literal::PointerInvalid
         | Literal::Undefined
-        | Literal::NaN
-        | Literal::Infinity
+        | Literal::Misc(_)
         | Literal::Array(_)
         | Literal::Struct(_) => true,
-        Literal::Pi | Literal::String(_) | Literal::Real(_) | Literal::Hex(_) => false,
+        Literal::String(_) | Literal::Real(_) | Literal::Hex(_) => false,
     }
 }

@@ -1309,15 +1309,11 @@ fn float_no_prefix() {
 fn constant() {
     harness_expr("true", Expression::Literal(Literal::True));
     harness_expr("false", Expression::Literal(Literal::False));
-    harness_expr("pointer_null", Expression::Literal(Literal::PointerNull));
-    harness_expr(
-        "pointer_invalid",
-        Expression::Literal(Literal::PointerInvalid),
-    );
     harness_expr("undefined", Expression::Literal(Literal::Undefined));
-    harness_expr("NaN", Expression::Literal(Literal::NaN));
-    harness_expr("infinity", Expression::Literal(Literal::Infinity));
-    harness_expr("pi", Expression::Literal(Literal::Pi));
+    harness_expr(
+        "browser_not_a_browser",
+        Expression::Literal(Literal::Misc("browser_not_a_browser".into())),
+    );
 }
 
 #[test]

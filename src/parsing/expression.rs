@@ -212,17 +212,14 @@ pub enum PostfixOperator {
 pub enum Literal {
     True,
     False,
-    PointerNull,
-    PointerInvalid,
     Undefined,
-    NaN,
-    Infinity,
-    Pi,
     String(String),
     Real(f64),
     Hex(String),
     Array(Vec<ExpressionBox>),
     Struct(Vec<(String, ExpressionBox)>),
+    /// Any GML constant that we are aware of but do not have specific use for.
+    Misc(String),
 }
 
 #[derive(Debug, PartialEq, Clone)]
