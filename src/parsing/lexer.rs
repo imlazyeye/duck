@@ -1,6 +1,6 @@
-use std::{iter::Peekable, str::FromStr};
+use std::iter::Peekable;
 
-use fnv::{FnvHashMap, FnvHashSet};
+use fnv::FnvHashSet;
 use once_cell::sync::Lazy;
 use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 

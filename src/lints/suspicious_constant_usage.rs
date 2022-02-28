@@ -65,6 +65,7 @@ fn literal_is_suspicous(literal: &Literal) -> bool {
         Literal::True
         | Literal::False
         | Literal::Undefined
+        | Literal::Noone
         | Literal::Misc(_)
         | Literal::Array(_)
         | Literal::Struct(_) => true,
