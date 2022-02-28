@@ -6,39 +6,35 @@ const DEMO_PROJECT_PATH: &str = "../SwordAndField";
 
 pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("10k Samples Lex", |b| {
-        b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| {
-                tokio::task::spawn(async {
-                    let mut pilot = TokenPilot::new(sample_code());
-                    while pilot.take().is_ok() {}
-                })
+        b.to_async(tokio::runtime::Runtime::new().unwrap()).iter(|| {
+            tokio::task::spawn(async {
+                let mut pilot = TokenPilot::new(sample_code());
+                while pilot.take().is_ok() {}
             })
+        })
     });
 
     c.bench_function("Demo Full Process", |b| {
-        b.to_async(tokio::runtime::Runtime::new().unwrap())
-            .iter(|| async {
-                let config_arc = Arc::new(Config::default());
-                let (path_receiver, walker_handle) =
-                    DuckTask::start_gml_discovery(Path::new(DEMO_PROJECT_PATH));
-                let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
-                let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
-                let (early_receiever, early_handle) =
-                    DuckTask::start_early_pass(config_arc.clone(), parse_receiver);
-                let assembly_handle = DuckTask::start_environment_assembly(early_receiever);
+        b.to_async(tokio::runtime::Runtime::new().unwrap()).iter(|| async {
+            let config_arc = Arc::new(Config::default());
+            let (path_receiver, walker_handle) = DuckTask::start_gml_discovery(Path::new(DEMO_PROJECT_PATH));
+            let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
+            let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
+            let (early_receiever, early_handle) = DuckTask::start_early_pass(config_arc.clone(), parse_receiver);
+            let assembly_handle = DuckTask::start_environment_assembly(early_receiever);
 
-                // Wait for everything thus far to complete...
-                walker_handle.await.unwrap();
-                let _io_errors = file_handle.await.unwrap();
-                let _parse_errors = parse_handle.await.unwrap();
-                early_handle.await.unwrap();
-                let (iterations, global_environment) = assembly_handle.await.unwrap();
+            // Wait for everything thus far to complete...
+            walker_handle.await.unwrap();
+            let _io_errors = file_handle.await.unwrap();
+            let _parse_errors = parse_handle.await.unwrap();
+            early_handle.await.unwrap();
+            let (iterations, global_environment) = assembly_handle.await.unwrap();
 
-                // Run the final pass...
-                DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment)
-                    .await
-                    .unwrap();
-            });
+            // Run the final pass...
+            DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment)
+                .await
+                .unwrap();
+        });
     });
 }
 

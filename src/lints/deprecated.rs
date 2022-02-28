@@ -12,8 +12,7 @@ impl Lint for Deprecated {
         LintReport {
             tag: Self::tag(),
             display_name: "Use of deprecated feature".into(),
-            explanation:
-                "Deprecated features are liable to be removed at any time and should be avoided.",
+            explanation: "Deprecated features are liable to be removed at any time and should be avoided.",
             suggestions: vec![],
             default_level: Self::default_level(),
             span,

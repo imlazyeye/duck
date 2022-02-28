@@ -289,7 +289,7 @@ impl<'a> Lexer<'a> {
                                 None => return (start_index, Token::Eof),
                             }
                         }
-                        //Some(Token::Comment(comment_lexeme))
+                        // Some(Token::Comment(comment_lexeme))
                         return self.lex();
                     } else {
                         // Just a slash
@@ -342,9 +342,7 @@ impl<'a> Lexer<'a> {
                         "catch" => Some(Token::Catch),
                         "finally" => Some(Token::Finally),
                         "then" => Some(Token::Then),
-                        id if MISC_GML_CONSTANTS.contains(id) => {
-                            Some(Token::MiscConstant(id.to_string()))
-                        }
+                        id if MISC_GML_CONSTANTS.contains(id) => Some(Token::MiscConstant(id.to_string())),
                         _ => Some(Token::Identifier(lexeme)),
                     }
                 }
@@ -368,22 +366,14 @@ impl<'a> Lexer<'a> {
 
     /// Consumes the rest of the line into the stirng.
     fn consume_rest_of_line(&mut self, lexeme: &mut String) {
-        while self
-            .peek()
-            .map(|chr| chr != '\r' && chr != '\n')
-            .unwrap_or(false)
-        {
+        while self.peek().map(|chr| chr != '\r' && chr != '\n').unwrap_or(false) {
             lexeme.push(self.take().unwrap().1);
         }
     }
 
     /// Discards the remainder of the line.
     fn discard_rest_of_line(&mut self) {
-        while self
-            .peek()
-            .map(|chr| chr != '\r' && chr != '\n')
-            .unwrap_or(false)
-        {
+        while self.peek().map(|chr| chr != '\r' && chr != '\n').unwrap_or(false) {
             self.take();
         }
     }
@@ -448,9 +438,7 @@ impl<'a> Lexer<'a> {
 
     /// Returns the next character in the source code.
     fn peek(&mut self) -> Option<char> {
-        self.input_characters
-            .peek()
-            .and_then(|(_, g)| g.chars().next()) // TODO this is terrible!
+        self.input_characters.peek().and_then(|(_, g)| g.chars().next()) // TODO this is terrible!
     }
 
     /// Consumes and returns the next character in the source code.
@@ -458,7 +446,7 @@ impl<'a> Lexer<'a> {
         self.input_characters
             .next()
             .map(|(c, g)| (c, g.chars().next().unwrap())) // TODO this is
-                                                          // terrible!
+        // terrible!
     }
 
     /// Consumes the next character in the source code if it matches the given
@@ -516,9 +504,9 @@ pub(super) static MISC_GML_CONSTANTS: Lazy<FnvHashSet<&'static str>> =
     Lazy::new(|| serde_json::from_str(&MISC_GML_CONSTANT_FILE_DATA).unwrap());
 
 static MISC_GML_CONSTANT_FILE_DATA: Lazy<String> = Lazy::new(|| {
-    std::fs::read_to_string(dbg!(std::env::current_dir()
-        .unwrap()
-        .join("assets/misc_gml_constants.json")))
+    std::fs::read_to_string(dbg!(
+        std::env::current_dir().unwrap().join("assets/misc_gml_constants.json")
+    ))
     .unwrap()
 });
 
@@ -528,8 +516,8 @@ pub(super) static MISC_GML_VARIABLES: Lazy<FnvHashSet<&'static str>> =
 
 #[allow(dead_code)]
 static MISC_GML_VARIABLES_FILE_DATA: Lazy<String> = Lazy::new(|| {
-    std::fs::read_to_string(dbg!(std::env::current_dir()
-        .unwrap()
-        .join("assets/misc_gml_variables.json")))
+    std::fs::read_to_string(dbg!(
+        std::env::current_dir().unwrap().join("assets/misc_gml_variables.json")
+    ))
     .unwrap()
 });

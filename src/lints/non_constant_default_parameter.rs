@@ -1,6 +1,4 @@
-use crate::{
-    lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport,
-};
+use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct NonConstantDefaultParameter;
@@ -8,14 +6,12 @@ impl Lint for NonConstantDefaultParameter {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             tag: Self::tag(),
-			display_name: "Non constant default parameter".into(),
-			explanation: "Expressive default parameters are not supported in most languages due to their instability and tendency to hide important logic execution from the caller.",
-			suggestions: vec![
-                "Create a seperated function for when this value is not provided".into(),
-            ],
-			default_level: Self::default_level(),
-			span,
-		}
+            display_name: "Non constant default parameter".into(),
+            explanation: "Expressive default parameters are not supported in most languages due to their instability and tendency to hide important logic execution from the caller.",
+            suggestions: vec!["Create a seperated function for when this value is not provided".into()],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {

@@ -1,7 +1,4 @@
-use crate::{
-    lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel,
-    LintReport,
-};
+use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct TooManyArguments;
@@ -9,15 +6,15 @@ impl Lint for TooManyArguments {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             tag: Self::tag(),
-			display_name: "Too many arguments".into(),
-			explanation: "Functions with lots of parameters quickly become confusing and indicate a need for structural change.",
-			suggestions: vec![
-            "Split this into multiple functions".into(),
-            "Create a struct that holds the fields required by this function".into(),
-        ],
-			default_level: Self::default_level(),
-			span,
-		}
+            display_name: "Too many arguments".into(),
+            explanation: "Functions with lots of parameters quickly become confusing and indicate a need for structural change.",
+            suggestions: vec![
+                "Split this into multiple functions".into(),
+                "Create a struct that holds the fields required by this function".into(),
+            ],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {
@@ -30,12 +27,7 @@ impl Lint for TooManyArguments {
 }
 
 impl EarlyExpressionPass for TooManyArguments {
-    fn visit_expression_early(
-        config: &Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
+    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
         if let Some(max) = config.max_arguments() {
             if let Expression::FunctionDeclaration(_, params, ..) = expression {
                 if params.len() > max {

@@ -1,19 +1,17 @@
-use crate::{
-    lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
-};
+use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct MissingDefaultCase;
 impl Lint for MissingDefaultCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Missing default case".into(),
+            display_name: "Missing default case".into(),
             tag: Self::tag(),
-			explanation: "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.",
-			suggestions: vec!["Add a default case to the switch statement".into()],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.",
+            suggestions: vec!["Add a default case to the switch statement".into()],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {

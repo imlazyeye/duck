@@ -10,12 +10,7 @@ pub enum Statement {
     EnumDeclaration(GmlEnum),
     GlobalvarDeclaration(String),
     LocalVariableSeries(Vec<(String, Option<ExpressionBox>)>),
-    TryCatch(
-        StatementBox,
-        ExpressionBox,
-        StatementBox,
-        Option<StatementBox>,
-    ),
+    TryCatch(StatementBox, ExpressionBox, StatementBox, Option<StatementBox>),
     For(StatementBox, ExpressionBox, StatementBox, StatementBox),
     With(ExpressionBox, StatementBox),
     Repeat(ExpressionBox, StatementBox),

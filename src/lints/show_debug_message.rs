@@ -1,6 +1,4 @@
-use crate::{
-    lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport,
-};
+use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct ShowDebugMessage;
@@ -8,15 +6,15 @@ impl Lint for ShowDebugMessage {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             tag: Self::tag(),
-			display_name: "Use of `show_debug_message`".into(),
-			explanation: "Projects often implement their own logging framework and wish to avoid unwrapped prints to the console.",
-			suggestions: vec![
-            "Replace `show_debug_message` with a better logging function".into(),
-            "Remove this debug message".into(),
-        ],
-			default_level: Self::default_level(),
-			span,
-		}
+            display_name: "Use of `show_debug_message`".into(),
+            explanation: "Projects often implement their own logging framework and wish to avoid unwrapped prints to the console.",
+            suggestions: vec![
+                "Replace `show_debug_message` with a better logging function".into(),
+                "Remove this debug message".into(),
+            ],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {

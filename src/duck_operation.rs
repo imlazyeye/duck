@@ -1,9 +1,7 @@
 use crate::{
     config::Config,
     gml::{GlobalScope, GlobalScopeBuilder},
-    lint::{
-        EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, LintLevel,
-    },
+    lint::{EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, LintLevel},
     lints::*,
     parsing::{Ast, Expression, ExpressionBox, ParseError, Parser, Statement, StatementBox},
     utils::Span,
@@ -94,9 +92,7 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<NonPascalCase>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<NonScreamCase>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<SingleSwitchCase>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<StatementParentheticalViolation>(
-            config, statement, span, reports,
-        );
+        Self::run_early_lint_on_statement::<StatementParentheticalViolation>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<TryCatch>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<VarPrefixViolation>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<WithLoop>(config, statement, span, reports);
@@ -112,12 +108,8 @@ impl DuckOperation {
         }
 
         // Recurse...
-        statement.visit_child_statements(|stmt| {
-            Self::process_statement_early(config, stmt, scope_builder, reports)
-        });
-        statement.visit_child_expressions(|expr| {
-            Self::process_expression_early(config, expr, scope_builder, reports)
-        });
+        statement.visit_child_statements(|stmt| Self::process_statement_early(config, stmt, scope_builder, reports));
+        statement.visit_child_expressions(|expr| Self::process_expression_early(config, expr, scope_builder, reports));
     }
 
     /// Runs an [Expression] through the early pass, running any lint that
@@ -137,42 +129,28 @@ impl DuckOperation {
 
         // @early expression calls. Do not remove this comment, it used for our
         // autogeneration!
-        Self::run_early_lint_on_expression::<AccessorAlternative>(
-            config, expression, span, reports,
-        );
-        Self::run_early_lint_on_expression::<AnonymousConstructor>(
-            config, expression, span, reports,
-        );
+        Self::run_early_lint_on_expression::<AccessorAlternative>(config, expression, span, reports);
+        Self::run_early_lint_on_expression::<AnonymousConstructor>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<AssignmentToCall>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<BoolEquality>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<Deprecated>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<DrawSprite>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<DrawText>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<EnglishFlavorViolation>(
-            config, expression, span, reports,
-        );
+        Self::run_early_lint_on_expression::<EnglishFlavorViolation>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<Global>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<NonConstantDefaultParameter>(
-            config, expression, span, reports,
-        );
+        Self::run_early_lint_on_expression::<NonConstantDefaultParameter>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<NonPascalCase>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<RoomGoto>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<ShowDebugMessage>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<SuspicousConstantUsage>(
-            config, expression, span, reports,
-        );
+        Self::run_early_lint_on_expression::<SuspicousConstantUsage>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<Todo>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<TooManyArguments>(config, expression, span, reports);
         // @end early expression calls. Do not remove this comment, it used for our
         // autogeneration!
 
         // Recurse...
-        expression.visit_child_statements(|stmt| {
-            Self::process_statement_early(config, stmt, scope_builder, reports)
-        });
-        expression.visit_child_expressions(|expr| {
-            Self::process_expression_early(config, expr, scope_builder, reports)
-        });
+        expression.visit_child_statements(|stmt| Self::process_statement_early(config, stmt, scope_builder, reports));
+        expression.visit_child_expressions(|expr| Self::process_expression_early(config, expr, scope_builder, reports));
     }
 
     /// Runs a [Statement] through the late pass, running any lint that
@@ -191,23 +169,13 @@ impl DuckOperation {
 
         // @late statement calls. Do not remove this comment, it used for our
         // autogeneration!
-        Self::run_late_lint_on_statement::<MissingCaseMember>(
-            config,
-            statement,
-            environment,
-            span,
-            reports,
-        );
+        Self::run_late_lint_on_statement::<MissingCaseMember>(config, statement, environment, span, reports);
         // @end late statement calls. Do not remove this comment, it used for our
         // autogeneration!
 
         // Recurse...
-        statement.visit_child_statements(|stmt| {
-            Self::process_statement_late(config, stmt, environment, reports)
-        });
-        statement.visit_child_expressions(|expr| {
-            Self::process_expression_late(config, expr, environment, reports)
-        });
+        statement.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, environment, reports));
+        statement.visit_child_expressions(|expr| Self::process_expression_late(config, expr, environment, reports));
     }
 
     /// Runs an [Expression] through the late pass, running any lint that
@@ -231,12 +199,8 @@ impl DuckOperation {
         // comment, it used for our autogeneration!
 
         // Recurse...
-        expression.visit_child_statements(|stmt| {
-            Self::process_statement_late(config, stmt, environment, reports)
-        });
-        expression.visit_child_expressions(|expr| {
-            Self::process_expression_late(config, expr, environment, reports)
-        });
+        expression.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, environment, reports));
+        expression.visit_child_expressions(|expr| Self::process_expression_late(config, expr, environment, reports));
     }
 
     /// Performs a given [EarlyStatementPass] on a statement.

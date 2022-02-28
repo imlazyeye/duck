@@ -1,6 +1,4 @@
-use crate::{
-    lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport,
-};
+use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct AssignmentToCall;

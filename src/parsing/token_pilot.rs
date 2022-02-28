@@ -70,7 +70,7 @@ impl<'a> TokenPilot<'a> {
             Ok(found_token)
         } else {
             Err(ParseError::ExpectedToken(Span::default(), token)) // same issue
-                                                                   // here
+            // here
         }
     }
 

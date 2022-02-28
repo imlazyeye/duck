@@ -10,13 +10,13 @@ pub struct AccessorAlternative;
 impl Lint for AccessorAlternative {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of function with accessor alternative".into(),
+            display_name: "Use of function with accessor alternative".into(),
             tag: Self::tag(),
-			explanation: "GML offers accessors as an alternative to many common functions which are preferable for their readability and brevity.",
-			suggestions: vec!["Scope this variable to an individual object".into()],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "GML offers accessors as an alternative to many common functions which are preferable for their readability and brevity.",
+            suggestions: vec!["Scope this variable to an individual object".into()],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {
@@ -61,9 +61,7 @@ impl EarlyExpressionPass for AccessorAlternative {
                     "variable_struct_get"
                         if args
                             .get(1)
-                            .map(|v| {
-                                matches!(v.expression(), &Expression::Literal(Literal::String(_)))
-                            })
+                            .map(|v| matches!(v.expression(), &Expression::Literal(Literal::String(_))))
                             .is_some() =>
                     {
                         reports.push(Self::generate_report_with(

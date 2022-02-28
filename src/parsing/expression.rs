@@ -3,13 +3,7 @@ use crate::utils::Span;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    FunctionDeclaration(
-        Option<String>,
-        Vec<Parameter>,
-        Option<Constructor>,
-        StatementBox,
-        bool,
-    ),
+    FunctionDeclaration(Option<String>, Vec<Parameter>, Option<Constructor>, StatementBox, bool),
     Logical(ExpressionBox, LogicalOperator, ExpressionBox),
     Equality(ExpressionBox, EqualityOperator, ExpressionBox),
     Evaluation(ExpressionBox, EvaluationOperator, ExpressionBox),
@@ -126,9 +120,7 @@ impl Expression {
 
     pub fn as_dot_access(&self) -> Option<(&Expression, &Expression)> {
         match self {
-            Expression::Access(Scope::Dot(left), right) => {
-                Some((left.expression(), right.expression()))
-            }
+            Expression::Access(Scope::Dot(left), right) => Some((left.expression(), right.expression())),
             _ => None,
         }
     }

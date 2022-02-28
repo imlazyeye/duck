@@ -1,19 +1,17 @@
-use crate::{
-    lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
-};
+use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct Exit;
 impl Lint for Exit {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `exit`".into(),
+            display_name: "Use of `exit`".into(),
             tag: Self::tag(),
-			explanation: "`return` can always be used in place of exit, which provides more consistency across your codebase.",
-			suggestions: vec!["Use `return` instead of `exit`".into()],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "`return` can always be used in place of exit, which provides more consistency across your codebase.",
+            suggestions: vec!["Use `return` instead of `exit`".into()],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {

@@ -28,7 +28,5 @@ pub mod parsing;
 
 /// A collection of all of core features used in duck.
 pub mod prelude {
-    pub use crate::{
-        config::*, duck::*, duck_operation::*, duck_task::*, gml::*, lint::*, parsing::*, utils::*,
-    };
+    pub use crate::{config::*, duck::*, duck_operation::*, duck_task::*, gml::*, lint::*, parsing::*, utils::*};
 }

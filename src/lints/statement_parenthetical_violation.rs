@@ -10,13 +10,13 @@ pub struct StatementParentheticalViolation;
 impl Lint for StatementParentheticalViolation {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Statement Parentheticals".into(),
+            display_name: "Statement Parentheticals".into(),
             tag: Self::tag(),
-			explanation: "Parenthesis surrounding statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.",
-			suggestions: vec![],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "Parenthesis surrounding statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.",
+            suggestions: vec![],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {
@@ -29,12 +29,7 @@ impl Lint for StatementParentheticalViolation {
 }
 
 impl EarlyStatementPass for StatementParentheticalViolation {
-    fn visit_statement_early(
-        config: &Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
+    fn visit_statement_early(config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>) {
         let expression = match statement {
             Statement::Switch(switch) => Some(switch.matching_value()),
             Statement::If(expression, ..)

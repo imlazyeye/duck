@@ -11,12 +11,12 @@ impl Lint for SuspicousConstantUsage {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
             tag: Self::tag(),
-			display_name: "Susipcious constant usage".into(),
-			explanation: "Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.",
-			suggestions: vec![],
-			default_level: Self::default_level(),
-			span,
-		}
+            display_name: "Susipcious constant usage".into(),
+            explanation: "Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.",
+            suggestions: vec![],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {

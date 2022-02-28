@@ -5,13 +5,13 @@ pub struct OrKeyword;
 impl Lint for OrKeyword {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Use of `or`".into(),
+            display_name: "Use of `or`".into(),
             tag: Self::tag(),
-			explanation: "GML supports both `or` and `||` to refer to logical or -- `||` is more consistent with other languages and is preferred.",
-			suggestions: vec!["Use `||` instead of `or`".into()],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "GML supports both `or` and `||` to refer to logical or -- `||` is more consistent with other languages and is preferred.",
+            suggestions: vec!["Use `||` instead of `or`".into()],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {

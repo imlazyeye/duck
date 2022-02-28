@@ -1,20 +1,17 @@
-use crate::{
-    lint::EarlyStatementPass, parsing::Statement, utils::Span, Config, Lint, LintLevel,
-    LintReport,
-};
+use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Config, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct VarPrefixViolation;
 impl Lint for VarPrefixViolation {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Var Prefix Violation".into(),
+            display_name: "Var Prefix Violation".into(),
             tag: Self::tag(),
-			explanation: "It is common practice in GML to prefix local variables (longer than one charcter) with an underscore as it helps to visually distinguish them from instance (or global) variables. You can select either option via the config.",
-			suggestions: vec![],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "It is common practice in GML to prefix local variables (longer than one charcter) with an underscore as it helps to visually distinguish them from instance (or global) variables. You can select either option via the config.",
+            suggestions: vec![],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {
@@ -27,12 +24,7 @@ impl Lint for VarPrefixViolation {
 }
 
 impl EarlyStatementPass for VarPrefixViolation {
-    fn visit_statement_early(
-        config: &Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
+    fn visit_statement_early(config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>) {
         if let Statement::LocalVariableSeries(vars) = statement {
             for (name, _) in vars.iter() {
                 if config.var_prefixes() && name.len() > 1 && !name.starts_with('_') {

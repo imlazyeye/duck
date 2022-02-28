@@ -27,16 +27,10 @@ impl DuckTask {
     /// Creates a Tokio task which will walk through the provided directory in
     /// search of gml files. Passes each path it finds into the returned
     /// Receiver. Closes when all files have been sent.
-    pub fn start_gml_discovery(
-        directory: &Path,
-    ) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
+    pub fn start_gml_discovery(directory: &Path) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
         /// Filters DirEntry's for gml files.
         async fn filter(entry: DirEntry) -> Filtering {
-            if let Some(true) = entry
-                .path()
-                .file_name()
-                .map(|f| !f.to_string_lossy().ends_with(".gml"))
-            {
+            if let Some(true) = entry.path().file_name().map(|f| !f.to_string_lossy().ends_with(".gml")) {
                 Filtering::Ignore
             } else {
                 Filtering::Continue
@@ -148,9 +142,7 @@ impl DuckTask {
         tokio::task::spawn(async move {
             let mut pass_two_queue = vec![];
             let mut global_scope = GlobalScope::new();
-            while let Some((path, gml, statement, scope_builder, reports)) =
-                early_pass_receiever.recv().await
-            {
+            while let Some((path, gml, statement, scope_builder, reports)) = early_pass_receiever.recv().await {
                 global_scope.drain(scope_builder);
                 pass_two_queue.push((path, gml, statement, reports));
             }
@@ -166,8 +158,7 @@ impl DuckTask {
         iterations: Vec<LatePassEntry>,
         global_environemnt: GlobalScope,
     ) -> JoinHandle<LintReportCollection> {
-        let (lint_report_sender, mut lint_report_reciever) =
-            channel::<(PathBuf, String, Vec<LintReport>)>(1000);
+        let (lint_report_sender, mut lint_report_reciever) = channel::<(PathBuf, String, Vec<LintReport>)>(1000);
         let global_environment = Arc::new(global_environemnt);
         for (path, gml, statement, mut lint_reports) in iterations {
             let sender = lint_report_sender.clone();
@@ -198,13 +189,7 @@ pub type ParseReport = (PathBuf, String, Ast);
 /// The returned data from unsuccessful parses.
 pub type ParseErrorCollection = Vec<(PathBuf, String, ParseError)>;
 /// An individual statement's data to be sent to the early pass.
-pub type EarlyPassEntry = (
-    PathBuf,
-    String,
-    StatementBox,
-    GlobalScopeBuilder,
-    Vec<LintReport>,
-);
+pub type EarlyPassEntry = (PathBuf, String, StatementBox, GlobalScopeBuilder, Vec<LintReport>);
 /// An individual statement's data to be sent to the late pass.
 pub type LatePassEntry = (PathBuf, String, StatementBox, Vec<LintReport>);
 /// A collection of [LintReports] and corresponding data.. Each entry in the

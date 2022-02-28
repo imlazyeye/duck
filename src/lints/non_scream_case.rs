@@ -1,21 +1,19 @@
 use heck::ToShoutySnakeCase;
 
-use crate::{
-    lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
-};
+use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct NonScreamCase;
 impl Lint for NonScreamCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Identifier should be SCREAM_CASE".into(),
+            display_name: "Identifier should be SCREAM_CASE".into(),
             tag: Self::tag(),
-			explanation: "Scream case is the ideal casing for constants to distingusih them from other values.",
-			suggestions: vec!["Change your casing to SCREAM_CASE".into()],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "Scream case is the ideal casing for constants to distingusih them from other values.",
+            suggestions: vec!["Change your casing to SCREAM_CASE".into()],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {

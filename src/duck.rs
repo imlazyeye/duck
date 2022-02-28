@@ -55,29 +55,20 @@ impl Duck {
         let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
         let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
         let (early_receiever, _) = DuckTask::start_early_pass(duck_arc.clone(), parse_receiver);
-        let (iterations, global_environment) =
-            DuckTask::start_environment_assembly(early_receiever)
-                .await
-                .unwrap();
+        let (iterations, global_environment) = DuckTask::start_environment_assembly(early_receiever).await.unwrap();
 
         // Now the late pass
         // Run the final pass...
-        let late_pass_reports =
-            DuckTask::start_late_pass(duck_arc.clone(), iterations, global_environment)
-                .await
-                .unwrap();
+        let late_pass_reports = DuckTask::start_late_pass(duck_arc.clone(), iterations, global_environment)
+            .await
+            .unwrap();
 
         // Extract any errors that were found...
         let io_errors = file_handle.await.unwrap();
         let parse_errors = parse_handle.await.unwrap();
 
         // Return the result!
-        RunResult::new(
-            &Config::default(),
-            late_pass_reports,
-            parse_errors,
-            io_errors,
-        )
+        RunResult::new(&Config::default(), late_pass_reports, parse_errors, io_errors)
     }
 
     /// The blocking counterpart to [Duck::run].
@@ -106,13 +97,14 @@ impl RunResult {
         parse_errors: Vec<(PathBuf, String, ParseError)>,
         io_errors: Vec<std::io::Error>,
     ) -> Self {
-        let mut report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>> =
-            EnumMap::default();
+        let mut report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>> = EnumMap::default();
         for (path, gml, reports) in lint_reports {
             for report in reports {
-                report_collection
-                    [*config.get_lint_level_setting(report.tag(), report.default_level())]
-                .push((path.clone(), gml.clone(), report));
+                report_collection[*config.get_lint_level_setting(report.tag(), report.default_level())].push((
+                    path.clone(),
+                    gml.clone(),
+                    report,
+                ));
             }
         }
         Self {

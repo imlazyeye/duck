@@ -22,17 +22,16 @@ async fn main() {
 async fn run_lint(path: Option<PathBuf>) {
     // Run duck
     let timer = std::time::Instant::now();
-    let current_directory = path
-        .unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
-    let (duck, config_usage) =
-        if let Ok(text) = std::fs::read_to_string(current_directory.join(".duck.toml")) {
-            match toml::from_str::<Config>(&text) {
-                Ok(config) => (Duck::new(config), ConfigUsage::Some),
-                Err(e) => (Duck::default(), ConfigUsage::Failed(e)),
-            }
-        } else {
-            (Duck::default(), ConfigUsage::None)
-        };
+    let current_directory =
+        path.unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
+    let (duck, config_usage) = if let Ok(text) = std::fs::read_to_string(current_directory.join(".duck.toml")) {
+        match toml::from_str::<Config>(&text) {
+            Ok(config) => (Duck::new(config), ConfigUsage::Some),
+            Err(e) => (Duck::default(), ConfigUsage::Failed(e)),
+        }
+    } else {
+        (Duck::default(), ConfigUsage::None)
+    };
     let run_result = duck.run(&current_directory).await;
     let total_duration = timer.elapsed();
 
@@ -76,19 +75,12 @@ async fn run_lint(path: Option<PathBuf>) {
     }
     if !run_result.parse_errors().is_empty() {
         warn!("The following errors occured while trying to parse the project...\n");
-        run_result
-            .parse_errors()
-            .iter()
-            .for_each(|(path, file, error)| {
-                println!(
-                    "{}",
-                    error.generate_report(&FilePreviewUtil::new(
-                        file,
-                        path.to_str().unwrap(),
-                        error.span().0
-                    ))
-                )
-            })
+        run_result.parse_errors().iter().for_each(|(path, file, error)| {
+            println!(
+                "{}",
+                error.generate_report(&FilePreviewUtil::new(file, path.to_str().unwrap(), error.span().0))
+            )
+        })
     }
 }
 

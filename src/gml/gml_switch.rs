@@ -26,12 +26,10 @@ impl GmlSwitch {
     /// Given valid GML, this is a guarentee that they are all enums. With
     /// invalid GML, these could be ANY dot-access expressions.
     pub fn all_case_members_dot_access(&self) -> bool {
-        !self.cases.iter().any(|case| {
-            !matches!(
-                case.identity().expression(),
-                Expression::Access(Scope::Dot(_), _)
-            )
-        })
+        !self
+            .cases
+            .iter()
+            .any(|case| !matches!(case.identity().expression(), Expression::Access(Scope::Dot(_), _)))
     }
 
     /// Returns the name of the enum this switch statement matches over, if any.

@@ -40,24 +40,14 @@ pub trait Lint {
 /// collected).
 pub trait EarlyStatementPass {
     /// Runs on statements in the early pass.
-    fn visit_statement_early(
-        config: &Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    );
+    fn visit_statement_early(config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>);
 }
 
 /// Lints who run an early pass on expressions (before type information has been
 /// collected).
 pub trait EarlyExpressionPass {
     /// Runs on expressions in the early pass.
-    fn visit_expression_early(
-        config: &Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    );
+    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>);
 }
 
 /// Lints who run a late pass on statements (after type information has been
@@ -160,7 +150,7 @@ impl LintReport {
     pub fn generate_string(&self, config: &Config, preview: &FilePreviewUtil) -> String {
         let level = config.get_lint_level_setting(self.tag, self.default_level);
         let level_string = match *level {
-            LintLevel::Allow => "allowed".bright_black().bold(), /* I dunno why you'd ever do */
+            LintLevel::Allow => "allowed".bright_black().bold(), // I dunno why you'd ever do
             // this, but for now I don't
             // wanna crash...
             LintLevel::Warn => "warning".yellow().bold(),
@@ -189,12 +179,8 @@ impl LintReport {
         };
         let note_message = match level {
             LintLevelSetting::Default(_) => "",
-            LintLevelSetting::CodeSpecified(_) => {
-                "\n note: This lint was requested by the line above it."
-            }
-            LintLevelSetting::ConfigSpecified(_) => {
-                "\n note: This lint was activated by your config,"
-            }
+            LintLevelSetting::CodeSpecified(_) => "\n note: This lint was requested by the line above it.",
+            LintLevelSetting::ConfigSpecified(_) => "\n note: This lint was activated by your config,",
         }
         .to_string()
         .bold()

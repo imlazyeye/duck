@@ -1,9 +1,7 @@
 use crate::{
     gml::{GmlEnum, GmlEnumMember, GmlSwitch, GmlSwitchCase},
     parsing::{
-        expression::{
-            AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator, Scope,
-        },
+        expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator, Scope},
         parser::Parser,
         statement::Statement,
     },
@@ -59,10 +57,7 @@ fn enum_declaration() {
         "enum Foo { Bar, Baz }",
         Statement::EnumDeclaration(GmlEnum::new_with_members(
             "Foo",
-            vec![
-                GmlEnumMember::new("Bar", None),
-                GmlEnumMember::new("Baz", None),
-            ],
+            vec![GmlEnumMember::new("Bar", None), GmlEnumMember::new("Baz", None)],
         )),
     )
 }
@@ -74,10 +69,7 @@ fn enum_with_values() {
         Statement::EnumDeclaration(GmlEnum::new_with_members(
             "Foo",
             vec![
-                GmlEnumMember::new(
-                    "Bar",
-                    Some(Expression::Literal(Literal::Real(20.0)).lazy_box()),
-                ),
+                GmlEnumMember::new("Bar", Some(Expression::Literal(Literal::Real(20.0)).lazy_box())),
                 GmlEnumMember::new("Baz", None),
             ],
         )),
@@ -109,18 +101,12 @@ fn enum_with_neighbor_values() {
 
 #[test]
 fn globalvar() {
-    harness_stmt(
-        "globalvar foo;",
-        Statement::GlobalvarDeclaration("foo".into()),
-    )
+    harness_stmt("globalvar foo;", Statement::GlobalvarDeclaration("foo".into()))
 }
 
 #[test]
 fn local_variable() {
-    harness_stmt(
-        "var i;",
-        Statement::LocalVariableSeries(vec![("i".into(), None)]),
-    )
+    harness_stmt("var i;", Statement::LocalVariableSeries(vec![("i".into(), None)]))
 }
 
 #[test]
@@ -140,10 +126,7 @@ fn local_variable_series() {
         "var i, j = 0, h;",
         Statement::LocalVariableSeries(vec![
             ("i".into(), None),
-            (
-                "j".into(),
-                Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
-            ),
+            ("j".into(), Some(Expression::Literal(Literal::Real(0.0)).lazy_box())),
             ("h".into(), None),
         ]),
     )
@@ -265,15 +248,17 @@ fn do_until() {
     harness_stmt(
         "do { foo += 1; } until foo == 1;",
         Statement::DoUntil(
-            Statement::Block(vec![Statement::Expression(
-                Expression::Assignment(
-                    Expression::Identifier("foo".into()).lazy_box(),
-                    AssignmentOperator::PlusEqual,
-                    Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Statement::Block(vec![
+                Statement::Expression(
+                    Expression::Assignment(
+                        Expression::Identifier("foo".into()).lazy_box(),
+                        AssignmentOperator::PlusEqual,
+                        Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                    )
+                    .lazy_box(),
                 )
                 .lazy_box(),
-            )
-            .lazy_box()])
+            ])
             .lazy_box(),
             Expression::Equality(
                 Expression::Identifier("foo".into()).lazy_box(),
@@ -296,15 +281,17 @@ fn while_loop() {
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
             .lazy_box(),
-            Statement::Block(vec![Statement::Expression(
-                Expression::Assignment(
-                    Expression::Identifier("foo".into()).lazy_box(),
-                    AssignmentOperator::PlusEqual,
-                    Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Statement::Block(vec![
+                Statement::Expression(
+                    Expression::Assignment(
+                        Expression::Identifier("foo".into()).lazy_box(),
+                        AssignmentOperator::PlusEqual,
+                        Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                    )
+                    .lazy_box(),
                 )
                 .lazy_box(),
-            )
-            .lazy_box()])
+            ])
             .lazy_box(),
         ),
     )

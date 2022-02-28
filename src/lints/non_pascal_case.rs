@@ -12,13 +12,13 @@ pub struct NonPascalCase;
 impl Lint for NonPascalCase {
     fn generate_report(span: Span) -> LintReport {
         LintReport {
-			display_name: "Identifier should be PascalCase".into(),
+            display_name: "Identifier should be PascalCase".into(),
             tag: Self::tag(),
-			explanation: "Pascal case is the ideal casing for \"types\" to distinguish them from other values.",
-			suggestions: vec![],
-			default_level: Self::default_level(),
-			span,
-		}
+            explanation: "Pascal case is the ideal casing for \"types\" to distinguish them from other values.",
+            suggestions: vec![],
+            default_level: Self::default_level(),
+            span,
+        }
     }
 
     fn default_level() -> LintLevel {
@@ -47,19 +47,15 @@ impl EarlyStatementPass for NonPascalCase {
                     [format!("Change this to `{}`", ideal)],
                 ));
             }
-            gml_enum
-                .members()
-                .iter()
-                .map(|member| member.name())
-                .for_each(|name| {
-                    if name != pascal_case(name) {
-                        reports.push(Self::generate_report_with(
-                            span,
-                            "Enum member should be PascalCase",
-                            [format!("Change this to `{}`", ideal)],
-                        ));
-                    }
-                });
+            gml_enum.members().iter().map(|member| member.name()).for_each(|name| {
+                if name != pascal_case(name) {
+                    reports.push(Self::generate_report_with(
+                        span,
+                        "Enum member should be PascalCase",
+                        [format!("Change this to `{}`", ideal)],
+                    ));
+                }
+            });
         }
     }
 }

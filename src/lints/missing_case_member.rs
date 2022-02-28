@@ -1,7 +1,4 @@
-use crate::{
-    gml::GlobalScope, lint::LateStatementPass, parsing::Statement, utils::Span, Lint, LintLevel,
-    LintReport,
-};
+use crate::{gml::GlobalScope, lint::LateStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
 use itertools::Itertools;
 
 #[derive(Debug, PartialEq)]
@@ -12,11 +9,11 @@ impl Lint for MissingCaseMember {
             display_name: "Missing case member".into(),
             tag: Self::tag(),
             default_level: Self::default_level(),
-            explanation:  "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
-            suggestions:  vec![
-            "Add cases for the missing members".into(),
-            "Remove the intentional crash from your default case".into(),
-        ],
+            explanation: "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
+            suggestions: vec![
+                "Add cases for the missing members".into(),
+                "Remove the intentional crash from your default case".into(),
+            ],
             span,
         }
     }
@@ -98,9 +95,7 @@ impl LateStatementPass for MissingCaseMember {
                 .iter()
                 .map(|member| member.name())
                 .filter(|member| {
-                    ignore_name
-                        .map(|ignore_name| ignore_name != member)
-                        .unwrap_or(true)
+                    ignore_name.map(|ignore_name| ignore_name != member).unwrap_or(true)
                         && !member_names_discovered.contains(member)
                 })
                 .join(", ");

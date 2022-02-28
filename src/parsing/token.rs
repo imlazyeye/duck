@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
 use super::{
-    AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator,
-    PostfixOperator, UnaryOperator,
+    AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
 };
 
 #[derive(Debug, PartialEq, Clone, strum::EnumDiscriminants)]
