@@ -1,6 +1,6 @@
 use crate::{
     lint::EarlyExpressionPass,
-    parsing::expression::{AssignmentOperator, Expression, Literal},
+    parsing::{AssignmentOperator, Expression, Literal},
     utils::Span,
     Lint, LintLevel, LintReport,
 };

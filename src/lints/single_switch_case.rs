@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintReport, LintLevel,
+    lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -28,7 +28,7 @@ impl Lint for SingleSwitchCase {
 impl EarlyStatementPass for SingleSwitchCase {
     fn visit_statement_early(
         _config: &crate::Config,
-        statement: &crate::parsing::statement::Statement,
+        statement: &crate::parsing::Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {

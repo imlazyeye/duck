@@ -1,11 +1,8 @@
 use crate::{
     lint::{EarlyExpressionPass, EarlyStatementPass},
-    parsing::{
-        expression::{Expression, Scope},
-        statement::Statement,
-    },
+    parsing::{Expression, Scope, Statement},
     utils::Span,
-    Lint, LintReport, LintLevel,
+    Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -55,7 +52,7 @@ impl EarlyStatementPass for Deprecated {
 impl EarlyExpressionPass for Deprecated {
     fn visit_expression_early(
         _config: &crate::Config,
-        expression: &crate::parsing::expression::Expression,
+        expression: &crate::parsing::Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {

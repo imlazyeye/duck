@@ -24,7 +24,7 @@ for root, dirs, files in os.walk('../src/lints/'):
 lints = sorted(lints, key=lambda i: i['name'])
 
 # Declare everything in the mod's file
-new_mods = ''
+new_mods = '#![allow(missing_docs)]\n'
 for lint in lints:
     new_mods += 'mod {file_name};\n'.format(file_name=lint['file_name'])
     new_mods += 'pub use {file_name}::{lint};\n'.format(

@@ -1,16 +1,17 @@
-pub mod expression;
+mod expression;
 mod lexer;
-pub mod parser;
-pub mod statement;
-pub mod token;
+mod parser;
+mod statement;
+mod token;
 mod token_pilot;
-pub use token_pilot::TokenPilot;
-pub mod utils;
+mod utils;
 
-pub use parser::Parser;
-pub use token::Token;
-pub use token::TokenId;
-pub use utils::ParseError;
+pub use expression::*;
+pub use parser::*;
+pub use statement::*;
+pub use token::*;
+pub use token_pilot::*;
+pub use utils::*;
 
 #[cfg(test)]
 mod tests;

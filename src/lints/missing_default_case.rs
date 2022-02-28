@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintReport, LintLevel,
+    lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]

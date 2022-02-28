@@ -1,7 +1,6 @@
 use clap::Parser;
 use colored::Colorize;
-use duck::Config;
-use duck::{utils::FilePreviewUtil, Duck};
+use duck::{utils::FilePreviewUtil, Config, Duck};
 use std::path::PathBuf;
 
 mod input;
@@ -45,7 +44,7 @@ async fn run_lint(path: Option<PathBuf>) {
             .map(|(path, gml, report)| {
                 report.generate_string(
                     duck.config(),
-                    &FilePreviewUtil::new(gml, path.to_str().unwrap(), report.span.0),
+                    &FilePreviewUtil::new(gml, path.to_str().unwrap(), report.span().0),
                 )
             })
             .collect::<String>()

@@ -388,8 +388,8 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Checks if the the following characters are upcoming in the source. If they are,
-    /// consumes the characters.
+    /// Checks if the the following characters are upcoming in the source. If
+    /// they are, consumes the characters.
     fn match_take_str(&mut self, lexeme: &str, start_pos: usize) -> bool {
         if start_pos + lexeme.len() <= self.content.len() {
             if &self.content[start_pos..start_pos + lexeme.len()] == lexeme {
@@ -405,8 +405,8 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Will keep eating characters into the given string until it reaches a charcter that
-    /// can't be used in an identifier.
+    /// Will keep eating characters into the given string until it reaches a
+    /// charcter that can't be used in an identifier.
     fn construct_word(&mut self, lexeme: &mut String) {
         while let Some(chr) = self.peek() {
             match chr {
@@ -418,8 +418,8 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Will keep eating characters into the given string until it reaches a character that
-    /// can't be used in an identifier.
+    /// Will keep eating characters into the given string until it reaches a
+    /// character that can't be used in an identifier.
     fn construct_number(&mut self, lexeme: &mut String) {
         while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
             lexeme.push(self.take().unwrap().1);
@@ -433,8 +433,8 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// Will keep eating charcters into the given string so long as they are valid hex-characters
-    /// (ie: 4ab02f)
+    /// Will keep eating charcters into the given string so long as they are
+    /// valid hex-characters (ie: 4ab02f)
     fn construct_hex(&mut self, lexeme: &mut String) {
         while let Some(chr) = self.peek() {
             match chr {
@@ -457,11 +457,12 @@ impl<'a> Lexer<'a> {
     fn take(&mut self) -> Option<(usize, char)> {
         self.input_characters
             .next()
-            .map(|(c, g)| (c, g.chars().next().unwrap())) // TODO this is terrible!
+            .map(|(c, g)| (c, g.chars().next().unwrap())) // TODO this is
+                                                          // terrible!
     }
 
-    /// Consumes the next character in the source code if it matches the given character.
-    /// Returns if it succeeds.
+    /// Consumes the next character in the source code if it matches the given
+    /// character. Returns if it succeeds.
     fn match_take(&mut self, chr: char) -> bool {
         if self.peek() == Some(chr) {
             self.take();
@@ -470,14 +471,15 @@ impl<'a> Lexer<'a> {
         false
     }
 
-    /// Consumes the next character in the source code if it matches the given character.
+    /// Consumes the next character in the source code if it matches the given
+    /// character.
     #[allow(dead_code)]
     fn optional_take(&mut self, chr: char) {
         self.match_take(chr);
     }
 
-    /// Consumes all upcoming characters that are whitespace into the string, stopping at
-    /// the end of the line.
+    /// Consumes all upcoming characters that are whitespace into the string,
+    /// stopping at the end of the line.
     fn consume_whitespace_on_line(&mut self, lexeme: &mut String) {
         while self
             .peek()

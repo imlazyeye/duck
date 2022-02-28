@@ -2,9 +2,9 @@ use heck::ToUpperCamelCase;
 
 use crate::{
     lint::{EarlyExpressionPass, EarlyStatementPass},
-    parsing::{expression::Expression, statement::Statement},
+    parsing::{Expression, Statement},
     utils::Span,
-    Lint, LintReport, LintLevel,
+    Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]

@@ -6,11 +6,12 @@ use std::{
 };
 
 /// ## Duck
-/// The primary point of control for all of duck. For general usage, this is all you need!
+/// The primary point of control for all of duck. For general usage, this is all
+/// you need!
 ///
 /// ### Basic usage (tokio)
-/// To generate a [RunResult] from a GameMaker Studio 2 project directory, you can use [Duck::run].
-/// ```
+/// To generate a [RunResult] from a GameMaker Studio 2 project directory, you
+/// can use [Duck::run]. ```
 /// use duck::prelude::*;
 /// use std::path::Path;
 ///
@@ -21,13 +22,13 @@ use std::{
 /// # };
 ///
 /// ### Basic usage (blocking)
-/// The same result can be achieved without being forced to use async code by usinng [Duck::run_blocking].
-/// ```rs
+/// The same result can be achieved without being forced to use async code by
+/// usinng [Duck::run_blocking]. ```rs
 /// # use duck::prelude::*;
 /// # use std::path::Path;
 /// # let duck = Duck::default();
-/// # let my_project_path = Path::new("~/Users/me/GameMaker Studio 2/My Project");
-/// let run_result = duck.run_blocking(my_project_path);
+/// # let my_project_path = Path::new("~/Users/me/GameMaker Studio 2/My
+/// Project"); let run_result = duck.run_blocking(my_project_path);
 /// ```
 /// For finer control over duck's operations, see [DuckOperation].
 #[derive(Debug, Default)]
@@ -40,9 +41,11 @@ impl Duck {
         Self { config }
     }
 
-    /// Goes through the entire process of finding, loading, parsing, and linting the GML in a given
-    /// project directory. Returns every [LintReport] that was found, as well as [ParseError]s that were
-    /// encountered along the way, and additionally any [std::io::Error]s that were found.
+    /// Goes through the entire process of finding, loading, parsing, and
+    /// linting the GML in a given project directory. Returns every
+    /// [LintReport] that was found, as well as [ParseError]s that were
+    /// encountered along the way, and additionally any [std::io::Error]s that
+    /// were found.
     ///
     /// If you are working in a blocking context, see [Duck::run_blocking].
     pub async fn run(&self, project_directory: &Path) -> RunResult {

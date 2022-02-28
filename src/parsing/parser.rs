@@ -13,8 +13,11 @@ use super::{
     Token,
 };
 
+/// A collection of statements.
 pub type Ast = Vec<StatementBox>;
 
+/// Recursively decsends Gml source, incremently returning various statements
+/// and expressions.
 pub struct Parser<'a> {
     pilot: TokenPilot<'a>,
 
@@ -26,6 +29,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
+    /// Creates a new parser.
     pub fn new(source_code: &'a str, resource_path: PathBuf) -> Self {
         Self {
             pilot: TokenPilot::new(source_code),
@@ -34,6 +38,8 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Runs the parser through the entire source, collecting everything into an
+    /// Ast and returning it.
     pub fn into_ast(mut self) -> Result<Ast, ParseError> {
         let mut statements: Ast = vec![];
         while self.pilot.soft_peek().is_some() {
@@ -42,6 +48,8 @@ impl<'a> Parser<'a> {
         Ok(statements)
     }
 
+    /// Creates a [Span] from the given position up until the pilot's current
+    /// position.
     #[cfg(not(test))]
     pub fn span(&mut self, start: usize) -> Span {
         Span(start, self.pilot.cursor())
@@ -52,7 +60,7 @@ impl<'a> Parser<'a> {
         Span::default()
     }
 
-    pub fn statement(&mut self) -> Result<StatementBox, ParseError> {
+    pub(super) fn statement(&mut self) -> Result<StatementBox, ParseError> {
         match self.pilot.peek()? {
             Token::Macro(_, _, _) => self.macro_declaration(),
             Token::Enum => self.enum_declaration(),
@@ -327,8 +335,10 @@ impl<'a> Parser<'a> {
             | Expression::Call(..) => {}
 
             Expression::Identifier(..) => {
-                // Unfortunately, we can't (currently) understand if this is actually a mistake or is a macro.
-                // In the future, we may unfold code in an early pass that will help with this.
+                // Unfortunately, we can't (currently) understand if this is
+                // actually a mistake or is a macro.
+                // In the future, we may unfold code in an early pass that will
+                // help with this.
             }
 
             // Anything else is invalid.
@@ -343,7 +353,7 @@ impl<'a> Parser<'a> {
         Ok(Statement::Expression(expression).into_box(self.span(start)))
     }
 
-    pub fn expression(&mut self) -> Result<ExpressionBox, ParseError> {
+    pub(super) fn expression(&mut self) -> Result<ExpressionBox, ParseError> {
         self.function()
     }
 
@@ -564,7 +574,7 @@ impl<'a> Parser<'a> {
         {
             if !matches!(
                 expression.expression(),
-                Expression::Identifier(..) | Expression::Access(..) | Expression::Call(..) // idiotically, this does compile in GM. We have a lint for this!
+                Expression::Identifier(..) | Expression::Access(..) | Expression::Call(..) /* idiotically, this does compile in GM. We have a lint for this! */
             ) {
                 Err(ParseError::InvalidAssignmentTarget(
                     self.span(start),

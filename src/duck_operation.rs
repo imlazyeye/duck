@@ -1,17 +1,13 @@
-use crate::config::Config;
-use crate::gml::Environment;
-use crate::lint::{
-    EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, LintLevel,
-};
-use crate::lints::*;
-use crate::parsing::{parser::Ast, ParseError, Parser};
 use crate::{
-    parsing::{expression::Expression, statement::Statement},
-    Lint, LintReport,
-};
-use crate::{
-    parsing::{expression::ExpressionBox, statement::StatementBox},
+    config::Config,
+    gml::{GlobalScope, GlobalScopeBuilder},
+    lint::{
+        EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, LintLevel,
+    },
+    lints::*,
+    parsing::{Ast, Expression, ExpressionBox, ParseError, Parser, Statement, StatementBox},
     utils::Span,
+    Lint, LintReport,
 };
 use std::path::Path;
 
@@ -23,8 +19,8 @@ use std::path::Path;
 /// Arcs/Mutexs are required, reducing the amount of wasted time in our tasks.
 ///
 /// ### Usage
-/// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s directly.
-/// ```rs
+/// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s
+/// directly. ```rs
 /// # use duck::prelude::*;
 /// # use std::path::Path;
 /// # let gml = "show_debug_message(\"Hello world!\")";
@@ -34,7 +30,7 @@ use std::path::Path;
 ///     Err(parse_error) => println!("Failed to parse gml: {parse_error:?}"),
 /// };
 /// ```
-///
+/// 
 /// You can also manually run the [Lint]s on these [Ast]s.
 /// ```rs
 /// # use duck::prelude::*;
@@ -63,8 +59,8 @@ use std::path::Path;
 /// ```
 pub struct DuckOperation;
 impl DuckOperation {
-    /// Parses the given String of GML, returning either a successfully constructed [Ast]
-    /// or a [ParseError].
+    /// Parses the given String of GML, returning either a successfully
+    /// constructed [Ast] or a [ParseError].
     pub fn parse_gml(source_code: &str, path: &Path) -> Result<Ast, ParseError> {
         let mut source: &'static str = Box::leak(Box::new(source_code.to_string()));
         let ast = Parser::new(source, path.to_path_buf()).into_ast();
@@ -74,20 +70,23 @@ impl DuckOperation {
         ast
     }
 
-    /// Runs a [Statement] through the early pass, running any lint that implements [EarlyStatementPass],
-    /// as well as collecting information into the provided [Environment].
+    /// Runs a [Statement] through the early pass, running any lint that
+    /// implements [EarlyStatementPass], as well as collecting information
+    /// into the provided [Environment].
     ///
-    /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for more information.
+    /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
+    /// more information.
     pub fn process_statement_early(
         config: &Config,
         statement_box: &StatementBox,
-        environment: &mut Environment,
+        scope_builder: &mut GlobalScopeBuilder,
         reports: &mut Vec<LintReport>,
     ) {
         let statement = statement_box.statement();
         let span = statement_box.span();
 
-        // @early statement calls. Do not remove this comment, it used for our autogeneration!
+        // @early statement calls. Do not remove this comment, it used for our
+        // autogeneration!
         Self::run_early_lint_on_statement::<Deprecated>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<Exit>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<MissingDefaultCase>(config, statement, span, reports);
@@ -101,39 +100,43 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<TryCatch>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<VarPrefixViolation>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<WithLoop>(config, statement, span, reports);
-        // @end early statement calls. Do not remove this comment, it used for our autogeneration!
+        // @end early statement calls. Do not remove this comment, it used for our
+        // autogeneration!
 
         #[allow(clippy::single_match)]
         match statement {
             Statement::EnumDeclaration(gml_enum) => {
-                environment.register_enum(gml_enum.clone());
+                scope_builder.register_enum(gml_enum.clone());
             }
             _ => {}
         }
 
         // Recurse...
         statement.visit_child_statements(|stmt| {
-            Self::process_statement_early(config, stmt, environment, reports)
+            Self::process_statement_early(config, stmt, scope_builder, reports)
         });
         statement.visit_child_expressions(|expr| {
-            Self::process_expression_early(config, expr, environment, reports)
+            Self::process_expression_early(config, expr, scope_builder, reports)
         });
     }
 
-    /// Runs an [Expression] through the early pass, running any lint that implements [EarlyExpressionPass],
-    /// as well as collecting information into the provided [Environment].
+    /// Runs an [Expression] through the early pass, running any lint that
+    /// implements [EarlyExpressionPass], as well as collecting information
+    /// into the provided [Environment].
     ///
-    /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for more information.
+    /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
+    /// more information.
     pub fn process_expression_early(
         config: &Config,
         expression_box: &ExpressionBox,
-        environment: &mut Environment,
+        scope_builder: &mut GlobalScopeBuilder,
         reports: &mut Vec<LintReport>,
     ) {
         let expression = expression_box.expression();
         let span = expression_box.span();
 
-        // @early expression calls. Do not remove this comment, it used for our autogeneration!
+        // @early expression calls. Do not remove this comment, it used for our
+        // autogeneration!
         Self::run_early_lint_on_expression::<AccessorAlternative>(
             config, expression, span, reports,
         );
@@ -160,30 +163,34 @@ impl DuckOperation {
         );
         Self::run_early_lint_on_expression::<Todo>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<TooManyArguments>(config, expression, span, reports);
-        // @end early expression calls. Do not remove this comment, it used for our autogeneration!
+        // @end early expression calls. Do not remove this comment, it used for our
+        // autogeneration!
 
         // Recurse...
         expression.visit_child_statements(|stmt| {
-            Self::process_statement_early(config, stmt, environment, reports)
+            Self::process_statement_early(config, stmt, scope_builder, reports)
         });
         expression.visit_child_expressions(|expr| {
-            Self::process_expression_early(config, expr, environment, reports)
+            Self::process_expression_early(config, expr, scope_builder, reports)
         });
     }
 
-    /// Runs a [Statement] through the late pass, running any lint that implements [LateStatementPass].
+    /// Runs a [Statement] through the late pass, running any lint that
+    /// implements [LateStatementPass].
     ///
-    /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for more information.
+    /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
+    /// more information.
     pub fn process_statement_late(
         config: &Config,
         statement_box: &StatementBox,
-        environment: &Environment,
+        environment: &GlobalScope,
         reports: &mut Vec<LintReport>,
     ) {
         let statement = statement_box.statement();
         let span = statement_box.span();
 
-        // @late statement calls. Do not remove this comment, it used for our autogeneration!
+        // @late statement calls. Do not remove this comment, it used for our
+        // autogeneration!
         Self::run_late_lint_on_statement::<MissingCaseMember>(
             config,
             statement,
@@ -191,7 +198,8 @@ impl DuckOperation {
             span,
             reports,
         );
-        // @end late statement calls. Do not remove this comment, it used for our autogeneration!
+        // @end late statement calls. Do not remove this comment, it used for our
+        // autogeneration!
 
         // Recurse...
         statement.visit_child_statements(|stmt| {
@@ -202,22 +210,25 @@ impl DuckOperation {
         });
     }
 
-    /// Runs an [Expression] through the late pass, running any lint that implements [LateExpressionPass].
+    /// Runs an [Expression] through the late pass, running any lint that
+    /// implements [LateExpressionPass].
     ///
-    ///  NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for more information.
+    ///  NOTE: This function is largely auto-generated! See `CONTRIBUTING.md`
+    /// for more information.
     #[allow(dead_code)]
     fn process_expression_late(
         config: &Config,
         expression_box: &ExpressionBox,
-        environment: &Environment,
+        environment: &GlobalScope,
         reports: &mut Vec<LintReport>,
     ) {
         let expression = expression_box.expression();
         #[allow(unused_variables)]
         let span = expression_box.span();
 
-        // @late expression calls. Do not remove this comment, it used for our autogeneration!
-        // @end late expression calls. Do not remove this comment, it used for our autogeneration!
+        // @late expression calls. Do not remove this comment, it used for our
+        // autogeneration! @end late expression calls. Do not remove this
+        // comment, it used for our autogeneration!
 
         // Recurse...
         expression.visit_child_statements(|stmt| {
@@ -256,7 +267,7 @@ impl DuckOperation {
     fn run_late_lint_on_statement<T: Lint + LateStatementPass>(
         config: &Config,
         statement: &Statement,
-        environment: &Environment,
+        environment: &GlobalScope,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
@@ -270,7 +281,7 @@ impl DuckOperation {
     fn run_late_lint_on_expression<T: Lint + LateExpressionPass>(
         config: &Config,
         expression: &Expression,
-        environment: &Environment,
+        environment: &GlobalScope,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {

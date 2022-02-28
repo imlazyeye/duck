@@ -1,9 +1,12 @@
-use crate::gml::{GmlEnum, GmlEnumMember, GmlSwitch, GmlSwitchCase};
-use crate::parsing::expression::Scope;
-use crate::parsing::parser::Parser;
-use crate::parsing::{
-    expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator},
-    statement::Statement,
+use crate::{
+    gml::{GmlEnum, GmlEnumMember, GmlSwitch, GmlSwitchCase},
+    parsing::{
+        expression::{
+            AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator, Scope,
+        },
+        parser::Parser,
+        statement::Statement,
+    },
 };
 use colored::Colorize;
 

@@ -1,6 +1,6 @@
 use crate::{
-    gml::Environment, lint::LateStatementPass, parsing::statement::Statement, utils::Span, Lint,
-    LintLevel, LintReport,
+    gml::GlobalScope, lint::LateStatementPass, parsing::Statement, utils::Span, Lint, LintLevel,
+    LintReport,
 };
 use itertools::Itertools;
 
@@ -33,8 +33,8 @@ impl Lint for MissingCaseMember {
 impl LateStatementPass for MissingCaseMember {
     fn visit_statement_late(
         config: &crate::Config,
-        environment: &Environment,
-        statement: &crate::parsing::statement::Statement,
+        environment: &GlobalScope,
+        statement: &crate::parsing::Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
@@ -58,21 +58,25 @@ impl LateStatementPass for MissingCaseMember {
                 return;
             };
 
-            // Let's assume the user isn't matching over multiple types (`multi_type_switch` will catch that)
-            // and check to make sure that every member of the enum is present.
-            // We could check here for EXTRA values -- as in, a case that has a member of the enum that does not
-            // exist -- but that won't compile in GM anyway, so we will ignore the possibility.
+            // Let's assume the user isn't matching over multiple types (`multi_type_switch`
+            // will catch that) and check to make sure that every member of the
+            // enum is present. We could check here for EXTRA values -- as in, a
+            // case that has a member of the enum that does not exist -- but
+            // that won't compile in GM anyway, so we will ignore the possibility.
             let mut member_names_discovered = vec![];
             for case in switch.cases().iter() {
-                // Retrieve the dot access (we made sure this `unwrap` is safe with `all_case_members_dot_access` earlier!)
-                let (left, right) = case.identity().as_dot_access().unwrap();
+                // Retrieve the dot access (we made sure this `unwrap` is safe with
+                // `all_case_members_dot_access` earlier!)
+                let (left, right) = case.identity().expression().as_dot_access().unwrap();
 
-                // We are not safe to assume that the left and right are identifiers. It would be invalid gml if they weren't,
-                // but we don't want to panic regardless.
+                // We are not safe to assume that the left and right are identifiers. It would
+                // be invalid gml if they weren't, but we don't want to panic
+                // regardless.
 
                 if let Some(this_identity_enum_name) = left.as_identifier() {
                     if this_identity_enum_name != gml_enum.name() {
-                        // The user has different enums in the same switch statement -- abandon this lint, and rely on `multi_type_switch`
+                        // The user has different enums in the same switch statement -- abandon this
+                        // lint, and rely on `multi_type_switch`
                         return;
                     }
                 } else {
@@ -85,8 +89,9 @@ impl LateStatementPass for MissingCaseMember {
                 };
             }
 
-            // We have now collected all of members in this switch. Let's gather any missing members of the enum, and reduce them
-            // down into a string that lists them out.
+            // We have now collected all of members in this switch. Let's gather any missing
+            // members of the enum, and reduce them down into a string that
+            // lists them out.
             let ignore_name = config.length_enum_member_name();
             let missing_members = gml_enum
                 .members()

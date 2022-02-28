@@ -1,6 +1,6 @@
 use crate::{
     lint::EarlyStatementPass,
-    parsing::{expression::Expression, statement::Statement},
+    parsing::{Expression, Statement},
     utils::Span,
     Config, Lint, LintLevel, LintReport,
 };
@@ -46,7 +46,7 @@ impl EarlyStatementPass for StatementParentheticalViolation {
         };
         if let Some(expression) = expression {
             let has_grouping = matches!(expression.expression(), Expression::Grouping(_));
-            if has_grouping && !config.statement_parentheticals {
+            if has_grouping && !config.statement_parentheticals() {
                 reports.push(Self::generate_report_with(
                     span,
                     "Parenthetical in statement expression",
@@ -55,7 +55,7 @@ impl EarlyStatementPass for StatementParentheticalViolation {
                         "Change your preferences for this lint in .duck.toml".into(),
                     ],
                 ))
-            } else if !has_grouping && config.statement_parentheticals {
+            } else if !has_grouping && config.statement_parentheticals() {
                 reports.push(Self::generate_report_with(
                     span,
                     "Lacking parenthetical in statement expression",

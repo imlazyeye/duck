@@ -1,4 +1,4 @@
-use super::expression::ExpressionBox;
+use super::ExpressionBox;
 use crate::{
     gml::{GmlEnum, GmlSwitch},
     utils::Span,
@@ -70,7 +70,7 @@ impl Statement {
             }
             Statement::Switch(switch) => {
                 for case in switch.cases() {
-                    for statement in case.iter_body_statement_boxes() {
+                    for statement in case.iter_body_statements() {
                         statement_visitor(statement);
                     }
                 }
@@ -120,7 +120,7 @@ impl Statement {
             Statement::Switch(switch) => {
                 expression_visitor(switch.matching_value());
                 for case in switch.cases() {
-                    expression_visitor(case.identity_box());
+                    expression_visitor(case.identity());
                 }
             }
             Statement::Return(value) => {

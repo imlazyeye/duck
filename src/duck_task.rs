@@ -1,27 +1,35 @@
-use crate::config::Config;
-use crate::duck_operation::DuckOperation;
-use crate::gml::Environment;
-use crate::parsing::parser::Ast;
-use crate::parsing::statement::StatementBox;
-use crate::parsing::ParseError;
-use crate::LintReport;
+use crate::{
+    config::Config,
+    duck_operation::DuckOperation,
+    gml::{GlobalScope, GlobalScopeBuilder},
+    parsing::{Ast, ParseError, StatementBox},
+    LintReport,
+};
 use async_walkdir::{DirEntry, Filtering, WalkDir};
 use futures::StreamExt;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use tokio::sync::mpsc::{channel, Receiver};
-use tokio::task::JoinHandle;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
+use tokio::{
+    sync::mpsc::{channel, Receiver},
+    task::JoinHandle,
+};
 
-/// A collection of functions used to build the Tokio tasks that drive duck. Each uses data
-/// returned from the last one, allowing you to customize exactly which parts of duck's overall
-/// process you wish to run.
+/// A collection of functions used to build the Tokio tasks that drive duck.
+/// Each uses data returned from the last one, allowing you to customize exactly
+/// which parts of duck's overall process you wish to run.
 ///
-/// If you are just interested in calling duck's *entire* process, see [Duck::run].
+/// If you are just interested in calling duck's *entire* process, see
+/// [Duck::run].
 pub struct DuckTask;
 impl DuckTask {
-    /// Creates a Tokio task which will walk through the provided directory in search of gml files.
-    /// Passes each path it finds into the returned Receiver. Closes when all files have been sent.
-    pub fn start_gml_discovery(directory: &Path) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
+    /// Creates a Tokio task which will walk through the provided directory in
+    /// search of gml files. Passes each path it finds into the returned
+    /// Receiver. Closes when all files have been sent.
+    pub fn start_gml_discovery(
+        directory: &Path,
+    ) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
         /// Filters DirEntry's for gml files.
         async fn filter(entry: DirEntry) -> Filtering {
             if let Some(true) = entry
@@ -53,8 +61,9 @@ impl DuckTask {
         (path_receiver, handle)
     }
 
-    /// Creates a Tokio task which will await paths through `path_receiever` and subsequently load
-    /// their data, pumping it to the returned Receiver. Closes when the `path_receiver` channel closes.
+    /// Creates a Tokio task which will await paths through `path_receiever` and
+    /// subsequently load their data, pumping it to the returned Receiver.
+    /// Closes when the `path_receiver` channel closes.
     pub fn start_file_load(
         mut path_receiver: Receiver<PathBuf>,
     ) -> (Receiver<(PathBuf, String)>, JoinHandle<Vec<std::io::Error>>) {
@@ -74,9 +83,9 @@ impl DuckTask {
         (file_receiver, handle)
     }
 
-    /// Creates a Tokio task which will await gml files through `file_receiever` and subsequently parse
-    /// them into an [Ast], pumping them into the returned Receiver. Closes when the `file_receiever`
-    /// channel closes.
+    /// Creates a Tokio task which will await gml files through `file_receiever`
+    /// and subsequently parse them into an [Ast], pumping them into the
+    /// returned Receiver. Closes when the `file_receiever` channel closes.
     pub fn start_parse(
         mut file_receiver: Receiver<(PathBuf, String)>,
     ) -> (Receiver<ParseReport>, JoinHandle<ParseErrorCollection>) {
@@ -94,14 +103,14 @@ impl DuckTask {
         (ast_receiver, handle)
     }
 
-    /// Creates a Tokio task that will await [Ast]s through `ast_receiver` and run the early pass lints
-    /// on them, pumping the results through the returned Receiver. Closes when the `ast_receiever` channel
-    /// closes.
+    /// Creates a Tokio task that will await [Ast]s through `ast_receiver` and
+    /// run the early pass lints on them, pumping the results through the
+    /// returned Receiver. Closes when the `ast_receiever` channel closes.
     pub fn start_early_pass(
         config: Arc<Config>,
         mut ast_receiever: Receiver<(PathBuf, String, Ast)>,
-    ) -> (Receiver<StatementIteration>, JoinHandle<()>) {
-        let (early_pass_sender, early_pass_receiver) = channel::<StatementIteration>(1000);
+    ) -> (Receiver<EarlyPassEntry>, JoinHandle<()>) {
+        let (early_pass_sender, early_pass_receiver) = channel::<EarlyPassEntry>(1000);
         let handle = tokio::task::spawn(async move {
             while let Some((path, gml, ast)) = ast_receiever.recv().await {
                 for statement in ast {
@@ -111,15 +120,15 @@ impl DuckTask {
                     let sender = early_pass_sender.clone();
                     tokio::task::spawn(async move {
                         let mut reports = vec![];
-                        let mut environment = Environment::new();
+                        let mut scope_builder = GlobalScopeBuilder::new();
                         DuckOperation::process_statement_early(
                             config.as_ref(),
                             &statement,
-                            &mut environment,
+                            &mut scope_builder,
                             &mut reports,
                         );
                         sender
-                            .send((path, gml, statement, environment, reports))
+                            .send((path, gml, statement, scope_builder, reports))
                             .await
                             .unwrap();
                     });
@@ -129,36 +138,38 @@ impl DuckTask {
         (early_pass_receiver, handle)
     }
 
-    /// Creates a Tokio task that will await [StatementIteration]s through `early_pass_receiever` and construct
-    /// their [Environment]s into one singular [Environemnt], returning it once complete, as well as a Vec
+    /// Creates a Tokio task that will await [StatementIteration]s through
+    /// `early_pass_receiever` and construct their [Environment]s into one
+    /// singular [Environemnt], returning it once complete, as well as a Vec
     /// of all statements still needing a second pass.
     pub fn start_environment_assembly(
-        mut early_pass_receiever: Receiver<StatementIteration>,
-    ) -> JoinHandle<(Vec<StatementIteration>, Environment)> {
+        mut early_pass_receiever: Receiver<EarlyPassEntry>,
+    ) -> JoinHandle<(Vec<LatePassEntry>, GlobalScope)> {
         tokio::task::spawn(async move {
             let mut pass_two_queue = vec![];
-            let mut global_environment = Environment::new();
-            while let Some((path, gml, statement, environment, reports)) =
+            let mut global_scope = GlobalScope::new();
+            while let Some((path, gml, statement, scope_builder, reports)) =
                 early_pass_receiever.recv().await
             {
-                global_environment.copy_from(&environment);
-                pass_two_queue.push((path, gml, statement, environment, reports));
+                global_scope.drain(scope_builder);
+                pass_two_queue.push((path, gml, statement, reports));
             }
-            (pass_two_queue, global_environment)
+            (pass_two_queue, global_scope)
         })
     }
 
-    /// Creates Tokio tasks for all of the provided `StatementIteration`s, running the late lint pass on them.
-    /// Returns a handle to another Tokio task which will collect their finalized [LatePassReport]s.
+    /// Creates Tokio tasks for all of the provided `StatementIteration`s,
+    /// running the late lint pass on them. Returns a handle to another
+    /// Tokio task which will collect their finalized [LatePassReport]s.
     pub fn start_late_pass(
         config: Arc<Config>,
-        iterations: Vec<StatementIteration>,
-        global_environemnt: Environment,
+        iterations: Vec<LatePassEntry>,
+        global_environemnt: GlobalScope,
     ) -> JoinHandle<LintReportCollection> {
         let (lint_report_sender, mut lint_report_reciever) =
             channel::<(PathBuf, String, Vec<LintReport>)>(1000);
         let global_environment = Arc::new(global_environemnt);
-        for (path, gml, statement, _environment, mut lint_reports) in iterations {
+        for (path, gml, statement, mut lint_reports) in iterations {
             let sender = lint_report_sender.clone();
             let global_environment = global_environment.clone();
             let config = config.clone();
@@ -182,7 +193,22 @@ impl DuckTask {
     }
 }
 
+/// The returned data from successful parses.
 pub type ParseReport = (PathBuf, String, Ast);
+/// The returned data from unsuccessful parses.
 pub type ParseErrorCollection = Vec<(PathBuf, String, ParseError)>;
-pub type StatementIteration = (PathBuf, String, StatementBox, Environment, Vec<LintReport>);
+/// An individual statement's data to be sent to the early pass.
+pub type EarlyPassEntry = (
+    PathBuf,
+    String,
+    StatementBox,
+    GlobalScopeBuilder,
+    Vec<LintReport>,
+);
+/// An individual statement's data to be sent to the late pass.
+pub type LatePassEntry = (PathBuf, String, StatementBox, Vec<LintReport>);
+/// A collection of [LintReports] and corresponding data.. Each entry in the
+/// collection correlates to a single statement, containing the path to the file
+/// it is from, the source of that file, and a collection of each [LintReport]
+/// it triggered.
 pub type LintReportCollection = Vec<(PathBuf, String, Vec<LintReport>)>;

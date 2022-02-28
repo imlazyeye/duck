@@ -1,6 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Lint, LintLevel,
-    LintReport,
+    lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -32,7 +31,7 @@ impl Lint for WithLoop {
 impl EarlyStatementPass for WithLoop {
     fn visit_statement_early(
         _config: &crate::Config,
-        statement: &crate::parsing::statement::Statement,
+        statement: &crate::parsing::Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {

@@ -1,4 +1,4 @@
-use crate::{utils::Span, Lint, LintReport, LintLevel};
+use crate::{utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct OrKeyword;

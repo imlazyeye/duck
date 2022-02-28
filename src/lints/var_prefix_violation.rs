@@ -1,5 +1,5 @@
 use crate::{
-    lint::EarlyStatementPass, parsing::statement::Statement, utils::Span, Config, Lint, LintLevel,
+    lint::EarlyStatementPass, parsing::Statement, utils::Span, Config, Lint, LintLevel,
     LintReport,
 };
 
@@ -35,13 +35,13 @@ impl EarlyStatementPass for VarPrefixViolation {
     ) {
         if let Statement::LocalVariableSeries(vars) = statement {
             for (name, _) in vars.iter() {
-                if config.var_prefixes && name.len() > 1 && !name.starts_with('_') {
+                if config.var_prefixes() && name.len() > 1 && !name.starts_with('_') {
                     reports.push(Self::generate_report_with(
                         span,
                         "Local variable without underscore prefix",
                         [format!("Change `{name}` to `_{name}`")],
                     ));
-                } else if !config.var_prefixes && name.starts_with('_') {
+                } else if !config.var_prefixes() && name.starts_with('_') {
                     reports.push(Self::generate_report_with(
                         span,
                         "Local variable with underscore prefix",

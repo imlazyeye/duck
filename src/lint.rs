@@ -1,9 +1,8 @@
 use crate::{
     config::Config,
-    gml::Environment,
-    parsing::{expression::Expression, statement::Statement},
-    utils::FilePreviewUtil,
-    utils::Span,
+    gml::GlobalScope,
+    parsing::{Expression, Statement},
+    utils::{FilePreviewUtil, Span},
 };
 use colored::Colorize;
 
@@ -11,8 +10,8 @@ use colored::Colorize;
 ///
 /// Lints should be named after the *bad* action, not the good one. For example,
 /// a lint that prevents switch statements from having no default case should be
-/// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes tagging
-/// read more clearly (ie: `#[allow(missing_default_case)])`).
+/// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes
+/// tagging read more clearly (ie: `#[allow(missing_default_case)])`).
 pub trait Lint {
     /// Genreates a LintReport.
     fn generate_report(span: Span) -> LintReport;
@@ -23,8 +22,8 @@ pub trait Lint {
     /// Returns the default LintLevel for this Lint.
     fn default_level() -> LintLevel;
 
-    /// Generates a LintReport based on `Lint::generate_report`, but replaces its name
-    /// and extends any provided suggestions into it.
+    /// Generates a LintReport based on `Lint::generate_report`, but replaces
+    /// its name and extends any provided suggestions into it.
     fn generate_report_with<const COUNT: usize>(
         span: Span,
         name: impl Into<String>,
@@ -37,8 +36,10 @@ pub trait Lint {
     }
 }
 
-/// Lints who run an early pass on statements (before type information has been collected).
+/// Lints who run an early pass on statements (before type information has been
+/// collected).
 pub trait EarlyStatementPass {
+    /// Runs on statements in the early pass.
     fn visit_statement_early(
         config: &Config,
         statement: &Statement,
@@ -47,8 +48,10 @@ pub trait EarlyStatementPass {
     );
 }
 
-/// Lints who run an early pass on expressions (before type information has been collected).
+/// Lints who run an early pass on expressions (before type information has been
+/// collected).
 pub trait EarlyExpressionPass {
+    /// Runs on expressions in the early pass.
     fn visit_expression_early(
         config: &Config,
         expression: &Expression,
@@ -57,40 +60,47 @@ pub trait EarlyExpressionPass {
     );
 }
 
-/// Lints who run a late pass on statements (after type information has been collected).
+/// Lints who run a late pass on statements (after type information has been
+/// collected).
 pub trait LateStatementPass {
+    /// Runs on statements in the late pass.
     fn visit_statement_late(
         config: &Config,
-        environment: &Environment,
+        environment: &GlobalScope,
         statement: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     );
 }
 
-/// Lints who run a late pass on expresions (after type information has been collected).
+/// Lints who run a late pass on expresions (after type information has been
+/// collected).
 pub trait LateExpressionPass {
+    /// Runs on expressions in the late pass.
     fn visit_expression_late(
         config: &Config,
-        environment: &Environment,
+        environment: &GlobalScope,
         expression: &Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     );
 }
 
-/// The three different levels a lint can be set to, changing how it will be treated.
+/// The three different levels a lint can be set to, changing how it will be
+/// treated.
 #[derive(Debug, PartialEq, Copy, Clone, enum_map::Enum, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LintLevel {
     /// These lints will be ignored.
     Allow,
-    /// These lints will be reported to the user, but will not fail the run by default.
+    /// These lints will be reported to the user, but will not fail the run by
+    /// default.
     Warn,
     /// These lints will be reported to the user and will fail the run.
     Deny,
 }
 impl LintLevel {
+    /// Converts a string into a lint level.
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
@@ -100,6 +110,7 @@ impl LintLevel {
             _ => None,
         }
     }
+    /// Converts a lint level into a string.
     pub fn to_str(&self) -> &str {
         match self {
             LintLevel::Allow => "allow",
@@ -108,9 +119,14 @@ impl LintLevel {
         }
     }
 }
+
+/// The origin of lint level for a lint.
 pub enum LintLevelSetting {
+    /// The lint level was established by its default settings.
     Default(LintLevel),
+    /// The lint level was established by a tag in the code.
     CodeSpecified(LintLevel),
+    /// The lint level was established by the user's configuration.
     ConfigSpecified(LintLevel),
 }
 impl core::ops::Deref for LintLevelSetting {
@@ -137,13 +153,16 @@ pub struct LintReport {
     #[allow(dead_code)]
     pub(super) explanation: &'static str,
     pub(super) suggestions: Vec<String>,
-    pub span: Span,
+    pub(super) span: Span,
 }
 impl LintReport {
+    /// Generates a string out of a lint report to be displayed to the user.
     pub fn generate_string(&self, config: &Config, preview: &FilePreviewUtil) -> String {
         let level = config.get_lint_level_setting(self.tag, self.default_level);
         let level_string = match *level {
-            LintLevel::Allow => "allowed".bright_black().bold(), // I dunno why you'd ever do this, but for now I don't wanna crash...
+            LintLevel::Allow => "allowed".bright_black().bold(), /* I dunno why you'd ever do */
+            // this, but for now I don't
+            // wanna crash...
             LintLevel::Warn => "warning".yellow().bold(),
             LintLevel::Deny => "error".bright_red().bold(),
         };
@@ -195,5 +214,10 @@ impl LintReport {
     /// Get the lint report's default level.
     pub fn default_level(&self) -> LintLevel {
         self.default_level
+    }
+
+    /// Get the lint report's span.
+    pub fn span(&self) -> Span {
+        self.span
     }
 }

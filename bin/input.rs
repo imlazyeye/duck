@@ -13,7 +13,8 @@ pub struct Cli {
 pub enum Commands {
     /// Runs the primary linting process.
     Lint {
-        /// The path to the project directory to lint. Uses the current directory if not provided.
+        /// The path to the project directory to lint. Uses the current
+        /// directory if not provided.
         #[clap(long, parse(from_os_str))]
         path: Option<PathBuf>,
     },

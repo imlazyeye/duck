@@ -2,8 +2,8 @@ use bimap::BiHashMap;
 use once_cell::sync::Lazy;
 
 use crate::{
-    config::EnglishFlavor, lint::EarlyExpressionPass, parsing::expression::Expression, utils::Span,
-    Lint, LintLevel, LintReport,
+    config::EnglishFlavor, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint,
+    LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -32,7 +32,7 @@ impl Lint for EnglishFlavorViolation {
 impl EarlyExpressionPass for EnglishFlavorViolation {
     fn visit_expression_early(
         config: &crate::Config,
-        expression: &crate::parsing::expression::Expression,
+        expression: &crate::parsing::Expression,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {

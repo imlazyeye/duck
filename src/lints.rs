@@ -1,3 +1,4 @@
+#![allow(missing_docs)]
 mod accessor_alternative;
 pub use accessor_alternative::AccessorAlternative;
 mod and_keyword;

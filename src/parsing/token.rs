@@ -1,4 +1,6 @@
-use super::expression::{
+#![allow(missing_docs)]
+
+use super::{
     AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator,
     PostfixOperator, UnaryOperator,
 };
@@ -104,6 +106,7 @@ pub enum Token {
     Eof,
 }
 impl Token {
+    /// Returns a [Literal] corresponding to this Token, if possible.
     pub fn to_literal(&self) -> Option<Literal> {
         match self {
             Token::True => Some(Literal::True),
@@ -118,6 +121,7 @@ impl Token {
         }
     }
 
+    /// Returns a [EvaluationOperator] corresponding to this Token, if possible.
     pub fn as_evaluation_operator(&self) -> Option<EvaluationOperator> {
         match self {
             Token::Plus => Some(EvaluationOperator::Plus),
@@ -135,6 +139,7 @@ impl Token {
         }
     }
 
+    /// Returns a [EqualityOperator] corresponding to this Token, if possible.
     pub fn as_equality_operator(&self) -> Option<EqualityOperator> {
         match self {
             Token::Equal | Token::DoubleEqual => Some(EqualityOperator::Equal),
@@ -147,6 +152,7 @@ impl Token {
         }
     }
 
+    /// Returns a [AssignmentOperator] corresponding to this Token, if possible.
     pub fn as_assignment_operator(&self) -> Option<AssignmentOperator> {
         match self {
             Token::Equal => Some(AssignmentOperator::Equal),
@@ -163,6 +169,7 @@ impl Token {
         }
     }
 
+    /// Returns a [UnaryOperator] corresponding to this Token, if possible.
     pub fn as_unary_operator(&self) -> Option<UnaryOperator> {
         match self {
             Token::DoublePlus => Some(UnaryOperator::Increment),
@@ -175,6 +182,7 @@ impl Token {
         }
     }
 
+    /// Returns a [PostfixOperator] corresponding to this Token, if possible.
     pub fn as_postfix_operator(&self) -> Option<PostfixOperator> {
         match self {
             Token::DoublePlus => Some(PostfixOperator::Increment),
@@ -183,6 +191,7 @@ impl Token {
         }
     }
 
+    /// Returns a [LogicalOperator] corresponding to this Token, if possible.
     pub fn as_logical_operator(&self) -> Option<LogicalOperator> {
         match self {
             Token::And | Token::DoubleAmpersand => Some(LogicalOperator::And),
@@ -192,6 +201,7 @@ impl Token {
         }
     }
 
+    /// Returns the String in this Token if it is an identifier.
     pub fn as_identifier(&self) -> Option<&str> {
         match self {
             Token::Identifier(lexeme) => Some(lexeme),

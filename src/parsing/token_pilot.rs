@@ -2,11 +2,14 @@ use super::{lexer::Lexer, token::Token, utils::ParseError};
 use crate::utils::Span;
 use std::iter::Peekable;
 
+/// Utility struct for traversing a lexer, offering stronger ways to parse
+/// incoming tokens that just peeking / taking yourself.
 pub struct TokenPilot<'a> {
     lexer: Peekable<Lexer<'a>>,
     cursor: usize,
 }
 impl<'a> TokenPilot<'a> {
+    /// Creates a new TokenPilot with the given source.
     pub fn new(source_code: &'a str) -> Self {
         let lexer = Lexer::new(source_code).peekable();
         Self { lexer, cursor: 0 }
@@ -18,17 +21,19 @@ impl<'a> TokenPilot<'a> {
         self.lexer.peek().map(|(c, _)| *c).unwrap_or(self.cursor)
     }
 
-    /// Returns the type of the next Token, or returns an error if there is none.
+    /// Returns the type of the next Token, or returns an error if there is
+    /// none.
     pub fn peek(&mut self) -> Result<&Token, ParseError> {
         if let Some((_, token)) = self.lexer.peek() {
             Ok(token)
         } else {
-            Err(ParseError::UnexpectedEnd(Span::default())) // todo: bad, give the pilot its own error type
+            // FIXME: bad, give the pilot its own error type
+            Err(ParseError::UnexpectedEnd(Span::default()))
         }
     }
 
-    /// Returns the type of the next Token if there is one. Used for situations where
-    /// no tokens remaining would be valid.
+    /// Returns the type of the next Token if there is one. Used for situations
+    /// where no tokens remaining would be valid.
     pub fn soft_peek(&mut self) -> Option<&Token> {
         if let Some((_, token)) = self.lexer.peek() {
             Some(token)
@@ -64,17 +69,20 @@ impl<'a> TokenPilot<'a> {
         if found_token == token {
             Ok(found_token)
         } else {
-            Err(ParseError::ExpectedToken(Span::default(), token)) // same issue here
+            Err(ParseError::ExpectedToken(Span::default(), token)) // same issue
+                                                                   // here
         }
     }
 
-    /// Returns the inner field of the next Token, requiring it to be an Identifier.
+    /// Returns the inner field of the next Token, requiring it to be an
+    /// Identifier.
     pub fn require_identifier(&mut self) -> Result<String, ParseError> {
         let next = self.take()?;
         if let Token::Identifier(v) = next {
             Ok(v)
         } else {
-            Err(ParseError::UnexpectedToken(Span::default(), next)) // and here (oh no)
+            // FIXME
+            Err(ParseError::UnexpectedToken(Span::default(), next))
         }
     }
 
@@ -93,7 +101,8 @@ impl<'a> TokenPilot<'a> {
             self.cursor = position;
             Ok(token)
         } else {
-            Err(ParseError::UnexpectedEnd(Span::default())) // okay maybe this was a mistake
+            // FIXME
+            Err(ParseError::UnexpectedEnd(Span::default()))
         }
     }
 }

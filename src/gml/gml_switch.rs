@@ -1,8 +1,6 @@
-use crate::parsing::{
-    expression::{Expression, ExpressionBox, Scope},
-    statement::{Statement, StatementBox},
-};
+use crate::parsing::{Expression, ExpressionBox, Scope, StatementBox};
 
+/// Representation of a Gml switch statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct GmlSwitch {
     matching_value: ExpressionBox,
@@ -10,6 +8,8 @@ pub struct GmlSwitch {
     default_case: Option<Vec<StatementBox>>,
 }
 impl GmlSwitch {
+    /// Creates a new GmlSwitch with the provided matching value, cases, and
+    /// optionally a default case.
     pub fn new(
         matching_value: ExpressionBox,
         cases: Vec<GmlSwitchCase>,
@@ -26,15 +26,18 @@ impl GmlSwitch {
     /// Given valid GML, this is a guarentee that they are all enums. With
     /// invalid GML, these could be ANY dot-access expressions.
     pub fn all_case_members_dot_access(&self) -> bool {
-        !self
-            .cases
-            .iter()
-            .any(|case| !matches!(case.identity(), Expression::Access(Scope::Dot(_), _)))
+        !self.cases.iter().any(|case| {
+            !matches!(
+                case.identity().expression(),
+                Expression::Access(Scope::Dot(_), _)
+            )
+        })
     }
 
     /// Returns the name of the enum this switch statement matches over, if any.
-    /// Please note that this check is done just by reading the first case member.
-    /// It is possible that the user is doing something cursed, such as...
+    /// Please note that this check is done just by reading the first case
+    /// member. It is possible that the user is doing something cursed, such
+    /// as...
     /// ```gml
     /// switch foo {
     ///     case Foo.Bar: break;
@@ -44,6 +47,7 @@ impl GmlSwitch {
     pub fn potential_enum_type(&self) -> Option<&str> {
         self.cases.first().and_then(|case| {
             case.identity()
+                .expression()
                 .as_dot_access()
                 .and_then(|(left, _)| left.as_identifier())
         })
@@ -65,26 +69,35 @@ impl GmlSwitch {
     }
 }
 
+/// Representation of a single switch case in a [GmlSwitch].
+///
+/// FIXME: Case bodies are currently a Vec<StatementBox> which is essentially
+/// a [Statement::Block]. I originally chose to do this because I was concerned
+/// that lints would want to safely assume that a `Block` meant something with
+/// curly braces, but I now believe that `Blocks` should instead be better
+/// equipped to express whether or not they contain curly braces, and that case
+/// bodies should be made into `Block`s. While its not of huge concern right
+/// now, it will be an issue when static analyis is added, as case bodies won't
+/// properly create a new scope.
 #[derive(Debug, PartialEq, Clone)]
-pub struct GmlSwitchCase(ExpressionBox, Vec<StatementBox>); // kinda a block?
+pub struct GmlSwitchCase(ExpressionBox, Vec<StatementBox>);
 impl GmlSwitchCase {
+    /// Creates a new GmlSwitchCase with the given identity and body.
     pub fn new(identity: ExpressionBox, body: Vec<StatementBox>) -> Self {
         Self(identity, body)
     }
 
-    pub fn identity(&self) -> &Expression {
-        self.0.expression()
-    }
-
-    pub fn identity_box(&self) -> &ExpressionBox {
+    /// Returns a reference to the case's identity.
+    pub fn identity(&self) -> &ExpressionBox {
         &self.0
     }
 
-    pub fn iter_body_statements(&self) -> impl Iterator<Item = &Statement> {
-        self.1.iter().map(|stmt| stmt.statement())
-    }
-
-    pub fn iter_body_statement_boxes(&self) -> impl Iterator<Item = &StatementBox> {
+    /// Returns an iterator over the body of the case.
+    ///
+    /// NOTE: In the future, case bodies may be changed into a
+    /// `Statement::Block`. When this happens, this function may be changed or
+    /// removed.
+    pub fn iter_body_statements(&self) -> impl Iterator<Item = &StatementBox> {
         self.1.iter()
     }
 }

@@ -1,9 +1,11 @@
-use crate::parsing::expression::{
-    AssignmentOperator, Constructor, EqualityOperator, EvaluationOperator, Expression, Literal,
-    LogicalOperator, Parameter, PostfixOperator, Scope, UnaryOperator,
+use crate::parsing::{
+    expression::{
+        AssignmentOperator, Constructor, EqualityOperator, EvaluationOperator, Expression, Literal,
+        LogicalOperator, Parameter, PostfixOperator, Scope, UnaryOperator,
+    },
+    parser::Parser,
+    statement::Statement,
 };
-use crate::parsing::parser::Parser;
-use crate::parsing::statement::Statement;
 use colored::Colorize;
 //use pretty_assertions::assert_eq;
 
