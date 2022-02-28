@@ -10,48 +10,26 @@ use std::{
 ///
 /// ### Basic usage (tokio)
 /// To generate a [RunResult] from a GameMaker Studio 2 project directory, you can use [Duck::run].
-/// ```rs
-/// let duck = Duck::new();
-/// let my_project_path = "~/Users/me/GameMaker Studio 2/My Project";
-/// let run_result = duck.run(my_project_path.into()).await;
 /// ```
+/// use duck::prelude::*;
+/// use std::path::Path;
+///
+/// # async {
+/// let duck = Duck::default();
+/// let my_project_path = Path::new("~/Users/me/GameMaker Studio 2/My Project");
+/// let run_result = duck.run(my_project_path).await;
+/// # };
 ///
 /// ### Basic usage (blocking)
 /// The same result can be achieved without being forced to use async code by usinng [Duck::run_blocking].
 /// ```rs
-/// let duck = Duck::new();
-/// let my_project_path = "~/Users/me/GameMaker Studio 2/My Project";
-/// let run_result = duck.run_blocking(my_project_path.into());
+/// # use duck::prelude::*;
+/// # use std::path::Path;
+/// # let duck = Duck::default();
+/// # let my_project_path = Path::new("~/Users/me/GameMaker Studio 2/My Project");
+/// let run_result = duck.run_blocking(my_project_path);
 /// ```
-///
-/// ### Manual operations
-/// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s directly.
-/// ```rs
-/// let gml = show_debug_message("Hello world!");
-/// let path = "../hello_world.gml";
-/// let ast = match DuckOperation::parse_gml(gml, path.into()) {
-///     Ok(ast) => ast,
-///     Err(parse_error) => println!("Failed to parse gml: {parse_error:?}"),
-/// };
-/// ```
-///
-/// You can also manually run the [Lint]s on these [Ast]s.
-/// ```rs
-/// let lint_reports: Vec<LintReport> = vec![];
-/// let environment = Environment::new();
-/// DuckOperation::process_statement_early(
-///     duck.config(),
-///     &ast[0],
-///     &mut environemnt,
-///     &mut reports,
-/// );
-/// DuckOperation::process_statement_late(
-///     duck.config(),
-///     &ast[0],
-///     &environemnt,
-///     &mut reports,
-/// );
-/// ```
+/// For finer control over duck's operations, see [DuckOperation].
 #[derive(Debug, Default)]
 pub struct Duck {
     config: Config,

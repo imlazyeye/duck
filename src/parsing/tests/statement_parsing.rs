@@ -5,11 +5,22 @@ use crate::parsing::{
     expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator},
     statement::Statement,
 };
-use pretty_assertions::assert_eq;
+use colored::Colorize;
 
 fn harness_stmt(source: &str, expected: Statement) {
     let mut parser = Parser::new(source, "test".into());
-    assert_eq!(*parser.statement().unwrap().statement(), expected);
+    let outputed = parser.statement().unwrap();
+    if *outputed.statement() != expected {
+        panic!(
+            "\n{}\n\n{}\n\n{}: {:?}\n\n{}: {:?}\n",
+            "Failed a test on the following gml: ".yellow().bold(),
+            source,
+            "Expected".green().bold(),
+            expected,
+            "Outputed".red().bold(),
+            *outputed.statement(),
+        )
+    }
 }
 
 #[test]

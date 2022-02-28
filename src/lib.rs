@@ -15,3 +15,14 @@ pub use lint::{Lint, LintLevel, LintReport, LintTag};
 
 pub mod gml;
 pub mod parsing;
+
+pub mod prelude {
+    pub use crate::config::*;
+    pub use crate::duck::*;
+    pub use crate::duck_operation::*;
+    pub use crate::duck_task::*;
+    pub use crate::gml::*;
+    pub use crate::lint::*;
+    pub use crate::parsing::*;
+    pub use crate::utils::*;
+}

@@ -1310,6 +1310,7 @@ fn constant() {
     harness_expr("true", Expression::Literal(Literal::True));
     harness_expr("false", Expression::Literal(Literal::False));
     harness_expr("undefined", Expression::Literal(Literal::Undefined));
+    harness_expr("noone", Expression::Literal(Literal::Noone));
     harness_expr(
         "browser_not_a_browser",
         Expression::Literal(Literal::Misc("browser_not_a_browser".into())),

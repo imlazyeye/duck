@@ -310,6 +310,7 @@ impl<'a> Lexer<'a> {
                         "case" => Some(Token::Case),
                         "if" => Some(Token::If),
                         "undefined" => Some(Token::Undefined),
+                        "noone" => Some(Token::Noone),
                         "break" => Some(Token::Break),
                         "new" => Some(Token::New),
                         "function" => Some(Token::Function),

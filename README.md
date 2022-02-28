@@ -7,7 +7,9 @@ A collection of customizable lints to identify common mistakes in GML ([GameMake
 
 Currently supports [33 lints](LINTS.md), with more on the way!
 
-`duck` is is a highly opinionated linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are **completely customizable**.
+`duck` is is a highly opinionated linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are *completely customizable*.
+
+`duck` is also extremely fast. It currently can fully process a 250,000 line project in less than a second.
 
 ## Table of Contents
 
@@ -17,7 +19,7 @@ Currently supports [33 lints](LINTS.md), with more on the way!
   - [Tags](#tags)
 - [Examples](#examples)
 - [Usage Guide](#usage-guide)
-  - [Instalation](#instalation)
+  - [Installation](#instalation)
   - [Creating a configuration file](#creating-a-configuration-file)
   - [Setting lint levels](#setting-lint-levels)
   - [Running the linter](#running-the-linter)

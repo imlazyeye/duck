@@ -106,6 +106,7 @@
   "room_persistent",
   "room_speed",
   "room_width",
+  "self",
   "sequence_instance",
   "solid",
   "speed",

@@ -213,6 +213,7 @@ pub enum Literal {
     True,
     False,
     Undefined,
+    Noone,
     String(String),
     Real(f64),
     Hex(String),

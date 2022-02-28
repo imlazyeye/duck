@@ -15,10 +15,52 @@ use crate::{
 };
 use std::path::Path;
 
+/// ## DuckOperation
+/// TODO: The doc tests here are segfaulting. I have no idea why.
 /// Contains the core operations duck uses to parse and lint Gml.
 /// These are kept seperated from [Duck] to codify that `self` should
 /// not be required on these operations. This avoids situations in which
 /// Arcs/Mutexs are required, reducing the amount of wasted time in our tasks.
+///
+/// ### Usage
+/// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s directly.
+/// ```rs
+/// # use duck::prelude::*;
+/// # use std::path::Path;
+/// # let gml = "show_debug_message(\"Hello world!\")";
+/// # let path = Path::new("../hello_world.gml");
+/// match DuckOperation::parse_gml("test", Path::new("test")) {
+///     Ok(ast) => {},
+///     Err(parse_error) => println!("Failed to parse gml: {parse_error:?}"),
+/// };
+/// ```
+///
+/// You can also manually run the [Lint]s on these [Ast]s.
+/// ```rs
+/// # use duck::prelude::*;
+/// # use std::path::Path;
+/// # let duck = Duck::default();
+/// # let path = Path::new("../test.gml");
+/// # let ast = DuckOperation::parse_gml("var a = 0;", path).unwrap();
+/// let mut gml_environment = GmlEnvironment::new();
+/// let mut lint_reports: Vec<LintReport> = vec![];
+/// let mut scope_builder = ScopeBuilder::new();
+/// DuckOperation::process_statement_early(
+///     &ast[0],
+///     &mut scope_builder,
+///     &mut lint_reports,
+///     duck.config(),
+/// );
+/// let global_id = gml_environment.global_id();
+/// let scope_id = gml_environment.new_scope(scope_builder, global_id);
+/// DuckOperation::process_statement_late(
+///     &ast[0],
+///     &gml_environment,
+///     &scope_id,
+///     &mut lint_reports,
+///     duck.config(),
+/// );
+/// ```
 pub struct DuckOperation;
 impl DuckOperation {
     /// Parses the given String of GML, returning either a successfully constructed [Ast]
