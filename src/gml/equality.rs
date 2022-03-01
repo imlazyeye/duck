@@ -32,16 +32,16 @@ impl ParseVisitor for Equality {
 /// TODO: Add the actual token
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EqualityOperator {
-    // =, ==
+    /// =, ==
     Equal,
-    // !=
+    /// !=
     NotEqual,
-    // >
+    /// >
     GreaterThan,
-    // >=
+    /// >=
     GreaterThanOrEqual,
-    // <
+    /// <
     LessThan,
-    // <=
+    /// <=
     LessThanOrEqual,
 }

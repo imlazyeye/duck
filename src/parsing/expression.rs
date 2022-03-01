@@ -1,5 +1,8 @@
 use crate::{
-    gml::{Assignment, Constructor, Equality, Evaluation, Function, Identifier, Logical},
+    gml::{
+        Access, Assignment, Constructor, Equality, Evaluation, Function, Identifier, Logical, NullCoalecence, Postfix,
+        Ternary, Unary,
+    },
     parsing::statement::StatementBox,
     utils::Span,
 };
@@ -12,15 +15,24 @@ pub enum Expression {
     /// Declaration of a function. Since gml supports anonymous functions, these are expressions,
     /// not statements!
     FunctionDeclaration(Function),
+    /// A logical comparision.
     Logical(Logical),
+    /// An equality assessment.
     Equality(Equality),
+    /// An evaluation.
     Evaluation(Evaluation),
-    NullCoalecence(ExpressionBox, ExpressionBox),
-    Ternary(ExpressionBox, ExpressionBox, ExpressionBox),
+    /// A null coalecence operation.
+    NullCoalecence(NullCoalecence),
+    /// A ternary operation.
+    Ternary(Ternary),
+    /// An assignment.
     Assignment(Assignment),
-    Unary(UnaryOperator, ExpressionBox),
-    Postfix(ExpressionBox, PostfixOperator),
-    Access(Scope, ExpressionBox),
+    /// A unary operation.
+    Unary(Unary),
+    /// A postfix operation.
+    Postfix(Postfix),
+    /// An access into another scope, such as an array lookup, or dot-notation on a struct.
+    Access(Access),
     Call(ExpressionBox, Vec<ExpressionBox>, bool),
     Grouping(ExpressionBox),
     Literal(Literal),
@@ -67,48 +79,27 @@ impl Expression {
             | Expression::Equality(Equality { left, right, .. })
             | Expression::Evaluation(Evaluation { left, right, .. })
             | Expression::Assignment(Assignment { left, right, .. })
-            | Expression::NullCoalecence(left, right) => {
+            | Expression::NullCoalecence(NullCoalecence { left, right }) => {
                 expression_visitor(left);
                 expression_visitor(right);
             }
-            Expression::Ternary(condition, left, right) => {
+            Expression::Ternary(Ternary {
+                condition,
+                true_value,
+                false_value,
+            }) => {
                 expression_visitor(condition);
-                expression_visitor(left);
+                expression_visitor(true_value);
+                expression_visitor(false_value);
+            }
+            Expression::Unary(Unary { right, .. }) => {
                 expression_visitor(right);
             }
-            Expression::Unary(_, right) => {
-                expression_visitor(right);
-            }
-            Expression::Postfix(left, _) => {
+            Expression::Postfix(Postfix { left, .. }) => {
                 expression_visitor(left);
             }
-            Expression::Access(scope, expression) => {
-                expression_visitor(expression);
-                match scope {
-                    Scope::Dot(other) => {
-                        expression_visitor(other);
-                    }
-                    Scope::Array(x, y, _) => {
-                        expression_visitor(x);
-                        if let Some(y) = y {
-                            expression_visitor(y);
-                        }
-                    }
-                    Scope::Map(key) => {
-                        expression_visitor(key);
-                    }
-                    Scope::Grid(x, y) => {
-                        expression_visitor(x);
-                        expression_visitor(y);
-                    }
-                    Scope::List(index) => {
-                        expression_visitor(index);
-                    }
-                    Scope::Struct(key) => {
-                        expression_visitor(key);
-                    }
-                    Scope::Global | Scope::Current => {}
-                }
+            Expression::Access(_) => {
+                todo!();
             }
             Expression::Call(left, arguments, _) => {
                 expression_visitor(left);
@@ -139,7 +130,7 @@ impl Expression {
 
     pub fn as_dot_access(&self) -> Option<(&Expression, &Expression)> {
         match self {
-            Expression::Access(Scope::Dot(left), right) => Some((left.expression(), right.expression())),
+            Expression::Access(Access::Dot { left, right }) => Some((left.expression(), right.expression())),
             _ => None,
         }
     }
@@ -192,22 +183,6 @@ pub trait IntoExpressionBox: Sized + Into<Expression> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum UnaryOperator {
-    Increment,
-    Decrement,
-    Not,
-    Positive,
-    Negative,
-    BitwiseNot,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum PostfixOperator {
-    Increment,
-    Decrement,
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
     True,
     False,
@@ -220,16 +195,4 @@ pub enum Literal {
     Struct(Vec<(String, ExpressionBox)>),
     /// Any GML constant that we are aware of but do not have specific use for.
     Misc(String),
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Scope {
-    Global,
-    Current,
-    Dot(ExpressionBox),
-    Array(ExpressionBox, Option<ExpressionBox>, bool),
-    Map(ExpressionBox),
-    Grid(ExpressionBox, ExpressionBox),
-    List(ExpressionBox),
-    Struct(ExpressionBox),
 }

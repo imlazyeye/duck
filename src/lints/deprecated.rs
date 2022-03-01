@@ -1,7 +1,7 @@
 use crate::{
-    gml::Globalvar,
+    gml::{Access, Globalvar},
     lint::{EarlyExpressionPass, EarlyStatementPass},
-    parsing::{Expression, Scope, Statement},
+    parsing::{Expression, Statement},
     utils::Span,
     Lint, LintLevel, LintReport,
 };
@@ -66,7 +66,7 @@ impl EarlyExpressionPass for Deprecated {
                     ));
                 }
             }
-        } else if let Expression::Access(Scope::Array(_, Some(_), ..), _) = expression {
+        } else if let Expression::Access(Access::Array { index_two: Some(_), .. }) = expression {
             reports.push(Self::generate_report_with(
                 span,
                 "Use of 2d array",

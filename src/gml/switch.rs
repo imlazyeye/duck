@@ -1,7 +1,9 @@
 use crate::{
-    parsing::{Expression, ExpressionBox, Scope, StatementBox},
+    parsing::{Expression, ExpressionBox, StatementBox},
     prelude::{IntoStatementBox, ParseVisitor, Statement},
 };
+
+use super::Access;
 
 /// Representation of a gml switch statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -26,7 +28,7 @@ impl Switch {
         !self
             .cases
             .iter()
-            .any(|case| !matches!(case.identity().expression(), Expression::Access(Scope::Dot(_), _)))
+            .any(|case| !matches!(case.identity().expression(), Expression::Access(Access::Dot { .. },)))
     }
 
     /// Returns the name of the enum this switch statement matches over, if any.

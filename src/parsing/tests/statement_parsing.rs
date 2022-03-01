@@ -1,33 +1,25 @@
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, Block, DoUntil, Enum, EnumMember, Equality, EqualityOperator, ForLoop,
-        Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Macro, RepeatLoop, Return, Switch, SwitchCase,
-        TryCatch, WithLoop,
+        Access, Assignment, AssignmentOperator, Block, DoUntil, Enum, EnumMember, Equality, EqualityOperator, ForLoop,
+        Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Macro, Postfix, PostfixOperator, RepeatLoop,
+        Return, Switch, SwitchCase, TryCatch, WithLoop,
     },
     parsing::{
-        expression::{Expression, Literal, PostfixOperator, Scope},
+        expression::{Expression, Literal},
         parser::Parser,
         statement::Statement,
     },
     prelude::{IntoExpressionBox, IntoStatementBox},
 };
 use colored::Colorize;
+use pretty_assertions::assert_eq;
 
 fn harness_stmt(source: &str, expected: impl Into<Statement>) {
     let expected = expected.into();
     let mut parser = Parser::new(source, "test".into());
     let outputed = parser.statement().unwrap();
-    if *outputed.statement() != expected {
-        panic!(
-            "\n{}\n\n{}\n\n{}: {:?}\n\n{}: {:?}\n",
-            "Failed a test on the following gml: ".yellow().bold(),
-            source,
-            "Expected".green().bold(),
-            expected,
-            "Outputed".red().bold(),
-            *outputed.statement(),
-        )
-    }
+    println!("{}: {}", "Source".yellow(), source);
+    assert_eq!(expected, *outputed.statement())
 }
 
 #[test]
@@ -84,11 +76,11 @@ fn enum_with_neighbor_values() {
                 EnumMember::new(
                     "Baz",
                     Some(
-                        Expression::Access(
-                            Scope::Dot(Identifier::new("Foo").into_lazy_box()),
-                            Identifier::new("Bar").into_lazy_box(),
-                        )
-                        .lazy_box(),
+                        Access::Dot {
+                            left: Identifier::new("Foo").into_lazy_box(),
+                            right: Identifier::new("Bar").into_lazy_box(),
+                        }
+                        .into_lazy_box(),
                     ),
                 ),
             ],
@@ -231,7 +223,7 @@ fn for_loop() {
             )
             .into_lazy_box(),
             Statement::Expression(
-                Expression::Postfix(Identifier::new("i").into_lazy_box(), PostfixOperator::Increment).lazy_box(),
+                Postfix::new(Identifier::new("i").into_lazy_box(), PostfixOperator::Increment).into_lazy_box(),
             )
             .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),

@@ -32,26 +32,26 @@ impl ParseVisitor for Evaluation {
 /// TODO: Add the actual token
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EvaluationOperator {
-    // +
+    /// +
     Plus,
-    // -
+    /// -
     Minus,
-    // /
+    /// /
     Slash,
-    // *
+    /// *
     Star,
-    // div
+    /// div
     Div,
-    // mod, %
+    /// mod, %
     Modulo,
-    // &
+    /// &
     And,
-    // |
+    /// |
     Or,
-    // ^
+    /// ^
     Xor,
-    // <<
+    /// <<
     BitShiftLeft,
-    // >>
+    /// >>
     BitShiftRight,
 }

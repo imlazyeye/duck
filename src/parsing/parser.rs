@@ -1,12 +1,13 @@
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, Block, Constructor, DoUntil, Enum, Equality, Evaluation, EvaluationOperator,
-        ForLoop, Function, Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Logical, Macro, Parameter,
-        RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
+        Access, Assignment, AssignmentOperator, Block, Constructor, DoUntil, Enum, Equality, Evaluation,
+        EvaluationOperator, ForLoop, Function, Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Logical,
+        Macro, NullCoalecence, Parameter, Postfix, RepeatLoop, Return, Switch, SwitchCase, Ternary, TryCatch, Unary,
+        WithLoop,
     },
     parsing::{
-        lexer::Lexer, Expression, ExpressionBox, IntoExpressionBox, IntoStatementBox, Literal, ParseError, Scope,
-        Statement, StatementBox, Token,
+        lexer::Lexer, Expression, ExpressionBox, IntoExpressionBox, IntoStatementBox, Literal, ParseError, Statement,
+        StatementBox, Token,
     },
     utils::Span,
 };
@@ -425,7 +426,7 @@ impl<'a> Parser<'a> {
         let expression = self.ternary()?;
         if self.match_take(Token::DoubleInterrobang).is_some() {
             let value = self.expression()?;
-            Ok(Expression::NullCoalecence(expression, value).into_box(self.span(start)))
+            Ok(NullCoalecence::new(expression, value).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -438,7 +439,7 @@ impl<'a> Parser<'a> {
             let true_value = self.expression()?;
             self.require(Token::Colon)?;
             let false_value = self.expression()?;
-            Ok(Expression::Ternary(expression, true_value, false_value).into_box(self.span(start)))
+            Ok(Ternary::new(expression, true_value, false_value).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -585,7 +586,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = self.peek()?.as_unary_operator() {
             self.take()?;
             let right = self.expression()?;
-            Ok(Expression::Unary(operator, right).into_box(self.span(start)))
+            Ok(Unary::new(operator, right).into_expression_box(self.span(start)))
         } else {
             self.postfix()
         }
@@ -596,7 +597,7 @@ impl<'a> Parser<'a> {
         let expression = self.literal()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_operator()) {
             self.take()?;
-            Ok(Expression::Postfix(expression, operator).into_box(self.span(start)))
+            Ok(Postfix::new(expression, operator).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -681,35 +682,47 @@ impl<'a> Parser<'a> {
 
     fn dot_access(&mut self, expression: Option<ExpressionBox>) -> Result<ExpressionBox, ParseError> {
         let start = self.cursor();
-        let scope = if let Some(expression) = expression {
-            Scope::Dot(expression)
+        let access = if let Some(expression) = expression {
+            self.require(Token::Dot)?;
+            Access::Dot {
+                left: expression,
+                right: self.grouping()?,
+            }
         } else {
             match self.peek()? {
                 Token::Global => {
                     self.take()?;
-                    Scope::Global
+                    self.require(Token::Dot)?;
+                    Access::Global {
+                        right: self.grouping()?,
+                    }
                 }
                 Token::SelfKeyword => {
                     self.take()?;
-                    if self.soft_peek() == Some(&Token::Dot) {
-                        Scope::Current
+                    if self.match_take(Token::Dot).is_some() {
+                        Access::Current {
+                            right: self.grouping()?,
+                        }
                     } else {
                         // Using self as a referencce!
-                        return Ok(Expression::Identifier(Identifier::new("self")).into_box(self.span(start)));
+                        // FIXME: this gives me bad vibes and I feel like is a sign of bad architecting
+                        return Ok(Identifier::new("self").into_expression_box(self.span(start)));
                     }
                 }
                 _ => {
                     let left = self.ds_access(None)?;
-                    if self.soft_peek() != Some(&Token::Dot) {
+                    if self.match_take(Token::Dot).is_some() {
+                        Access::Dot {
+                            left,
+                            right: self.grouping()?,
+                        }
+                    } else {
                         return Ok(left);
                     }
-                    Scope::Dot(left)
                 }
             }
         };
-        self.require(Token::Dot)?;
-        let right = self.grouping()?;
-        Ok(Expression::Access(scope, right).into_box(self.span(start)))
+        Ok(access.into_expression_box(self.span(start)))
     }
 
     fn ds_access(&mut self, left: Option<ExpressionBox>) -> Result<ExpressionBox, ParseError> {
@@ -724,39 +737,57 @@ impl<'a> Parser<'a> {
             left
         };
         self.require(Token::LeftSquareBracket)?;
-        let scope = match self.peek()? {
+        let access = match self.peek()? {
             Token::DollarSign => {
                 self.take()?;
-                Scope::Struct(self.expression()?)
+                Access::Struct {
+                    left,
+                    key: self.expression()?,
+                }
             }
             Token::Interrobang => {
                 self.take()?;
-                Scope::Map(self.expression()?)
+                Access::Map {
+                    left,
+                    key: self.expression()?,
+                }
             }
             Token::Pipe => {
                 self.take()?;
-                Scope::List(self.expression()?)
+                Access::List {
+                    left,
+                    index: self.expression()?,
+                }
             }
             Token::Hash => {
                 self.take()?;
-                let first = self.expression()?;
+                let index_one = self.expression()?;
                 self.require(Token::Comma)?;
-                let second = self.expression()?;
-                Scope::Grid(first, second)
+                let index_two = self.expression()?;
+                Access::Grid {
+                    left,
+                    index_one,
+                    index_two,
+                }
             }
             _ => {
-                let has_accessor = self.match_take(Token::AtSign).is_some();
-                let left = self.expression()?;
-                let right = if self.match_take(Token::Comma).is_some() {
+                let using_accessor = self.match_take(Token::AtSign).is_some();
+                let index_one = self.expression()?;
+                let index_two = if self.match_take(Token::Comma).is_some() {
                     Some(self.expression()?)
                 } else {
                     None
                 };
-                Scope::Array(left, right, has_accessor)
+                Access::Array {
+                    left,
+                    index_one,
+                    index_two,
+                    using_accessor,
+                }
             }
         };
         self.require(Token::RightSquareBracket)?;
-        Ok(Expression::Access(scope, left).into_box(self.span(start)))
+        Ok(access.into_expression_box(self.span(start)))
     }
 
     fn grouping(&mut self) -> Result<ExpressionBox, ParseError> {

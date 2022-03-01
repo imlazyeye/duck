@@ -1,9 +1,4 @@
-use crate::{
-    lint::EarlyExpressionPass,
-    parsing::{Expression, Scope},
-    utils::Span,
-    Lint, LintLevel, LintReport,
-};
+use crate::{gml::Access, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct Global;
@@ -35,7 +30,7 @@ impl EarlyExpressionPass for Global {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Access(Scope::Global, _) = expression {
+        if let Expression::Access(Access::Global { right }) = expression {
             reports.push(Self::generate_report(span))
         }
     }
