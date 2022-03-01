@@ -73,7 +73,7 @@ impl Duck {
 
         // Return the result!
         Ok(RunResult::new(
-            &Config::default(),
+            self.config(),
             late_pass_reports,
             parse_errors,
             io_errors,
