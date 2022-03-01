@@ -179,8 +179,8 @@ impl LintReport {
         };
         let note_message = match level {
             LintLevelSetting::Default(_) => "",
-            LintLevelSetting::CodeSpecified(_) => "\n note: This lint was requested by the line above it.",
-            LintLevelSetting::ConfigSpecified(_) => "\n note: This lint was activated by your config,",
+            LintLevelSetting::CodeSpecified(_) => "\n note: This lint was requested by the line above it.\n",
+            LintLevelSetting::ConfigSpecified(_) => "\n note: This lint was activated by your config,\n",
         }
         .to_string()
         .bold()

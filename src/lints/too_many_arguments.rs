@@ -1,4 +1,6 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel, LintReport};
+use crate::{
+    gml::Function, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct TooManyArguments;
@@ -28,8 +30,8 @@ impl Lint for TooManyArguments {
 
 impl EarlyExpressionPass for TooManyArguments {
     fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
-        if let Expression::FunctionDeclaration(_, params, ..) = expression {
-            if params.len() > config.max_arguments {
+        if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression {
+            if parameters.len() > config.max_arguments {
                 reports.push(Self::generate_report(span))
             }
         }

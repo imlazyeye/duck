@@ -134,7 +134,8 @@ pub trait IntoStatementBox: Sized + Into<Statement> {
         StatementBox(Box::new(self.into()), span)
     }
 
-    /// Converts self into an statement box with a default span. Useful for tests.
+    /// Converts self into an statement box with a default span. Used in tests, where all spans are
+    /// expected to be 0, 0.
     fn into_lazy_box(self) -> StatementBox
     where
         Self: Sized,

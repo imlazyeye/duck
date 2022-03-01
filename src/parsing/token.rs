@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
-use super::{EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator};
-use crate::gml::AssignmentOperator;
+use super::{Literal, PostfixOperator, UnaryOperator};
+use crate::gml::{AssignmentOperator, EqualityOperator, EvaluationOperator, LogicalOperator};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Token {

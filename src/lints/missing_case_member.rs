@@ -68,10 +68,7 @@ impl LateStatementPass for MissingCaseMember {
                 // `all_case_members_dot_access` earlier!)
                 let (left, right) = case.identity().expression().as_dot_access().unwrap();
 
-                // We are not safe to assume that the left and right are identifiers. It would
-                // be invalid gml if they weren't, but we don't want to panic
-                // regardless.
-
+                // We are not safe to assume that the left and right are identifiers.
                 if let Some(this_identity_enum) = left.as_identifier() {
                     if this_identity_enum.name != gml_enum.name {
                         // The user has different enums in the same switch statement -- abandon this
@@ -79,12 +76,12 @@ impl LateStatementPass for MissingCaseMember {
                         return;
                     }
                 } else {
-                    return; // invalid gml -- abandon this lint
+                    return; // INVALID_GML: non-constant in case expression
                 }
                 if let Some(member_identifier) = right.as_identifier() {
                     member_names_discovered.push(member_identifier.name.as_str());
                 } else {
-                    return; // invalid gml -- abandon this lint
+                    return; // INVALID_GML: non-constant in case expression
                 };
             }
 

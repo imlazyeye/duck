@@ -1,17 +1,20 @@
 use crate::{
-    gml::{Assignment, Identifier},
+    gml::{Assignment, Constructor, Equality, Evaluation, Function, Identifier, Logical},
     parsing::statement::StatementBox,
     utils::Span,
 };
 
 use super::{IntoStatementBox, ParseVisitor, Statement};
 
+/// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
-    FunctionDeclaration(Option<String>, Vec<Parameter>, Option<Constructor>, StatementBox, bool),
-    Logical(ExpressionBox, LogicalOperator, ExpressionBox),
-    Equality(ExpressionBox, EqualityOperator, ExpressionBox),
-    Evaluation(ExpressionBox, EvaluationOperator, ExpressionBox),
+    /// Declaration of a function. Since gml supports anonymous functions, these are expressions,
+    /// not statements!
+    FunctionDeclaration(Function),
+    Logical(Logical),
+    Equality(Equality),
+    Evaluation(Evaluation),
     NullCoalecence(ExpressionBox, ExpressionBox),
     Ternary(ExpressionBox, ExpressionBox, ExpressionBox),
     Assignment(Assignment),
@@ -36,7 +39,7 @@ impl Expression {
     where
         S: FnMut(&StatementBox),
     {
-        if let Expression::FunctionDeclaration(_, _, _, body, _) = self {
+        if let Expression::FunctionDeclaration(Function { body, .. }) = self {
             statement_visitor(body);
         }
     }
@@ -46,24 +49,24 @@ impl Expression {
         E: FnMut(&ExpressionBox),
     {
         match self {
-            Expression::FunctionDeclaration(_, parameters, constructor, _, _) => {
+            Expression::FunctionDeclaration(Function {
+                parameters,
+                constructor,
+                ..
+            }) => {
                 for parameter in parameters.iter() {
-                    if let Some(default_value) = &parameter.1 {
+                    if let Some(default_value) = &parameter.default_value {
                         expression_visitor(default_value);
                     }
                 }
-                if let Some(Some(inheritance_call)) = constructor.as_ref().map(|c| &c.0) {
+                if let Some(Constructor::WithInheritance(inheritance_call)) = &constructor {
                     expression_visitor(inheritance_call);
                 }
             }
-            Expression::Logical(left, _, right)
-            | Expression::Equality(left, _, right)
-            | Expression::Evaluation(left, _, right)
-            | Expression::Assignment(Assignment {
-                left,
-                operator: _,
-                right,
-            })
+            Expression::Logical(Logical { left, right, .. })
+            | Expression::Equality(Equality { left, right, .. })
+            | Expression::Evaluation(Evaluation { left, right, .. })
+            | Expression::Assignment(Assignment { left, right, .. })
             | Expression::NullCoalecence(left, right) => {
                 expression_visitor(left);
                 expression_visitor(right);
@@ -178,45 +181,14 @@ pub trait IntoExpressionBox: Sized + Into<Expression> {
         ExpressionBox(Box::new(self.into()), span)
     }
 
-    /// Converts self into an expression box with a default span. Useful for tests.
+    /// Converts self into an expression box with a default span. Used in tests, where all spans are
+    /// expected to be 0, 0.
     fn into_lazy_box(self) -> ExpressionBox
     where
         Self: Sized,
     {
         self.into_expression_box(Default::default())
     }
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum EvaluationOperator {
-    Plus,
-    Minus,
-    Slash,
-    Star,
-    Div,
-    Modulo,
-    And,
-    Or,
-    Xor,
-    BitShiftLeft,
-    BitShiftRight,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum EqualityOperator {
-    Equal,
-    NotEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-    LessThan,
-    LessThanOrEqual,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum LogicalOperator {
-    And,
-    Or,
-    Xor,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -261,9 +233,3 @@ pub enum Scope {
     List(ExpressionBox),
     Struct(ExpressionBox),
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Constructor(pub Option<ExpressionBox>);
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Parameter(pub String, pub Option<ExpressionBox>);

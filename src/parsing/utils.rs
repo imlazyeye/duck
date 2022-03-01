@@ -2,18 +2,7 @@ use super::{expression::ExpressionBox, token::Token};
 use crate::utils::{FilePreviewUtil, Span};
 use colored::Colorize;
 
-/// The various errors that can be encountered when we parse Gml.
-///
-/// It is worth noting that duck is not presently interested with asserting the
-/// validity of Gml. In other words, it's okay if duck runs successfully over
-/// Gml that would not compile in GameMaker. The reverse is not true -- if
-/// something is valid Gml, duck should be able to parse it, with very few
-/// exceptions (only made for absolutley absurd syntax that would have a
-/// significant impact on duck's codebase. )
-///
-/// As such, the only errors we support are out of neccesity -- errors that
-/// prevent us from being able to safely (or meaningfully) continue through the
-/// user's Gml.
+/// The various errors that can be encountered when we parse gml.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ParseError {
     /// A token was encountered that was not expected in the current context.
@@ -26,14 +15,8 @@ pub enum ParseError {
     /// ```gml
     /// !foo = 0; // `!foo` yields a value (boolean), and values cannot be assigned to.
     /// ```
-    ///
-    /// While this is asserting the validity of Gml, adding a catch to it often
-    /// helps us detect our own issues in duck.
     InvalidAssignmentTarget(Span, ExpressionBox),
     /// A only contains an expression that can not be a statement on its own.
-    ///
-    /// Similar to the [ParseError::InvalidAssignmentTarget], this is asserting
-    /// validity of gml, but is useful for detecting our own mistakes.
     IncompleteStatement(Span, ExpressionBox),
     /// The source of gml ended unexpectedly before a item could be successfully
     /// parsed.

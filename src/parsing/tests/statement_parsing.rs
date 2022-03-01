@@ -1,10 +1,11 @@
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, Block, DoUntil, Enum, EnumMember, ForLoop, Globalvar, Identifier, If,
-        LocalVariable, LocalVariableSeries, Macro, RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
+        Assignment, AssignmentOperator, Block, DoUntil, Enum, EnumMember, Equality, EqualityOperator, ForLoop,
+        Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Macro, RepeatLoop, Return, Switch, SwitchCase,
+        TryCatch, WithLoop,
     },
     parsing::{
-        expression::{EqualityOperator, Expression, Literal, PostfixOperator, Scope},
+        expression::{Expression, Literal, PostfixOperator, Scope},
         parser::Parser,
         statement::Statement,
     },
@@ -223,12 +224,12 @@ fn for_loop() {
                 .into_lazy_box(),
             )])
             .into_lazy_box(),
-            Expression::Equality(
+            Equality::new(
                 Identifier::new("i").into_lazy_box(),
                 EqualityOperator::LessThan,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
             Statement::Expression(
                 Expression::Postfix(Identifier::new("i").into_lazy_box(), PostfixOperator::Increment).lazy_box(),
             )
@@ -277,12 +278,12 @@ fn do_until() {
                 .into_lazy_box(),
             ])
             .into_lazy_box(),
-            Expression::Equality(
+            Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
         ),
     )
 }
@@ -291,12 +292,12 @@ fn while_loop() {
     harness_stmt(
         "while foo == 1 { foo += 1; }",
         If::new(
-            Expression::Equality(
+            Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
             Block::new(vec![
                 Statement::Expression(
                     Expression::Assignment(Assignment::new(
@@ -318,12 +319,12 @@ fn if_statement() {
     harness_stmt(
         "if foo == 1 {}",
         If::new(
-            Expression::Equality(
+            Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
         ),
     )
@@ -334,12 +335,12 @@ fn if_then() {
     harness_stmt(
         "if foo == 1 then {}",
         If::new_with_then_keyword(
-            Expression::Equality(
+            Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
             None,
         ),
@@ -351,12 +352,12 @@ fn if_else() {
     harness_stmt(
         "if foo == 1 {} else {}",
         If::new_with_else(
-            Expression::Equality(
+            Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
         ),

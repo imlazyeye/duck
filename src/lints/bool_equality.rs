@@ -1,6 +1,7 @@
 use crate::{
+    gml::{Equality, EqualityOperator},
     lint::EarlyExpressionPass,
-    parsing::{EqualityOperator, Expression, Literal},
+    parsing::{Expression, Literal},
     utils::Span,
     Lint, LintLevel, LintReport,
 };
@@ -35,7 +36,12 @@ impl EarlyExpressionPass for BoolEquality {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Equality(_, EqualityOperator::Equal, right) = expression {
+        if let Expression::Equality(Equality {
+            operator: EqualityOperator::Equal,
+            right,
+            ..
+        }) = expression
+        {
             if let Expression::Literal(literal) = right.expression() {
                 match literal {
                     Literal::True => reports.push(Self::generate_report_with(

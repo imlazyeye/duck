@@ -1,4 +1,4 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{gml::Function, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct NonConstantDefaultParameter;
@@ -30,9 +30,9 @@ impl EarlyExpressionPass for NonConstantDefaultParameter {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::FunctionDeclaration(_, params, ..) = expression {
-            for param in params {
-                if let Some(expression) = &param.1 {
+        if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression {
+            for param in parameters {
+                if let Some(expression) = &param.default_value {
                     if !matches!(
                         expression.expression(),
                         Expression::Identifier(_) | Expression::Literal(_),

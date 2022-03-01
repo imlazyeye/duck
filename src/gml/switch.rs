@@ -22,8 +22,6 @@ impl Switch {
     }
 
     /// Returns if all the cases of this enum are dot-access expressions.
-    /// Given valid GML, this is a guarentee that they are all enums. With
-    /// invalid GML, these could be ANY dot-access expressions.
     pub fn all_case_members_dot_access(&self) -> bool {
         !self
             .cases

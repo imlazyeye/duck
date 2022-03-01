@@ -1,5 +1,5 @@
 use crate::{
-    gml::{Assignment, AssignmentOperator},
+    gml::{Assignment, AssignmentOperator, Evaluation},
     lint::EarlyExpressionPass,
     parsing::{Expression, Literal},
     prelude::EvaluationOperator,
@@ -38,7 +38,7 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
         reports: &mut Vec<LintReport>,
     ) {
         match expression {
-            Expression::Evaluation(_, operator, right) => {
+            Expression::Evaluation(Evaluation { operator, right, .. }) => {
                 if let Expression::Literal(literal) = right.expression() {
                     if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
                         reports.push(Self::generate_report(span))

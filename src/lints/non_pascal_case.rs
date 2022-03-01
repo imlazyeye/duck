@@ -1,6 +1,7 @@
 use heck::ToUpperCamelCase;
 
 use crate::{
+    gml::Function,
     lint::{EarlyExpressionPass, EarlyStatementPass},
     parsing::{Expression, Statement},
     utils::Span,
@@ -68,7 +69,12 @@ impl EarlyExpressionPass for NonPascalCase {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::FunctionDeclaration(Some(name), _, Some(_), ..) = expression {
+        if let Expression::FunctionDeclaration(Function {
+            name: Some(name),
+            constructor: Some(_),
+            ..
+        }) = expression
+        {
             let ideal = pascal_case(name);
             if name != &ideal {
                 reports.push(Self::generate_report_with(

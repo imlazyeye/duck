@@ -1,4 +1,4 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{gml::Function, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct AnonymousConstructor;
@@ -33,7 +33,12 @@ impl EarlyExpressionPass for AnonymousConstructor {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::FunctionDeclaration(None, _, Some(_), _, _) = expression {
+        if let Expression::FunctionDeclaration(Function {
+            name: None,
+            constructor: Some(_),
+            ..
+        }) = expression
+        {
             reports.push(Self::generate_report(span))
         }
     }

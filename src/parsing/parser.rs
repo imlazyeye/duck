@@ -1,11 +1,12 @@
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, Block, DoUntil, Enum, ForLoop, Globalvar, Identifier, If, LocalVariable,
-        LocalVariableSeries, Macro, RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
+        Assignment, AssignmentOperator, Block, Constructor, DoUntil, Enum, Equality, Evaluation, EvaluationOperator,
+        ForLoop, Function, Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Logical, Macro, Parameter,
+        RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
     },
     parsing::{
-        expression::EvaluationOperator, lexer::Lexer, Constructor, Expression, ExpressionBox, IntoExpressionBox,
-        IntoStatementBox, Literal, Parameter, ParseError, Scope, Statement, StatementBox, Token,
+        lexer::Lexer, Expression, ExpressionBox, IntoExpressionBox, IntoStatementBox, Literal, ParseError, Scope,
+        Statement, StatementBox, Token,
     },
     utils::Span,
 };
@@ -365,7 +366,8 @@ impl<'a> Parser<'a> {
 
     fn function(&mut self) -> Result<ExpressionBox, ParseError> {
         let start = self.cursor();
-        let static_token = self.match_take(Token::Static);
+        // TODO: when we do static-analysis, this will be used
+        let _static_token = self.match_take(Token::Static);
         if self.match_take(Token::Function).is_some() {
             let name = self.match_take_identifier()?;
             self.require(Token::LeftParenthesis)?;
@@ -378,16 +380,16 @@ impl<'a> Parser<'a> {
                     }
                     _ => {
                         let name = self.require_identifier()?;
-                        let default_value = if self.match_take(Token::Equal).is_some() {
-                            Some(self.expression()?)
+                        if self.match_take(Token::Equal).is_some() {
+                            parameters.push(Parameter::new_with_default(name, self.expression()?));
                         } else {
-                            None
+                            parameters.push(Parameter::new(name));
                         };
                         self.match_take(Token::Comma);
-                        parameters.push(Parameter(name, default_value));
                     }
                 }
             }
+            let colon_position = self.cursor;
             let inheritance = if self.match_take(Token::Colon).is_some() {
                 let name = self.identifier()?;
                 Some(self.call(Some(name), false)?)
@@ -395,16 +397,24 @@ impl<'a> Parser<'a> {
                 None
             };
             let constructor = if self.match_take(Token::Constructor).is_some() {
-                Some(Constructor(inheritance))
+                match inheritance {
+                    Some(inheritance) => Some(Constructor::WithInheritance(inheritance)),
+                    None => Some(Constructor::WithoutInheritance),
+                }
             } else {
-                // Note: if `inheritance` is some here, this is invalid gml. But we don't really care!
+                if inheritance.is_some() {
+                    return Err(ParseError::UnexpectedToken(self.span(colon_position), Token::Colon));
+                }
                 None
             };
             let body = self.block()?;
-            Ok(
-                Expression::FunctionDeclaration(name, parameters, constructor, body, static_token.is_some())
-                    .into_box(self.span(start)),
-            )
+            Ok(Function {
+                name,
+                parameters,
+                constructor,
+                body,
+            }
+            .into_expression_box(self.span(start)))
         } else {
             self.null_coalecence()
         }
@@ -440,7 +450,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_logical_operator()) {
             self.take()?;
             let right = self.logical()?;
-            Ok(Expression::Logical(expression, operator, right).into_box(self.span(start)))
+            Ok(Logical::new(expression, operator, right).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -452,7 +462,7 @@ impl<'a> Parser<'a> {
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_equality_operator()) {
             self.take()?;
             let right = self.equality()?;
-            Ok(Expression::Equality(expression, operator, right).into_box(self.span(start)))
+            Ok(Equality::new(expression, operator, right).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -474,7 +484,7 @@ impl<'a> Parser<'a> {
         {
             self.take()?;
             let right = self.binary()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.span(start)))
+            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -496,7 +506,7 @@ impl<'a> Parser<'a> {
         {
             self.take()?;
             let right = self.bitshift()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.span(start)))
+            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -518,7 +528,7 @@ impl<'a> Parser<'a> {
         {
             self.take()?;
             let right = self.addition()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.span(start)))
+            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }
@@ -543,7 +553,7 @@ impl<'a> Parser<'a> {
         {
             self.take()?;
             let right = self.multiplication()?;
-            Ok(Expression::Evaluation(expression, operator, right).into_box(self.span(start)))
+            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
         }

@@ -1,10 +1,10 @@
 use crate::{
-    gml::{Assignment, AssignmentOperator, Block, Identifier, Return},
+    gml::{
+        Assignment, AssignmentOperator, Block, Constructor, Equality, EqualityOperator, Evaluation, EvaluationOperator,
+        Function, Identifier, Logical, LogicalOperator, Parameter, Return,
+    },
     parsing::{
-        expression::{
-            Constructor, EqualityOperator, EvaluationOperator, Expression, Literal, LogicalOperator, Parameter,
-            PostfixOperator, Scope, UnaryOperator,
-        },
+        expression::{Expression, Literal, PostfixOperator, Scope, UnaryOperator},
         parser::Parser,
     },
     prelude::{IntoExpressionBox, IntoStatementBox},
@@ -32,13 +32,7 @@ fn harness_expr(source: &str, expected: impl Into<Expression>) {
 fn function() {
     harness_expr(
         "function foo() {}",
-        Expression::FunctionDeclaration(
-            Some("foo".into()),
-            vec![],
-            None,
-            Block::new(vec![]).into_lazy_box(),
-            false,
-        ),
+        Function::new("foo", vec![], Block::new(vec![]).into_lazy_box()),
     )
 }
 
@@ -46,13 +40,7 @@ fn function() {
 fn static_function() {
     harness_expr(
         "static function foo() {}",
-        Expression::FunctionDeclaration(
-            Some("foo".into()),
-            vec![],
-            None,
-            Block::new(vec![]).into_lazy_box(),
-            true,
-        ),
+        Function::new("foo", vec![], Block::new(vec![]).into_lazy_box()),
     )
 }
 
@@ -60,12 +48,10 @@ fn static_function() {
 fn function_with_parameters() {
     harness_expr(
         "function foo(bar, baz) {}",
-        Expression::FunctionDeclaration(
-            Some("foo".into()),
-            vec![Parameter("bar".into(), None), Parameter("baz".into(), None)],
-            None,
+        Function::new(
+            "foo",
+            vec![Parameter::new("bar"), Parameter::new("baz")],
             Block::new(vec![]).into_lazy_box(),
-            false,
         ),
     )
 }
@@ -74,15 +60,13 @@ fn function_with_parameters() {
 fn default_parameters() {
     harness_expr(
         "function foo(bar=20, baz) {}",
-        Expression::FunctionDeclaration(
-            Some("foo".into()),
+        Function::new(
+            "foo",
             vec![
-                Parameter("bar".into(), Some(Expression::Literal(Literal::Real(20.0)).lazy_box())),
-                Parameter("baz".into(), None),
+                Parameter::new_with_default("bar", Expression::Literal(Literal::Real(20.0)).lazy_box()),
+                Parameter::new("baz"),
             ],
-            None,
             Block::new(vec![]).into_lazy_box(),
-            false,
         ),
     )
 }
@@ -91,7 +75,7 @@ fn default_parameters() {
 fn anonymous_function() {
     harness_expr(
         "function() {}",
-        Expression::FunctionDeclaration(None, vec![], None, Block::new(vec![]).into_lazy_box(), false),
+        Function::new_anonymous(vec![], Block::new(vec![]).into_lazy_box()),
     )
 }
 
@@ -99,12 +83,11 @@ fn anonymous_function() {
 fn constructor() {
     harness_expr(
         "function foo() constructor {}",
-        Expression::FunctionDeclaration(
+        Function::new_constructor(
             Some("foo".into()),
             vec![],
-            Some(Constructor(None)),
+            Constructor::WithoutInheritance,
             Block::new(vec![]).into_lazy_box(),
-            false,
         ),
     )
 }
@@ -113,14 +96,13 @@ fn constructor() {
 fn inheritance() {
     harness_expr(
         "function foo() : bar() constructor {}",
-        Expression::FunctionDeclaration(
+        Function::new_constructor(
             Some("foo".into()),
             vec![],
-            Some(Constructor(Some(
+            Constructor::WithInheritance(
                 Expression::Call(Identifier::new("bar").into_lazy_box(), vec![], false).lazy_box(),
-            ))),
+            ),
             Block::new(vec![]).into_lazy_box(),
-            false,
         ),
     )
 }
@@ -128,13 +110,11 @@ fn inheritance() {
 #[test]
 fn function_return_no_semi_colon() {
     harness_expr(
-        "function() { return }",
-        Expression::FunctionDeclaration(
-            None,
+        "function foo() { return }",
+        Function::new(
+            "foo",
             vec![],
-            None,
             Block::new(vec![Return::new(None).into_lazy_box()]).into_lazy_box(),
-            false,
         ),
     )
 }
@@ -143,7 +123,7 @@ fn function_return_no_semi_colon() {
 fn and() {
     harness_expr(
         "1 && 1",
-        Expression::Logical(
+        Logical::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             LogicalOperator::And,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -155,7 +135,7 @@ fn and() {
 fn and_keyword() {
     harness_expr(
         "1 and 1",
-        Expression::Logical(
+        Logical::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             LogicalOperator::And,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -167,7 +147,7 @@ fn and_keyword() {
 fn or() {
     harness_expr(
         "1 || 1",
-        Expression::Logical(
+        Logical::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             LogicalOperator::Or,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -179,7 +159,7 @@ fn or() {
 fn or_keyword() {
     harness_expr(
         "1 or 1",
-        Expression::Logical(
+        Logical::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             LogicalOperator::Or,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -191,7 +171,7 @@ fn or_keyword() {
 fn xor() {
     harness_expr(
         "1 xor 1",
-        Expression::Logical(
+        Logical::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             LogicalOperator::Xor,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -203,7 +183,7 @@ fn xor() {
 fn addition() {
     harness_expr(
         "1 + 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Plus,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -215,7 +195,7 @@ fn addition() {
 fn subtraction() {
     harness_expr(
         "1 - 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Minus,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -227,7 +207,7 @@ fn subtraction() {
 fn multiplication() {
     harness_expr(
         "1 * 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Star,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -239,7 +219,7 @@ fn multiplication() {
 fn division() {
     harness_expr(
         "1 / 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Slash,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -251,7 +231,7 @@ fn division() {
 fn modulo() {
     harness_expr(
         "1 mod 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Modulo,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -259,7 +239,7 @@ fn modulo() {
     );
     harness_expr(
         "1 % 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Modulo,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -271,7 +251,7 @@ fn modulo() {
 fn div() {
     harness_expr(
         "1 div 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Div,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -283,7 +263,7 @@ fn div() {
 fn bitwise_and() {
     harness_expr(
         "1 & 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::And,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -295,7 +275,7 @@ fn bitwise_and() {
 fn bitwise_or() {
     harness_expr(
         "1 | 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Or,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -307,15 +287,15 @@ fn bitwise_or() {
 fn bitwise_chain() {
     harness_expr(
         "1 | 1 | 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Or,
-            Expression::Evaluation(
+            Evaluation::new(
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 EvaluationOperator::Or,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
         ),
     );
 }
@@ -324,7 +304,7 @@ fn bitwise_chain() {
 fn bitwise_xor() {
     harness_expr(
         "1 ^ 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::Xor,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -336,7 +316,7 @@ fn bitwise_xor() {
 fn dot_access_bitwise() {
     harness_expr(
         "foo.bar | foo.bar",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Access(
                 Scope::Dot(Identifier::new("foo").into_lazy_box()),
                 Identifier::new("bar").into_lazy_box(),
@@ -356,7 +336,7 @@ fn dot_access_bitwise() {
 fn bit_shift_left() {
     harness_expr(
         "1 << 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::BitShiftLeft,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -368,7 +348,7 @@ fn bit_shift_left() {
 fn bit_shift_right() {
     harness_expr(
         "1 >> 1",
-        Expression::Evaluation(
+        Evaluation::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EvaluationOperator::BitShiftRight,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -380,7 +360,7 @@ fn bit_shift_right() {
 fn less_than() {
     harness_expr(
         "1 < 1",
-        Expression::Equality(
+        Equality::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EqualityOperator::LessThan,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -392,28 +372,28 @@ fn less_than() {
 fn combo_math() {
     harness_expr(
         "1 * 1 + 1 >> 1 & 1 == 1",
-        Expression::Equality(
-            Expression::Evaluation(
-                Expression::Evaluation(
-                    Expression::Evaluation(
-                        Expression::Evaluation(
+        Equality::new(
+            Evaluation::new(
+                Evaluation::new(
+                    Evaluation::new(
+                        Evaluation::new(
                             Expression::Literal(Literal::Real(1.0)).lazy_box(),
                             EvaluationOperator::Star,
                             Expression::Literal(Literal::Real(1.0)).lazy_box(),
                         )
-                        .lazy_box(),
+                        .into_lazy_box(),
                         EvaluationOperator::Plus,
                         Expression::Literal(Literal::Real(1.0)).lazy_box(),
                     )
-                    .lazy_box(),
+                    .into_lazy_box(),
                     EvaluationOperator::BitShiftRight,
                     Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 )
-                .lazy_box(),
+                .into_lazy_box(),
                 EvaluationOperator::And,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
             EqualityOperator::Equal,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -424,7 +404,7 @@ fn combo_math() {
 fn less_than_or_equal() {
     harness_expr(
         "1 <= 1",
-        Expression::Equality(
+        Equality::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EqualityOperator::LessThanOrEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -436,7 +416,7 @@ fn less_than_or_equal() {
 fn greater_than() {
     harness_expr(
         "1 > 1",
-        Expression::Equality(
+        Equality::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EqualityOperator::GreaterThan,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -448,7 +428,7 @@ fn greater_than() {
 fn greater_than_or_equal() {
     harness_expr(
         "1 >= 1",
-        Expression::Equality(
+        Equality::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EqualityOperator::GreaterThanOrEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -460,7 +440,7 @@ fn greater_than_or_equal() {
 fn equal() {
     harness_expr(
         "1 == 1",
-        Expression::Equality(
+        Equality::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EqualityOperator::Equal,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -472,7 +452,7 @@ fn equal() {
 fn bang_equal() {
     harness_expr(
         "1 != 1",
-        Expression::Equality(
+        Equality::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             EqualityOperator::NotEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -1266,30 +1246,30 @@ fn oh_x_hex() {
 fn logically_joined_expressions() {
     harness_expr(
         "foo == 1 && foo == 1 && foo == 1",
-        Expression::Logical(
-            Expression::Equality(
+        Logical::new(
+            Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
             LogicalOperator::And,
-            Expression::Logical(
-                Expression::Equality(
+            Logical::new(
+                Equality::new(
                     Identifier::new("foo").into_lazy_box(),
                     EqualityOperator::Equal,
                     Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 )
-                .lazy_box(),
+                .into_lazy_box(),
                 LogicalOperator::And,
-                Expression::Equality(
+                Equality::new(
                     Identifier::new("foo").into_lazy_box(),
                     EqualityOperator::Equal,
                     Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 )
-                .lazy_box(),
+                .into_lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
         ),
     );
 }
