@@ -60,25 +60,29 @@ impl DuckTask {
 
     /// Creates a Tokio task which will await paths through `path_receiever` and
     /// subsequently load their data, pumping it to the returned Receiver.
-    /// Closes when the `path_receiver` channel closes.
+    /// Closes when the `path_receiver` channel closes. Additionally returns the total number of
+    /// lines that were found.
     ///
     /// ### Panics
     /// Panics if the receiver for the sender closes. This should not be possible!
+    #[allow(clippy::type_complexity)] // yeah yeah i'll make it better eventually
     pub fn start_file_load(
         mut path_receiver: Receiver<PathBuf>,
-    ) -> (Receiver<(PathBuf, String)>, JoinHandle<Vec<std::io::Error>>) {
+    ) -> (Receiver<(PathBuf, String)>, JoinHandle<(usize, Vec<std::io::Error>)>) {
         let (file_sender, file_receiver) = channel::<(PathBuf, String)>(1000);
         let handle = tokio::task::spawn(async move {
             let mut io_errors = vec![];
+            let mut lines = 0;
             while let Some(path) = path_receiver.recv().await {
                 match tokio::fs::read_to_string(&path).await {
                     Ok(gml) => {
+                        lines += gml.lines().count();
                         file_sender.send((path, gml)).await.unwrap();
                     }
                     Err(io_error) => io_errors.push(io_error),
                 };
             }
-            io_errors
+            (lines, io_errors)
         });
         (file_receiver, handle)
     }

@@ -1,6 +1,7 @@
 use clap::Parser;
 use colored::Colorize;
 use duck::{utils::FilePreviewUtil, Config, Duck};
+use num_format::{Locale, ToFormattedString};
 use std::path::{Path, PathBuf};
 
 mod input;
@@ -66,17 +67,27 @@ async fn run_lint(
             .collect::<String>()
     );
 
-    let seperation_string = String::from_utf8(vec![b'-'; 75]).unwrap().bold();
+    let seperation_string = String::from_utf8(vec![b'-'; 50]).unwrap();
+    println!("  {}", "duck complete!".italic().bold());
     println!("{seperation_string}");
     println!(
-        "\n{}\n",
+        "  {}",
         format!(
-            "🦆 <( Finished lint in {:.2}s with {} errors and {} warnings! )",
-            total_duration.as_secs_f32(),
+            "🦆 <( Found {} errors and {} warnings! )",
             run_result.denial_count().to_string().bright_red(),
             run_result.warning_count().to_string().yellow(),
         )
         .bold()
+    );
+    println!(
+        "  {}",
+        format!(
+            "Ran on {} lines in {:.2}s.",
+            run_result.lines_parsed().to_formatted_string(&Locale::en),
+            total_duration.as_secs_f32(),
+        )
+        .italic()
+        .bright_black()
     );
     println!("{seperation_string}\n");
     match config_usage {

@@ -68,7 +68,7 @@ impl Duck {
         let late_pass_reports = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
-        let io_errors = file_handle.await?;
+        let (line_count, io_errors) = file_handle.await?;
         let parse_errors = parse_handle.await?;
 
         // Return the result!
@@ -77,6 +77,7 @@ impl Duck {
             late_pass_reports,
             parse_errors,
             io_errors,
+            line_count,
         ))
     }
 
@@ -104,6 +105,7 @@ pub struct RunResult {
     report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>>,
     parse_errors: Vec<(PathBuf, String, ParseError)>,
     io_errors: Vec<std::io::Error>,
+    lines_parsed: usize,
 }
 impl RunResult {
     fn new(
@@ -111,6 +113,7 @@ impl RunResult {
         lint_reports: Vec<(PathBuf, String, Vec<LintReport>)>,
         parse_errors: Vec<(PathBuf, String, ParseError)>,
         io_errors: Vec<std::io::Error>,
+        lines_parsed: usize,
     ) -> Self {
         let mut report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>> = EnumMap::default();
         for (path, gml, reports) in lint_reports {
@@ -126,6 +129,7 @@ impl RunResult {
             report_collection,
             parse_errors,
             io_errors,
+            lines_parsed,
         }
     }
 
@@ -154,5 +158,10 @@ impl RunResult {
     /// Get a reference to the run result's io errors.
     pub fn io_errors(&self) -> &[std::io::Error] {
         self.io_errors.as_ref()
+    }
+
+    /// Get the run result's lines parsed.
+    pub fn lines_parsed(&self) -> usize {
+        self.lines_parsed
     }
 }
