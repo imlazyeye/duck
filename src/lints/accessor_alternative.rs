@@ -62,7 +62,7 @@ impl EarlyExpressionPass for AccessorAlternative {
                         if args
                             .get(1)
                             .map(|v| matches!(v.expression(), &Expression::Literal(Literal::String(_))))
-                            .is_some() =>
+                            == Some(true) =>
                     {
                         reports.push(Self::generate_report_with(
                             span,
