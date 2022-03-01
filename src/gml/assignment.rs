@@ -30,7 +30,7 @@ impl ParseVisitor for Assignment {
 /// The various assignment operations supported in gml.
 ///
 /// TODO: Add the actual token
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum AssignmentOperator {
     /// =

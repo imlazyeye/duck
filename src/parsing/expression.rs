@@ -187,7 +187,7 @@ pub trait IntoExpressionBox: Sized + Into<Expression> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EvaluationOperator {
     Plus,
     Minus,

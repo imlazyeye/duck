@@ -2,6 +2,7 @@ use crate::{
     gml::{Assignment, AssignmentOperator},
     lint::EarlyExpressionPass,
     parsing::{Expression, Literal},
+    prelude::EvaluationOperator,
     utils::Span,
     Lint, LintLevel, LintReport,
 };
@@ -37,24 +38,20 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
         reports: &mut Vec<LintReport>,
     ) {
         match expression {
-            Expression::Evaluation(_, _, right) => {
+            Expression::Evaluation(_, operator, right) => {
                 if let Expression::Literal(literal) = right.expression() {
-                    if literal_is_suspicous(literal) {
+                    if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
                         reports.push(Self::generate_report(span))
                     }
                 }
             }
-            Expression::Assignment(Assignment {
-                left: _,
-                operator,
-                right,
-            }) => {
+            Expression::Assignment(Assignment { operator, right, .. }) => {
                 if !matches!(
                     *operator,
                     AssignmentOperator::Equal | AssignmentOperator::NullCoalecenceEqual
                 ) {
                     if let Expression::Literal(literal) = right.expression() {
-                        if literal_is_suspicous(literal) {
+                        if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
                             reports.push(Self::generate_report(span))
                         }
                     }
@@ -65,15 +62,42 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
     }
 }
 
-fn literal_is_suspicous(literal: &Literal) -> bool {
+fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) -> bool {
     match literal {
         Literal::True
         | Literal::False
         | Literal::Undefined
         | Literal::Noone
-        | Literal::Misc(_)
         | Literal::Array(_)
         | Literal::Struct(_) => true,
         Literal::String(_) | Literal::Real(_) | Literal::Hex(_) => false,
+        Literal::Misc(literal) => {
+            match literal.as_str() {
+                "tile_index_mask" => {
+                    // This is intended for bit masking, so only allow it if its an evaluation involving binary...
+                    if let OperationWrapper::Evaluation(op) = operation_wrapper {
+                        !matches!(
+                            op,
+                            EvaluationOperator::And
+                                | EvaluationOperator::Or
+                                | EvaluationOperator::Xor
+                                | EvaluationOperator::BitShiftLeft
+                                | EvaluationOperator::BitShiftRight
+                        )
+                    } else {
+                        true
+                    }
+                }
+                _ => {
+                    // The rest are all sus
+                    true
+                }
+            }
+        }
     }
+}
+
+enum OperationWrapper {
+    Assignment(AssignmentOperator),
+    Evaluation(EvaluationOperator),
 }
