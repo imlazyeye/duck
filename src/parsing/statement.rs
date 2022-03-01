@@ -1,5 +1,8 @@
 use crate::{
-    gml::{Enum, Globalvar, LocalVariable, LocalVariableSeries, Macro, Switch},
+    gml::{
+        DoUntil, Enum, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Switch, TryCatch, WhileLoop,
+        WithLoop,
+    },
     parsing::ExpressionBox,
     utils::Span,
 };
@@ -7,23 +10,45 @@ use crate::{
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    /// Declaration of a macro.
     MacroDeclaration(Macro),
+    /// Declaration of an enum.
     EnumDeclaration(Enum),
+    /// Declaration of a globalvar.
     GlobalvarDeclaration(Globalvar),
+    /// Declaration of one or more local variables.
     LocalVariableSeries(LocalVariableSeries),
-    TryCatch(StatementBox, ExpressionBox, StatementBox, Option<StatementBox>),
-    For(StatementBox, ExpressionBox, StatementBox, StatementBox),
-    With(ExpressionBox, StatementBox),
-    Repeat(ExpressionBox, StatementBox),
-    DoUntil(StatementBox, ExpressionBox),
-    While(ExpressionBox, StatementBox),
-    If(ExpressionBox, StatementBox, Option<StatementBox>, bool),
+    /// Declaration of a try / catch call.
+    TryCatch(TryCatch),
+    /// A for loop.
+    ForLoop(ForLoop),
+    /// A with loop.
+    WithLoop(WithLoop),
+    /// A repeat loop.
+    RepeatLoop(RepeatLoop),
+    /// A do until loop.
+    DoUntil(DoUntil),
+    /// A while loop.
+    WhileLoop(WhileLoop),
+    /// An if statement.
+    If(If),
+    /// A switch statement.
     Switch(Switch),
     Block(Vec<StatementBox>),
     Return(Option<ExpressionBox>),
+    /// A break statement (from within a switch statement).
     Break,
+    /// A continue statement (from within a continue statement).
     Continue,
+    /// An exit statement.
     Exit,
+    /// A statement expression, or in other words, an expression being executed on its own.
+    /// Common examples below:
+    /// ```gml
+    /// foo(); // call expression
+    /// foo += 1; // assignment expression
+    /// foo++; // postfix expression
+    /// ```
     Expression(ExpressionBox),
 }
 impl Statement {
@@ -40,28 +65,40 @@ impl Statement {
         S: FnMut(&StatementBox),
     {
         match self {
-            Statement::TryCatch(try_stmt, _, catch_stmt, finally_stmt) => {
-                statement_visitor(try_stmt);
-                statement_visitor(catch_stmt);
-                if let Some(finally_stmt) = finally_stmt {
+            Statement::TryCatch(TryCatch {
+                try_body,
+                catch_body,
+                finally_body,
+                ..
+            }) => {
+                statement_visitor(try_body);
+                statement_visitor(catch_body);
+                if let Some(finally_stmt) = finally_body {
                     statement_visitor(finally_stmt);
                 }
             }
-            Statement::For(initializer, _, tick, body) => {
+            Statement::ForLoop(ForLoop {
+                initializer,
+                iterator,
+                body,
+                ..
+            }) => {
                 statement_visitor(initializer);
-                statement_visitor(tick);
+                statement_visitor(iterator);
                 statement_visitor(body);
             }
-            Statement::With(_, body)
-            | Statement::Repeat(_, body)
-            | Statement::DoUntil(body, _)
-            | Statement::While(_, body) => {
+            Statement::WithLoop(WithLoop { body, .. })
+            | Statement::RepeatLoop(RepeatLoop { body, .. })
+            | Statement::DoUntil(DoUntil { body, .. })
+            | Statement::WhileLoop(WhileLoop { body, .. }) => {
                 statement_visitor(body);
             }
-            Statement::If(_, body, else_branch, _) => {
+            Statement::If(If {
+                body, else_statement, ..
+            }) => {
                 statement_visitor(body);
-                if let Some(else_branch) = else_branch {
-                    statement_visitor(else_branch);
+                if let Some(else_statement) = else_statement {
+                    statement_visitor(else_statement);
                 }
             }
             Statement::Switch(switch) => {
@@ -124,14 +161,30 @@ impl Statement {
                     expression_visitor(value);
                 }
             }
-            Statement::TryCatch(_, expression, _, _)
-            | Statement::For(_, expression, _, _)
-            | Statement::With(expression, _)
-            | Statement::Repeat(expression, _)
-            | Statement::DoUntil(_, expression)
-            | Statement::While(expression, _)
+            Statement::TryCatch(TryCatch {
+                catch_expression: expression,
+                ..
+            })
+            | Statement::ForLoop(ForLoop {
+                condition: expression, ..
+            })
+            | Statement::WithLoop(WithLoop {
+                identity: expression, ..
+            })
+            | Statement::RepeatLoop(RepeatLoop {
+                tick_counts: expression,
+                ..
+            })
+            | Statement::DoUntil(DoUntil {
+                condition: expression, ..
+            })
+            | Statement::WhileLoop(WhileLoop {
+                condition: expression, ..
+            })
             | Statement::Expression(expression)
-            | Statement::If(expression, _, _, _) => {
+            | Statement::If(If {
+                condition: expression, ..
+            }) => {
                 expression_visitor(expression);
             }
             Statement::MacroDeclaration(_)
@@ -164,7 +217,7 @@ pub trait IntoStatementBox: Sized + Into<Statement> {
         StatementBox(Box::new(self.into()), span)
     }
 
-    // Converts self into an statement box with a default span. Useful for tests.
+    /// Converts self into an statement box with a default span. Useful for tests.
     fn into_lazy_box(self) -> StatementBox
     where
         Self: Sized,

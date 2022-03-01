@@ -1,7 +1,7 @@
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, Enum, EnumMember, Globalvar, Identifier, LocalVariable, LocalVariableSeries,
-        Macro, Switch, SwitchCase,
+        Assignment, AssignmentOperator, DoUntil, Enum, EnumMember, ForLoop, Globalvar, Identifier, If, LocalVariable,
+        LocalVariableSeries, Macro, RepeatLoop, Switch, SwitchCase, TryCatch, WithLoop,
     },
     parsing::{
         expression::{EqualityOperator, Expression, Literal, PostfixOperator, Scope},
@@ -188,11 +188,10 @@ fn local_variable_series_ending_without_marker() {
 fn try_catch() {
     harness_stmt(
         "try {} catch (e) {}",
-        Statement::TryCatch(
+        TryCatch::new(
             Statement::Block(vec![]).lazy_box(),
             Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
             Statement::Block(vec![]).lazy_box(),
-            None,
         ),
     )
 }
@@ -201,11 +200,11 @@ fn try_catch() {
 fn try_catch_finally() {
     harness_stmt(
         "try {} catch (e) {} finally {}",
-        Statement::TryCatch(
+        TryCatch::new_with_finally(
             Statement::Block(vec![]).lazy_box(),
             Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
             Statement::Block(vec![]).lazy_box(),
-            Some(Statement::Block(vec![]).lazy_box()),
+            Statement::Block(vec![]).lazy_box(),
         ),
     )
 }
@@ -214,7 +213,7 @@ fn try_catch_finally() {
 fn for_loop() {
     harness_stmt(
         "for (var i = 0; i < 1; i++) {}",
-        Statement::For(
+        ForLoop::new(
             LocalVariableSeries::new(vec![LocalVariable::Initialized(
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
@@ -243,7 +242,7 @@ fn for_loop() {
 fn with() {
     harness_stmt(
         "with foo {}",
-        Statement::With(
+        WithLoop::new(
             Identifier::new("foo").into_lazy_box(),
             Statement::Block(vec![]).lazy_box(),
         ),
@@ -254,7 +253,7 @@ fn with() {
 fn repeat() {
     harness_stmt(
         "repeat 1 {}",
-        Statement::Repeat(
+        RepeatLoop::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             Statement::Block(vec![]).lazy_box(),
         ),
@@ -265,7 +264,7 @@ fn repeat() {
 fn do_until() {
     harness_stmt(
         "do { foo += 1; } until foo == 1;",
-        Statement::DoUntil(
+        DoUntil::new(
             Statement::Block(vec![
                 Statement::Expression(
                     Expression::Assignment(Assignment::new(
@@ -291,7 +290,7 @@ fn do_until() {
 fn while_loop() {
     harness_stmt(
         "while foo == 1 { foo += 1; }",
-        Statement::While(
+        If::new(
             Expression::Equality(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
@@ -318,7 +317,7 @@ fn while_loop() {
 fn if_statement() {
     harness_stmt(
         "if foo == 1 {}",
-        Statement::If(
+        If::new(
             Expression::Equality(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
@@ -326,8 +325,6 @@ fn if_statement() {
             )
             .lazy_box(),
             Statement::Block(vec![]).lazy_box(),
-            None,
-            false,
         ),
     )
 }
@@ -336,7 +333,7 @@ fn if_statement() {
 fn if_then() {
     harness_stmt(
         "if foo == 1 then {}",
-        Statement::If(
+        If::new_with_then_keyword(
             Expression::Equality(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
@@ -345,7 +342,6 @@ fn if_then() {
             .lazy_box(),
             Statement::Block(vec![]).lazy_box(),
             None,
-            true,
         ),
     )
 }
@@ -354,7 +350,7 @@ fn if_then() {
 fn if_else() {
     harness_stmt(
         "if foo == 1 {} else {}",
-        Statement::If(
+        If::new_with_else(
             Expression::Equality(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
@@ -362,8 +358,7 @@ fn if_else() {
             )
             .lazy_box(),
             Statement::Block(vec![]).lazy_box(),
-            Some(Statement::Block(vec![]).lazy_box()),
-            false,
+            Statement::Block(vec![]).lazy_box(),
         ),
     )
 }

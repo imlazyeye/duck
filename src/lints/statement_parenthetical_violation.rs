@@ -1,4 +1,5 @@
 use crate::{
+    gml::{DoUntil, If, RepeatLoop, WhileLoop, WithLoop},
     lint::EarlyStatementPass,
     parsing::{Expression, Statement},
     utils::Span,
@@ -32,11 +33,22 @@ impl EarlyStatementPass for StatementParentheticalViolation {
     fn visit_statement_early(config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>) {
         let expression = match statement {
             Statement::Switch(switch) => Some(switch.matching_value()),
-            Statement::If(expression, ..)
-            | Statement::DoUntil(_, expression)
-            | Statement::While(expression, ..)
-            | Statement::With(expression, ..)
-            | Statement::Repeat(expression, ..) => Some(expression),
+            Statement::If(If {
+                condition: expression, ..
+            })
+            | Statement::DoUntil(DoUntil {
+                condition: expression, ..
+            })
+            | Statement::WhileLoop(WhileLoop {
+                condition: expression, ..
+            })
+            | Statement::WithLoop(WithLoop {
+                identity: expression, ..
+            })
+            | Statement::RepeatLoop(RepeatLoop {
+                tick_counts: expression,
+                ..
+            }) => Some(expression),
             _ => None,
         };
         if let Some(expression) = expression {

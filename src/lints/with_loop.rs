@@ -33,7 +33,7 @@ impl EarlyStatementPass for WithLoop {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Statement::With(..) = statement {
+        if let Statement::WithLoop(..) = statement {
             reports.push(Self::generate_report(span))
         }
     }

@@ -161,7 +161,7 @@ pub trait IntoExpressionBox: Sized + Into<Expression> {
         ExpressionBox(Box::new(self.into()), span)
     }
 
-    // Converts self into an expression box with a default span. Useful for tests.
+    /// Converts self into an expression box with a default span. Useful for tests.
     fn into_lazy_box(self) -> ExpressionBox
     where
         Self: Sized,

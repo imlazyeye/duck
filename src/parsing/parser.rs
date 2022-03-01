@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, Enum, Globalvar, Identifier, LocalVariable, LocalVariableSeries, Macro, Switch,
-        SwitchCase,
+        Assignment, AssignmentOperator, DoUntil, Enum, ForLoop, Globalvar, Identifier, If, LocalVariable,
+        LocalVariableSeries, Macro, RepeatLoop, Switch, SwitchCase, TryCatch, WithLoop,
     },
     parsing::{expression::EvaluationOperator, ParseError},
     utils::Span,
@@ -132,12 +132,12 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Catch)?;
         let catch_expr = self.expression()?;
         let catch_body = self.block()?;
-        let finally_body = if self.pilot.match_take(Token::Finally).is_some() {
-            Some(self.block()?)
+        let try_catch = if self.pilot.match_take(Token::Finally).is_some() {
+            TryCatch::new_with_finally(try_body, catch_expr, catch_body, self.block()?)
         } else {
-            None
+            TryCatch::new(try_body, catch_expr, catch_body)
         };
-        Ok(Statement::TryCatch(try_body, catch_expr, catch_body, finally_body).into_box(self.span(start)))
+        Ok(try_catch.into_statement_box(self.span(start)))
     }
 
     fn for_loop(&mut self) -> Result<StatementBox, ParseError> {
@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
         let tick = self.statement()?;
         self.pilot.match_take(Token::RightParenthesis);
         let body = self.statement()?;
-        Ok(Statement::For(initializer, condition, tick, body).into_box(self.span(start)))
+        Ok(ForLoop::new(initializer, condition, tick, body).into_statement_box(self.span(start)))
     }
 
     fn with(&mut self) -> Result<StatementBox, ParseError> {
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::With)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(Statement::With(condition, body).into_box(self.span(start)))
+        Ok(WithLoop::new(condition, body).into_statement_box(self.span(start)))
     }
 
     fn repeat(&mut self) -> Result<StatementBox, ParseError> {
@@ -166,7 +166,7 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Repeat)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(Statement::Repeat(condition, body).into_box(self.span(start)))
+        Ok(RepeatLoop::new(condition, body).into_statement_box(self.span(start)))
     }
 
     fn do_until(&mut self) -> Result<StatementBox, ParseError> {
@@ -176,7 +176,7 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Until)?;
         let condition = self.expression()?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::DoUntil(body, condition).into_box(self.span(start)))
+        Ok(DoUntil::new(body, condition).into_statement_box(self.span(start)))
     }
 
     fn while_loop(&mut self) -> Result<StatementBox, ParseError> {
@@ -184,7 +184,7 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::While)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(Statement::While(condition, body).into_box(self.span(start)))
+        Ok(If::new(condition, body).into_statement_box(self.span(start)))
     }
 
     fn if_statement(&mut self) -> Result<StatementBox, ParseError> {
@@ -193,12 +193,18 @@ impl<'a> Parser<'a> {
         let condition = self.expression()?;
         let then = self.pilot.match_take(Token::Then);
         let body = self.statement()?;
-        let else_branch = if self.pilot.match_take(Token::Else).is_some() {
+        let else_statement = if self.pilot.match_take(Token::Else).is_some() {
             Some(self.statement()?)
         } else {
             None
         };
-        Ok(Statement::If(condition, body, else_branch, then.is_some()).into_box(self.span(start)))
+        Ok(If {
+            condition,
+            body,
+            else_statement,
+            uses_then_keyword: then.is_some(),
+        }
+        .into_statement_box(self.span(start)))
     }
 
     fn switch(&mut self) -> Result<StatementBox, ParseError> {
