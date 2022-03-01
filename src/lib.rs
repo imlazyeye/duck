@@ -26,6 +26,9 @@ pub mod gml;
 /// Tools used to parse gml into an abstract syntax tree.
 pub mod parsing;
 
+/// The future home of static-analysis features, but currently just home to [GlobalScope].
+pub mod analysis;
+
 /// A collection of all of core features used in duck.
 pub mod prelude {
     pub use crate::{config::*, duck::*, duck_operation::*, duck_task::*, gml::*, lint::*, parsing::*, utils::*};

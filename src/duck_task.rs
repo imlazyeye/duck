@@ -1,7 +1,7 @@
 use crate::{
+    analysis::{GlobalScope, GlobalScopeBuilder},
     config::Config,
     duck_operation::DuckOperation,
-    gml::{GlobalScope, GlobalScopeBuilder},
     parsing::{Ast, ParseError, StatementBox},
     LintReport,
 };

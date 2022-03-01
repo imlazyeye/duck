@@ -1,5 +1,8 @@
-use super::statement::StatementBox;
-use crate::utils::Span;
+use crate::{
+    gml::{Assignment, Identifier},
+    parsing::statement::StatementBox,
+    utils::Span,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
@@ -9,14 +12,14 @@ pub enum Expression {
     Evaluation(ExpressionBox, EvaluationOperator, ExpressionBox),
     NullCoalecence(ExpressionBox, ExpressionBox),
     Ternary(ExpressionBox, ExpressionBox, ExpressionBox),
-    Assignment(ExpressionBox, AssignmentOperator, ExpressionBox),
+    Assignment(Assignment),
     Unary(UnaryOperator, ExpressionBox),
     Postfix(ExpressionBox, PostfixOperator),
     Access(Scope, ExpressionBox),
     Call(ExpressionBox, Vec<ExpressionBox>, bool),
     Grouping(ExpressionBox),
     Literal(Literal),
-    Identifier(String),
+    Identifier(Identifier),
 }
 impl Expression {
     pub fn into_box(self, span: Span) -> ExpressionBox {
@@ -54,7 +57,11 @@ impl Expression {
             Expression::Logical(left, _, right)
             | Expression::Equality(left, _, right)
             | Expression::Evaluation(left, _, right)
-            | Expression::Assignment(left, _, right)
+            | Expression::Assignment(Assignment {
+                left,
+                operator: _,
+                right,
+            })
             | Expression::NullCoalecence(left, right) => {
                 expression_visitor(left);
                 expression_visitor(right);
@@ -111,9 +118,16 @@ impl Expression {
         }
     }
 
-    pub fn as_identifier(&self) -> Option<&str> {
+    pub fn as_identifier(&self) -> Option<&Identifier> {
         match self {
-            Expression::Identifier(name) => Some(name),
+            Expression::Identifier(identifier) => Some(identifier),
+            _ => None,
+        }
+    }
+
+    pub fn as_assignment(&self) -> Option<&Assignment> {
+        match self {
+            Expression::Assignment(assignment) => Some(assignment),
             _ => None,
         }
     }
@@ -134,6 +148,25 @@ impl ExpressionBox {
     }
     pub fn span(&self) -> Span {
         self.1
+    }
+}
+
+/// Derives two methods to convert the T into an [ExpressionBox], supporting both a standard
+/// `into_expression_box` method, and a `into_lazy_box` for tests.
+///
+/// TODO: This could be a derive macro!
+pub trait IntoExpressionBox: Sized + Into<Expression> {
+    /// Converts self into an expression box with a provided span.
+    fn into_expression_box(self, span: Span) -> ExpressionBox {
+        ExpressionBox(Box::new(self.into()), span)
+    }
+
+    // Converts self into an expression box with a default span. Useful for tests.
+    fn into_lazy_box(self) -> ExpressionBox
+    where
+        Self: Sized,
+    {
+        self.into_expression_box(Default::default())
     }
 }
 
@@ -167,21 +200,6 @@ pub enum LogicalOperator {
     And,
     Or,
     Xor,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-#[allow(clippy::enum_variant_names)]
-pub enum AssignmentOperator {
-    Equal,
-    PlusEqual,
-    MinusEqual,
-    StarEqual,
-    SlashEqual,
-    XorEqual,
-    OrEqual,
-    AndEqual,
-    NullCoalecenceEqual,
-    ModEqual,
 }
 
 #[derive(Debug, PartialEq, Clone)]

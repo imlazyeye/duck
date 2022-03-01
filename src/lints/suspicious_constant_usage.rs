@@ -1,6 +1,7 @@
 use crate::{
+    gml::{Assignment, AssignmentOperator},
     lint::EarlyExpressionPass,
-    parsing::{AssignmentOperator, Expression, Literal},
+    parsing::{Expression, Literal},
     utils::Span,
     Lint, LintLevel, LintReport,
 };
@@ -43,7 +44,11 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
                     }
                 }
             }
-            Expression::Assignment(_, operator, right) => {
+            Expression::Assignment(Assignment {
+                left: _,
+                operator,
+                right,
+            }) => {
                 if !matches!(
                     *operator,
                     AssignmentOperator::Equal | AssignmentOperator::NullCoalecenceEqual

@@ -1,4 +1,6 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{
+    gml::Assignment, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct AssignmentToCall;
@@ -30,7 +32,7 @@ impl EarlyExpressionPass for AssignmentToCall {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Assignment(left, ..) = expression {
+        if let Expression::Assignment(Assignment { left, .. }) = expression {
             if let Expression::Call(..) = left.expression() {
                 reports.push(Self::generate_report(span));
             }

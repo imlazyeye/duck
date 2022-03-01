@@ -1,4 +1,6 @@
-use crate::{gml::GlobalScope, lint::LateStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
+use crate::{
+    analysis::GlobalScope, lint::LateStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
+};
 use itertools::Itertools;
 
 #[derive(Debug, PartialEq)]
@@ -70,8 +72,8 @@ impl LateStatementPass for MissingCaseMember {
                 // be invalid gml if they weren't, but we don't want to panic
                 // regardless.
 
-                if let Some(this_identity_enum_name) = left.as_identifier() {
-                    if this_identity_enum_name != gml_enum.name() {
+                if let Some(this_identity_enum) = left.as_identifier() {
+                    if this_identity_enum.name != gml_enum.name {
                         // The user has different enums in the same switch statement -- abandon this
                         // lint, and rely on `multi_type_switch`
                         return;
@@ -79,8 +81,8 @@ impl LateStatementPass for MissingCaseMember {
                 } else {
                     return; // invalid gml -- abandon this lint
                 }
-                if let Some(member_name) = right.as_identifier() {
-                    member_names_discovered.push(member_name);
+                if let Some(member_identifier) = right.as_identifier() {
+                    member_names_discovered.push(member_identifier.name.as_str());
                 } else {
                     return; // invalid gml -- abandon this lint
                 };
@@ -91,7 +93,7 @@ impl LateStatementPass for MissingCaseMember {
             // lists them out.
             let ignore_name = config.length_enum_member_name();
             let missing_members = gml_enum
-                .members()
+                .members
                 .iter()
                 .map(|member| member.name())
                 .filter(|member| {

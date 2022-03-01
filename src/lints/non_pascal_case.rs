@@ -38,20 +38,20 @@ impl EarlyStatementPass for NonPascalCase {
         reports: &mut Vec<LintReport>,
     ) {
         if let Statement::EnumDeclaration(gml_enum) = statement {
-            let name = gml_enum.name();
+            let name = &gml_enum.name;
             let ideal = pascal_case(name);
-            if name != ideal {
+            if name != &ideal {
                 reports.push(Self::generate_report_with(
                     span,
-                    "Enum should be PascalCase",
+                    "GmlEnum should be PascalCase",
                     [format!("Change this to `{}`", ideal)],
                 ));
             }
-            gml_enum.members().iter().map(|member| member.name()).for_each(|name| {
+            gml_enum.members.iter().map(|member| member.name()).for_each(|name| {
                 if name != pascal_case(name) {
                     reports.push(Self::generate_report_with(
                         span,
-                        "Enum member should be PascalCase",
+                        "GmlEnum member should be PascalCase",
                         [format!("Change this to `{}`", ideal)],
                     ));
                 }

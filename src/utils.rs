@@ -1,13 +1,19 @@
 use colored::Colorize;
 
+/// Utility for creating pretty previews out of files and spans.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct FilePreviewUtil<'a> {
+    /// The name of the file.
     pub file_name: &'a str,
+    /// The line this preview pertains to.
     pub line: usize,
+    /// The column this preview pertains to.
     pub column: usize,
+    /// The snippet of the code in question.
     pub snippet: &'a str,
 }
 impl<'a> FilePreviewUtil<'a> {
+    /// Creates a new utility.
     pub fn new(file_contents: &'a str, file_name: &'a str, cursor: usize) -> Self {
         let mut line = 1;
         let mut column = 0;
@@ -33,10 +39,12 @@ impl<'a> FilePreviewUtil<'a> {
         }
     }
 
+    /// Returns the name of the file, formatted with the line and column included.
     pub fn file_string(&self) -> String {
         format!("{}:{}:{}", self.file_name, self.line, self.column)
     }
 
+    /// Creates a user-friendly display of the code this preview covers.
     pub fn snippet_message(&self) -> String {
         format!(
             "{}\n{}{}\n{}",
@@ -47,10 +55,13 @@ impl<'a> FilePreviewUtil<'a> {
         )
     }
 
+    /// Creates a user-friendly display of the path, line, and column.
     pub fn path_message(&self) -> String {
         format!(" {} {}", "-->".bold().bright_blue(), self.file_string())
     }
 }
 
+/// A start and end cursor measured in characters, used for expressing small sections of source
+/// code.
 #[derive(Debug, PartialEq, Default, Copy, Clone)]
 pub struct Span(pub usize, pub usize);

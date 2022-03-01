@@ -42,22 +42,26 @@ impl EarlyExpressionPass for EnglishFlavorViolation {
             return;
         };
         if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(name) = caller.expression() {
+            if let Expression::Identifier(identifier) = caller.expression() {
                 match english_flavor {
                     EnglishFlavor::American => {
-                        if let Some(british_spelling) = BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(name.as_str()) {
+                        if let Some(british_spelling) =
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(identifier.name.as_str())
+                        {
                             reports.push(Self::generate_report_with(
                                 span,
-                                format!("Use of British spelling: {}", name),
+                                format!("Use of British spelling: {}", identifier.name),
                                 [format!("Use `{}` instead", british_spelling)],
                             ))
                         }
                     }
                     EnglishFlavor::British => {
-                        if let Some(american_spelling) = BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(name.as_str()) {
+                        if let Some(american_spelling) =
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(identifier.name.as_str())
+                        {
                             reports.push(Self::generate_report_with(
                                 span,
-                                format!("Use of American spelling: {}", name),
+                                format!("Use of American spelling: {}", identifier.name),
                                 [format!("Use `{}` instead", american_spelling)],
                             ))
                         }

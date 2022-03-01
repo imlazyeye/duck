@@ -1,6 +1,6 @@
 use crate::{
+    analysis::GlobalScope,
     config::Config,
-    gml::GlobalScope,
     parsing::{Expression, Statement},
     utils::{FilePreviewUtil, Span},
 };

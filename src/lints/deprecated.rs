@@ -1,4 +1,5 @@
 use crate::{
+    gml::Globalvar,
     lint::{EarlyExpressionPass, EarlyStatementPass},
     parsing::{Expression, Scope, Statement},
     utils::Span,
@@ -35,7 +36,7 @@ impl EarlyStatementPass for Deprecated {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Statement::GlobalvarDeclaration(name) = statement {
+        if let Statement::GlobalvarDeclaration(Globalvar { name }) = statement {
             reports.push(Self::generate_report_with(
                 span,
                 "Use of globalvar",
@@ -56,11 +57,11 @@ impl EarlyExpressionPass for Deprecated {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(name) = caller.expression() {
-                if gm_deprecated_functions().contains(&name.as_str()) {
+            if let Expression::Identifier(identifier) = caller.expression() {
+                if gm_deprecated_functions().contains(&identifier.name.as_str()) {
                     reports.push(Self::generate_report_with(
                         span,
-                        format!("Use of deprecated function: {}", name),
+                        format!("Use of deprecated function: {}", identifier.name),
                         [],
                     ));
                 }

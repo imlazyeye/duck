@@ -36,8 +36,8 @@ impl EarlyExpressionPass for AccessorAlternative {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::Call(caller, args, _) = expression {
-            if let Expression::Identifier(name) = caller.expression() {
-                match name.as_ref() {
+            if let Expression::Identifier(identifier) = caller.expression() {
+                match identifier.name.as_ref() {
                     "ds_list_find_value" => reports.push(Self::generate_report_with(
                         span,
                         "Use of `ds_list_find_value`",

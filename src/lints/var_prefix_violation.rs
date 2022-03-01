@@ -1,4 +1,7 @@
-use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Config, Lint, LintLevel, LintReport};
+use crate::{
+    gml::LocalVariableSeries, lint::EarlyStatementPass, parsing::Statement, utils::Span, Config, Lint, LintLevel,
+    LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct VarPrefixViolation;
@@ -25,8 +28,9 @@ impl Lint for VarPrefixViolation {
 
 impl EarlyStatementPass for VarPrefixViolation {
     fn visit_statement_early(config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>) {
-        if let Statement::LocalVariableSeries(vars) = statement {
-            for (name, _) in vars.iter() {
+        if let Statement::LocalVariableSeries(LocalVariableSeries { declarations }) = statement {
+            for local_variable in declarations.iter() {
+                let name = local_variable.name();
                 if config.var_prefixes() && name.len() > 1 && !name.starts_with('_') {
                     reports.push(Self::generate_report_with(
                         span,

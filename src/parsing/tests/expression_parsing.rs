@@ -1,15 +1,20 @@
-use crate::parsing::{
-    expression::{
-        AssignmentOperator, Constructor, EqualityOperator, EvaluationOperator, Expression, Literal, LogicalOperator,
-        Parameter, PostfixOperator, Scope, UnaryOperator,
+use crate::{
+    gml::{Assignment, AssignmentOperator, Identifier},
+    parsing::{
+        expression::{
+            Constructor, EqualityOperator, EvaluationOperator, Expression, Literal, LogicalOperator, Parameter,
+            PostfixOperator, Scope, UnaryOperator,
+        },
+        parser::Parser,
+        statement::Statement,
     },
-    parser::Parser,
-    statement::Statement,
+    prelude::IntoExpressionBox,
 };
 use colored::Colorize;
 // use pretty_assertions::assert_eq;
 
-fn harness_expr(source: &str, expected: Expression) {
+fn harness_expr(source: &str, expected: impl Into<Expression>) {
+    let expected = expected.into();
     let mut parser = Parser::new(source, "test".into());
     let outputed = parser.expression().unwrap();
     if *outputed.expression() != expected {
@@ -114,7 +119,7 @@ fn inheritance() {
             Some("foo".into()),
             vec![],
             Some(Constructor(Some(
-                Expression::Call(Expression::Identifier("bar".into()).lazy_box(), vec![], false).lazy_box(),
+                Expression::Call(Identifier::new("bar").into_lazy_box(), vec![], false).lazy_box(),
             ))),
             Statement::Block(vec![]).lazy_box(),
             false,
@@ -335,14 +340,14 @@ fn dot_access_bitwise() {
         "foo.bar | foo.bar",
         Expression::Evaluation(
             Expression::Access(
-                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
-                Expression::Identifier("bar".into()).lazy_box(),
+                Scope::Dot(Identifier::new("foo").into_lazy_box()),
+                Identifier::new("bar").into_lazy_box(),
             )
             .lazy_box(),
             EvaluationOperator::Or,
             Expression::Access(
-                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
-                Expression::Identifier("bar".into()).lazy_box(),
+                Scope::Dot(Identifier::new("foo").into_lazy_box()),
+                Identifier::new("bar").into_lazy_box(),
             )
             .lazy_box(),
         ),
@@ -482,7 +487,7 @@ fn null_coalecence() {
     harness_expr(
         "foo ?? 1",
         Expression::NullCoalecence(
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
     );
@@ -493,7 +498,7 @@ fn ternary() {
     harness_expr(
         "foo ? 1 : 2",
         Expression::Ternary(
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
             Expression::Literal(Literal::Real(2.0)).lazy_box(),
         ),
@@ -504,8 +509,8 @@ fn ternary() {
 fn assign() {
     harness_expr(
         "foo = 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::Equal,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -516,8 +521,8 @@ fn assign() {
 fn dot_assign() {
     harness_expr(
         "self.foo = 1",
-        Expression::Assignment(
-            Expression::Access(Scope::Current, Expression::Identifier("foo".into()).lazy_box()).lazy_box(),
+        Assignment::new(
+            Expression::Access(Scope::Current, Identifier::new("foo").into_lazy_box()).lazy_box(),
             AssignmentOperator::Equal,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -528,10 +533,10 @@ fn dot_assign() {
 fn ds_assign() {
     harness_expr(
         "foo[0] = 1",
-        Expression::Assignment(
+        Assignment::new(
             Expression::Access(
                 Scope::Array(Expression::Literal(Literal::Real(0.0)).lazy_box(), None, false),
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
             )
             .lazy_box(),
             AssignmentOperator::Equal,
@@ -545,8 +550,8 @@ fn ds_assign() {
 fn call_assign() {
     harness_expr(
         "foo() = 1",
-        Expression::Assignment(
-            Expression::Call(Expression::Identifier("foo".into()).lazy_box(), vec![], false).lazy_box(),
+        Assignment::new(
+            Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box(),
             AssignmentOperator::Equal,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -557,8 +562,8 @@ fn call_assign() {
 fn static_assign() {
     harness_expr(
         "static foo = 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::Equal,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -569,8 +574,8 @@ fn static_assign() {
 fn plus_equal() {
     harness_expr(
         "foo += 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::PlusEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -581,8 +586,8 @@ fn plus_equal() {
 fn minus_equal() {
     harness_expr(
         "foo -= 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::MinusEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -593,8 +598,8 @@ fn minus_equal() {
 fn star_equal() {
     harness_expr(
         "foo *= 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::StarEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -605,8 +610,8 @@ fn star_equal() {
 fn slash_equal() {
     harness_expr(
         "foo /= 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::SlashEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -617,8 +622,8 @@ fn slash_equal() {
 fn and_equal() {
     harness_expr(
         "foo &= 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::AndEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -629,8 +634,8 @@ fn and_equal() {
 fn or_equal() {
     harness_expr(
         "foo |= 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::OrEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -641,8 +646,8 @@ fn or_equal() {
 fn xor_equal() {
     harness_expr(
         "foo ^= 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::XorEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -653,8 +658,8 @@ fn xor_equal() {
 fn mod_equal() {
     harness_expr(
         "foo %= 1",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::ModEqual,
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
         ),
@@ -665,7 +670,7 @@ fn mod_equal() {
 fn not() {
     harness_expr(
         "!foo",
-        Expression::Unary(UnaryOperator::Not, Expression::Identifier("foo".into()).lazy_box()),
+        Expression::Unary(UnaryOperator::Not, Identifier::new("foo").into_lazy_box()),
     );
 }
 
@@ -673,7 +678,7 @@ fn not() {
 fn not_keyword() {
     harness_expr(
         "not foo",
-        Expression::Unary(UnaryOperator::Not, Expression::Identifier("foo".into()).lazy_box()),
+        Expression::Unary(UnaryOperator::Not, Identifier::new("foo").into_lazy_box()),
     );
 }
 
@@ -705,7 +710,7 @@ fn dot_unary() {
         "!self.foo",
         Expression::Unary(
             UnaryOperator::Not,
-            Expression::Access(Scope::Current, Expression::Identifier("foo".into()).lazy_box()).lazy_box(),
+            Expression::Access(Scope::Current, Identifier::new("foo").into_lazy_box()).lazy_box(),
         ),
     );
 }
@@ -717,8 +722,8 @@ fn ds_unary() {
         Expression::Unary(
             UnaryOperator::Not,
             Expression::Access(
-                Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
-                Expression::Identifier("foo".into()).lazy_box(),
+                Scope::Array(Identifier::new("bar").into_lazy_box(), None, false),
+                Identifier::new("foo").into_lazy_box(),
             )
             .lazy_box(),
         ),
@@ -785,7 +790,7 @@ fn dot_postfix() {
     harness_expr(
         "self.foo++",
         Expression::Postfix(
-            Expression::Access(Scope::Current, Expression::Identifier("foo".into()).lazy_box()).lazy_box(),
+            Expression::Access(Scope::Current, Identifier::new("foo").into_lazy_box()).lazy_box(),
             PostfixOperator::Increment,
         ),
     );
@@ -797,8 +802,8 @@ fn ds_postfix() {
         "foo[bar]++",
         Expression::Postfix(
             Expression::Access(
-                Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
-                Expression::Identifier("foo".into()).lazy_box(),
+                Scope::Array(Identifier::new("bar").into_lazy_box(), None, false),
+                Identifier::new("foo").into_lazy_box(),
             )
             .lazy_box(),
             PostfixOperator::Increment,
@@ -810,7 +815,7 @@ fn ds_postfix() {
 fn call() {
     harness_expr(
         "foo()",
-        Expression::Call(Expression::Identifier("foo".into()).lazy_box(), vec![], false),
+        Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false),
     );
 }
 
@@ -819,7 +824,7 @@ fn call_with_args() {
     harness_expr(
         "foo(0, 1, 2)",
         Expression::Call(
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
             vec![
                 Expression::Literal(Literal::Real(0.0)).lazy_box(),
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -835,7 +840,7 @@ fn call_trailing_commas() {
     harness_expr(
         "foo(0, 1, 2,)",
         Expression::Call(
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
             vec![
                 Expression::Literal(Literal::Real(0.0)).lazy_box(),
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
@@ -850,7 +855,7 @@ fn call_trailing_commas() {
 fn construction() {
     harness_expr(
         "new foo()",
-        Expression::Call(Expression::Identifier("foo".into()).lazy_box(), vec![], true),
+        Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], true),
     );
 }
 
@@ -881,8 +886,8 @@ fn simple_struct() {
     harness_expr(
         "{ foo: bar, fizz: buzz }",
         Expression::Literal(Literal::Struct(vec![
-            ("foo".into(), Expression::Identifier("bar".into()).lazy_box()),
-            ("fizz".into(), Expression::Identifier("buzz".into()).lazy_box()),
+            ("foo".into(), Identifier::new("bar").into_lazy_box()),
+            ("fizz".into(), Identifier::new("buzz").into_lazy_box()),
         ])),
     );
 }
@@ -892,8 +897,8 @@ fn array_access() {
     harness_expr(
         "foo[bar]",
         Expression::Access(
-            Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Scope::Array(Identifier::new("bar").into_lazy_box(), None, false),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -903,8 +908,8 @@ fn array_direct_access() {
     harness_expr(
         "foo[@ bar]",
         Expression::Access(
-            Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, true),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Scope::Array(Identifier::new("bar").into_lazy_box(), None, true),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -915,11 +920,11 @@ fn array_access_2d() {
         "foo[bar, buzz]",
         Expression::Access(
             Scope::Array(
-                Expression::Identifier("bar".into()).lazy_box(),
-                Some(Expression::Identifier("buzz".into()).lazy_box()),
+                Identifier::new("bar").into_lazy_box(),
+                Some(Identifier::new("buzz").into_lazy_box()),
                 false,
             ),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -929,8 +934,8 @@ fn ds_map_access() {
     harness_expr(
         "foo[? bar]",
         Expression::Access(
-            Scope::Map(Expression::Identifier("bar".into()).lazy_box()),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Scope::Map(Identifier::new("bar").into_lazy_box()),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -940,8 +945,8 @@ fn ds_list_access() {
     harness_expr(
         "foo[| bar]",
         Expression::Access(
-            Scope::List(Expression::Identifier("bar".into()).lazy_box()),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Scope::List(Identifier::new("bar").into_lazy_box()),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -952,10 +957,10 @@ fn ds_grid_access() {
         "foo[# bar, buzz]",
         Expression::Access(
             Scope::Grid(
-                Expression::Identifier("bar".into()).lazy_box(),
-                Expression::Identifier("buzz".into()).lazy_box(),
+                Identifier::new("bar").into_lazy_box(),
+                Identifier::new("buzz").into_lazy_box(),
             ),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -966,10 +971,10 @@ fn ds_grid_access_no_space() {
         "foo[#bar, buzz]",
         Expression::Access(
             Scope::Grid(
-                Expression::Identifier("bar".into()).lazy_box(),
-                Expression::Identifier("buzz".into()).lazy_box(),
+                Identifier::new("bar").into_lazy_box(),
+                Identifier::new("buzz").into_lazy_box(),
             ),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -979,8 +984,8 @@ fn struct_access() {
     harness_expr(
         "foo[$ bar]",
         Expression::Access(
-            Scope::Struct(Expression::Identifier("bar".into()).lazy_box()),
-            Expression::Identifier("foo".into()).lazy_box(),
+            Scope::Struct(Identifier::new("bar").into_lazy_box()),
+            Identifier::new("foo").into_lazy_box(),
         ),
     );
 }
@@ -990,10 +995,10 @@ fn chained_ds_accesses() {
     harness_expr(
         "foo[bar][buzz]",
         Expression::Access(
-            Scope::Array(Expression::Identifier("buzz".into()).lazy_box(), None, false),
+            Scope::Array(Identifier::new("buzz").into_lazy_box(), None, false),
             Expression::Access(
-                Scope::Array(Expression::Identifier("bar".into()).lazy_box(), None, false),
-                Expression::Identifier("foo".into()).lazy_box(),
+                Scope::Array(Identifier::new("bar").into_lazy_box(), None, false),
+                Identifier::new("foo").into_lazy_box(),
             )
             .lazy_box(),
         ),
@@ -1007,7 +1012,7 @@ fn ds_access_call() {
         Expression::Call(
             Expression::Access(
                 Scope::Array(Expression::Literal(Literal::Real(0.0)).lazy_box(), None, false),
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
             )
             .lazy_box(),
             vec![],
@@ -1021,8 +1026,8 @@ fn dot_access() {
     harness_expr(
         "foo.bar",
         Expression::Access(
-            Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
-            Expression::Identifier("bar".into()).lazy_box(),
+            Scope::Dot(Identifier::new("foo").into_lazy_box()),
+            Identifier::new("bar").into_lazy_box(),
         ),
     );
 }
@@ -1032,8 +1037,8 @@ fn grouping_dot_access() {
     harness_expr(
         "(foo).bar",
         Expression::Access(
-            Scope::Dot(Expression::Grouping(Expression::Identifier("foo".into()).lazy_box()).lazy_box()),
-            Expression::Identifier("bar".into()).lazy_box(),
+            Scope::Dot(Expression::Grouping(Identifier::new("foo").into_lazy_box()).lazy_box()),
+            Identifier::new("bar").into_lazy_box(),
         ),
     );
 }
@@ -1045,12 +1050,12 @@ fn chained_dot_access() {
         Expression::Access(
             Scope::Dot(
                 Expression::Access(
-                    Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
-                    Expression::Identifier("bar".into()).lazy_box(),
+                    Scope::Dot(Identifier::new("foo").into_lazy_box()),
+                    Identifier::new("bar").into_lazy_box(),
                 )
                 .lazy_box(),
             ),
-            Expression::Identifier("buzz".into()).lazy_box(),
+            Identifier::new("buzz").into_lazy_box(),
         ),
     );
 }
@@ -1061,8 +1066,8 @@ fn dot_access_to_call() {
         "foo.bar()",
         Expression::Call(
             Expression::Access(
-                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
-                Expression::Identifier("bar".into()).lazy_box(),
+                Scope::Dot(Identifier::new("foo").into_lazy_box()),
+                Identifier::new("bar").into_lazy_box(),
             )
             .lazy_box(),
             vec![],
@@ -1078,8 +1083,8 @@ fn dot_access_to_ds_access() {
         Expression::Access(
             Scope::Array(Expression::Literal(Literal::Real(0.0)).lazy_box(), None, false),
             Expression::Access(
-                Scope::Dot(Expression::Identifier("foo".into()).lazy_box()),
-                Expression::Identifier("bar".into()).lazy_box(),
+                Scope::Dot(Identifier::new("foo").into_lazy_box()),
+                Identifier::new("bar").into_lazy_box(),
             )
             .lazy_box(),
         ),
@@ -1091,8 +1096,8 @@ fn dot_access_from_call() {
     harness_expr(
         "foo().bar",
         Expression::Access(
-            Scope::Dot(Expression::Call(Expression::Identifier("foo".into()).lazy_box(), vec![], false).lazy_box()),
-            Expression::Identifier("bar".into()).lazy_box(),
+            Scope::Dot(Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box()),
+            Identifier::new("bar").into_lazy_box(),
         ),
     );
 }
@@ -1103,8 +1108,8 @@ fn chained_calls() {
         "foo().bar()",
         Expression::Call(
             Expression::Access(
-                Scope::Dot(Expression::Call(Expression::Identifier("foo".into()).lazy_box(), vec![], false).lazy_box()),
-                Expression::Identifier("bar".into()).lazy_box(),
+                Scope::Dot(Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box()),
+                Identifier::new("bar").into_lazy_box(),
             )
             .lazy_box(),
             vec![],
@@ -1119,11 +1124,11 @@ fn chain_calls_with_call_parameter() {
         "foo().bar(buzz())",
         Expression::Call(
             Expression::Access(
-                Scope::Dot(Expression::Call(Expression::Identifier("foo".into()).lazy_box(), vec![], false).lazy_box()),
-                Expression::Identifier("bar".into()).lazy_box(),
+                Scope::Dot(Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box()),
+                Identifier::new("bar").into_lazy_box(),
             )
             .lazy_box(),
-            vec![Expression::Call(Expression::Identifier("buzz".into()).lazy_box(), vec![], false).lazy_box()],
+            vec![Expression::Call(Identifier::new("buzz").into_lazy_box(), vec![], false).lazy_box()],
             false,
         ),
     )
@@ -1133,7 +1138,7 @@ fn chain_calls_with_call_parameter() {
 fn global_dot_access() {
     harness_expr(
         "global.bar",
-        Expression::Access(Scope::Global, Expression::Identifier("bar".into()).lazy_box()),
+        Expression::Access(Scope::Global, Identifier::new("bar").into_lazy_box()),
     );
 }
 
@@ -1141,7 +1146,7 @@ fn global_dot_access() {
 fn self_dot_access() {
     harness_expr(
         "self.bar",
-        Expression::Access(Scope::Current, Expression::Identifier("bar".into()).lazy_box()),
+        Expression::Access(Scope::Current, Identifier::new("bar").into_lazy_box()),
     );
 }
 
@@ -1149,10 +1154,10 @@ fn self_dot_access() {
 fn general_self_reference() {
     harness_expr(
         "foo = self",
-        Expression::Assignment(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Identifier("self".into()).lazy_box(),
+            Identifier::new("self").into_lazy_box(),
         ),
     );
 }
@@ -1165,11 +1170,11 @@ fn ds_dot_access() {
             Scope::Dot(
                 Expression::Access(
                     Scope::Array(Expression::Literal(Literal::Real(0.0)).lazy_box(), None, false),
-                    Expression::Identifier("foo".into()).lazy_box(),
+                    Identifier::new("foo").into_lazy_box(),
                 )
                 .lazy_box(),
             ),
-            Expression::Identifier("bar".into()).lazy_box(),
+            Identifier::new("bar").into_lazy_box(),
         ),
     );
 }
@@ -1184,7 +1189,7 @@ fn grouping() {
 
 #[test]
 fn identifier() {
-    harness_expr("foo", Expression::Identifier("foo".into()));
+    harness_expr("foo", Identifier::new("foo"));
 }
 
 #[test]
@@ -1265,7 +1270,7 @@ fn logically_joined_expressions() {
         "foo == 1 && foo == 1 && foo == 1",
         Expression::Logical(
             Expression::Equality(
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
@@ -1273,14 +1278,14 @@ fn logically_joined_expressions() {
             LogicalOperator::And,
             Expression::Logical(
                 Expression::Equality(
-                    Expression::Identifier("foo".into()).lazy_box(),
+                    Identifier::new("foo").into_lazy_box(),
                     EqualityOperator::Equal,
                     Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 )
                 .lazy_box(),
                 LogicalOperator::And,
                 Expression::Equality(
-                    Expression::Identifier("foo".into()).lazy_box(),
+                    Identifier::new("foo").into_lazy_box(),
                     EqualityOperator::Equal,
                     Expression::Literal(Literal::Real(1.0)).lazy_box(),
                 )

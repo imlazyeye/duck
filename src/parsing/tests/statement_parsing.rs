@@ -1,14 +1,19 @@
 use crate::{
-    gml::{GmlEnum, GmlEnumMember, GmlSwitch, GmlSwitchCase},
+    gml::{
+        Assignment, AssignmentOperator, Enum, EnumMember, Globalvar, Identifier, LocalVariable, LocalVariableSeries,
+        Macro, Switch, SwitchCase,
+    },
     parsing::{
-        expression::{AssignmentOperator, EqualityOperator, Expression, Literal, PostfixOperator, Scope},
+        expression::{EqualityOperator, Expression, Literal, PostfixOperator, Scope},
         parser::Parser,
         statement::Statement,
     },
+    prelude::{IntoExpressionBox, IntoStatementBox},
 };
 use colored::Colorize;
 
-fn harness_stmt(source: &str, expected: Statement) {
+fn harness_stmt(source: &str, expected: impl Into<Statement>) {
+    let expected = expected.into();
     let mut parser = Parser::new(source, "test".into());
     let outputed = parser.statement().unwrap();
     if *outputed.statement() != expected {
@@ -26,18 +31,12 @@ fn harness_stmt(source: &str, expected: Statement) {
 
 #[test]
 fn macro_declaration() {
-    harness_stmt(
-        "#macro foo 0",
-        Statement::MacroDeclaration("foo".into(), None, "0".into()),
-    )
+    harness_stmt("#macro foo 0", Statement::MacroDeclaration(Macro::new("foo", "0")))
 }
 
 #[test]
 fn config_macro() {
-    harness_stmt(
-        "#macro bar:foo 0",
-        Statement::MacroDeclaration("foo".into(), Some("bar".into()), "0".into()),
-    )
+    harness_stmt("#macro bar:foo 0", Macro::new_with_config("foo", "0", "bar"))
 }
 
 #[test]
@@ -45,8 +44,8 @@ fn two_macro_declaration() {
     harness_stmt(
         "{ \n#macro foo 0\n#macro bar 0\n }",
         Statement::Block(vec![
-            Statement::MacroDeclaration("foo".into(), None, "0".into()).lazy_box(),
-            Statement::MacroDeclaration("bar".into(), None, "0".into()).lazy_box(),
+            Macro::new("foo", "0").into_lazy_box(),
+            Macro::new("bar", "0").into_lazy_box(),
         ]),
     )
 }
@@ -55,10 +54,7 @@ fn two_macro_declaration() {
 fn enum_declaration() {
     harness_stmt(
         "enum Foo { Bar, Baz }",
-        Statement::EnumDeclaration(GmlEnum::new_with_members(
-            "Foo",
-            vec![GmlEnumMember::new("Bar", None), GmlEnumMember::new("Baz", None)],
-        )),
+        Enum::new_with_members("Foo", vec![EnumMember::new("Bar", None), EnumMember::new("Baz", None)]),
     )
 }
 
@@ -66,13 +62,13 @@ fn enum_declaration() {
 fn enum_with_values() {
     harness_stmt(
         "enum Foo { Bar = 20, Baz }",
-        Statement::EnumDeclaration(GmlEnum::new_with_members(
+        Enum::new_with_members(
             "Foo",
             vec![
-                GmlEnumMember::new("Bar", Some(Expression::Literal(Literal::Real(20.0)).lazy_box())),
-                GmlEnumMember::new("Baz", None),
+                EnumMember::new("Bar", Some(Expression::Literal(Literal::Real(20.0)).lazy_box())),
+                EnumMember::new("Baz", None),
             ],
-        )),
+        ),
     )
 }
 
@@ -80,42 +76,49 @@ fn enum_with_values() {
 fn enum_with_neighbor_values() {
     harness_stmt(
         "enum Foo { Bar, Baz = Foo.Bar }",
-        Statement::EnumDeclaration(GmlEnum::new_with_members(
+        Enum::new_with_members(
             "Foo",
             vec![
-                GmlEnumMember::new("Bar", None),
-                GmlEnumMember::new(
+                EnumMember::new("Bar", None),
+                EnumMember::new(
                     "Baz",
                     Some(
                         Expression::Access(
-                            Scope::Dot(Expression::Identifier("Foo".into()).lazy_box()),
-                            Expression::Identifier("Bar".into()).lazy_box(),
+                            Scope::Dot(Identifier::new("Foo").into_lazy_box()),
+                            Identifier::new("Bar").into_lazy_box(),
                         )
                         .lazy_box(),
                     ),
                 ),
             ],
-        )),
+        ),
     )
 }
 
 #[test]
 fn globalvar() {
-    harness_stmt("globalvar foo;", Statement::GlobalvarDeclaration("foo".into()))
+    harness_stmt("globalvar foo;", Globalvar::new("foo"))
 }
 
 #[test]
 fn local_variable() {
-    harness_stmt("var i;", Statement::LocalVariableSeries(vec![("i".into(), None)]))
+    harness_stmt(
+        "var i;",
+        LocalVariableSeries::new(vec![LocalVariable::Uninitialized(Identifier::new("i").into_lazy_box())]),
+    )
 }
 
 #[test]
 fn local_variable_with_value() {
     harness_stmt(
         "var i = 0;",
-        Statement::LocalVariableSeries(vec![(
-            "i".into(),
-            Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+        LocalVariableSeries::new(vec![LocalVariable::Initialized(
+            Assignment::new(
+                Identifier::new("i").into_lazy_box(),
+                AssignmentOperator::Equal,
+                Expression::Literal(Literal::Real(0.0)).lazy_box(),
+            )
+            .into_lazy_box(),
         )]),
     )
 }
@@ -124,10 +127,17 @@ fn local_variable_with_value() {
 fn local_variable_series() {
     harness_stmt(
         "var i, j = 0, h;",
-        Statement::LocalVariableSeries(vec![
-            ("i".into(), None),
-            ("j".into(), Some(Expression::Literal(Literal::Real(0.0)).lazy_box())),
-            ("h".into(), None),
+        LocalVariableSeries::new(vec![
+            LocalVariable::Uninitialized(Identifier::new("i").into_lazy_box()),
+            LocalVariable::Initialized(
+                Assignment::new(
+                    Identifier::new("j").into_lazy_box(),
+                    AssignmentOperator::Equal,
+                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                )
+                .into_lazy_box(),
+            ),
+            LocalVariable::Uninitialized(Identifier::new("h").into_lazy_box()),
         ]),
     )
 }
@@ -136,9 +146,13 @@ fn local_variable_series() {
 fn local_variable_trailling_comma() {
     harness_stmt(
         "var i = 0,",
-        Statement::LocalVariableSeries(vec![(
-            "i".into(),
-            Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+        LocalVariableSeries::new(vec![LocalVariable::Initialized(
+            Assignment::new(
+                Identifier::new("i").into_lazy_box(),
+                AssignmentOperator::Equal,
+                Expression::Literal(Literal::Real(0.0)).lazy_box(),
+            )
+            .into_lazy_box(),
         )]),
     )
 }
@@ -148,18 +162,22 @@ fn local_variable_series_ending_without_marker() {
     harness_stmt(
         "{ var i = 0 j = 0 }",
         Statement::Block(vec![
-            Statement::LocalVariableSeries(vec![(
-                "i".into(),
-                Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
-            )])
-            .lazy_box(),
-            Statement::Expression(
-                Expression::Assignment(
-                    Expression::Identifier("j".into()).lazy_box(),
+            LocalVariableSeries::new(vec![LocalVariable::Initialized(
+                Assignment::new(
+                    Identifier::new("i").into_lazy_box(),
                     AssignmentOperator::Equal,
                     Expression::Literal(Literal::Real(0.0)).lazy_box(),
                 )
-                .lazy_box(),
+                .into_lazy_box(),
+            )])
+            .into_lazy_box(),
+            Statement::Expression(
+                Assignment::new(
+                    Identifier::new("j").into_lazy_box(),
+                    AssignmentOperator::Equal,
+                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                )
+                .into_lazy_box(),
             )
             .lazy_box(),
         ]),
@@ -172,7 +190,7 @@ fn try_catch() {
         "try {} catch (e) {}",
         Statement::TryCatch(
             Statement::Block(vec![]).lazy_box(),
-            Expression::Grouping(Expression::Identifier("e".into()).lazy_box()).lazy_box(),
+            Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
             Statement::Block(vec![]).lazy_box(),
             None,
         ),
@@ -185,7 +203,7 @@ fn try_catch_finally() {
         "try {} catch (e) {} finally {}",
         Statement::TryCatch(
             Statement::Block(vec![]).lazy_box(),
-            Expression::Grouping(Expression::Identifier("e".into()).lazy_box()).lazy_box(),
+            Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
             Statement::Block(vec![]).lazy_box(),
             Some(Statement::Block(vec![]).lazy_box()),
         ),
@@ -197,23 +215,23 @@ fn for_loop() {
     harness_stmt(
         "for (var i = 0; i < 1; i++) {}",
         Statement::For(
-            Statement::LocalVariableSeries(vec![(
-                "i".into(),
-                Some(Expression::Literal(Literal::Real(0.0)).lazy_box()),
+            LocalVariableSeries::new(vec![LocalVariable::Initialized(
+                Assignment::new(
+                    Identifier::new("i").into_lazy_box(),
+                    AssignmentOperator::Equal,
+                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                )
+                .into_lazy_box(),
             )])
-            .lazy_box(),
+            .into_lazy_box(),
             Expression::Equality(
-                Expression::Identifier("i".into()).lazy_box(),
+                Identifier::new("i").into_lazy_box(),
                 EqualityOperator::LessThan,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
             .lazy_box(),
             Statement::Expression(
-                Expression::Postfix(
-                    Expression::Identifier("i".into()).lazy_box(),
-                    PostfixOperator::Increment,
-                )
-                .lazy_box(),
+                Expression::Postfix(Identifier::new("i").into_lazy_box(), PostfixOperator::Increment).lazy_box(),
             )
             .lazy_box(),
             Statement::Block(vec![]).lazy_box(),
@@ -226,7 +244,7 @@ fn with() {
     harness_stmt(
         "with foo {}",
         Statement::With(
-            Expression::Identifier("foo".into()).lazy_box(),
+            Identifier::new("foo").into_lazy_box(),
             Statement::Block(vec![]).lazy_box(),
         ),
     )
@@ -250,18 +268,18 @@ fn do_until() {
         Statement::DoUntil(
             Statement::Block(vec![
                 Statement::Expression(
-                    Expression::Assignment(
-                        Expression::Identifier("foo".into()).lazy_box(),
+                    Expression::Assignment(Assignment::new(
+                        Identifier::new("foo").into_lazy_box(),
                         AssignmentOperator::PlusEqual,
                         Expression::Literal(Literal::Real(1.0)).lazy_box(),
-                    )
+                    ))
                     .lazy_box(),
                 )
                 .lazy_box(),
             ])
             .lazy_box(),
             Expression::Equality(
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
@@ -269,25 +287,24 @@ fn do_until() {
         ),
     )
 }
-
 #[test]
 fn while_loop() {
     harness_stmt(
         "while foo == 1 { foo += 1; }",
         Statement::While(
             Expression::Equality(
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
             .lazy_box(),
             Statement::Block(vec![
                 Statement::Expression(
-                    Expression::Assignment(
-                        Expression::Identifier("foo".into()).lazy_box(),
+                    Expression::Assignment(Assignment::new(
+                        Identifier::new("foo").into_lazy_box(),
                         AssignmentOperator::PlusEqual,
                         Expression::Literal(Literal::Real(1.0)).lazy_box(),
-                    )
+                    ))
                     .lazy_box(),
                 )
                 .lazy_box(),
@@ -303,7 +320,7 @@ fn if_statement() {
         "if foo == 1 {}",
         Statement::If(
             Expression::Equality(
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
@@ -321,7 +338,7 @@ fn if_then() {
         "if foo == 1 then {}",
         Statement::If(
             Expression::Equality(
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
@@ -339,7 +356,7 @@ fn if_else() {
         "if foo == 1 {} else {}",
         Statement::If(
             Expression::Equality(
-                Expression::Identifier("foo".into()).lazy_box(),
+                Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
@@ -355,11 +372,7 @@ fn if_else() {
 fn switch() {
     harness_stmt(
         "switch foo {}",
-        Statement::Switch(GmlSwitch::new(
-            Expression::Identifier("foo".into()).lazy_box(),
-            vec![],
-            None,
-        )),
+        Switch::new(Identifier::new("foo").into_lazy_box(), vec![], None),
     )
 }
 
@@ -367,14 +380,14 @@ fn switch() {
 fn switch_with_case() {
     harness_stmt(
         "switch foo { case bar: break; }",
-        Statement::Switch(GmlSwitch::new(
-            Expression::Identifier("foo".into()).lazy_box(),
-            vec![GmlSwitchCase::new(
-                Expression::Identifier("bar".into()).lazy_box(),
+        Switch::new(
+            Identifier::new("foo").into_lazy_box(),
+            vec![SwitchCase::new(
+                Identifier::new("bar").into_lazy_box(),
                 vec![Statement::Break.lazy_box()],
             )],
             None,
-        )),
+        ),
     )
 }
 
@@ -382,17 +395,17 @@ fn switch_with_case() {
 fn switch_case_fallthrough() {
     harness_stmt(
         "switch foo { case bar: case baz: break; }",
-        Statement::Switch(GmlSwitch::new(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Switch::new(
+            Identifier::new("foo").into_lazy_box(),
             vec![
-                GmlSwitchCase::new(Expression::Identifier("bar".into()).lazy_box(), vec![]),
-                GmlSwitchCase::new(
-                    Expression::Identifier("baz".into()).lazy_box(),
+                SwitchCase::new(Identifier::new("bar").into_lazy_box(), vec![]),
+                SwitchCase::new(
+                    Identifier::new("baz").into_lazy_box(),
                     vec![Statement::Break.lazy_box()],
                 ),
             ],
             None,
-        )),
+        ),
     )
 }
 
@@ -400,11 +413,11 @@ fn switch_case_fallthrough() {
 fn switch_default() {
     harness_stmt(
         "switch foo { default: break; }",
-        Statement::Switch(GmlSwitch::new(
-            Expression::Identifier("foo".into()).lazy_box(),
+        Switch::new(
+            Identifier::new("foo").into_lazy_box(),
             vec![],
             Some(vec![Statement::Break.lazy_box()]),
-        )),
+        ),
     )
 }
 

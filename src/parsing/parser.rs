@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
 use crate::{
-    gml::{GmlEnum, GmlSwitch, GmlSwitchCase},
+    gml::{
+        Assignment, AssignmentOperator, Enum, Globalvar, Identifier, LocalVariable, LocalVariableSeries, Macro, Switch,
+        SwitchCase,
+    },
     parsing::{expression::EvaluationOperator, ParseError},
     utils::Span,
 };
@@ -10,7 +13,7 @@ use super::{
     expression::{Constructor, Expression, ExpressionBox, Literal, Parameter, Scope},
     statement::{Statement, StatementBox},
     token_pilot::TokenPilot,
-    Token,
+    IntoExpressionBox, IntoStatementBox, Token,
 };
 
 /// A collection of statements.
@@ -63,7 +66,7 @@ impl<'a> Parser<'a> {
     pub(super) fn statement(&mut self) -> Result<StatementBox, ParseError> {
         match self.pilot.peek()? {
             Token::Macro(_, _, _) => self.macro_declaration(),
-            Token::Enum => self.enum_declaration(),
+            Token::GmlEnum => self.enum_declaration(),
             Token::Try => self.try_catch(),
             Token::For => self.for_loop(),
             Token::With => self.with(),
@@ -87,7 +90,12 @@ impl<'a> Parser<'a> {
         let start = self.pilot.cursor();
         match self.pilot.take()? {
             Token::Macro(name, config, body) => {
-                Ok(Statement::MacroDeclaration(name, config, body).into_box(self.span(start)))
+                let mac = if let Some(config) = config {
+                    Macro::new_with_config(name, body, config)
+                } else {
+                    Macro::new(name, body)
+                };
+                Ok(mac.into_statement_box(self.span(start)))
             }
             token => Err(ParseError::UnexpectedToken(self.span(start), token)),
         }
@@ -95,9 +103,9 @@ impl<'a> Parser<'a> {
 
     fn enum_declaration(&mut self) -> Result<StatementBox, ParseError> {
         let start = self.pilot.cursor();
-        self.pilot.require(Token::Enum)?;
+        self.pilot.require(Token::GmlEnum)?;
         let name = self.pilot.require_identifier()?;
-        let mut gml_enum = GmlEnum::new(name);
+        let mut gml_enum = Enum::new(name);
         self.pilot.require(Token::LeftBrace)?;
         loop {
             if self.pilot.match_take(Token::RightBrace).is_some() {
@@ -218,7 +226,7 @@ impl<'a> Parser<'a> {
                     // todo: validate constant
                     self.pilot.require(Token::Colon)?;
                     let body = case_body(self)?;
-                    members.push(GmlSwitchCase::new(identity, body))
+                    members.push(SwitchCase::new(identity, body))
                 }
                 Token::Default => {
                     self.pilot.take()?;
@@ -232,7 +240,7 @@ impl<'a> Parser<'a> {
                 _ => return Err(ParseError::UnexpectedToken(self.span(start), self.pilot.take()?)),
             }
         }
-        Ok(Statement::Switch(GmlSwitch::new(expression, members, default)).into_box(self.span(start)))
+        Ok(Statement::Switch(Switch::new(expression, members, default)).into_box(self.span(start)))
     }
 
     fn block(&mut self) -> Result<StatementBox, ParseError> {
@@ -281,7 +289,7 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Globalvar)?;
         let name = self.pilot.require_identifier()?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::GlobalvarDeclaration(name).into_box(self.span(start)))
+        Ok(Globalvar::new(name).into_statement_box(self.span(start)))
     }
 
     fn local_variable_series(&mut self) -> Result<StatementBox, ParseError> {
@@ -290,12 +298,16 @@ impl<'a> Parser<'a> {
         let mut declarations = vec![];
         loop {
             let name = self.pilot.require_identifier()?;
-            let initializer = if self.pilot.match_take(Token::Equal).is_some() {
-                Some(self.expression()?)
+            let left = Identifier::new(name).into_expression_box(self.span(start));
+            let local_variable = if self.pilot.match_take(Token::Equal).is_some() {
+                LocalVariable::Initialized(
+                    Assignment::new(left, AssignmentOperator::Equal, self.expression()?)
+                        .into_expression_box(self.span(start)),
+                )
             } else {
-                None
+                LocalVariable::Uninitialized(left)
             };
-            declarations.push((name, initializer));
+            declarations.push(local_variable);
             if self.pilot.match_take(Token::Comma).is_none() {
                 break;
             }
@@ -309,7 +321,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::LocalVariableSeries(declarations).into_box(self.span(start)))
+        Ok(LocalVariableSeries::new(declarations).into_statement_box(self.span(start)))
     }
 
     fn expression_statement(&mut self) -> Result<StatementBox, ParseError> {
@@ -549,7 +561,7 @@ impl<'a> Parser<'a> {
             } else {
                 self.pilot.take()?;
                 let right = self.expression()?;
-                Ok(Expression::Assignment(expression, operator, right).into_box(self.span(start)))
+                Ok(Assignment::new(expression, operator, right).into_expression_box(self.span(start)))
             }
         } else {
             Ok(expression)
@@ -671,7 +683,7 @@ impl<'a> Parser<'a> {
                         Scope::Current
                     } else {
                         // Using self as a referencce!
-                        return Ok(Expression::Identifier("self".into()).into_box(self.span(start)));
+                        return Ok(Expression::Identifier(Identifier::new("self")).into_box(self.span(start)));
                     }
                 }
                 _ => {
@@ -754,7 +766,7 @@ impl<'a> Parser<'a> {
         let peek = self.pilot.peek()?;
         if let Some(lexeme) = peek.as_identifier().map(|s| s.to_string()) {
             self.pilot.take()?;
-            Ok(Expression::Identifier(lexeme).into_box(self.span(start)))
+            Ok(Identifier::new(lexeme).into_expression_box(self.span(start)))
         } else {
             self.unexpected_token()
         }

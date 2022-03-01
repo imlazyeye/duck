@@ -31,9 +31,13 @@ impl EarlyExpressionPass for RoomGoto {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(name) = caller.expression() {
-                if gm_room_goto_functions().contains(&name.as_str()) {
-                    reports.push(Self::generate_report_with(span, format!("Use of `{}`", name), []))
+            if let Expression::Identifier(identifier) = caller.expression() {
+                if gm_room_goto_functions().contains(&identifier.name.as_str()) {
+                    reports.push(Self::generate_report_with(
+                        span,
+                        format!("Use of `{}`", identifier.name),
+                        [],
+                    ))
                 }
             }
         }

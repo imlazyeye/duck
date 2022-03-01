@@ -1,4 +1,6 @@
-use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
+use crate::{
+    gml::LocalVariableSeries, lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct MultiVarDeclaration;
@@ -30,8 +32,8 @@ impl EarlyStatementPass for MultiVarDeclaration {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Statement::LocalVariableSeries(vars) = statement {
-            if vars.len() > 1 {
+        if let Statement::LocalVariableSeries(LocalVariableSeries { declarations }) = statement {
+            if declarations.len() > 1 {
                 reports.push(Self::generate_report(span));
             }
         }

@@ -329,7 +329,7 @@ impl<'a> Lexer<'a> {
                         "global" => Some(Token::Global),
                         "div" => Some(Token::Div),
                         "mod" => Some(Token::Mod),
-                        "enum" => Some(Token::Enum),
+                        "enum" => Some(Token::GmlEnum),
                         "exit" => Some(Token::Exit),
                         "repeat" => Some(Token::Repeat),
                         "do" => Some(Token::Do),

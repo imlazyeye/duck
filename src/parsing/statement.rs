@@ -1,15 +1,16 @@
-use super::ExpressionBox;
 use crate::{
-    gml::{GmlEnum, GmlSwitch},
+    gml::{Enum, Globalvar, LocalVariable, LocalVariableSeries, Macro, Switch},
+    parsing::ExpressionBox,
     utils::Span,
 };
 
+/// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    MacroDeclaration(String, Option<String>, String),
-    EnumDeclaration(GmlEnum),
-    GlobalvarDeclaration(String),
-    LocalVariableSeries(Vec<(String, Option<ExpressionBox>)>),
+    MacroDeclaration(Macro),
+    EnumDeclaration(Enum),
+    GlobalvarDeclaration(Globalvar),
+    LocalVariableSeries(LocalVariableSeries),
     TryCatch(StatementBox, ExpressionBox, StatementBox, Option<StatementBox>),
     For(StatementBox, ExpressionBox, StatementBox, StatementBox),
     With(ExpressionBox, StatementBox),
@@ -17,7 +18,7 @@ pub enum Statement {
     DoUntil(StatementBox, ExpressionBox),
     While(ExpressionBox, StatementBox),
     If(ExpressionBox, StatementBox, Option<StatementBox>, bool),
-    Switch(GmlSwitch),
+    Switch(Switch),
     Block(Vec<StatementBox>),
     Return(Option<ExpressionBox>),
     Break,
@@ -80,7 +81,7 @@ impl Statement {
                     statement_visitor(statement);
                 }
             }
-            Statement::MacroDeclaration(_, _, _)
+            Statement::MacroDeclaration(_)
             | Statement::EnumDeclaration(_)
             | Statement::GlobalvarDeclaration(_)
             | Statement::LocalVariableSeries(_)
@@ -99,7 +100,7 @@ impl Statement {
         match self {
             Statement::EnumDeclaration(gml_enum) => {
                 gml_enum
-                    .members()
+                    .members
                     .iter()
                     .flat_map(|member| member.initializer())
                     .for_each(|initializer| {
@@ -107,9 +108,9 @@ impl Statement {
                     });
             }
             Statement::GlobalvarDeclaration(_) => {}
-            Statement::LocalVariableSeries(members) => {
-                for member in members.iter().flat_map(|(_, e)| e) {
-                    expression_visitor(member);
+            Statement::LocalVariableSeries(LocalVariableSeries { declarations }) => {
+                for declaration in declarations.iter() {
+                    expression_visitor(declaration.inner());
                 }
             }
             Statement::Switch(switch) => {
@@ -133,7 +134,7 @@ impl Statement {
             | Statement::If(expression, _, _, _) => {
                 expression_visitor(expression);
             }
-            Statement::MacroDeclaration(_, _, _)
+            Statement::MacroDeclaration(_)
             | Statement::Block(_)
             | Statement::Break
             | Statement::Continue
@@ -150,5 +151,24 @@ impl StatementBox {
     }
     pub fn span(&self) -> Span {
         self.1
+    }
+}
+
+/// Derives two methods to convert the T into an [StatementBox], supporting both a standard
+/// `into_statement_box` method, and a `into_lazy_box` for tests.
+///
+/// TODO: This could be a derive macro!
+pub trait IntoStatementBox: Sized + Into<Statement> {
+    /// Converts self into an statement box with a provided span.
+    fn into_statement_box(self, span: Span) -> StatementBox {
+        StatementBox(Box::new(self.into()), span)
+    }
+
+    // Converts self into an statement box with a default span. Useful for tests.
+    fn into_lazy_box(self) -> StatementBox
+    where
+        Self: Sized,
+    {
+        self.into_statement_box(Default::default())
     }
 }

@@ -1,4 +1,4 @@
-use super::GmlEnum;
+use crate::gml::Enum;
 use std::collections::HashMap;
 
 /// Tracks globally available symbols in a parsed project.
@@ -10,7 +10,7 @@ use std::collections::HashMap;
 /// This will be removed in a future version of duck!
 #[derive(Debug, Default)]
 pub struct GlobalScope {
-    enums: HashMap<String, GmlEnum>,
+    enums: HashMap<String, Enum>,
 }
 impl GlobalScope {
     /// Creates a new, empty GlobalScope.
@@ -19,7 +19,7 @@ impl GlobalScope {
     }
 
     /// Returns an option to the [GmlEnum] registered under the provided name.
-    pub fn find_enum(&self, name: impl Into<String>) -> Option<&GmlEnum> {
+    pub fn find_enum(&self, name: impl Into<String>) -> Option<&Enum> {
         self.enums.get(&name.into())
     }
 
@@ -36,7 +36,7 @@ impl GlobalScope {
 /// information.
 #[derive(Debug, Default)]
 pub struct GlobalScopeBuilder {
-    enums: HashMap<String, GmlEnum>,
+    enums: HashMap<String, Enum>,
 }
 impl GlobalScopeBuilder {
     /// Creates a new, empty GlobalScope.
@@ -45,7 +45,7 @@ impl GlobalScopeBuilder {
     }
 
     /// Registers a [GmlEnum] to this GlobalScope.
-    pub fn register_enum(&mut self, gml_enum: GmlEnum) {
-        self.enums.insert(gml_enum.name().to_string(), gml_enum);
+    pub fn register_enum(&mut self, gml_enum: Enum) {
+        self.enums.insert(gml_enum.name.to_string(), gml_enum);
     }
 }

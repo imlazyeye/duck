@@ -1,6 +1,6 @@
 use heck::ToShoutySnakeCase;
 
-use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
+use crate::{gml::Macro, lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct NonScreamCase;
@@ -32,7 +32,7 @@ impl EarlyStatementPass for NonScreamCase {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Statement::MacroDeclaration(name, ..) = statement {
+        if let Statement::MacroDeclaration(Macro { name, .. }) = statement {
             let ideal = scream_case(name);
             if name != &ideal {
                 reports.push(Self::generate_report_with(

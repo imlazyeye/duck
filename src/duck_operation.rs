@@ -1,6 +1,6 @@
 use crate::{
+    analysis::{GlobalScope, GlobalScopeBuilder},
     config::Config,
-    gml::{GlobalScope, GlobalScopeBuilder},
     lint::{EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, LintLevel},
     lints::*,
     parsing::{Ast, Expression, ExpressionBox, ParseError, Parser, Statement, StatementBox},
@@ -18,7 +18,8 @@ use std::path::Path;
 ///
 /// ### Usage
 /// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s
-/// directly. ```rs
+/// directly.
+/// ```rs
 /// # use duck::prelude::*;
 /// # use std::path::Path;
 /// # let gml = "show_debug_message(\"Hello world!\")";
@@ -28,7 +29,7 @@ use std::path::Path;
 ///     Err(parse_error) => println!("Failed to parse gml: {parse_error:?}"),
 /// };
 /// ```
-/// 
+///
 /// You can also manually run the [Lint]s on these [Ast]s.
 /// ```rs
 /// # use duck::prelude::*;

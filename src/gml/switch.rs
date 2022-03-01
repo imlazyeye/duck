@@ -1,20 +1,19 @@
-use crate::parsing::{Expression, ExpressionBox, Scope, StatementBox};
+use crate::{
+    parsing::{Expression, ExpressionBox, Scope, StatementBox},
+    prelude::{IntoStatementBox, Statement},
+};
 
-/// Representation of a Gml switch statement.
+/// Representation of a gml switch statement.
 #[derive(Debug, PartialEq, Clone)]
-pub struct GmlSwitch {
+pub struct Switch {
     matching_value: ExpressionBox,
-    cases: Vec<GmlSwitchCase>,
+    cases: Vec<SwitchCase>,
     default_case: Option<Vec<StatementBox>>,
 }
-impl GmlSwitch {
-    /// Creates a new GmlSwitch with the provided matching value, cases, and
+impl Switch {
+    /// Creates a new switch with the provided matching value, cases, and
     /// optionally a default case.
-    pub fn new(
-        matching_value: ExpressionBox,
-        cases: Vec<GmlSwitchCase>,
-        default_case: Option<Vec<StatementBox>>,
-    ) -> Self {
+    pub fn new(matching_value: ExpressionBox, cases: Vec<SwitchCase>, default_case: Option<Vec<StatementBox>>) -> Self {
         Self {
             matching_value,
             cases,
@@ -48,24 +47,31 @@ impl GmlSwitch {
                 .expression()
                 .as_dot_access()
                 .and_then(|(left, _)| left.as_identifier())
+                .map(|iden| iden.name.as_ref())
         })
     }
 
-    /// Get a reference to the gml switch's matching value.
+    /// Get a reference to the switch's matching value. Ie: foo in `switch foo`
     pub fn matching_value(&self) -> &ExpressionBox {
         &self.matching_value
     }
 
-    /// Get a reference to the gml switch's cases.
-    pub fn cases(&self) -> &[GmlSwitchCase] {
+    /// Get a reference to the switch's cases.
+    pub fn cases(&self) -> &[SwitchCase] {
         self.cases.as_ref()
     }
 
-    /// Get a reference to the gml switch's default case.
+    /// Get a reference to the switch's default case.
     pub fn default_case(&self) -> Option<&Vec<StatementBox>> {
         self.default_case.as_ref()
     }
 }
+impl From<Switch> for Statement {
+    fn from(switch: Switch) -> Self {
+        Statement::Switch(switch)
+    }
+}
+impl IntoStatementBox for Switch {}
 
 /// Representation of a single switch case in a [GmlSwitch].
 ///
@@ -78,8 +84,8 @@ impl GmlSwitch {
 /// now, it will be an issue when static analyis is added, as case bodies won't
 /// properly create a new scope.
 #[derive(Debug, PartialEq, Clone)]
-pub struct GmlSwitchCase(ExpressionBox, Vec<StatementBox>);
-impl GmlSwitchCase {
+pub struct SwitchCase(ExpressionBox, Vec<StatementBox>);
+impl SwitchCase {
     /// Creates a new GmlSwitchCase with the given identity and body.
     pub fn new(identity: ExpressionBox, body: Vec<StatementBox>) -> Self {
         Self(identity, body)
