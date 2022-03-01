@@ -67,7 +67,7 @@ impl From<ConfigTemplate> for Config {
                     ("deprecated".into(), LintLevel::Warn),
                     ("draw_sprite".into(), LintLevel::Allow),
                     ("draw_text".into(), LintLevel::Allow),
-                    ("british".into(), LintLevel::Allow),
+                    ("english_flavor_violation".into(), LintLevel::Allow),
                     ("exit".into(), LintLevel::Allow),
                     ("global".into(), LintLevel::Allow),
                     ("missing_case_member".into(), LintLevel::Warn),

@@ -24,7 +24,7 @@ impl Lint for EnglishFlavorViolation {
     }
 
     fn tag() -> &'static str {
-        "british"
+        "english_flavor_violation"
     }
 }
 
