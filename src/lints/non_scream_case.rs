@@ -37,7 +37,7 @@ impl EarlyStatementPass for NonScreamCase {
             if name != &ideal {
                 reports.push(Self::generate_report_with(
                     span,
-                    "Macro should be PascalCase",
+                    format!("Macro should be SCREAM_CASE: {name}"),
                     [format!("Change this to `{}`", ideal)],
                 ));
             }

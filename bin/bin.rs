@@ -81,7 +81,7 @@ async fn run_lint(
     println!("{seperation_string}\n");
     match config_usage {
         ConfigUsage::None => println!("{}", "note: You are not using a configuration file, which is highly recommended! Use `duck new-config` to generate one.\n".bright_black().bold()),
-        ConfigUsage::Failed(error) => warn!("Your config was not used in this run, as duck encountered the following error while being parsed: {}\n", error),
+        ConfigUsage::Failed(error) => println!("{}: Your config was not used in this run, as duck encountered the following error while being parsed: {:?}\n", "error".bright_red().bold(), error),
         ConfigUsage::Some => {}
     }
     if !run_result.io_errors().is_empty() {

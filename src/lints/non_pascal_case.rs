@@ -43,15 +43,16 @@ impl EarlyStatementPass for NonPascalCase {
             if name != &ideal {
                 reports.push(Self::generate_report_with(
                     span,
-                    "GmlEnum should be PascalCase",
+                    format!("Enum should be PascalCase: {name}"),
                     [format!("Change this to `{}`", ideal)],
                 ));
             }
             gml_enum.members.iter().map(|member| member.name()).for_each(|name| {
-                if name != pascal_case(name) {
+                let ideal = pascal_case(name);
+                if name != ideal {
                     reports.push(Self::generate_report_with(
                         span,
-                        "GmlEnum member should be PascalCase",
+                        format!("Enum member should be PascalCase: {name}"),
                         [format!("Change this to `{}`", ideal)],
                     ));
                 }
@@ -72,7 +73,7 @@ impl EarlyExpressionPass for NonPascalCase {
             if name != &ideal {
                 reports.push(Self::generate_report_with(
                     span,
-                    "Constructor should be PascalCase",
+                    "Constructor should be PascalCase: {name}",
                     [format!("Change this to `{}`", ideal)],
                 ));
             }

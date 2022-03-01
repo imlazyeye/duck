@@ -56,16 +56,16 @@ impl Duck {
     /// Returns an error if we fail to join any of the tokio tasks.
     pub async fn run(&self, project_directory: &Path) -> Result<RunResult, tokio::task::JoinError> {
         // Load everything in and await through the early pass
-        let duck_arc = Arc::new(self.config.clone()); // todo this clone sucks
+        let config_arc = Arc::new(self.config.clone()); // TODO: this clone sucks
         let (path_receiver, _) = DuckTask::start_gml_discovery(project_directory);
         let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
         let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
-        let (early_receiever, _) = DuckTask::start_early_pass(duck_arc.clone(), parse_receiver);
+        let (early_receiever, _) = DuckTask::start_early_pass(config_arc.clone(), parse_receiver);
         let (iterations, global_environment) = DuckTask::start_environment_assembly(early_receiever).await?;
 
         // Now the late pass
         // Run the final pass...
-        let late_pass_reports = DuckTask::start_late_pass(duck_arc.clone(), iterations, global_environment).await?;
+        let late_pass_reports = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
         let io_errors = file_handle.await?;

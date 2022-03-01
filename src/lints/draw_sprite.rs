@@ -33,7 +33,11 @@ impl EarlyExpressionPass for DrawSprite {
         if let Expression::Call(caller, _, _) = expression {
             if let Expression::Identifier(identifier) = caller.expression() {
                 if gm_draw_sprite_functions().contains(&identifier.name.as_str()) {
-                    reports.push(Self::generate_report_with(span, format!("Use of `{}`", identifier.name), []))
+                    reports.push(Self::generate_report_with(
+                        span,
+                        format!("Use of `{}`", identifier.name),
+                        [],
+                    ))
                 }
             }
         }
