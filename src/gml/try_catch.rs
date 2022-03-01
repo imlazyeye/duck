@@ -40,7 +40,7 @@ impl TryCatch {
 }
 impl From<TryCatch> for Statement {
     fn from(try_catch: TryCatch) -> Self {
-        Statement::TryCatch(try_catch)
+        Self::TryCatch(try_catch)
     }
 }
 impl IntoStatementBox for TryCatch {}

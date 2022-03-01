@@ -14,7 +14,7 @@ impl Identifier {
 }
 impl From<Identifier> for Expression {
     fn from(iden: Identifier) -> Self {
-        Expression::Identifier(iden)
+        Self::Identifier(iden)
     }
 }
 impl IntoExpressionBox for Identifier {}

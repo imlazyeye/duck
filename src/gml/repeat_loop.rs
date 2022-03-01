@@ -16,7 +16,7 @@ impl RepeatLoop {
 }
 impl From<RepeatLoop> for Statement {
     fn from(repeat_loop: RepeatLoop) -> Self {
-        Statement::RepeatLoop(repeat_loop)
+        Self::RepeatLoop(repeat_loop)
     }
 }
 impl IntoStatementBox for RepeatLoop {}

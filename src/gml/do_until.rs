@@ -16,7 +16,7 @@ impl DoUntil {
 }
 impl From<DoUntil> for Statement {
     fn from(do_until: DoUntil) -> Self {
-        Statement::DoUntil(do_until)
+        Self::DoUntil(do_until)
     }
 }
 impl IntoStatementBox for DoUntil {}

@@ -16,7 +16,7 @@ impl WithLoop {
 }
 impl From<WithLoop> for Statement {
     fn from(with_loop: WithLoop) -> Self {
-        Statement::WithLoop(with_loop)
+        Self::WithLoop(with_loop)
     }
 }
 impl IntoStatementBox for WithLoop {}

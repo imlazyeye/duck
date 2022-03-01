@@ -59,7 +59,7 @@ impl If {
 }
 impl From<If> for Statement {
     fn from(if_stmt: If) -> Self {
-        Statement::If(if_stmt)
+        Self::If(if_stmt)
     }
 }
 impl IntoStatementBox for If {}

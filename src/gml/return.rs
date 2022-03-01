@@ -14,7 +14,7 @@ impl Return {
 }
 impl From<Return> for Statement {
     fn from(ret: Return) -> Self {
-        Statement::Return(ret)
+        Self::Return(ret)
     }
 }
 impl IntoStatementBox for Return {}

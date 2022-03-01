@@ -23,12 +23,13 @@ impl<'a> Lexer<'a> {
     }
 
     /// Consumes the Lexer's source code until it identifies the next Token.
+    #[allow(clippy::too_many_lines)]
     fn lex(&mut self) -> (usize, Token) {
         if let Some((start_index, chr)) = self.take() {
             let token_type = match chr {
                 id if id.is_whitespace() => return self.lex(),
                 '.' => {
-                    if self.peek().map(|c| matches!(c, '0'..='9')).unwrap_or(false) {
+                    if self.peek().map_or(false, |c| matches!(c, '0'..='9')) {
                         let mut lexeme = String::from(chr);
                         self.construct_number(&mut lexeme);
                         Some(Token::Real(lexeme.parse().unwrap()))
@@ -366,14 +367,14 @@ impl<'a> Lexer<'a> {
 
     /// Consumes the rest of the line into the stirng.
     fn consume_rest_of_line(&mut self, lexeme: &mut String) {
-        while self.peek().map(|chr| chr != '\r' && chr != '\n').unwrap_or(false) {
+        while self.peek().map_or(false, |chr| chr != '\r' && chr != '\n') {
             lexeme.push(self.take().unwrap().1);
         }
     }
 
     /// Discards the remainder of the line.
     fn discard_rest_of_line(&mut self) {
-        while self.peek().map(|chr| chr != '\r' && chr != '\n').unwrap_or(false) {
+        while self.peek().map_or(false, |chr| chr != '\r' && chr != '\n') {
             self.take();
         }
     }
@@ -411,13 +412,13 @@ impl<'a> Lexer<'a> {
     /// Will keep eating characters into the given string until it reaches a
     /// character that can't be used in an identifier.
     fn construct_number(&mut self, lexeme: &mut String) {
-        while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
+        while self.peek().map_or(false, |chr| chr.is_numeric()) {
             lexeme.push(self.take().unwrap().1);
         }
         // Floats!
         if self.match_take('.') {
             lexeme.push('.');
-            while self.peek().map(|chr| chr.is_numeric()).unwrap_or(false) {
+            while self.peek().map_or(false, |chr| chr.is_numeric()) {
                 lexeme.push(self.take().unwrap().1);
             }
         }
@@ -504,10 +505,7 @@ pub(super) static MISC_GML_CONSTANTS: Lazy<FnvHashSet<&'static str>> =
     Lazy::new(|| serde_json::from_str(&MISC_GML_CONSTANT_FILE_DATA).unwrap());
 
 static MISC_GML_CONSTANT_FILE_DATA: Lazy<String> = Lazy::new(|| {
-    std::fs::read_to_string(dbg!(
-        std::env::current_dir().unwrap().join("assets/misc_gml_constants.json")
-    ))
-    .unwrap()
+    std::fs::read_to_string(std::env::current_dir().unwrap().join("assets/misc_gml_constants.json")).unwrap()
 });
 
 #[allow(dead_code)]

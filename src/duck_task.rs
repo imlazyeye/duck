@@ -27,6 +27,9 @@ impl DuckTask {
     /// Creates a Tokio task which will walk through the provided directory in
     /// search of gml files. Passes each path it finds into the returned
     /// Receiver. Closes when all files have been sent.
+    ///
+    /// ### Panics
+    /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_gml_discovery(directory: &Path) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
         /// Filters DirEntry's for gml files.
         async fn filter(entry: DirEntry) -> Filtering {
@@ -58,6 +61,9 @@ impl DuckTask {
     /// Creates a Tokio task which will await paths through `path_receiever` and
     /// subsequently load their data, pumping it to the returned Receiver.
     /// Closes when the `path_receiver` channel closes.
+    ///
+    /// ### Panics
+    /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_file_load(
         mut path_receiver: Receiver<PathBuf>,
     ) -> (Receiver<(PathBuf, String)>, JoinHandle<Vec<std::io::Error>>) {
@@ -80,6 +86,9 @@ impl DuckTask {
     /// Creates a Tokio task which will await gml files through `file_receiever`
     /// and subsequently parse them into an [Ast], pumping them into the
     /// returned Receiver. Closes when the `file_receiever` channel closes.
+    ///
+    /// ### Panics
+    /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_parse(
         mut file_receiver: Receiver<(PathBuf, String)>,
     ) -> (Receiver<ParseReport>, JoinHandle<ParseErrorCollection>) {
@@ -100,6 +109,9 @@ impl DuckTask {
     /// Creates a Tokio task that will await [Ast]s through `ast_receiver` and
     /// run the early pass lints on them, pumping the results through the
     /// returned Receiver. Closes when the `ast_receiever` channel closes.
+    ///
+    /// ### Panics
+    /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_early_pass(
         config: Arc<Config>,
         mut ast_receiever: Receiver<(PathBuf, String, Ast)>,
@@ -153,6 +165,9 @@ impl DuckTask {
     /// Creates Tokio tasks for all of the provided `StatementIteration`s,
     /// running the late lint pass on them. Returns a handle to another
     /// Tokio task which will collect their finalized [LatePassReport]s.
+    ///
+    /// ### Panics
+    /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_late_pass(
         config: Arc<Config>,
         iterations: Vec<LatePassEntry>,

@@ -17,7 +17,7 @@ impl LocalVariableSeries {
 }
 impl From<LocalVariableSeries> for Statement {
     fn from(series: LocalVariableSeries) -> Self {
-        Statement::LocalVariableSeries(series)
+        Self::LocalVariableSeries(series)
     }
 }
 impl IntoStatementBox for LocalVariableSeries {}
@@ -47,15 +47,21 @@ impl LocalVariable {
     /// Retrieves the name of the local variable.
     pub fn name(&self) -> &str {
         match self {
-            LocalVariable::Uninitialized(expression_box) => &expression_box.expression().as_identifier().unwrap().name,
+            LocalVariable::Uninitialized(expression_box) => {
+                &expression_box
+                    .expression()
+                    .as_identifier()
+                    .unwrap_or_else(|| unreachable!())
+                    .name
+            }
             LocalVariable::Initialized(expression_box) => expression_box
                 .expression()
                 .as_assignment()
-                .unwrap()
+                .unwrap_or_else(|| unreachable!())
                 .left
                 .expression()
                 .as_identifier()
-                .unwrap()
+                .unwrap_or_else(|| unreachable!())
                 .name
                 .as_ref(),
         }

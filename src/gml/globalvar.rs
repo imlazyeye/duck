@@ -14,7 +14,7 @@ impl Globalvar {
 }
 impl From<Globalvar> for Statement {
     fn from(glob: Globalvar) -> Self {
-        Statement::GlobalvarDeclaration(glob)
+        Self::GlobalvarDeclaration(glob)
     }
 }
 impl IntoStatementBox for Globalvar {}

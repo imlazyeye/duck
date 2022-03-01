@@ -43,7 +43,7 @@ impl Enum {
 }
 impl From<Enum> for Statement {
     fn from(e: Enum) -> Self {
-        Statement::EnumDeclaration(e)
+        Self::EnumDeclaration(e)
     }
 }
 impl IntoStatementBox for Enum {}

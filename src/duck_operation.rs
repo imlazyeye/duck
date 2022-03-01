@@ -60,9 +60,15 @@ pub struct DuckOperation;
 impl DuckOperation {
     /// Parses the given String of GML, returning either a successfully
     /// constructed [Ast] or a [ParseError].
+    ///
+    /// ### Errors
+    ///
+    /// Returns a [ParseError] if the parsing was unsuccessful.
     pub fn parse_gml(source_code: &str, path: &Path) -> Result<Ast, ParseError> {
         let mut source: &'static str = Box::leak(Box::new(source_code.to_string()));
         let ast = Parser::new(source, path.to_path_buf()).into_ast();
+        // SAFETY: to dance around the borrow checker, we leak the inputted string and then
+        // restore it to memory here in order to not actually leak the memory.
         unsafe {
             drop(Box::from_raw(&mut source));
         }

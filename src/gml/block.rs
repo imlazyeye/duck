@@ -17,7 +17,7 @@ impl Block {
 }
 impl From<Block> for Statement {
     fn from(block: Block) -> Self {
-        Statement::Block(block)
+        Self::Block(block)
     }
 }
 impl IntoStatementBox for Block {}

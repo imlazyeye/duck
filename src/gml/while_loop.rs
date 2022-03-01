@@ -16,7 +16,7 @@ impl WhileLoop {
 }
 impl From<WhileLoop> for Statement {
     fn from(while_loop: WhileLoop) -> Self {
-        Statement::WhileLoop(while_loop)
+        Self::WhileLoop(while_loop)
     }
 }
 impl IntoStatementBox for WhileLoop {}

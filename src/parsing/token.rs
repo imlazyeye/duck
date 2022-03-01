@@ -3,9 +3,7 @@
 use super::{EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator};
 use crate::gml::AssignmentOperator;
 
-#[derive(Debug, PartialEq, Clone, strum::EnumDiscriminants)]
-#[strum_discriminants(derive(strum::EnumString, strum::EnumIter))]
-#[strum_discriminants(name(TokenId))]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Token {
     Switch,
     Case,

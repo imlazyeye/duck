@@ -51,31 +51,43 @@ impl Duck {
     /// were found.
     ///
     /// If you are working in a blocking context, see [Duck::run_blocking].
-    pub async fn run(&self, project_directory: &Path) -> RunResult {
+    ///
+    /// ### Errors
+    /// Returns an error if we fail to join any of the tokio tasks.
+    pub async fn run(&self, project_directory: &Path) -> Result<RunResult, tokio::task::JoinError> {
         // Load everything in and await through the early pass
         let duck_arc = Arc::new(self.config.clone()); // todo this clone sucks
         let (path_receiver, _) = DuckTask::start_gml_discovery(project_directory);
         let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
         let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
         let (early_receiever, _) = DuckTask::start_early_pass(duck_arc.clone(), parse_receiver);
-        let (iterations, global_environment) = DuckTask::start_environment_assembly(early_receiever).await.unwrap();
+        let (iterations, global_environment) = DuckTask::start_environment_assembly(early_receiever).await?;
 
         // Now the late pass
         // Run the final pass...
-        let late_pass_reports = DuckTask::start_late_pass(duck_arc.clone(), iterations, global_environment)
-            .await
-            .unwrap();
+        let late_pass_reports = DuckTask::start_late_pass(duck_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
-        let io_errors = file_handle.await.unwrap();
-        let parse_errors = parse_handle.await.unwrap();
+        let io_errors = file_handle.await?;
+        let parse_errors = parse_handle.await?;
 
         // Return the result!
-        RunResult::new(&Config::default(), late_pass_reports, parse_errors, io_errors)
+        Ok(RunResult::new(
+            &Config::default(),
+            late_pass_reports,
+            parse_errors,
+            io_errors,
+        ))
     }
 
     /// The blocking counterpart to [Duck::run].
-    pub fn run_blocking(&self, project_directory: &Path) -> RunResult {
+    ///
+    /// ### Errors
+    /// Returns an error if we fail to join any of the tokio tasks.
+    ///
+    /// ### Panics
+    /// Panics if we fail to spawn a tokio runtime.
+    pub fn run_blocking(&self, project_directory: &Path) -> Result<RunResult, tokio::task::JoinError> {
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(self.run(project_directory))

@@ -13,13 +13,19 @@ extern crate log;
 async fn main() {
     color_eyre::install().unwrap();
     let input = Cli::parse();
-    match input.command {
-        Commands::Lint { path } => run_lint(path).await,
+    let status_code = match input.command {
+        Commands::Lint {
+            path,
+            allow_warnings,
+            allow_denials,
+            allow_errors: allow_parse_errors,
+        } => run_lint(path, allow_warnings, allow_denials, allow_parse_errors).await,
         Commands::NewConfig => new_config(),
-    }
+    };
+    std::process::exit(status_code);
 }
 
-async fn run_lint(path: Option<PathBuf>) {
+async fn run_lint(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bool, allow_errors: bool) -> i32 {
     // Run duck
     let timer = std::time::Instant::now();
     let current_directory =
@@ -32,7 +38,7 @@ async fn run_lint(path: Option<PathBuf>) {
     } else {
         (Duck::default(), ConfigUsage::None)
     };
-    let run_result = duck.run(&current_directory).await;
+    let run_result = duck.run(&current_directory).await.unwrap();
     let total_duration = timer.elapsed();
 
     // Output the results
@@ -82,9 +88,19 @@ async fn run_lint(path: Option<PathBuf>) {
             )
         })
     }
+
+    // Return the status code
+    if (!allow_warnings && run_result.warning_count() != 0)
+        || (!allow_denials && run_result.denial_count() != 0)
+        || (!allow_errors && (!run_result.io_errors().is_empty() || !run_result.parse_errors().is_empty()))
+    {
+        1
+    } else {
+        0
+    }
 }
 
-fn new_config() {
+fn new_config() -> i32 {
     todo!("lol sorry make it yourself");
 }
 

@@ -40,7 +40,7 @@ impl Macro {
 }
 impl From<Macro> for Statement {
     fn from(mac: Macro) -> Self {
-        Statement::MacroDeclaration(mac)
+        Self::MacroDeclaration(mac)
     }
 }
 impl IntoStatementBox for Macro {}

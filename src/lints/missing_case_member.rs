@@ -97,7 +97,7 @@ impl LateStatementPass for MissingCaseMember {
                 .iter()
                 .map(|member| member.name())
                 .filter(|member| {
-                    ignore_name.map(|ignore_name| ignore_name != member).unwrap_or(true)
+                    ignore_name.map_or(true, |ignore_name| ignore_name != member)
                         && !member_names_discovered.contains(member)
                 })
                 .join(", ");

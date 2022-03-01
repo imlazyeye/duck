@@ -68,7 +68,7 @@ impl Switch {
 }
 impl From<Switch> for Statement {
     fn from(switch: Switch) -> Self {
-        Statement::Switch(switch)
+        Self::Switch(switch)
     }
 }
 impl IntoStatementBox for Switch {}

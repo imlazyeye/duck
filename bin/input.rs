@@ -17,6 +17,19 @@ pub enum Commands {
         /// directory if not provided.
         #[clap(long, parse(from_os_str))]
         path: Option<PathBuf>,
+
+        /// Prevents duck from returning a non-zero status due to lint warnings.
+        #[clap(long)]
+        allow_warnings: bool,
+
+        /// Prevents duck from returning a non-zero status due to lint denials.
+        #[clap(long)]
+        allow_denials: bool,
+
+        /// Prevents duck from returning a non-zero status due to gml parsing errors, or errors
+        /// accessing the projects files.
+        #[clap(long)]
+        allow_errors: bool,
     },
     /// Creates a new configuration file in the current directory.
     NewConfig,

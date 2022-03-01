@@ -1,19 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use duck::{parsing::TokenPilot, Config, DuckTask};
+use duck::{Config, DuckTask};
 use std::{path::Path, sync::Arc};
 
 const DEMO_PROJECT_PATH: &str = "../SwordAndField";
 
 pub fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("10k Samples Lex", |b| {
-        b.to_async(tokio::runtime::Runtime::new().unwrap()).iter(|| {
-            tokio::task::spawn(async {
-                let mut pilot = TokenPilot::new(sample_code());
-                while pilot.take().is_ok() {}
-            })
-        })
-    });
-
     c.bench_function("Demo Full Process", |b| {
         b.to_async(tokio::runtime::Runtime::new().unwrap()).iter(|| async {
             let config_arc = Arc::new(Config::default());
@@ -41,6 +32,7 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);
 
+#[allow(dead_code)]
 fn sample_code() -> &'static str {
     "#macro foo:FOO bar
 enum Foo {

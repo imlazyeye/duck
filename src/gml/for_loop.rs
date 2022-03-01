@@ -30,7 +30,7 @@ impl ForLoop {
 }
 impl From<ForLoop> for Statement {
     fn from(for_loop: ForLoop) -> Self {
-        Statement::ForLoop(for_loop)
+        Self::ForLoop(for_loop)
     }
 }
 impl IntoStatementBox for ForLoop {}

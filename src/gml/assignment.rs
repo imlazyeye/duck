@@ -18,7 +18,7 @@ impl Assignment {
 }
 impl From<Assignment> for Expression {
     fn from(assignment: Assignment) -> Self {
-        Expression::Assignment(assignment)
+        Self::Assignment(assignment)
     }
 }
 impl IntoExpressionBox for Assignment {}
