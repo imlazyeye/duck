@@ -4,6 +4,8 @@ use crate::{
     utils::Span,
 };
 
+use super::{IntoStatementBox, ParseVisitor, Statement};
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     FunctionDeclaration(Option<String>, Vec<Parameter>, Option<Constructor>, StatementBox, bool),
@@ -148,6 +150,21 @@ impl ExpressionBox {
     }
     pub fn span(&self) -> Span {
         self.1
+    }
+}
+impl From<ExpressionBox> for Statement {
+    fn from(expr: ExpressionBox) -> Self {
+        Statement::Expression(expr)
+    }
+}
+impl IntoStatementBox for ExpressionBox {}
+impl ParseVisitor for ExpressionBox {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, expression_visitor: E) {
+        self.expression().visit_child_expressions(expression_visitor)
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, statement_visitor: S) {
+        self.expression().visit_child_statements(statement_visitor)
     }
 }
 

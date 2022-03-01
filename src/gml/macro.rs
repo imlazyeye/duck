@@ -1,4 +1,4 @@
-use crate::prelude::{IntoStatementBox, Statement};
+use crate::prelude::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of a macro declaration in gml.
 ///
@@ -44,3 +44,7 @@ impl From<Macro> for Statement {
     }
 }
 impl IntoStatementBox for Macro {}
+impl ParseVisitor for Macro {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+}

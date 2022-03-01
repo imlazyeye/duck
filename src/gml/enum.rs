@@ -1,6 +1,6 @@
 use crate::{
     parsing::ExpressionBox,
-    prelude::{IntoStatementBox, Statement},
+    prelude::{IntoStatementBox, ParseVisitor, Statement, StatementBox},
 };
 
 /// Representation of an enum.
@@ -47,6 +47,18 @@ impl From<Enum> for Statement {
     }
 }
 impl IntoStatementBox for Enum {}
+impl ParseVisitor for Enum {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        self.members
+            .iter()
+            .flat_map(|member| member.initializer())
+            .for_each(|initializer| {
+                expression_visitor(initializer);
+            })
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+}
 
 /// An individual entry into a [Enum].
 #[derive(Debug, PartialEq, Clone)]

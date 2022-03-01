@@ -1,4 +1,4 @@
-use crate::prelude::{ExpressionBox, IntoStatementBox, Statement, StatementBox};
+use crate::prelude::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of an if statement in gml.
 ///
@@ -29,7 +29,7 @@ impl If {
             condition,
             body,
             else_statement: None,
-            uses_then_keyword: true,
+            uses_then_keyword: false,
         }
     }
 
@@ -39,7 +39,7 @@ impl If {
             condition,
             body,
             else_statement: Some(else_statement),
-            uses_then_keyword: true,
+            uses_then_keyword: false,
         }
     }
 
@@ -63,3 +63,15 @@ impl From<If> for Statement {
     }
 }
 impl IntoStatementBox for If {}
+impl ParseVisitor for If {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        expression_visitor(&self.condition);
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+        statement_visitor(&self.body);
+        if let Some(else_statement) = &self.else_statement {
+            statement_visitor(else_statement);
+        }
+    }
+}

@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, DoUntil, Enum, ForLoop, Globalvar, Identifier, If, LocalVariable,
-        LocalVariableSeries, Macro, RepeatLoop, Switch, SwitchCase, TryCatch, WithLoop,
+        Assignment, AssignmentOperator, Block, DoUntil, Enum, ForLoop, Globalvar, Identifier, If, LocalVariable,
+        LocalVariableSeries, Macro, RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
     },
     parsing::{expression::EvaluationOperator, ParseError},
     utils::Span,
@@ -122,7 +122,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.pilot.match_take_repeating(Token::SemiColon); // todo: maybe lint this in the future
-        Ok(Statement::EnumDeclaration(gml_enum).into_box(self.span(start)))
+        Ok(gml_enum.into_statement_box(self.span(start)))
     }
 
     fn try_catch(&mut self) -> Result<StatementBox, ParseError> {
@@ -246,7 +246,7 @@ impl<'a> Parser<'a> {
                 _ => return Err(ParseError::UnexpectedToken(self.span(start), self.pilot.take()?)),
             }
         }
-        Ok(Statement::Switch(Switch::new(expression, members, default)).into_box(self.span(start)))
+        Ok(Switch::new(expression, members, default).into_statement_box(self.span(start)))
     }
 
     fn block(&mut self) -> Result<StatementBox, ParseError> {
@@ -258,7 +258,7 @@ impl<'a> Parser<'a> {
         }
         self.pilot.require(Token::RightBrace)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Block(statements).into_box(self.span(start)))
+        Ok(Block::new(statements).into_statement_box(self.span(start)))
     }
 
     fn return_statement(&mut self) -> Result<StatementBox, ParseError> {
@@ -266,28 +266,28 @@ impl<'a> Parser<'a> {
         self.pilot.require(Token::Return)?;
         let expression = self.expression().ok();
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Return(expression).into_box(self.span(start)))
+        Ok(Return::new(expression).into_statement_box(self.span(start)))
     }
 
     fn break_statement(&mut self) -> Result<StatementBox, ParseError> {
         let start = self.pilot.cursor();
         self.pilot.require(Token::Break)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Break.into_box(self.span(start)))
+        Ok(Statement::Break.into_statement_box(self.span(start)))
     }
 
     fn continue_statement(&mut self) -> Result<StatementBox, ParseError> {
         let start = self.pilot.cursor();
         self.pilot.require(Token::Continue)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Continue.into_box(self.span(start)))
+        Ok(Statement::Continue.into_statement_box(self.span(start)))
     }
 
     fn exit(&mut self) -> Result<StatementBox, ParseError> {
         let start = self.pilot.cursor();
         self.pilot.require(Token::Exit)?;
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Exit.into_box(self.span(start)))
+        Ok(Statement::Exit.into_statement_box(self.span(start)))
     }
 
     fn globalvar_declaration(&mut self) -> Result<StatementBox, ParseError> {
@@ -354,7 +354,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.pilot.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Expression(expression).into_box(self.span(start)))
+        Ok(Statement::Expression(expression).into_statement_box(self.span(start)))
     }
 
     pub(super) fn expression(&mut self) -> Result<ExpressionBox, ParseError> {

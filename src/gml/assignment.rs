@@ -1,4 +1,4 @@
-use crate::prelude::{Expression, ExpressionBox, IntoExpressionBox};
+use crate::prelude::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor};
 
 /// Representation of an assignment expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -22,6 +22,10 @@ impl From<Assignment> for Expression {
     }
 }
 impl IntoExpressionBox for Assignment {}
+impl ParseVisitor for Assignment {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
+    fn visit_child_statements<S: FnMut(&crate::prelude::StatementBox)>(&self, _statement_visitor: S) {}
+}
 
 /// The various assignment operations supported in gml.
 ///
@@ -29,14 +33,24 @@ impl IntoExpressionBox for Assignment {}
 #[derive(Debug, PartialEq, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum AssignmentOperator {
+    /// =
     Equal,
+    /// +=
     PlusEqual,
+    /// -=
     MinusEqual,
+    /// *=
     StarEqual,
+    /// /=
     SlashEqual,
+    /// ^=
     XorEqual,
+    /// |=
     OrEqual,
+    /// &=
     AndEqual,
+    /// ??=
     NullCoalecenceEqual,
+    /// %=
     ModEqual,
 }

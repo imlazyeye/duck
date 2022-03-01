@@ -1,17 +1,15 @@
 use crate::{
-    gml::{Assignment, AssignmentOperator, Identifier},
+    gml::{Assignment, AssignmentOperator, Block, Identifier, Return},
     parsing::{
         expression::{
             Constructor, EqualityOperator, EvaluationOperator, Expression, Literal, LogicalOperator, Parameter,
             PostfixOperator, Scope, UnaryOperator,
         },
         parser::Parser,
-        statement::Statement,
     },
-    prelude::IntoExpressionBox,
+    prelude::{IntoExpressionBox, IntoStatementBox},
 };
 use colored::Colorize;
-// use pretty_assertions::assert_eq;
 
 fn harness_expr(source: &str, expected: impl Into<Expression>) {
     let expected = expected.into();
@@ -38,7 +36,7 @@ fn function() {
             Some("foo".into()),
             vec![],
             None,
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             false,
         ),
     )
@@ -52,7 +50,7 @@ fn static_function() {
             Some("foo".into()),
             vec![],
             None,
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             true,
         ),
     )
@@ -66,7 +64,7 @@ fn function_with_parameters() {
             Some("foo".into()),
             vec![Parameter("bar".into(), None), Parameter("baz".into(), None)],
             None,
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             false,
         ),
     )
@@ -83,7 +81,7 @@ fn default_parameters() {
                 Parameter("baz".into(), None),
             ],
             None,
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             false,
         ),
     )
@@ -93,7 +91,7 @@ fn default_parameters() {
 fn anonymous_function() {
     harness_expr(
         "function() {}",
-        Expression::FunctionDeclaration(None, vec![], None, Statement::Block(vec![]).lazy_box(), false),
+        Expression::FunctionDeclaration(None, vec![], None, Block::new(vec![]).into_lazy_box(), false),
     )
 }
 
@@ -105,7 +103,7 @@ fn constructor() {
             Some("foo".into()),
             vec![],
             Some(Constructor(None)),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             false,
         ),
     )
@@ -121,7 +119,7 @@ fn inheritance() {
             Some(Constructor(Some(
                 Expression::Call(Identifier::new("bar").into_lazy_box(), vec![], false).lazy_box(),
             ))),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             false,
         ),
     )
@@ -135,7 +133,7 @@ fn function_return_no_semi_colon() {
             None,
             vec![],
             None,
-            Statement::Block(vec![Statement::Return(None).lazy_box()]).lazy_box(),
+            Block::new(vec![Return::new(None).into_lazy_box()]).into_lazy_box(),
             false,
         ),
     )

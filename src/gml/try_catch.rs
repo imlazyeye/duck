@@ -1,11 +1,15 @@
-use crate::prelude::{ExpressionBox, IntoStatementBox, Statement, StatementBox};
+use crate::prelude::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of a try/catch/finally block in gml.
 #[derive(Debug, PartialEq, Clone)]
 pub struct TryCatch {
+    /// The statement to try.
     pub try_body: StatementBox,
+    /// The capture of the error in the catch.
     pub catch_expression: ExpressionBox,
+    /// The statement to run on catch.
     pub catch_body: StatementBox,
+    /// The finally body, if any.
     pub finally_body: Option<StatementBox>,
 }
 impl TryCatch {
@@ -40,3 +44,16 @@ impl From<TryCatch> for Statement {
     }
 }
 impl IntoStatementBox for TryCatch {}
+impl ParseVisitor for TryCatch {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        expression_visitor(&self.catch_expression);
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+        statement_visitor(&self.try_body);
+        statement_visitor(&self.catch_body);
+        if let Some(finally_stmt) = &self.finally_body {
+            statement_visitor(finally_stmt);
+        }
+    }
+}

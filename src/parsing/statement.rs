@@ -1,7 +1,7 @@
 use crate::{
     gml::{
-        DoUntil, Enum, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Switch, TryCatch, WhileLoop,
-        WithLoop,
+        Block, DoUntil, Enum, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Return, Switch, TryCatch,
+        WhileLoop, WithLoop,
     },
     parsing::ExpressionBox,
     utils::Span,
@@ -34,8 +34,10 @@ pub enum Statement {
     If(If),
     /// A switch statement.
     Switch(Switch),
-    Block(Vec<StatementBox>),
-    Return(Option<ExpressionBox>),
+    /// A block, aka a series of statements.
+    Block(Block),
+    /// A return statement, with an optional return value.
+    Return(Return),
     /// A break statement (from within a switch statement).
     Break,
     /// A continue statement (from within a continue statement).
@@ -51,157 +53,72 @@ pub enum Statement {
     /// ```
     Expression(ExpressionBox),
 }
+impl IntoStatementBox for Statement {}
 impl Statement {
-    pub fn into_box(self, span: Span) -> StatementBox {
-        StatementBox(Box::new(self), span)
-    }
-
-    pub fn lazy_box(self) -> StatementBox {
-        StatementBox(Box::new(self), Span::default())
-    }
-
-    pub fn visit_child_statements<S>(&self, mut statement_visitor: S)
+    /// Runs the given visitor over all of the statements contained in this Statement.
+    pub fn visit_child_statements<S>(&self, statement_visitor: S)
     where
         S: FnMut(&StatementBox),
     {
         match self {
-            Statement::TryCatch(TryCatch {
-                try_body,
-                catch_body,
-                finally_body,
-                ..
-            }) => {
-                statement_visitor(try_body);
-                statement_visitor(catch_body);
-                if let Some(finally_stmt) = finally_body {
-                    statement_visitor(finally_stmt);
-                }
-            }
-            Statement::ForLoop(ForLoop {
-                initializer,
-                iterator,
-                body,
-                ..
-            }) => {
-                statement_visitor(initializer);
-                statement_visitor(iterator);
-                statement_visitor(body);
-            }
-            Statement::WithLoop(WithLoop { body, .. })
-            | Statement::RepeatLoop(RepeatLoop { body, .. })
-            | Statement::DoUntil(DoUntil { body, .. })
-            | Statement::WhileLoop(WhileLoop { body, .. }) => {
-                statement_visitor(body);
-            }
-            Statement::If(If {
-                body, else_statement, ..
-            }) => {
-                statement_visitor(body);
-                if let Some(else_statement) = else_statement {
-                    statement_visitor(else_statement);
-                }
-            }
-            Statement::Switch(switch) => {
-                for case in switch.cases() {
-                    for statement in case.iter_body_statements() {
-                        statement_visitor(statement);
-                    }
-                }
-                if let Some(default) = switch.default_case() {
-                    for statement in default.iter() {
-                        statement_visitor(statement);
-                    }
-                }
-            }
-            Statement::Block(statements) => {
-                for statement in statements {
-                    statement_visitor(statement);
-                }
-            }
-            Statement::MacroDeclaration(_)
-            | Statement::EnumDeclaration(_)
-            | Statement::GlobalvarDeclaration(_)
-            | Statement::LocalVariableSeries(_)
-            | Statement::Return(_)
-            | Statement::Expression(_)
-            | Statement::Break
-            | Statement::Continue
-            | Statement::Exit => {}
+            Statement::MacroDeclaration(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::EnumDeclaration(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::GlobalvarDeclaration(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::LocalVariableSeries(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::TryCatch(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::ForLoop(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::WithLoop(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::RepeatLoop(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::DoUntil(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::WhileLoop(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::If(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::Switch(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::Block(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::Return(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::Expression(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::Break | Statement::Continue | Statement::Exit => {}
         }
     }
 
-    pub fn visit_child_expressions<E>(&self, mut expression_visitor: E)
+    /// Runs the given visitor over all of the expressions contained in this Expression.
+    pub fn visit_child_expressions<E>(&self, expression_visitor: E)
     where
         E: FnMut(&ExpressionBox),
     {
         match self {
-            Statement::EnumDeclaration(gml_enum) => {
-                gml_enum
-                    .members
-                    .iter()
-                    .flat_map(|member| member.initializer())
-                    .for_each(|initializer| {
-                        expression_visitor(initializer);
-                    });
-            }
-            Statement::GlobalvarDeclaration(_) => {}
-            Statement::LocalVariableSeries(LocalVariableSeries { declarations }) => {
-                for declaration in declarations.iter() {
-                    expression_visitor(declaration.inner());
-                }
-            }
-            Statement::Switch(switch) => {
-                expression_visitor(switch.matching_value());
-                for case in switch.cases() {
-                    expression_visitor(case.identity());
-                }
-            }
-            Statement::Return(value) => {
-                if let Some(value) = value {
-                    expression_visitor(value);
-                }
-            }
-            Statement::TryCatch(TryCatch {
-                catch_expression: expression,
-                ..
-            })
-            | Statement::ForLoop(ForLoop {
-                condition: expression, ..
-            })
-            | Statement::WithLoop(WithLoop {
-                identity: expression, ..
-            })
-            | Statement::RepeatLoop(RepeatLoop {
-                tick_counts: expression,
-                ..
-            })
-            | Statement::DoUntil(DoUntil {
-                condition: expression, ..
-            })
-            | Statement::WhileLoop(WhileLoop {
-                condition: expression, ..
-            })
-            | Statement::Expression(expression)
-            | Statement::If(If {
-                condition: expression, ..
-            }) => {
-                expression_visitor(expression);
-            }
-            Statement::MacroDeclaration(_)
-            | Statement::Block(_)
-            | Statement::Break
-            | Statement::Continue
-            | Statement::Exit => {}
+            Statement::MacroDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::EnumDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::GlobalvarDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::LocalVariableSeries(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::TryCatch(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::ForLoop(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::WithLoop(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::RepeatLoop(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::DoUntil(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::WhileLoop(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::If(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::Switch(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::Block(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::Return(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::Expression(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::Break | Statement::Continue | Statement::Exit => {}
         }
     }
 }
 
+/// A wrapper around a Statement. Serves a few purposes:
+///
+/// 1. Prevents infinite-sizing issues on [Statement] (type T cannot itself directly hold another T)
+/// 2. Contains the [Span] that describes where this statement came from
+/// 3. In the future, will hold static-analysis data
 #[derive(Debug, PartialEq, Clone)]
-pub struct StatementBox(pub Box<Statement>, pub Span);
+pub struct StatementBox(Box<Statement>, Span);
 impl StatementBox {
+    /// Returns a reference to the inner statement.
     pub fn statement(&self) -> &Statement {
         self.0.as_ref()
     }
+    /// Returns a reference to the [Span] this statement originates from.
     pub fn span(&self) -> Span {
         self.1
     }
@@ -224,4 +141,13 @@ pub trait IntoStatementBox: Sized + Into<Statement> {
     {
         self.into_statement_box(Default::default())
     }
+}
+
+/// Used to visit the children of a Statement as we recurse down the tree.
+pub trait ParseVisitor {
+    /// Visits all expressions this T contains.
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, expression_visitor: E);
+
+    /// Visits all statements this T contains.
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, statement_visitor: S);
 }

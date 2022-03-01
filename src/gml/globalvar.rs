@@ -1,4 +1,4 @@
-use crate::prelude::{IntoStatementBox, Statement};
+use crate::prelude::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of a globalvar in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -18,3 +18,7 @@ impl From<Globalvar> for Statement {
     }
 }
 impl IntoStatementBox for Globalvar {}
+impl ParseVisitor for Globalvar {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+}

@@ -1,7 +1,7 @@
 use crate::{
     gml::{
-        Assignment, AssignmentOperator, DoUntil, Enum, EnumMember, ForLoop, Globalvar, Identifier, If, LocalVariable,
-        LocalVariableSeries, Macro, RepeatLoop, Switch, SwitchCase, TryCatch, WithLoop,
+        Assignment, AssignmentOperator, Block, DoUntil, Enum, EnumMember, ForLoop, Globalvar, Identifier, If,
+        LocalVariable, LocalVariableSeries, Macro, RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
     },
     parsing::{
         expression::{EqualityOperator, Expression, Literal, PostfixOperator, Scope},
@@ -43,7 +43,7 @@ fn config_macro() {
 fn two_macro_declaration() {
     harness_stmt(
         "{ \n#macro foo 0\n#macro bar 0\n }",
-        Statement::Block(vec![
+        Block::new(vec![
             Macro::new("foo", "0").into_lazy_box(),
             Macro::new("bar", "0").into_lazy_box(),
         ]),
@@ -161,7 +161,7 @@ fn local_variable_trailling_comma() {
 fn local_variable_series_ending_without_marker() {
     harness_stmt(
         "{ var i = 0 j = 0 }",
-        Statement::Block(vec![
+        Block::new(vec![
             LocalVariableSeries::new(vec![LocalVariable::Initialized(
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
@@ -179,7 +179,7 @@ fn local_variable_series_ending_without_marker() {
                 )
                 .into_lazy_box(),
             )
-            .lazy_box(),
+            .into_lazy_box(),
         ]),
     )
 }
@@ -189,9 +189,9 @@ fn try_catch() {
     harness_stmt(
         "try {} catch (e) {}",
         TryCatch::new(
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -201,10 +201,10 @@ fn try_catch_finally() {
     harness_stmt(
         "try {} catch (e) {} finally {}",
         TryCatch::new_with_finally(
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -232,8 +232,8 @@ fn for_loop() {
             Statement::Expression(
                 Expression::Postfix(Identifier::new("i").into_lazy_box(), PostfixOperator::Increment).lazy_box(),
             )
-            .lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            .into_lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
         ),
     );
 }
@@ -244,7 +244,7 @@ fn with() {
         "with foo {}",
         WithLoop::new(
             Identifier::new("foo").into_lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -255,7 +255,7 @@ fn repeat() {
         "repeat 1 {}",
         RepeatLoop::new(
             Expression::Literal(Literal::Real(1.0)).lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -265,7 +265,7 @@ fn do_until() {
     harness_stmt(
         "do { foo += 1; } until foo == 1;",
         DoUntil::new(
-            Statement::Block(vec![
+            Block::new(vec![
                 Statement::Expression(
                     Expression::Assignment(Assignment::new(
                         Identifier::new("foo").into_lazy_box(),
@@ -274,9 +274,9 @@ fn do_until() {
                     ))
                     .lazy_box(),
                 )
-                .lazy_box(),
+                .into_lazy_box(),
             ])
-            .lazy_box(),
+            .into_lazy_box(),
             Expression::Equality(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
@@ -297,7 +297,7 @@ fn while_loop() {
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
             .lazy_box(),
-            Statement::Block(vec![
+            Block::new(vec![
                 Statement::Expression(
                     Expression::Assignment(Assignment::new(
                         Identifier::new("foo").into_lazy_box(),
@@ -306,9 +306,9 @@ fn while_loop() {
                     ))
                     .lazy_box(),
                 )
-                .lazy_box(),
+                .into_lazy_box(),
             ])
-            .lazy_box(),
+            .into_lazy_box(),
         ),
     )
 }
@@ -324,7 +324,7 @@ fn if_statement() {
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
             .lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -340,7 +340,7 @@ fn if_then() {
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
             .lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
             None,
         ),
     )
@@ -357,8 +357,8 @@ fn if_else() {
                 Expression::Literal(Literal::Real(1.0)).lazy_box(),
             )
             .lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
-            Statement::Block(vec![]).lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
+            Block::new(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -379,7 +379,7 @@ fn switch_with_case() {
             Identifier::new("foo").into_lazy_box(),
             vec![SwitchCase::new(
                 Identifier::new("bar").into_lazy_box(),
-                vec![Statement::Break.lazy_box()],
+                vec![Statement::Break.into_lazy_box()],
             )],
             None,
         ),
@@ -396,7 +396,7 @@ fn switch_case_fallthrough() {
                 SwitchCase::new(Identifier::new("bar").into_lazy_box(), vec![]),
                 SwitchCase::new(
                     Identifier::new("baz").into_lazy_box(),
-                    vec![Statement::Break.lazy_box()],
+                    vec![Statement::Break.into_lazy_box()],
                 ),
             ],
             None,
@@ -411,34 +411,31 @@ fn switch_default() {
         Switch::new(
             Identifier::new("foo").into_lazy_box(),
             vec![],
-            Some(vec![Statement::Break.lazy_box()]),
+            Some(vec![Statement::Break.into_lazy_box()]),
         ),
     )
 }
 
 #[test]
 fn empty_block() {
-    harness_stmt("{}", Statement::Block(vec![]))
+    harness_stmt("{}", Block::new(vec![]))
 }
 
 #[test]
 fn block() {
-    harness_stmt(
-        "{ return; }",
-        Statement::Block(vec![Statement::Return(None).lazy_box()]),
-    )
+    harness_stmt("{ return; }", Block::new(vec![Return::new(None).into_lazy_box()]))
 }
 
 #[test]
 fn return_statement() {
-    harness_stmt("return;", Statement::Return(None))
+    harness_stmt("return;", Return::new(None))
 }
 
 #[test]
 fn return_with_value() {
     harness_stmt(
         "return 0;",
-        Statement::Return(Some(Expression::Literal(Literal::Real(0.0)).lazy_box())),
+        Return::new(Some(Expression::Literal(Literal::Real(0.0)).lazy_box())),
     )
 }
 

@@ -1,4 +1,4 @@
-use crate::prelude::{Expression, IntoExpressionBox};
+use crate::prelude::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
 
 /// Representation of an identifier in gml, which could be any variable.
 #[derive(Debug, PartialEq, Clone)]
@@ -18,3 +18,8 @@ impl From<Identifier> for Expression {
     }
 }
 impl IntoExpressionBox for Identifier {}
+impl ParseVisitor for Identifier {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+}

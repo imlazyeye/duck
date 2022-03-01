@@ -1,5 +1,4 @@
-use super::{Assignment, Identifier};
-use crate::prelude::{Expression, ExpressionBox, IntoExpressionBox, IntoStatementBox, Span, Statement};
+use crate::prelude::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of a local variable declaration.
 ///
@@ -22,6 +21,15 @@ impl From<LocalVariableSeries> for Statement {
     }
 }
 impl IntoStatementBox for LocalVariableSeries {}
+impl ParseVisitor for LocalVariableSeries {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        for declaration in self.declarations.iter() {
+            expression_visitor(declaration.inner());
+        }
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+}
 
 /// Representation of a local variable in gml.
 ///
@@ -53,7 +61,7 @@ impl LocalVariable {
         }
     }
 
-    // Returns a reference to the inner expression box.
+    /// Returns a reference to the inner expression box.
     pub fn inner(&self) -> &ExpressionBox {
         match self {
             LocalVariable::Uninitialized(e) => e,

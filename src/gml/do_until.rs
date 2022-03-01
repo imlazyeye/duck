@@ -1,4 +1,4 @@
-use crate::prelude::{ExpressionBox, IntoStatementBox, Statement, StatementBox};
+use crate::prelude::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of a do/until loop in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -20,3 +20,12 @@ impl From<DoUntil> for Statement {
     }
 }
 impl IntoStatementBox for DoUntil {}
+impl ParseVisitor for DoUntil {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        expression_visitor(&self.condition);
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+        statement_visitor(&self.body);
+    }
+}

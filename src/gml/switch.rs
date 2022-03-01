@@ -1,6 +1,6 @@
 use crate::{
     parsing::{Expression, ExpressionBox, Scope, StatementBox},
-    prelude::{IntoStatementBox, Statement},
+    prelude::{IntoStatementBox, ParseVisitor, Statement},
 };
 
 /// Representation of a gml switch statement.
@@ -72,6 +72,27 @@ impl From<Switch> for Statement {
     }
 }
 impl IntoStatementBox for Switch {}
+impl ParseVisitor for Switch {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        expression_visitor(self.matching_value());
+        for case in self.cases() {
+            expression_visitor(case.identity());
+        }
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+        for case in self.cases() {
+            for statement in case.iter_body_statements() {
+                statement_visitor(statement);
+            }
+        }
+        if let Some(default) = self.default_case() {
+            for statement in default.iter() {
+                statement_visitor(statement);
+            }
+        }
+    }
+}
 
 /// Representation of a single switch case in a [GmlSwitch].
 ///
