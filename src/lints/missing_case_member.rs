@@ -39,9 +39,9 @@ impl LateStatementPass for MissingCaseMember {
     ) {
         if let Statement::Switch(switch) = statement {
             // Ignore switches that don't pertain to this lint
-            if switch.cases().is_empty() || !switch.all_case_members_dot_access()
-            // || switch.default_case().is_some() // TODO: detect crashing?
-            {
+            // TODO: Check for user supplied crash calls here, and enable the lint if they're in the default
+            // body!
+            if switch.cases().is_empty() || !switch.all_case_members_dot_access() || switch.default_case().is_some() {
                 return;
             }
 
