@@ -502,20 +502,8 @@ impl<'a> Iterator for Lexer<'a> {
 }
 
 pub(super) static MISC_GML_CONSTANTS: Lazy<FnvHashSet<&'static str>> =
-    Lazy::new(|| serde_json::from_str(&MISC_GML_CONSTANT_FILE_DATA).unwrap());
-
-static MISC_GML_CONSTANT_FILE_DATA: Lazy<String> = Lazy::new(|| {
-    std::fs::read_to_string(std::env::current_dir().unwrap().join("assets/misc_gml_constants.json")).unwrap()
-});
+    Lazy::new(|| serde_json::from_str(include_str!("../../assets/misc_gml_constants.json")).unwrap());
 
 #[allow(dead_code)]
 pub(super) static MISC_GML_VARIABLES: Lazy<FnvHashSet<&'static str>> =
-    Lazy::new(|| serde_json::from_str(&MISC_GML_VARIABLES_FILE_DATA).unwrap());
-
-#[allow(dead_code)]
-static MISC_GML_VARIABLES_FILE_DATA: Lazy<String> = Lazy::new(|| {
-    std::fs::read_to_string(dbg!(
-        std::env::current_dir().unwrap().join("assets/misc_gml_variables.json")
-    ))
-    .unwrap()
-});
+    Lazy::new(|| serde_json::from_str(include_str!("../../assets/misc_gml_variables.json")).unwrap());

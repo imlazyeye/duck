@@ -90,8 +90,7 @@ impl DuckOperation {
         let statement = statement_box.statement();
         let span = statement_box.span();
 
-        // @early statement calls. Do not remove this comment, it used for our
-        // autogeneration!
+        // @early statement calls. Do not remove this comment!
         Self::run_early_lint_on_statement::<Deprecated>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<Exit>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<MissingDefaultCase>(config, statement, span, reports);
@@ -103,8 +102,7 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<TryCatch>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<VarPrefixViolation>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<WithLoop>(config, statement, span, reports);
-        // @end early statement calls. Do not remove this comment, it used for our
-        // autogeneration!
+        // @end early statement calls. Do not remove this comment!
 
         #[allow(clippy::single_match)]
         match statement {
@@ -134,8 +132,7 @@ impl DuckOperation {
         let expression = expression_box.expression();
         let span = expression_box.span();
 
-        // @early expression calls. Do not remove this comment, it used for our
-        // autogeneration!
+        // @early expression calls. Do not remove this comment!
         Self::run_early_lint_on_expression::<AccessorAlternative>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<AnonymousConstructor>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<AssignmentToCall>(config, expression, span, reports);
@@ -152,8 +149,7 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<SuspicousConstantUsage>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<Todo>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<TooManyArguments>(config, expression, span, reports);
-        // @end early expression calls. Do not remove this comment, it used for our
-        // autogeneration!
+        // @end early expression calls. Do not remove this comment!
 
         // Recurse...
         expression.visit_child_statements(|stmt| Self::process_statement_early(config, stmt, scope_builder, reports));
@@ -174,11 +170,9 @@ impl DuckOperation {
         let statement = statement_box.statement();
         let span = statement_box.span();
 
-        // @late statement calls. Do not remove this comment, it used for our
-        // autogeneration!
+        // @late statement calls. Do not remove this comment!
         Self::run_late_lint_on_statement::<MissingCaseMember>(config, statement, environment, span, reports);
-        // @end late statement calls. Do not remove this comment, it used for our
-        // autogeneration!
+        // @end late statement calls. Do not remove this comment!
 
         // Recurse...
         statement.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, environment, reports));
@@ -201,9 +195,8 @@ impl DuckOperation {
         #[allow(unused_variables)]
         let span = expression_box.span();
 
-        // @late expression calls. Do not remove this comment, it used for our
-        // autogeneration! @end late expression calls. Do not remove this
-        // comment, it used for our autogeneration!
+        // @late expression calls. Do not remove this comment!
+        // @end late expression calls. Do not remove this comment!
 
         // Recurse...
         expression.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, environment, reports));

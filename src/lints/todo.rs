@@ -25,12 +25,10 @@ impl Lint for Todo {
 
 impl EarlyExpressionPass for Todo {
     fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
-        if let Some(todo_keyword) = config.todo_keyword() {
-            if let Expression::Call(caller, _, _) = expression {
-                if let Expression::Identifier(identifier) = caller.expression() {
-                    if &identifier.name == todo_keyword {
-                        reports.push(Self::generate_report(span))
-                    }
+        if let Expression::Call(caller, _, _) = expression {
+            if let Expression::Identifier(identifier) = caller.expression() {
+                if &identifier.name == &config.todo_keyword {
+                    reports.push(Self::generate_report(span))
                 }
             }
         }

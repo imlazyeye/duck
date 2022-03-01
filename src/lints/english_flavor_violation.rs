@@ -35,12 +35,7 @@ impl EarlyExpressionPass for EnglishFlavorViolation {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        let english_flavor = if let Some(english_flavor) = config.english_flavor() {
-            english_flavor
-        } else {
-            // Todo: we should avoid this somehow
-            return;
-        };
+        let english_flavor = &config.english_flavor;
         if let Expression::Call(caller, _, _) = expression {
             if let Expression::Identifier(identifier) = caller.expression() {
                 match english_flavor {

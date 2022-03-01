@@ -1,7 +1,7 @@
 use clap::Parser;
 use colored::Colorize;
 use duck::{utils::FilePreviewUtil, Config, Duck};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 mod input;
 pub use input::*;
@@ -11,21 +11,32 @@ extern crate log;
 
 #[tokio::main]
 async fn main() {
-    color_eyre::install().unwrap();
     let input = Cli::parse();
     let status_code = match input.command {
-        Commands::Lint {
+        Commands::Run {
             path,
             allow_warnings,
-            allow_denials,
-            allow_errors: allow_parse_errors,
-        } => run_lint(path, allow_warnings, allow_denials, allow_parse_errors).await,
-        Commands::NewConfig => new_config(),
+            allow_errors,
+            allow_duck_errors,
+            color,
+        } => run_lint(path, allow_warnings, allow_errors, allow_duck_errors, color).await,
+        Commands::NewConfig { template } => new_config(template.unwrap_or(ConfigTemplate::Default)),
     };
     std::process::exit(status_code);
 }
 
-async fn run_lint(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bool, allow_errors: bool) -> i32 {
+async fn run_lint(
+    path: Option<PathBuf>,
+    allow_warnings: bool,
+    allow_denials: bool,
+    allow_errors: bool,
+    color: bool,
+) -> i32 {
+    // Force colors?
+    if color {
+        std::env::set_var("CLICOLOR_FORCE", "1");
+    }
+
     // Run duck
     let timer = std::time::Instant::now();
     let current_directory =
@@ -100,8 +111,18 @@ async fn run_lint(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bo
     }
 }
 
-fn new_config() -> i32 {
-    todo!("lol sorry make it yourself");
+fn new_config(template: ConfigTemplate) -> i32 {
+    let config_path = std::env::current_dir()
+        .expect("Cannot access the current directory!")
+        .join(".duck.toml");
+    let config: Config = template.into();
+    if Path::exists(&config_path) {
+        println!("You already have a config in this directory! Please remove it before creating a new one.");
+    } else {
+        std::fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
+        println!("Created a new configuration file at {:?}", config_path);
+    }
+    0
 }
 
 enum ConfigUsage {

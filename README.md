@@ -65,6 +65,8 @@ Tags are a great way to enable lints on things you don't want to _fully_ ban, bu
 
 ## Examples
 
+TODO: Addmitedly, this is just me being proud, and this might not need to be here.
+
 Let's use one of `duck`'s more powerful lints as an example: `missing_case_member`.
 
 ```gml

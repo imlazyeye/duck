@@ -11,9 +11,15 @@ for root, dirs, files in os.walk('../src/lints/'):
     for file_name in files:
         lint_file = open(os.path.join(root, file_name)).read()
         lint_name = re.search(r'impl Lint for (\w+)', lint_file).group(1)
+        lint_tag = re.search(
+            r'fn tag\(\) -> &\'static str \{\n\s+(.+)', lint_file).group(1)
+        lint_level = re.search(
+            'fn default_level\(\) -> LintLevel \{\n\s+(.+)', lint_file).group(1)
         lints.append({
             'name': lint_name,
             'file_name':  file_name.replace('.rs', ''),
+            'tag': lint_tag,
+            'level': lint_level,
             'visits_expression_early': 'impl EarlyExpressionPass' in lint_file,
             'visits_statement_early': 'impl EarlyStatementPass' in lint_file,
             'visits_expression_late': 'impl LateExpressionPass' in lint_file,
@@ -106,4 +112,22 @@ for operation in opreations:
 
 # Flush to the file
 open('../src/duck_operation.rs', 'w').write(duck_operation)
+
+# Now update the full config template...
+template = open('../bin/input.rs', 'r').read()
+search = re.search(
+    r'( +)// @tags\n((\n|.)+?) +// @end tags'.format(), template)
+tabs = search.group(1)
+old_call = search.group(2)
+new_call = ''
+for lint in lints:
+    new_call += '{tabs}({tag}.into(), {level}),\n'.format(
+        tabs=tabs,
+        tag=lint['tag'],
+        level=lint['level']
+    )
+template = template.replace(old_call, new_call)
+
+# Flush to the file
+open('../bin/input.rs', 'w').write(template)
 print("Finished updating lint calls!")

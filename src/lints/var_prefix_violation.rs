@@ -31,13 +31,13 @@ impl EarlyStatementPass for VarPrefixViolation {
         if let Statement::LocalVariableSeries(LocalVariableSeries { declarations }) = statement {
             for local_variable in declarations.iter() {
                 let name = local_variable.name();
-                if config.var_prefixes() && name.len() > 1 && !name.starts_with('_') {
+                if config.var_prefixes && name.len() > 1 && !name.starts_with('_') {
                     reports.push(Self::generate_report_with(
                         span,
                         "Local variable without underscore prefix",
                         [format!("Change `{name}` to `_{name}`")],
                     ));
-                } else if !config.var_prefixes() && name.starts_with('_') {
+                } else if !config.var_prefixes && name.starts_with('_') {
                     reports.push(Self::generate_report_with(
                         span,
                         "Local variable with underscore prefix",
