@@ -45,7 +45,7 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
             Expression::Assignment(Assignment { operator, right, .. }) => {
                 if !matches!(
                     *operator,
-                    AssignmentOperator::Equal | AssignmentOperator::NullCoalecenceEqual
+                    AssignmentOperator::Equal(_) | AssignmentOperator::NullCoalecenceEqual(_)
                 ) {
                     if let Some(literal) = right.expression().as_literal() {
                         if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
@@ -75,11 +75,11 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) 
                     if let OperationWrapper::Evaluation(op) = operation_wrapper {
                         !matches!(
                             op,
-                            EvaluationOperator::And
-                                | EvaluationOperator::Or
-                                | EvaluationOperator::Xor
-                                | EvaluationOperator::BitShiftLeft
-                                | EvaluationOperator::BitShiftRight
+                            EvaluationOperator::And(_)
+                                | EvaluationOperator::Or(_)
+                                | EvaluationOperator::Xor(_)
+                                | EvaluationOperator::BitShiftLeft(_)
+                                | EvaluationOperator::BitShiftRight(_)
                         )
                     } else {
                         true

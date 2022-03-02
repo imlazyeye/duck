@@ -1,4 +1,7 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::{
+    parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox},
+    prelude::Token,
+};
 
 /// Representation of a unary operation in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -28,20 +31,18 @@ impl ParseVisitor for Unary {
 }
 
 /// The various unary operations supported in gml.
-///
-/// TODO: Add the actual token
 #[derive(Debug, PartialEq, Clone)]
 pub enum UnaryOperator {
     /// ++
-    Increment,
+    Increment(Token),
     /// --
-    Decrement,
+    Decrement(Token),
     /// not, !
-    Not,
+    Not(Token),
     /// +
-    Positive,
+    Positive(Token),
     /// -
-    Negative,
+    Negative(Token),
     /// ~
-    BitwiseNot,
+    BitwiseNot(Token),
 }

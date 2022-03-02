@@ -1,4 +1,7 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::{
+    parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox},
+    prelude::Token,
+};
 
 /// Representation of a equality expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -31,20 +34,18 @@ impl ParseVisitor for Equality {
 }
 
 /// The various equality operations supported in gml.
-///
-/// TODO: Add the actual token
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EqualityOperator {
     /// =, ==
-    Equal,
+    Equal(Token),
     /// !=
-    NotEqual,
+    NotEqual(Token),
     /// >
-    GreaterThan,
+    GreaterThan(Token),
     /// >=
-    GreaterThanOrEqual,
+    GreaterThanOrEqual(Token),
     /// <
-    LessThan,
+    LessThan(Token),
     /// <=
-    LessThanOrEqual,
+    LessThanOrEqual(Token),
 }

@@ -297,9 +297,9 @@ impl Parser {
         loop {
             let name = self.require_identifier()?;
             let left = Identifier::new(name).into_expression_box(self.span(start));
-            let local_variable = if self.match_take(Token::Equal).is_some() {
+            let local_variable = if let Some(equal) = self.match_take(Token::Equal) {
                 LocalVariable::Initialized(
-                    Assignment::new(left, AssignmentOperator::Equal, self.expression()?)
+                    Assignment::new(left, AssignmentOperator::Equal(equal), self.expression()?)
                         .into_expression_box(self.span(start)),
                 )
             } else {
@@ -466,7 +466,9 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::And) | Some(EvaluationOperator::Or) | Some(EvaluationOperator::Xor)
+                    Some(EvaluationOperator::And(_))
+                        | Some(EvaluationOperator::Or(_))
+                        | Some(EvaluationOperator::Xor(_))
                 )
             })
             .flatten()
@@ -488,7 +490,7 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::BitShiftLeft) | Some(EvaluationOperator::BitShiftRight)
+                    Some(EvaluationOperator::BitShiftLeft(_)) | Some(EvaluationOperator::BitShiftRight(_))
                 )
             })
             .flatten()
@@ -510,7 +512,7 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::Plus) | Some(EvaluationOperator::Minus)
+                    Some(EvaluationOperator::Plus(Token::Plus)) | Some(EvaluationOperator::Minus(Token::Minus))
                 )
             })
             .flatten()
@@ -532,10 +534,10 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::Star)
-                        | Some(EvaluationOperator::Slash)
-                        | Some(EvaluationOperator::Div)
-                        | Some(EvaluationOperator::Modulo)
+                    Some(EvaluationOperator::Star(_))
+                        | Some(EvaluationOperator::Slash(_))
+                        | Some(EvaluationOperator::Div(_))
+                        | Some(EvaluationOperator::Modulo(_))
                 )
             })
             .flatten()

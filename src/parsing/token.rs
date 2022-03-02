@@ -124,17 +124,17 @@ impl Token {
     /// Returns a [EvaluationOperator] corresponding to this Token, if possible.
     pub fn as_evaluation_operator(&self) -> Option<EvaluationOperator> {
         match self {
-            Token::Plus => Some(EvaluationOperator::Plus),
-            Token::Minus => Some(EvaluationOperator::Minus),
-            Token::Slash => Some(EvaluationOperator::Slash),
-            Token::Star => Some(EvaluationOperator::Star),
-            Token::Div => Some(EvaluationOperator::Div),
-            Token::Mod | Token::Percent => Some(EvaluationOperator::Modulo),
-            Token::Ampersand => Some(EvaluationOperator::And),
-            Token::Pipe => Some(EvaluationOperator::Or),
-            Token::Circumflex => Some(EvaluationOperator::Xor),
-            Token::BitShiftLeft => Some(EvaluationOperator::BitShiftLeft),
-            Token::BitShiftRight => Some(EvaluationOperator::BitShiftRight),
+            Token::Plus => Some(EvaluationOperator::Plus(*self)),
+            Token::Minus => Some(EvaluationOperator::Minus(*self)),
+            Token::Slash => Some(EvaluationOperator::Slash(*self)),
+            Token::Star => Some(EvaluationOperator::Star(*self)),
+            Token::Div => Some(EvaluationOperator::Div(*self)),
+            Token::Mod | Token::Percent => Some(EvaluationOperator::Modulo(*self)),
+            Token::Ampersand => Some(EvaluationOperator::And(*self)),
+            Token::Pipe => Some(EvaluationOperator::Or(*self)),
+            Token::Circumflex => Some(EvaluationOperator::Xor(*self)),
+            Token::BitShiftLeft => Some(EvaluationOperator::BitShiftLeft(*self)),
+            Token::BitShiftRight => Some(EvaluationOperator::BitShiftRight(*self)),
             _ => None,
         }
     }
@@ -142,12 +142,12 @@ impl Token {
     /// Returns a [EqualityOperator] corresponding to this Token, if possible.
     pub fn as_equality_operator(&self) -> Option<EqualityOperator> {
         match self {
-            Token::Equal | Token::DoubleEqual => Some(EqualityOperator::Equal),
-            Token::BangEqual => Some(EqualityOperator::NotEqual),
-            Token::GreaterThan => Some(EqualityOperator::GreaterThan),
-            Token::GreaterThanOrEqual => Some(EqualityOperator::GreaterThanOrEqual),
-            Token::LessThan => Some(EqualityOperator::LessThan),
-            Token::LessThanOrEqual => Some(EqualityOperator::LessThanOrEqual),
+            Token::Equal | Token::DoubleEqual => Some(EqualityOperator::Equal(*self)),
+            Token::BangEqual => Some(EqualityOperator::NotEqual(*self)),
+            Token::GreaterThan => Some(EqualityOperator::GreaterThan(*self)),
+            Token::GreaterThanOrEqual => Some(EqualityOperator::GreaterThanOrEqual(*self)),
+            Token::LessThan => Some(EqualityOperator::LessThan(*self)),
+            Token::LessThanOrEqual => Some(EqualityOperator::LessThanOrEqual(*self)),
             _ => None,
         }
     }
@@ -155,16 +155,16 @@ impl Token {
     /// Returns a [AssignmentOperator] corresponding to this Token, if possible.
     pub fn as_assignment_operator(&self) -> Option<AssignmentOperator> {
         match self {
-            Token::Equal => Some(AssignmentOperator::Equal),
-            Token::PlusEqual => Some(AssignmentOperator::PlusEqual),
-            Token::MinusEqual => Some(AssignmentOperator::MinusEqual),
-            Token::StarEqual => Some(AssignmentOperator::StarEqual),
-            Token::SlashEqual => Some(AssignmentOperator::SlashEqual),
-            Token::PipeEqual => Some(AssignmentOperator::OrEqual),
-            Token::AmpersandEqual => Some(AssignmentOperator::AndEqual),
-            Token::CirumflexEqual => Some(AssignmentOperator::XorEqual),
-            Token::DoubleInterrobangEquals => Some(AssignmentOperator::NullCoalecenceEqual),
-            Token::PercentEqual => Some(AssignmentOperator::ModEqual),
+            Token::Equal => Some(AssignmentOperator::Equal(*self)),
+            Token::PlusEqual => Some(AssignmentOperator::PlusEqual(*self)),
+            Token::MinusEqual => Some(AssignmentOperator::MinusEqual(*self)),
+            Token::StarEqual => Some(AssignmentOperator::StarEqual(*self)),
+            Token::SlashEqual => Some(AssignmentOperator::SlashEqual(*self)),
+            Token::PipeEqual => Some(AssignmentOperator::OrEqual(*self)),
+            Token::AmpersandEqual => Some(AssignmentOperator::AndEqual(*self)),
+            Token::CirumflexEqual => Some(AssignmentOperator::XorEqual(*self)),
+            Token::DoubleInterrobangEquals => Some(AssignmentOperator::NullCoalecenceEqual(*self)),
+            Token::PercentEqual => Some(AssignmentOperator::ModEqual(*self)),
             _ => None,
         }
     }
@@ -172,12 +172,12 @@ impl Token {
     /// Returns a [UnaryOperator] corresponding to this Token, if possible.
     pub fn as_unary_operator(&self) -> Option<UnaryOperator> {
         match self {
-            Token::DoublePlus => Some(UnaryOperator::Increment),
-            Token::DoubleMinus => Some(UnaryOperator::Decrement),
-            Token::Bang | Token::Not => Some(UnaryOperator::Not),
-            Token::Plus => Some(UnaryOperator::Positive),
-            Token::Minus => Some(UnaryOperator::Negative),
-            Token::Tilde => Some(UnaryOperator::BitwiseNot),
+            Token::DoublePlus => Some(UnaryOperator::Increment(*self)),
+            Token::DoubleMinus => Some(UnaryOperator::Decrement(*self)),
+            Token::Bang | Token::Not => Some(UnaryOperator::Not(*self)),
+            Token::Plus => Some(UnaryOperator::Positive(*self)),
+            Token::Minus => Some(UnaryOperator::Negative(*self)),
+            Token::Tilde => Some(UnaryOperator::BitwiseNot(*self)),
             _ => None,
         }
     }
@@ -185,8 +185,8 @@ impl Token {
     /// Returns a [PostfixOperator] corresponding to this Token, if possible.
     pub fn as_postfix_operator(&self) -> Option<PostfixOperator> {
         match self {
-            Token::DoublePlus => Some(PostfixOperator::Increment),
-            Token::DoubleMinus => Some(PostfixOperator::Decrement),
+            Token::DoublePlus => Some(PostfixOperator::Increment(*self)),
+            Token::DoubleMinus => Some(PostfixOperator::Decrement(*self)),
             _ => None,
         }
     }
@@ -194,9 +194,9 @@ impl Token {
     /// Returns a [LogicalOperator] corresponding to this Token, if possible.
     pub fn as_logical_operator(&self) -> Option<LogicalOperator> {
         match self {
-            Token::And | Token::DoubleAmpersand => Some(LogicalOperator::And),
-            Token::Or | Token::DoublePipe => Some(LogicalOperator::Or),
-            Token::Xor => Some(LogicalOperator::Xor),
+            Token::And | Token::DoubleAmpersand => Some(LogicalOperator::And(*self)),
+            Token::Or | Token::DoublePipe => Some(LogicalOperator::Or(*self)),
+            Token::Xor => Some(LogicalOperator::Xor(*self)),
             _ => None,
         }
     }

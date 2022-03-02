@@ -1,4 +1,7 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::{
+    parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox},
+    prelude::Token,
+};
 
 /// Representation of a postfix operation in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -33,7 +36,7 @@ impl ParseVisitor for Postfix {
 #[derive(Debug, PartialEq, Clone)]
 pub enum PostfixOperator {
     /// ++
-    Increment,
+    Increment(Token),
     /// --
-    Decrement,
+    Decrement(Token),
 }

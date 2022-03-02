@@ -1,4 +1,7 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor};
+use crate::{
+    parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor},
+    prelude::Token,
+};
 
 /// Representation of an assignment expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -31,29 +34,27 @@ impl ParseVisitor for Assignment {
 }
 
 /// The various assignment operations supported in gml.
-///
-/// TODO: Add the actual token
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum AssignmentOperator {
     /// =
-    Equal,
+    Equal(Token),
     /// +=
-    PlusEqual,
+    PlusEqual(Token),
     /// -=
-    MinusEqual,
+    MinusEqual(Token),
     /// *=
-    StarEqual,
+    StarEqual(Token),
     /// /=
-    SlashEqual,
+    SlashEqual(Token),
     /// ^=
-    XorEqual,
+    XorEqual(Token),
     /// |=
-    OrEqual,
+    OrEqual(Token),
     /// &=
-    AndEqual,
+    AndEqual(Token),
     /// ??=
-    NullCoalecenceEqual,
+    NullCoalecenceEqual(Token),
     /// %=
-    ModEqual,
+    ModEqual(Token),
 }

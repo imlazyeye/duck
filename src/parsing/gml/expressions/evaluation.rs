@@ -1,4 +1,7 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::{
+    parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox},
+    prelude::Token,
+};
 
 /// Representation of an assignment expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -36,25 +39,25 @@ impl ParseVisitor for Evaluation {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EvaluationOperator {
     /// +
-    Plus,
+    Plus(Token),
     /// -
-    Minus,
+    Minus(Token),
     /// /
-    Slash,
+    Slash(Token),
     /// *
-    Star,
+    Star(Token),
     /// div
-    Div,
+    Div(Token),
     /// mod, %
-    Modulo,
+    Modulo(Token),
     /// &
-    And,
+    And(Token),
     /// |
-    Or,
+    Or(Token),
     /// ^
-    Xor,
+    Xor(Token),
     /// <<
-    BitShiftLeft,
+    BitShiftLeft(Token),
     /// >>
-    BitShiftRight,
+    BitShiftRight(Token),
 }

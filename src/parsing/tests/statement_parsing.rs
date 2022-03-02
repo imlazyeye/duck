@@ -96,7 +96,7 @@ fn local_variable_with_value() {
         LocalVariableSeries::new(vec![LocalVariable::Initialized(
             Assignment::new(
                 Identifier::new("i").into_lazy_box(),
-                AssignmentOperator::Equal,
+                AssignmentOperator::Equal(Token::Equal),
                 Literal::Real(0.0).into_lazy_box(),
             )
             .into_lazy_box(),
@@ -113,7 +113,7 @@ fn local_variable_series() {
             LocalVariable::Initialized(
                 Assignment::new(
                     Identifier::new("j").into_lazy_box(),
-                    AssignmentOperator::Equal,
+                    AssignmentOperator::Equal(Token::Equal),
                     Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
@@ -130,7 +130,7 @@ fn local_variable_trailling_comma() {
         LocalVariableSeries::new(vec![LocalVariable::Initialized(
             Assignment::new(
                 Identifier::new("i").into_lazy_box(),
-                AssignmentOperator::Equal,
+                AssignmentOperator::Equal(Token::Equal),
                 Literal::Real(0.0).into_lazy_box(),
             )
             .into_lazy_box(),
@@ -146,7 +146,7 @@ fn local_variable_series_ending_without_marker() {
             LocalVariableSeries::new(vec![LocalVariable::Initialized(
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
-                    AssignmentOperator::Equal,
+                    AssignmentOperator::Equal(Token::Equal),
                     Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
@@ -155,7 +155,7 @@ fn local_variable_series_ending_without_marker() {
             Statement::Expression(
                 Assignment::new(
                     Identifier::new("j").into_lazy_box(),
-                    AssignmentOperator::Equal,
+                    AssignmentOperator::Equal(Token::Equal),
                     Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
@@ -198,7 +198,7 @@ fn for_loop() {
             LocalVariableSeries::new(vec![LocalVariable::Initialized(
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
-                    AssignmentOperator::Equal,
+                    AssignmentOperator::Equal(Token::Equal),
                     Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
@@ -206,12 +206,16 @@ fn for_loop() {
             .into_lazy_box(),
             Equality::new(
                 Identifier::new("i").into_lazy_box(),
-                EqualityOperator::LessThan,
+                EqualityOperator::LessThan(Token::LessThan),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             Statement::Expression(
-                Postfix::new(Identifier::new("i").into_lazy_box(), PostfixOperator::Increment).into_lazy_box(),
+                Postfix::new(
+                    Identifier::new("i").into_lazy_box(),
+                    PostfixOperator::Increment(Token::DoublePlus),
+                )
+                .into_lazy_box(),
             )
             .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
@@ -246,7 +250,7 @@ fn do_until() {
             Block::new(vec![
                 Assignment::new(
                     Identifier::new("foo").into_lazy_box(),
-                    AssignmentOperator::PlusEqual,
+                    AssignmentOperator::PlusEqual(Token::PlusEqual),
                     Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box()
@@ -255,7 +259,7 @@ fn do_until() {
             .into_lazy_box(),
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
-                EqualityOperator::Equal,
+                EqualityOperator::Equal(Token::DoubleEqual),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
@@ -269,14 +273,14 @@ fn while_loop() {
         If::new(
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
-                EqualityOperator::Equal,
+                EqualityOperator::Equal(Token::DoubleEqual),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             Block::new(vec![
                 Assignment::new(
                     Identifier::new("foo").into_lazy_box(),
-                    AssignmentOperator::PlusEqual,
+                    AssignmentOperator::PlusEqual(Token::PlusEqual),
                     Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box()
@@ -294,7 +298,7 @@ fn if_statement() {
         If::new(
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
-                EqualityOperator::Equal,
+                EqualityOperator::Equal(Token::DoubleEqual),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
@@ -310,7 +314,7 @@ fn if_then() {
         If::new_with_then_keyword(
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
-                EqualityOperator::Equal,
+                EqualityOperator::Equal(Token::DoubleEqual),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
@@ -327,7 +331,7 @@ fn if_else() {
         If::new_with_else(
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
-                EqualityOperator::Equal,
+                EqualityOperator::Equal(Token::DoubleEqual),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),

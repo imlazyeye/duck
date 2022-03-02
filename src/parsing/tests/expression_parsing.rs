@@ -105,7 +105,7 @@ fn and() {
         "1 && 1",
         Logical::new(
             Literal::Real(1.0).into_lazy_box(),
-            LogicalOperator::And,
+            LogicalOperator::And(Token::DoubleAmpersand),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -117,7 +117,7 @@ fn and_keyword() {
         "1 and 1",
         Logical::new(
             Literal::Real(1.0).into_lazy_box(),
-            LogicalOperator::And,
+            LogicalOperator::And(Token::And),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -129,7 +129,7 @@ fn or() {
         "1 || 1",
         Logical::new(
             Literal::Real(1.0).into_lazy_box(),
-            LogicalOperator::Or,
+            LogicalOperator::Or(Token::DoublePipe),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -141,7 +141,7 @@ fn or_keyword() {
         "1 or 1",
         Logical::new(
             Literal::Real(1.0).into_lazy_box(),
-            LogicalOperator::Or,
+            LogicalOperator::Or(Token::Or),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -153,7 +153,7 @@ fn xor() {
         "1 xor 1",
         Logical::new(
             Literal::Real(1.0).into_lazy_box(),
-            LogicalOperator::Xor,
+            LogicalOperator::Xor(Token::Xor),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -165,7 +165,7 @@ fn addition() {
         "1 + 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Plus,
+            EvaluationOperator::Plus(Token::Plus),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -177,7 +177,7 @@ fn subtraction() {
         "1 - 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Minus,
+            EvaluationOperator::Minus(Token::Minus),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -189,7 +189,7 @@ fn multiplication() {
         "1 * 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Star,
+            EvaluationOperator::Star(Token::Star),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -201,7 +201,7 @@ fn division() {
         "1 / 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Slash,
+            EvaluationOperator::Slash(Token::Slash),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -213,7 +213,7 @@ fn modulo() {
         "1 mod 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Modulo,
+            EvaluationOperator::Modulo(Token::Mod),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -221,7 +221,7 @@ fn modulo() {
         "1 % 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Modulo,
+            EvaluationOperator::Modulo(Token::Percent),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -233,7 +233,7 @@ fn div() {
         "1 div 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Div,
+            EvaluationOperator::Div(Token::Div),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -245,7 +245,7 @@ fn bitwise_and() {
         "1 & 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::And,
+            EvaluationOperator::And(Token::Ampersand),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -257,7 +257,7 @@ fn bitwise_or() {
         "1 | 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Or,
+            EvaluationOperator::Or(Token::Pipe),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -269,10 +269,10 @@ fn bitwise_chain() {
         "1 | 1 | 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Or,
+            EvaluationOperator::Or(Token::Pipe),
             Evaluation::new(
                 Literal::Real(1.0).into_lazy_box(),
-                EvaluationOperator::Or,
+                EvaluationOperator::Or(Token::Pipe),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
@@ -286,7 +286,7 @@ fn bitwise_xor() {
         "1 ^ 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::Xor,
+            EvaluationOperator::Xor(Token::Circumflex),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -302,7 +302,7 @@ fn dot_access_bitwise() {
                 right: Identifier::new("bar").into_lazy_box(),
             }
             .into_lazy_box(),
-            EvaluationOperator::Or,
+            EvaluationOperator::Or(Token::Pipe),
             Access::Dot {
                 left: Identifier::new("foo").into_lazy_box(),
                 right: Identifier::new("bar").into_lazy_box(),
@@ -318,7 +318,7 @@ fn bit_shift_left() {
         "1 << 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::BitShiftLeft,
+            EvaluationOperator::BitShiftLeft(Token::BitShiftLeft),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -330,7 +330,7 @@ fn bit_shift_right() {
         "1 >> 1",
         Evaluation::new(
             Literal::Real(1.0).into_lazy_box(),
-            EvaluationOperator::BitShiftRight,
+            EvaluationOperator::BitShiftRight(Token::BitShiftRight),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -342,7 +342,7 @@ fn less_than() {
         "1 < 1",
         Equality::new(
             Literal::Real(1.0).into_lazy_box(),
-            EqualityOperator::LessThan,
+            EqualityOperator::LessThan(Token::LessThan),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -358,23 +358,23 @@ fn combo_math() {
                     Evaluation::new(
                         Evaluation::new(
                             Literal::Real(1.0).into_lazy_box(),
-                            EvaluationOperator::Star,
+                            EvaluationOperator::Star(Token::Star),
                             Literal::Real(1.0).into_lazy_box(),
                         )
                         .into_lazy_box(),
-                        EvaluationOperator::Plus,
+                        EvaluationOperator::Plus(Token::Plus),
                         Literal::Real(1.0).into_lazy_box(),
                     )
                     .into_lazy_box(),
-                    EvaluationOperator::BitShiftRight,
+                    EvaluationOperator::BitShiftRight(Token::BitShiftRight),
                     Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
-                EvaluationOperator::And,
+                EvaluationOperator::And(Token::Ampersand),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
-            EqualityOperator::Equal,
+            EqualityOperator::Equal(Token::DoubleEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     )
@@ -386,7 +386,7 @@ fn less_than_or_equal() {
         "1 <= 1",
         Equality::new(
             Literal::Real(1.0).into_lazy_box(),
-            EqualityOperator::LessThanOrEqual,
+            EqualityOperator::LessThanOrEqual(Token::LessThanOrEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -398,7 +398,7 @@ fn greater_than() {
         "1 > 1",
         Equality::new(
             Literal::Real(1.0).into_lazy_box(),
-            EqualityOperator::GreaterThan,
+            EqualityOperator::GreaterThan(Token::GreaterThan),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -410,7 +410,7 @@ fn greater_than_or_equal() {
         "1 >= 1",
         Equality::new(
             Literal::Real(1.0).into_lazy_box(),
-            EqualityOperator::GreaterThanOrEqual,
+            EqualityOperator::GreaterThanOrEqual(Token::GreaterThanOrEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -422,7 +422,7 @@ fn equal() {
         "1 == 1",
         Equality::new(
             Literal::Real(1.0).into_lazy_box(),
-            EqualityOperator::Equal,
+            EqualityOperator::Equal(Token::DoubleEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -434,7 +434,7 @@ fn bang_equal() {
         "1 != 1",
         Equality::new(
             Literal::Real(1.0).into_lazy_box(),
-            EqualityOperator::NotEqual,
+            EqualityOperator::NotEqual(Token::BangEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -469,7 +469,7 @@ fn assign() {
         "foo = 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::Equal,
+            AssignmentOperator::Equal(Token::Equal),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -484,7 +484,7 @@ fn dot_assign() {
                 right: Identifier::new("foo").into_lazy_box(),
             }
             .into_lazy_box(),
-            AssignmentOperator::Equal,
+            AssignmentOperator::Equal(Token::Equal),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -502,7 +502,7 @@ fn ds_assign() {
                 using_accessor: false,
             }
             .into_lazy_box(),
-            AssignmentOperator::Equal,
+            AssignmentOperator::Equal(Token::Equal),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -515,7 +515,7 @@ fn call_assign() {
         "foo() = 1",
         Assignment::new(
             Call::new(Identifier::new("foo").into_lazy_box(), vec![]).into_lazy_box(),
-            AssignmentOperator::Equal,
+            AssignmentOperator::Equal(Token::Equal),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -527,7 +527,7 @@ fn static_assign() {
         "static foo = 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::Equal,
+            AssignmentOperator::Equal(Token::Equal),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -539,7 +539,7 @@ fn plus_equal() {
         "foo += 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::PlusEqual,
+            AssignmentOperator::PlusEqual(Token::PlusEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -551,7 +551,7 @@ fn minus_equal() {
         "foo -= 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::MinusEqual,
+            AssignmentOperator::MinusEqual(Token::MinusEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -563,7 +563,7 @@ fn star_equal() {
         "foo *= 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::StarEqual,
+            AssignmentOperator::StarEqual(Token::StarEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -575,7 +575,7 @@ fn slash_equal() {
         "foo /= 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::SlashEqual,
+            AssignmentOperator::SlashEqual(Token::SlashEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -587,7 +587,7 @@ fn and_equal() {
         "foo &= 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::AndEqual,
+            AssignmentOperator::AndEqual(Token::AmpersandEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -599,7 +599,7 @@ fn or_equal() {
         "foo |= 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::OrEqual,
+            AssignmentOperator::OrEqual(Token::PipeEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -611,7 +611,7 @@ fn xor_equal() {
         "foo ^= 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::XorEqual,
+            AssignmentOperator::XorEqual(Token::CirumflexEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -623,7 +623,7 @@ fn mod_equal() {
         "foo %= 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::ModEqual,
+            AssignmentOperator::ModEqual(Token::PercentEqual),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );
@@ -633,7 +633,7 @@ fn mod_equal() {
 fn not() {
     harness_expr(
         "!foo",
-        Unary::new(UnaryOperator::Not, Identifier::new("foo").into_lazy_box()),
+        Unary::new(UnaryOperator::Not(Token::Bang), Identifier::new("foo").into_lazy_box()),
     );
 }
 
@@ -641,7 +641,7 @@ fn not() {
 fn not_keyword() {
     harness_expr(
         "not foo",
-        Unary::new(UnaryOperator::Not, Identifier::new("foo").into_lazy_box()),
+        Unary::new(UnaryOperator::Not(Token::Not), Identifier::new("foo").into_lazy_box()),
     );
 }
 
@@ -649,7 +649,7 @@ fn not_keyword() {
 fn positive() {
     harness_expr(
         "+1",
-        Unary::new(UnaryOperator::Positive, Literal::Real(1.0).into_lazy_box()),
+        Unary::new(UnaryOperator::Positive(Token::Plus), Literal::Real(1.0).into_lazy_box()),
     );
 }
 
@@ -657,7 +657,10 @@ fn positive() {
 fn neagtive() {
     harness_expr(
         "-1",
-        Unary::new(UnaryOperator::Negative, Literal::Real(1.0).into_lazy_box()),
+        Unary::new(
+            UnaryOperator::Negative(Token::Minus),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
     );
 }
 
@@ -666,7 +669,7 @@ fn dot_unary() {
     harness_expr(
         "!self.foo",
         Unary::new(
-            UnaryOperator::Not,
+            UnaryOperator::Not(Token::Bang),
             Access::Current {
                 right: Identifier::new("foo").into_lazy_box(),
             }
@@ -680,7 +683,7 @@ fn ds_unary() {
     harness_expr(
         "!foo[bar]",
         Unary::new(
-            UnaryOperator::Not,
+            UnaryOperator::Not(Token::Bang),
             Access::Array {
                 left: Identifier::new("foo").into_lazy_box(),
                 index_one: Identifier::new("bar").into_lazy_box(),
@@ -696,7 +699,10 @@ fn ds_unary() {
 fn prefix_increment() {
     harness_expr(
         "++1",
-        Unary::new(UnaryOperator::Increment, Literal::Real(1.0).into_lazy_box()),
+        Unary::new(
+            UnaryOperator::Increment(Token::DoublePlus),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
     );
 }
 
@@ -704,7 +710,10 @@ fn prefix_increment() {
 fn prefix_decrement() {
     harness_expr(
         "--1",
-        Unary::new(UnaryOperator::Decrement, Literal::Real(1.0).into_lazy_box()),
+        Unary::new(
+            UnaryOperator::Decrement(Token::DoubleMinus),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
     );
 }
 
@@ -712,7 +721,10 @@ fn prefix_decrement() {
 fn bitwise_not() {
     harness_expr(
         "~1",
-        Unary::new(UnaryOperator::BitwiseNot, Literal::Real(1.0).into_lazy_box()),
+        Unary::new(
+            UnaryOperator::BitwiseNot(Token::Tilde),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
     );
 }
 
@@ -720,7 +732,10 @@ fn bitwise_not() {
 fn postfix_increment() {
     harness_expr(
         "1++",
-        Postfix::new(Literal::Real(1.0).into_lazy_box(), PostfixOperator::Increment),
+        Postfix::new(
+            Literal::Real(1.0).into_lazy_box(),
+            PostfixOperator::Increment(Token::DoublePlus),
+        ),
     );
 }
 
@@ -728,7 +743,10 @@ fn postfix_increment() {
 fn postfix_decrement() {
     harness_expr(
         "1--",
-        Postfix::new(Literal::Real(1.0).into_lazy_box(), PostfixOperator::Decrement),
+        Postfix::new(
+            Literal::Real(1.0).into_lazy_box(),
+            PostfixOperator::Decrement(Token::DoubleMinus),
+        ),
     );
 }
 
@@ -741,7 +759,7 @@ fn dot_postfix() {
                 right: Identifier::new("foo").into_lazy_box(),
             }
             .into_lazy_box(),
-            PostfixOperator::Increment,
+            PostfixOperator::Increment(Token::DoublePlus),
         ),
     );
 }
@@ -758,7 +776,7 @@ fn ds_postfix() {
                 using_accessor: false,
             }
             .into_lazy_box(),
-            PostfixOperator::Increment,
+            PostfixOperator::Increment(Token::DoublePlus),
         ),
     );
 }
@@ -1107,7 +1125,7 @@ fn general_self_reference() {
         "foo = self",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
-            AssignmentOperator::Equal,
+            AssignmentOperator::Equal(Token::Equal),
             Identifier::new("self").into_lazy_box(),
         ),
     );
@@ -1219,22 +1237,22 @@ fn logically_joined_expressions() {
         Logical::new(
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
-                EqualityOperator::Equal,
+                EqualityOperator::Equal(Token::DoubleEqual),
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
-            LogicalOperator::And,
+            LogicalOperator::And(Token::DoubleAmpersand),
             Logical::new(
                 Equality::new(
                     Identifier::new("foo").into_lazy_box(),
-                    EqualityOperator::Equal,
+                    EqualityOperator::Equal(Token::DoubleEqual),
                     Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
-                LogicalOperator::And,
+                LogicalOperator::And(Token::DoubleAmpersand),
                 Equality::new(
                     Identifier::new("foo").into_lazy_box(),
-                    EqualityOperator::Equal,
+                    EqualityOperator::Equal(Token::DoubleEqual),
                     Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box(),

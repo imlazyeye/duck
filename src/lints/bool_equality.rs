@@ -35,7 +35,7 @@ impl EarlyExpressionPass for BoolEquality {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::Equality(Equality {
-            operator: EqualityOperator::Equal,
+            operator: EqualityOperator::Equal(_),
             right,
             ..
         }) = expression

@@ -1,4 +1,7 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::{
+    parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox},
+    prelude::Token,
+};
 
 /// Representation of an logical expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -36,9 +39,9 @@ impl ParseVisitor for Logical {
 #[derive(Debug, PartialEq, Clone)]
 pub enum LogicalOperator {
     /// and, &&
-    And,
+    And(Token),
     /// or, ||
-    Or,
+    Or(Token),
     /// xor, ^^
-    Xor,
+    Xor(Token),
 }
