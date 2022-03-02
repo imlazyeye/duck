@@ -1,6 +1,7 @@
 use crate::{
+    gml::{Call, Literal},
     lint::EarlyExpressionPass,
-    parsing::{Expression, Literal},
+    parsing::Expression,
     utils::Span,
     Lint, LintLevel, LintReport,
 };
@@ -35,8 +36,8 @@ impl EarlyExpressionPass for AccessorAlternative {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Call(caller, args, _) = expression {
-            if let Expression::Identifier(identifier) = caller.expression() {
+        if let Expression::Call(Call { left, arguments, .. }) = expression {
+            if let Expression::Identifier(identifier) = left.expression() {
                 match identifier.name.as_ref() {
                     "ds_list_find_value" => reports.push(Self::generate_report_with(
                         span,
@@ -59,7 +60,7 @@ impl EarlyExpressionPass for AccessorAlternative {
                         ["Use an accessor (`foo[bar]`) instead".into()],
                     )),
                     "variable_struct_get"
-                        if args
+                        if arguments
                             .get(1)
                             .map(|v| matches!(v.expression(), &Expression::Literal(Literal::String(_))))
                             == Some(true) =>

@@ -1,12 +1,12 @@
 use crate::{
     gml::{
-        Access, Assignment, AssignmentOperator, Block, Constructor, DoUntil, Enum, Equality, Evaluation,
-        EvaluationOperator, ForLoop, Function, Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Logical,
-        Macro, NullCoalecence, Parameter, Postfix, RepeatLoop, Return, Switch, SwitchCase, Ternary, TryCatch, Unary,
-        WithLoop,
+        Access, Assignment, AssignmentOperator, Block, Call, Constructor, DoUntil, Enum, Equality, Evaluation,
+        EvaluationOperator, ForLoop, Function, Globalvar, Grouping, Identifier, If, Literal, LocalVariable,
+        LocalVariableSeries, Logical, Macro, NullCoalecence, Parameter, Postfix, RepeatLoop, Return, Switch,
+        SwitchCase, Ternary, TryCatch, Unary, WithLoop,
     },
     parsing::{
-        lexer::Lexer, Expression, ExpressionBox, IntoExpressionBox, IntoStatementBox, Literal, ParseError, Statement,
+        lexer::Lexer, Expression, ExpressionBox, IntoExpressionBox, IntoStatementBox, ParseError, Statement,
         StatementBox, Token,
     },
     utils::Span,
@@ -607,12 +607,12 @@ impl<'a> Parser<'a> {
         let start = self.cursor();
         if let Some(literal) = self.peek()?.to_literal() {
             self.take()?;
-            Ok(Expression::Literal(literal).into_box(self.span(start)))
+            Ok(literal.into_expression_box(self.span(start)))
         } else if self.match_take(Token::LeftSquareBracket).is_some() {
             let mut elements = vec![];
             loop {
                 if self.match_take(Token::RightSquareBracket).is_some() {
-                    break Ok(Expression::Literal(Literal::Array(elements)).into_box(self.span(start)));
+                    break Ok(Literal::Array(elements).into_expression_box(self.span(start)));
                 } else {
                     elements.push(self.expression()?);
                     self.match_take(Token::Comma);
@@ -622,7 +622,7 @@ impl<'a> Parser<'a> {
             let mut elements = vec![];
             loop {
                 if self.match_take(Token::RightBrace).is_some() {
-                    break Ok(Expression::Literal(Literal::Struct(elements)).into_box(self.span(start)));
+                    break Ok(Literal::Struct(elements).into_expression_box(self.span(start)));
                 } else {
                     let name = self.require_identifier()?;
                     self.require(Token::Colon)?;
@@ -648,7 +648,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn call(&mut self, left: Option<ExpressionBox>, has_new: bool) -> Result<ExpressionBox, ParseError> {
+    fn call(&mut self, left: Option<ExpressionBox>, uses_new: bool) -> Result<ExpressionBox, ParseError> {
         let start = self.cursor();
         // If we've been provided a leftside expression, we *must* parse for a call.
         // Otherwise, the call is merely possible.
@@ -677,7 +677,12 @@ impl<'a> Parser<'a> {
                 }
             }
         }
-        Ok(Expression::Call(left, arguments, has_new).into_box(self.span(start)))
+        Ok(Call {
+            left,
+            arguments,
+            uses_new,
+        }
+        .into_expression_box(self.span(start)))
     }
 
     fn dot_access(&mut self, expression: Option<ExpressionBox>) -> Result<ExpressionBox, ParseError> {
@@ -795,7 +800,7 @@ impl<'a> Parser<'a> {
         if self.match_take(Token::LeftParenthesis).is_some() {
             let expression = self.expression()?;
             self.require(Token::RightParenthesis)?;
-            Ok(Expression::Grouping(expression).into_box(self.span(start)))
+            Ok(Grouping::new(expression).into_expression_box(self.span(start)))
         } else {
             self.identifier()
         }

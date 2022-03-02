@@ -1,4 +1,6 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel, LintReport};
+use crate::{
+    gml::Call, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct Todo;
@@ -25,8 +27,8 @@ impl Lint for Todo {
 
 impl EarlyExpressionPass for Todo {
     fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
-        if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(identifier) = caller.expression() {
+        if let Expression::Call(Call { left, .. }) = expression {
+            if let Expression::Identifier(identifier) = left.expression() {
                 if identifier.name == config.todo_keyword {
                     reports.push(Self::generate_report(span))
                 }

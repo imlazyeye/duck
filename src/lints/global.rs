@@ -30,7 +30,7 @@ impl EarlyExpressionPass for Global {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Access(Access::Global { right }) = expression {
+        if let Expression::Access(Access::Global { .. }) = expression {
             reports.push(Self::generate_report(span))
         }
     }

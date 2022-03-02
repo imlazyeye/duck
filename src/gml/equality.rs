@@ -23,7 +23,10 @@ impl From<Equality> for Expression {
 }
 impl IntoExpressionBox for Equality {}
 impl ParseVisitor for Equality {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        expression_visitor(&self.left);
+        expression_visitor(&self.right);
+    }
     fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
 }
 

@@ -1,8 +1,7 @@
 #![allow(missing_docs)]
 
-use super::Literal;
 use crate::gml::{
-    AssignmentOperator, EqualityOperator, EvaluationOperator, LogicalOperator, PostfixOperator, UnaryOperator,
+    AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
 };
 
 #[derive(Debug, PartialEq, Clone)]

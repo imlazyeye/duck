@@ -55,8 +55,19 @@ impl From<Function> for Expression {
 }
 impl IntoExpressionBox for Function {}
 impl ParseVisitor for Function {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        for parameter in self.parameters.iter() {
+            if let Some(default_value) = &parameter.default_value {
+                expression_visitor(default_value);
+            }
+        }
+        if let Some(Constructor::WithInheritance(inheritance_call)) = &self.constructor {
+            expression_visitor(inheritance_call);
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+        statement_visitor(&self.body);
+    }
 }
 
 /// Representation of a constructor's behavior in a function declaration.

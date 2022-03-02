@@ -1,14 +1,10 @@
 use crate::{
     gml::{
         Access, Assignment, AssignmentOperator, Block, DoUntil, Enum, EnumMember, Equality, EqualityOperator, ForLoop,
-        Globalvar, Identifier, If, LocalVariable, LocalVariableSeries, Macro, Postfix, PostfixOperator, RepeatLoop,
-        Return, Switch, SwitchCase, TryCatch, WithLoop,
+        Globalvar, Grouping, Identifier, If, Literal, LocalVariable, LocalVariableSeries, Macro, Postfix,
+        PostfixOperator, RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
     },
-    parsing::{
-        expression::{Expression, Literal},
-        parser::Parser,
-        statement::Statement,
-    },
+    parsing::{parser::Parser, statement::Statement},
     prelude::{IntoExpressionBox, IntoStatementBox},
 };
 use colored::Colorize;
@@ -58,7 +54,7 @@ fn enum_with_values() {
         Enum::new_with_members(
             "Foo",
             vec![
-                EnumMember::new("Bar", Some(Expression::Literal(Literal::Real(20.0)).lazy_box())),
+                EnumMember::new("Bar", Some(Literal::Real(20.0).into_lazy_box())),
                 EnumMember::new("Baz", None),
             ],
         ),
@@ -109,7 +105,7 @@ fn local_variable_with_value() {
             Assignment::new(
                 Identifier::new("i").into_lazy_box(),
                 AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                Literal::Real(0.0).into_lazy_box(),
             )
             .into_lazy_box(),
         )]),
@@ -126,7 +122,7 @@ fn local_variable_series() {
                 Assignment::new(
                     Identifier::new("j").into_lazy_box(),
                     AssignmentOperator::Equal,
-                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                    Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
             ),
@@ -143,7 +139,7 @@ fn local_variable_trailling_comma() {
             Assignment::new(
                 Identifier::new("i").into_lazy_box(),
                 AssignmentOperator::Equal,
-                Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                Literal::Real(0.0).into_lazy_box(),
             )
             .into_lazy_box(),
         )]),
@@ -159,7 +155,7 @@ fn local_variable_series_ending_without_marker() {
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
                     AssignmentOperator::Equal,
-                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                    Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
             )])
@@ -168,7 +164,7 @@ fn local_variable_series_ending_without_marker() {
                 Assignment::new(
                     Identifier::new("j").into_lazy_box(),
                     AssignmentOperator::Equal,
-                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                    Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
             )
@@ -183,7 +179,7 @@ fn try_catch() {
         "try {} catch (e) {}",
         TryCatch::new(
             Block::new(vec![]).into_lazy_box(),
-            Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
+            Grouping::new(Identifier::new("e").into_lazy_box()).into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
         ),
     )
@@ -195,7 +191,7 @@ fn try_catch_finally() {
         "try {} catch (e) {} finally {}",
         TryCatch::new_with_finally(
             Block::new(vec![]).into_lazy_box(),
-            Expression::Grouping(Identifier::new("e").into_lazy_box()).lazy_box(),
+            Grouping::new(Identifier::new("e").into_lazy_box()).into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
         ),
@@ -211,7 +207,7 @@ fn for_loop() {
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
                     AssignmentOperator::Equal,
-                    Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                    Literal::Real(0.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
             )])
@@ -219,7 +215,7 @@ fn for_loop() {
             Equality::new(
                 Identifier::new("i").into_lazy_box(),
                 EqualityOperator::LessThan,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             Statement::Expression(
@@ -246,10 +242,7 @@ fn with() {
 fn repeat() {
     harness_stmt(
         "repeat 1 {}",
-        RepeatLoop::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
-        ),
+        RepeatLoop::new(Literal::Real(1.0).into_lazy_box(), Block::new(vec![]).into_lazy_box()),
     )
 }
 
@@ -259,21 +252,19 @@ fn do_until() {
         "do { foo += 1; } until foo == 1;",
         DoUntil::new(
             Block::new(vec![
-                Statement::Expression(
-                    Expression::Assignment(Assignment::new(
-                        Identifier::new("foo").into_lazy_box(),
-                        AssignmentOperator::PlusEqual,
-                        Expression::Literal(Literal::Real(1.0)).lazy_box(),
-                    ))
-                    .lazy_box(),
+                Assignment::new(
+                    Identifier::new("foo").into_lazy_box(),
+                    AssignmentOperator::PlusEqual,
+                    Literal::Real(1.0).into_lazy_box(),
                 )
+                .into_lazy_box()
                 .into_lazy_box(),
             ])
             .into_lazy_box(),
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
         ),
@@ -287,18 +278,16 @@ fn while_loop() {
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             Block::new(vec![
-                Statement::Expression(
-                    Expression::Assignment(Assignment::new(
-                        Identifier::new("foo").into_lazy_box(),
-                        AssignmentOperator::PlusEqual,
-                        Expression::Literal(Literal::Real(1.0)).lazy_box(),
-                    ))
-                    .lazy_box(),
+                Assignment::new(
+                    Identifier::new("foo").into_lazy_box(),
+                    AssignmentOperator::PlusEqual,
+                    Literal::Real(1.0).into_lazy_box(),
                 )
+                .into_lazy_box()
                 .into_lazy_box(),
             ])
             .into_lazy_box(),
@@ -314,7 +303,7 @@ fn if_statement() {
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
@@ -330,7 +319,7 @@ fn if_then() {
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
@@ -347,7 +336,7 @@ fn if_else() {
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             Block::new(vec![]).into_lazy_box(),
@@ -426,10 +415,7 @@ fn return_statement() {
 
 #[test]
 fn return_with_value() {
-    harness_stmt(
-        "return 0;",
-        Return::new(Some(Expression::Literal(Literal::Real(0.0)).lazy_box())),
-    )
+    harness_stmt("return 0;", Return::new(Some(Literal::Real(0.0).into_lazy_box())))
 }
 
 #[test]

@@ -1,5 +1,5 @@
 use crate::{
-    gml::{Access, Globalvar},
+    gml::{Access, Call, Globalvar},
     lint::{EarlyExpressionPass, EarlyStatementPass},
     parsing::{Expression, Statement},
     utils::Span,
@@ -56,8 +56,8 @@ impl EarlyExpressionPass for Deprecated {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(identifier) = caller.expression() {
+        if let Expression::Call(Call { left, .. }) = expression {
+            if let Expression::Identifier(identifier) = left.expression() {
                 if gm_deprecated_functions().contains(&identifier.name.as_str()) {
                     reports.push(Self::generate_report_with(
                         span,

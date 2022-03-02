@@ -1,13 +1,10 @@
 use crate::{
     gml::{
-        Access, Assignment, AssignmentOperator, Block, Constructor, Equality, EqualityOperator, Evaluation,
-        EvaluationOperator, Function, Identifier, Logical, LogicalOperator, NullCoalecence, Parameter, Postfix,
-        PostfixOperator, Return, Ternary, Unary, UnaryOperator,
+        Access, Assignment, AssignmentOperator, Block, Call, Constructor, Equality, EqualityOperator, Evaluation,
+        EvaluationOperator, Function, Grouping, Identifier, Literal, Logical, LogicalOperator, NullCoalecence,
+        Parameter, Postfix, PostfixOperator, Return, Ternary, Unary, UnaryOperator,
     },
-    parsing::{
-        expression::{Expression, Literal},
-        parser::Parser,
-    },
+    parsing::{expression::Expression, parser::Parser},
     prelude::{IntoExpressionBox, IntoStatementBox},
 };
 use colored::Colorize;
@@ -52,11 +49,11 @@ fn function_with_parameters() {
 #[test]
 fn default_parameters() {
     harness_expr(
-        "function foo(bar=20, baz) {}",
+        "function foo(bar=1, baz) {}",
         Function::new(
             "foo",
             vec![
-                Parameter::new_with_default("bar", Expression::Literal(Literal::Real(20.0)).lazy_box()),
+                Parameter::new_with_default("bar", Literal::Real(1.0).into_lazy_box()),
                 Parameter::new("baz"),
             ],
             Block::new(vec![]).into_lazy_box(),
@@ -92,9 +89,7 @@ fn inheritance() {
         Function::new_constructor(
             Some("foo".into()),
             vec![],
-            Constructor::WithInheritance(
-                Expression::Call(Identifier::new("bar").into_lazy_box(), vec![], false).lazy_box(),
-            ),
+            Constructor::WithInheritance(Call::new(Identifier::new("bar").into_lazy_box(), vec![]).into_lazy_box()),
             Block::new(vec![]).into_lazy_box(),
         ),
     )
@@ -117,9 +112,9 @@ fn and() {
     harness_expr(
         "1 && 1",
         Logical::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             LogicalOperator::And,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -129,9 +124,9 @@ fn and_keyword() {
     harness_expr(
         "1 and 1",
         Logical::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             LogicalOperator::And,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -141,9 +136,9 @@ fn or() {
     harness_expr(
         "1 || 1",
         Logical::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             LogicalOperator::Or,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -153,9 +148,9 @@ fn or_keyword() {
     harness_expr(
         "1 or 1",
         Logical::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             LogicalOperator::Or,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -165,9 +160,9 @@ fn xor() {
     harness_expr(
         "1 xor 1",
         Logical::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             LogicalOperator::Xor,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -177,9 +172,9 @@ fn addition() {
     harness_expr(
         "1 + 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Plus,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -189,9 +184,9 @@ fn subtraction() {
     harness_expr(
         "1 - 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Minus,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -201,9 +196,9 @@ fn multiplication() {
     harness_expr(
         "1 * 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Star,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -213,9 +208,9 @@ fn division() {
     harness_expr(
         "1 / 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Slash,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -225,17 +220,17 @@ fn modulo() {
     harness_expr(
         "1 mod 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Modulo,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
     harness_expr(
         "1 % 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Modulo,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -245,9 +240,9 @@ fn div() {
     harness_expr(
         "1 div 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Div,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -257,9 +252,9 @@ fn bitwise_and() {
     harness_expr(
         "1 & 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::And,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -269,9 +264,9 @@ fn bitwise_or() {
     harness_expr(
         "1 | 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Or,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -281,12 +276,12 @@ fn bitwise_chain() {
     harness_expr(
         "1 | 1 | 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Or,
             Evaluation::new(
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
                 EvaluationOperator::Or,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
         ),
@@ -298,9 +293,9 @@ fn bitwise_xor() {
     harness_expr(
         "1 ^ 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::Xor,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -330,9 +325,9 @@ fn bit_shift_left() {
     harness_expr(
         "1 << 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::BitShiftLeft,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -342,9 +337,9 @@ fn bit_shift_right() {
     harness_expr(
         "1 >> 1",
         Evaluation::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EvaluationOperator::BitShiftRight,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -354,9 +349,9 @@ fn less_than() {
     harness_expr(
         "1 < 1",
         Equality::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EqualityOperator::LessThan,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -370,25 +365,25 @@ fn combo_math() {
                 Evaluation::new(
                     Evaluation::new(
                         Evaluation::new(
-                            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                            Literal::Real(1.0).into_lazy_box(),
                             EvaluationOperator::Star,
-                            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                            Literal::Real(1.0).into_lazy_box(),
                         )
                         .into_lazy_box(),
                         EvaluationOperator::Plus,
-                        Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                        Literal::Real(1.0).into_lazy_box(),
                     )
                     .into_lazy_box(),
                     EvaluationOperator::BitShiftRight,
-                    Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                    Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
                 EvaluationOperator::And,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             EqualityOperator::Equal,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     )
 }
@@ -398,9 +393,9 @@ fn less_than_or_equal() {
     harness_expr(
         "1 <= 1",
         Equality::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EqualityOperator::LessThanOrEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -410,9 +405,9 @@ fn greater_than() {
     harness_expr(
         "1 > 1",
         Equality::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EqualityOperator::GreaterThan,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -422,9 +417,9 @@ fn greater_than_or_equal() {
     harness_expr(
         "1 >= 1",
         Equality::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EqualityOperator::GreaterThanOrEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -434,9 +429,9 @@ fn equal() {
     harness_expr(
         "1 == 1",
         Equality::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EqualityOperator::Equal,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -446,9 +441,9 @@ fn bang_equal() {
     harness_expr(
         "1 != 1",
         Equality::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
             EqualityOperator::NotEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -459,7 +454,7 @@ fn null_coalecence() {
         "foo ?? 1",
         NullCoalecence::new(
             Identifier::new("foo").into_lazy_box(),
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -470,8 +465,8 @@ fn ternary() {
         "foo ? 1 : 2",
         Ternary::new(
             Identifier::new("foo").into_lazy_box(),
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-            Expression::Literal(Literal::Real(2.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(2.0).into_lazy_box(),
         ),
     );
 }
@@ -483,7 +478,7 @@ fn assign() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -498,7 +493,7 @@ fn dot_assign() {
             }
             .into_lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -510,13 +505,13 @@ fn ds_assign() {
         Assignment::new(
             Access::Array {
                 left: Identifier::new("foo").into_lazy_box(),
-                index_one: Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                index_one: Literal::Real(0.0).into_lazy_box(),
                 index_two: None,
                 using_accessor: false,
             }
             .into_lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -527,9 +522,9 @@ fn call_assign() {
     harness_expr(
         "foo() = 1",
         Assignment::new(
-            Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box(),
+            Call::new(Identifier::new("foo").into_lazy_box(), vec![]).into_lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -541,7 +536,7 @@ fn static_assign() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::Equal,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -553,7 +548,7 @@ fn plus_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::PlusEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -565,7 +560,7 @@ fn minus_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::MinusEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -577,7 +572,7 @@ fn star_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::StarEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -589,7 +584,7 @@ fn slash_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::SlashEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -601,7 +596,7 @@ fn and_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::AndEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -613,7 +608,7 @@ fn or_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::OrEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -625,7 +620,7 @@ fn xor_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::XorEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -637,7 +632,7 @@ fn mod_equal() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::ModEqual,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
         ),
     );
 }
@@ -662,10 +657,7 @@ fn not_keyword() {
 fn positive() {
     harness_expr(
         "+1",
-        Unary::new(
-            UnaryOperator::Positive,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-        ),
+        Unary::new(UnaryOperator::Positive, Literal::Real(1.0).into_lazy_box()),
     );
 }
 
@@ -673,10 +665,7 @@ fn positive() {
 fn neagtive() {
     harness_expr(
         "-1",
-        Unary::new(
-            UnaryOperator::Negative,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-        ),
+        Unary::new(UnaryOperator::Negative, Literal::Real(1.0).into_lazy_box()),
     );
 }
 
@@ -715,10 +704,7 @@ fn ds_unary() {
 fn prefix_increment() {
     harness_expr(
         "++1",
-        Unary::new(
-            UnaryOperator::Increment,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-        ),
+        Unary::new(UnaryOperator::Increment, Literal::Real(1.0).into_lazy_box()),
     );
 }
 
@@ -726,10 +712,7 @@ fn prefix_increment() {
 fn prefix_decrement() {
     harness_expr(
         "--1",
-        Unary::new(
-            UnaryOperator::Decrement,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-        ),
+        Unary::new(UnaryOperator::Decrement, Literal::Real(1.0).into_lazy_box()),
     );
 }
 
@@ -737,10 +720,7 @@ fn prefix_decrement() {
 fn bitwise_not() {
     harness_expr(
         "~1",
-        Unary::new(
-            UnaryOperator::BitwiseNot,
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-        ),
+        Unary::new(UnaryOperator::BitwiseNot, Literal::Real(1.0).into_lazy_box()),
     );
 }
 
@@ -748,10 +728,7 @@ fn bitwise_not() {
 fn postfix_increment() {
     harness_expr(
         "1++",
-        Postfix::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-            PostfixOperator::Increment,
-        ),
+        Postfix::new(Literal::Real(1.0).into_lazy_box(), PostfixOperator::Increment),
     );
 }
 
@@ -759,10 +736,7 @@ fn postfix_increment() {
 fn postfix_decrement() {
     harness_expr(
         "1--",
-        Postfix::new(
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-            PostfixOperator::Decrement,
-        ),
+        Postfix::new(Literal::Real(1.0).into_lazy_box(), PostfixOperator::Decrement),
     );
 }
 
@@ -799,24 +773,20 @@ fn ds_postfix() {
 
 #[test]
 fn call() {
-    harness_expr(
-        "foo()",
-        Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false),
-    );
+    harness_expr("foo()", Call::new(Identifier::new("foo").into_lazy_box(), vec![]));
 }
 
 #[test]
 fn call_with_args() {
     harness_expr(
         "foo(0, 1, 2)",
-        Expression::Call(
+        Call::new(
             Identifier::new("foo").into_lazy_box(),
             vec![
-                Expression::Literal(Literal::Real(0.0)).lazy_box(),
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
-                Expression::Literal(Literal::Real(2.0)).lazy_box(),
+                Literal::Real(0.0).into_lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(2.0).into_lazy_box(),
             ],
-            false,
         ),
     );
 }
@@ -825,14 +795,13 @@ fn call_with_args() {
 fn call_trailing_commas() {
     harness_expr(
         "foo(0, 1, 2,)",
-        Expression::Call(
+        Call::new(
             Identifier::new("foo").into_lazy_box(),
             vec![
-                Expression::Literal(Literal::Real(0.0)).lazy_box(),
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
-                Expression::Literal(Literal::Real(2.0)).lazy_box(),
+                Literal::Real(0.0).into_lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(2.0).into_lazy_box(),
             ],
-            false,
         ),
     );
 }
@@ -841,7 +810,7 @@ fn call_trailing_commas() {
 fn construction() {
     harness_expr(
         "new foo()",
-        Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], true),
+        Call::new_with_new_operator(Identifier::new("foo").into_lazy_box(), vec![]),
     );
 }
 
@@ -855,9 +824,9 @@ fn simple_array() {
     harness_expr(
         "[0, 1, 2]",
         Expression::Literal(Literal::Array(vec![
-            Expression::Literal(Literal::Real(0.0)).lazy_box(),
-            Expression::Literal(Literal::Real(1.0)).lazy_box(),
-            Expression::Literal(Literal::Real(2.0)).lazy_box(),
+            Literal::Real(0.0).into_lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(2.0).into_lazy_box(),
         ])),
     );
 }
@@ -997,7 +966,7 @@ fn chained_ds_accesses() {
 fn ds_access_call() {
     harness_expr(
         "foo[bar]()",
-        Expression::Call(
+        Call::new(
             Access::Array {
                 left: Identifier::new("foo").into_lazy_box(),
                 index_one: Identifier::new("bar").into_lazy_box(),
@@ -1006,7 +975,6 @@ fn ds_access_call() {
             }
             .into_lazy_box(),
             vec![],
-            false,
         ),
     )
 }
@@ -1027,7 +995,7 @@ fn grouping_dot_access() {
     harness_expr(
         "(foo).bar",
         Access::Dot {
-            left: Expression::Grouping(Identifier::new("foo").into_lazy_box()).lazy_box(),
+            left: Grouping::new(Identifier::new("foo").into_lazy_box()).into_lazy_box(),
             right: Identifier::new("bar").into_lazy_box(),
         },
     );
@@ -1052,14 +1020,13 @@ fn chained_dot_access() {
 fn dot_access_to_call() {
     harness_expr(
         "foo.bar()",
-        Expression::Call(
+        Call::new(
             Access::Dot {
                 left: Identifier::new("foo").into_lazy_box(),
                 right: Identifier::new("bar").into_lazy_box(),
             }
             .into_lazy_box(),
             vec![],
-            false,
         ),
     )
 }
@@ -1074,7 +1041,7 @@ fn dot_access_to_ds_access() {
                 right: Identifier::new("bar").into_lazy_box(),
             }
             .into_lazy_box(),
-            index_one: Expression::Literal(Literal::Real(0.0)).lazy_box(),
+            index_one: Literal::Real(0.0).into_lazy_box(),
             index_two: None,
             using_accessor: false,
         },
@@ -1086,7 +1053,7 @@ fn dot_access_from_call() {
     harness_expr(
         "foo().bar",
         Access::Dot {
-            left: Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box(),
+            left: Call::new(Identifier::new("foo").into_lazy_box(), vec![]).into_lazy_box(),
             right: Identifier::new("bar").into_lazy_box(),
         },
     );
@@ -1096,14 +1063,13 @@ fn dot_access_from_call() {
 fn chained_calls() {
     harness_expr(
         "foo().bar()",
-        Expression::Call(
+        Call::new(
             Access::Dot {
-                left: Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box(),
+                left: Call::new(Identifier::new("foo").into_lazy_box(), vec![]).into_lazy_box(),
                 right: Identifier::new("bar").into_lazy_box(),
             }
             .into_lazy_box(),
             vec![],
-            false,
         ),
     );
 }
@@ -1112,14 +1078,13 @@ fn chained_calls() {
 fn chain_calls_with_call_parameter() {
     harness_expr(
         "foo().bar(buzz())",
-        Expression::Call(
+        Call::new(
             Access::Dot {
-                left: Expression::Call(Identifier::new("foo").into_lazy_box(), vec![], false).lazy_box(),
+                left: Call::new(Identifier::new("foo").into_lazy_box(), vec![]).into_lazy_box(),
                 right: Identifier::new("bar").into_lazy_box(),
             }
             .into_lazy_box(),
-            vec![Expression::Call(Identifier::new("buzz").into_lazy_box(), vec![], false).lazy_box()],
-            false,
+            vec![Call::new(Identifier::new("buzz").into_lazy_box(), vec![]).into_lazy_box()],
         ),
     )
 }
@@ -1163,7 +1128,7 @@ fn ds_dot_access() {
         Access::Dot {
             left: Access::Array {
                 left: Identifier::new("foo").into_lazy_box(),
-                index_one: Expression::Literal(Literal::Real(0.0)).lazy_box(),
+                index_one: Literal::Real(0.0).into_lazy_box(),
                 index_two: None,
                 using_accessor: false,
             }
@@ -1175,10 +1140,7 @@ fn ds_dot_access() {
 
 #[test]
 fn grouping() {
-    harness_expr(
-        "(0)",
-        Expression::Grouping(Expression::Literal(Literal::Real(0.0)).lazy_box()),
-    );
+    harness_expr("(0)", Grouping::new(Literal::Real(0.0).into_lazy_box()));
 }
 
 #[test]
@@ -1188,17 +1150,17 @@ fn identifier() {
 
 #[test]
 fn number() {
-    harness_expr("0", Expression::Literal(Literal::Real(0.0)));
+    harness_expr("0", Literal::Real(0.0));
 }
 
 #[test]
 fn float() {
-    harness_expr("0.01", Expression::Literal(Literal::Real(0.01)));
+    harness_expr("0.01", Literal::Real(0.01));
 }
 
 #[test]
 fn float_no_prefix() {
-    harness_expr(".01", Expression::Literal(Literal::Real(0.01)));
+    harness_expr(".01", Literal::Real(0.01));
 }
 
 #[test]
@@ -1266,7 +1228,7 @@ fn logically_joined_expressions() {
             Equality::new(
                 Identifier::new("foo").into_lazy_box(),
                 EqualityOperator::Equal,
-                Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
             LogicalOperator::And,
@@ -1274,14 +1236,14 @@ fn logically_joined_expressions() {
                 Equality::new(
                     Identifier::new("foo").into_lazy_box(),
                     EqualityOperator::Equal,
-                    Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                    Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
                 LogicalOperator::And,
                 Equality::new(
                     Identifier::new("foo").into_lazy_box(),
                     EqualityOperator::Equal,
-                    Expression::Literal(Literal::Real(1.0)).lazy_box(),
+                    Literal::Real(1.0).into_lazy_box(),
                 )
                 .into_lazy_box(),
             )

@@ -2,7 +2,8 @@ use bimap::BiHashMap;
 use once_cell::sync::Lazy;
 
 use crate::{
-    config::EnglishFlavor, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport,
+    config::EnglishFlavor, gml::Call, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel,
+    LintReport,
 };
 
 #[derive(Debug, PartialEq)]
@@ -36,8 +37,8 @@ impl EarlyExpressionPass for EnglishFlavorViolation {
         reports: &mut Vec<LintReport>,
     ) {
         let english_flavor = &config.english_flavor;
-        if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(identifier) = caller.expression() {
+        if let Expression::Call(Call { left, .. }) = expression {
+            if let Expression::Identifier(identifier) = left.expression() {
                 match english_flavor {
                     EnglishFlavor::American => {
                         if let Some(british_spelling) =

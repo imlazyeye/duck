@@ -21,7 +21,9 @@ impl From<Postfix> for Expression {
 }
 impl IntoExpressionBox for Postfix {}
 impl ParseVisitor for Postfix {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        expression_visitor(&self.left);
+    }
     fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
 }
 

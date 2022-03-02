@@ -4,6 +4,7 @@ use crate::{
     lint::{EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, LintLevel},
     lints::*,
     parsing::{Ast, Expression, ExpressionBox, ParseError, Parser, Statement, StatementBox},
+    prelude::ParseVisitor,
     utils::Span,
     Lint, LintReport,
 };

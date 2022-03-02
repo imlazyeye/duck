@@ -1,7 +1,7 @@
 use crate::{
-    gml::{Assignment, AssignmentOperator, Evaluation},
+    gml::{Assignment, AssignmentOperator, Evaluation, Literal},
     lint::EarlyExpressionPass,
-    parsing::{Expression, Literal},
+    parsing::Expression,
     prelude::EvaluationOperator,
     utils::Span,
     Lint, LintLevel, LintReport,
@@ -39,7 +39,7 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
     ) {
         match expression {
             Expression::Evaluation(Evaluation { operator, right, .. }) => {
-                if let Expression::Literal(literal) = right.expression() {
+                if let Some(literal) = right.expression().as_literal() {
                     if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
                         reports.push(Self::generate_report(span))
                     }
@@ -50,7 +50,7 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
                     *operator,
                     AssignmentOperator::Equal | AssignmentOperator::NullCoalecenceEqual
                 ) {
-                    if let Expression::Literal(literal) = right.expression() {
+                    if let Some(literal) = right.expression().as_literal() {
                         if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
                             reports.push(Self::generate_report(span))
                         }

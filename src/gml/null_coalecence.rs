@@ -21,6 +21,9 @@ impl From<NullCoalecence> for Expression {
 }
 impl IntoExpressionBox for NullCoalecence {}
 impl ParseVisitor for NullCoalecence {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+        expression_visitor(&self.left);
+        expression_visitor(&self.right);
+    }
     fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
 }

@@ -1,4 +1,4 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{gml::Call, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct DrawSprite;
@@ -30,8 +30,8 @@ impl EarlyExpressionPass for DrawSprite {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(identifier) = caller.expression() {
+        if let Expression::Call(Call { left, .. }) = expression {
+            if let Expression::Identifier(identifier) = left.expression() {
                 if gm_draw_sprite_functions().contains(&identifier.name.as_str()) {
                     reports.push(Self::generate_report_with(
                         span,

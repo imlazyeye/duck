@@ -1,4 +1,6 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel, LintReport};
+use crate::{
+    gml::Call, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Config, Lint, LintLevel, LintReport,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct DrawText;
@@ -25,8 +27,8 @@ impl Lint for DrawText {
 
 impl EarlyExpressionPass for DrawText {
     fn visit_expression_early(_config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
-        if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(identifier) = caller.expression() {
+        if let Expression::Call(Call { left, .. }) = expression {
+            if let Expression::Identifier(identifier) = left.expression() {
                 if gm_draw_text_functions().contains(&identifier.name.as_str()) {
                     reports.push(Self::generate_report_with(
                         span,

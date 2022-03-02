@@ -1,7 +1,7 @@
 use crate::{
     gml::{
-        Access, Assignment, Constructor, Equality, Evaluation, Function, Identifier, Logical, NullCoalecence, Postfix,
-        Ternary, Unary,
+        Access, Assignment, Call, Equality, Evaluation, Function, Grouping, Identifier, Literal, Logical,
+        NullCoalecence, Postfix, Ternary, Unary,
     },
     parsing::statement::StatementBox,
     utils::Span,
@@ -33,87 +33,17 @@ pub enum Expression {
     Postfix(Postfix),
     /// An access into another scope, such as an array lookup, or dot-notation on a struct.
     Access(Access),
-    Call(ExpressionBox, Vec<ExpressionBox>, bool),
-    Grouping(ExpressionBox),
+    /// An invokation of a function.
+    Call(Call),
+    /// A grouping (expression surrounded by parenthesis.)
+    Grouping(Grouping),
+    /// A constant compile-time value in gml.
     Literal(Literal),
+    /// An identifier (any floating lexeme, most often variables).
     Identifier(Identifier),
 }
 impl Expression {
-    pub fn into_box(self, span: Span) -> ExpressionBox {
-        ExpressionBox(Box::new(self), span)
-    }
-
-    pub fn lazy_box(self) -> ExpressionBox {
-        ExpressionBox(Box::new(self), Span::default())
-    }
-
-    pub fn visit_child_statements<S>(&self, mut statement_visitor: S)
-    where
-        S: FnMut(&StatementBox),
-    {
-        if let Expression::FunctionDeclaration(Function { body, .. }) = self {
-            statement_visitor(body);
-        }
-    }
-
-    pub fn visit_child_expressions<E>(&self, mut expression_visitor: E)
-    where
-        E: FnMut(&ExpressionBox),
-    {
-        match self {
-            Expression::FunctionDeclaration(Function {
-                parameters,
-                constructor,
-                ..
-            }) => {
-                for parameter in parameters.iter() {
-                    if let Some(default_value) = &parameter.default_value {
-                        expression_visitor(default_value);
-                    }
-                }
-                if let Some(Constructor::WithInheritance(inheritance_call)) = &constructor {
-                    expression_visitor(inheritance_call);
-                }
-            }
-            Expression::Logical(Logical { left, right, .. })
-            | Expression::Equality(Equality { left, right, .. })
-            | Expression::Evaluation(Evaluation { left, right, .. })
-            | Expression::Assignment(Assignment { left, right, .. })
-            | Expression::NullCoalecence(NullCoalecence { left, right }) => {
-                expression_visitor(left);
-                expression_visitor(right);
-            }
-            Expression::Ternary(Ternary {
-                condition,
-                true_value,
-                false_value,
-            }) => {
-                expression_visitor(condition);
-                expression_visitor(true_value);
-                expression_visitor(false_value);
-            }
-            Expression::Unary(Unary { right, .. }) => {
-                expression_visitor(right);
-            }
-            Expression::Postfix(Postfix { left, .. }) => {
-                expression_visitor(left);
-            }
-            Expression::Access(_) => {
-                todo!();
-            }
-            Expression::Call(left, arguments, _) => {
-                expression_visitor(left);
-                for arg in arguments {
-                    expression_visitor(arg);
-                }
-            }
-            Expression::Grouping(expression) => {
-                expression_visitor(expression);
-            }
-            Expression::Literal(_) | Expression::Identifier(_) => {}
-        }
-    }
-
+    /// Returns the expression as an Identifier or None.
     pub fn as_identifier(&self) -> Option<&Identifier> {
         match self {
             Expression::Identifier(identifier) => Some(identifier),
@@ -121,6 +51,7 @@ impl Expression {
         }
     }
 
+    /// Returns the expression as an Assignment or None.
     pub fn as_assignment(&self) -> Option<&Assignment> {
         match self {
             Expression::Assignment(assignment) => Some(assignment),
@@ -128,32 +59,93 @@ impl Expression {
         }
     }
 
-    pub fn as_dot_access(&self) -> Option<(&Expression, &Expression)> {
+    /// Returns the expression a the interior fields of a Access::Dot, or None.
+    pub fn as_dot_access(&self) -> Option<(&Self, &Self)> {
         match self {
             Expression::Access(Access::Dot { left, right }) => Some((left.expression(), right.expression())),
             _ => None,
         }
     }
+
+    /// Returns the expression as an Literal or None.
+    pub fn as_literal(&self) -> Option<&Literal> {
+        match self {
+            Expression::Literal(literal) => Some(literal),
+            _ => None,
+        }
+    }
+}
+impl ParseVisitor for Expression {
+    fn visit_child_statements<S>(&self, statement_visitor: S)
+    where
+        S: FnMut(&StatementBox),
+    {
+        match self {
+            Expression::FunctionDeclaration(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Logical(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Equality(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Evaluation(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::NullCoalecence(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Ternary(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Assignment(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Unary(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Postfix(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Access(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Call(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Grouping(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Literal(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::Identifier(inner) => inner.visit_child_statements(statement_visitor),
+        }
+    }
+
+    fn visit_child_expressions<E>(&self, expression_visitor: E)
+    where
+        E: FnMut(&ExpressionBox),
+    {
+        match self {
+            Expression::FunctionDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Logical(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Equality(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Evaluation(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::NullCoalecence(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Ternary(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Assignment(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Unary(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Postfix(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Access(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Call(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Grouping(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Literal(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::Identifier(inner) => inner.visit_child_expressions(expression_visitor),
+        }
+    }
 }
 
+/// A wrapper around a Expression. Serves a few purposes:
+///
+/// 1. Prevents infinite-sizing issues on [Expression] (type T cannot itself directly hold another
+/// T) 2. Contains the [Span] that describes where this expression came from
+/// 3. In the future, will hold static-analysis data
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExpressionBox(pub Box<Expression>, pub Span);
 impl ExpressionBox {
+    /// Returns a reference to the inner expression.
     pub fn expression(&self) -> &Expression {
         self.0.as_ref()
     }
+    /// Returns a reference to the inner span.
     pub fn span(&self) -> Span {
         self.1
     }
 }
 impl From<ExpressionBox> for Statement {
     fn from(expr: ExpressionBox) -> Self {
-        Statement::Expression(expr)
+        Self::Expression(expr)
     }
 }
 impl IntoStatementBox for ExpressionBox {}
 impl ParseVisitor for ExpressionBox {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, expression_visitor: E) {
+    fn visit_child_expressions<E: FnMut(&Self)>(&self, expression_visitor: E) {
         self.expression().visit_child_expressions(expression_visitor)
     }
 
@@ -180,19 +172,4 @@ pub trait IntoExpressionBox: Sized + Into<Expression> {
     {
         self.into_expression_box(Default::default())
     }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Literal {
-    True,
-    False,
-    Undefined,
-    Noone,
-    String(String),
-    Real(f64),
-    Hex(String),
-    Array(Vec<ExpressionBox>),
-    Struct(Vec<(String, ExpressionBox)>),
-    /// Any GML constant that we are aware of but do not have specific use for.
-    Misc(String),
 }

@@ -54,9 +54,8 @@ pub enum Statement {
     Expression(ExpressionBox),
 }
 impl IntoStatementBox for Statement {}
-impl Statement {
-    /// Runs the given visitor over all of the statements contained in this Statement.
-    pub fn visit_child_statements<S>(&self, statement_visitor: S)
+impl ParseVisitor for Statement {
+    fn visit_child_statements<S>(&self, statement_visitor: S)
     where
         S: FnMut(&StatementBox),
     {
@@ -80,8 +79,7 @@ impl Statement {
         }
     }
 
-    /// Runs the given visitor over all of the expressions contained in this Expression.
-    pub fn visit_child_expressions<E>(&self, expression_visitor: E)
+    fn visit_child_expressions<E>(&self, expression_visitor: E)
     where
         E: FnMut(&ExpressionBox),
     {

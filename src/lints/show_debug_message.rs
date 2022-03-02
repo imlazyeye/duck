@@ -1,4 +1,4 @@
-use crate::{lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{gml::Call, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct ShowDebugMessage;
@@ -33,8 +33,8 @@ impl EarlyExpressionPass for ShowDebugMessage {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Call(caller, _, _) = expression {
-            if let Expression::Identifier(identifier) = caller.expression() {
+        if let Expression::Call(Call { left, .. }) = expression {
+            if let Expression::Identifier(identifier) = left.expression() {
                 if identifier.name.as_str() == "show_debug_message" {
                     reports.push(Self::generate_report(span))
                 }

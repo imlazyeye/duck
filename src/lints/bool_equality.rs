@@ -1,7 +1,7 @@
 use crate::{
-    gml::{Equality, EqualityOperator},
+    gml::{Equality, EqualityOperator, Literal},
     lint::EarlyExpressionPass,
-    parsing::{Expression, Literal},
+    parsing::Expression,
     utils::Span,
     Lint, LintLevel, LintReport,
 };
@@ -42,7 +42,7 @@ impl EarlyExpressionPass for BoolEquality {
             ..
         }) = expression
         {
-            if let Expression::Literal(literal) = right.expression() {
+            if let Some(literal) = right.expression().as_literal() {
                 match literal {
                     Literal::True => reports.push(Self::generate_report_with(
                         span,
