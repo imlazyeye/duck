@@ -58,7 +58,7 @@ impl Duck {
     ///
     /// ### Errors
     /// Returns an error if we fail to join any of the tokio tasks.
-    pub async fn run(&self, project_directory: &Path) -> Result<RunResult, tokio::task::JoinError> {
+    pub async fn run(&self, project_directory: &Path) -> Result<RunSummary, tokio::task::JoinError> {
         // Load everything in and await through the early pass
         let config_arc = Arc::new(self.config.clone()); // TODO: this clone sucks
         let (path_receiver, _) = DuckTask::start_gml_discovery(project_directory);
@@ -76,7 +76,7 @@ impl Duck {
         let parse_errors = parse_handle.await?;
 
         // Return the result!
-        Ok(RunResult::new(
+        Ok(RunSummary::new(
             self.config(),
             late_pass_reports,
             parse_errors,
@@ -92,7 +92,7 @@ impl Duck {
     ///
     /// ### Panics
     /// Panics if we fail to spawn a tokio runtime.
-    pub fn run_blocking(&self, project_directory: &Path) -> Result<RunResult, tokio::task::JoinError> {
+    pub fn run_blocking(&self, project_directory: &Path) -> Result<RunSummary, tokio::task::JoinError> {
         tokio::runtime::Runtime::new()
             .unwrap()
             .block_on(self.run(project_directory))
@@ -105,13 +105,13 @@ impl Duck {
 }
 
 /// The data returned by calling [Duck::run].
-pub struct RunResult {
+pub struct RunSummary {
     report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>>,
     parse_errors: Vec<(PathBuf, String, ParseError)>,
     io_errors: Vec<std::io::Error>,
     lines_parsed: usize,
 }
-impl RunResult {
+impl RunSummary {
     fn new(
         config: &Config,
         lint_reports: Vec<(PathBuf, String, Vec<LintReport>)>,

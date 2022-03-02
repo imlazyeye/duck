@@ -50,13 +50,13 @@ async fn run_lint(
     } else {
         (Duck::default(), ConfigUsage::None)
     };
-    let run_result = duck.run(&current_directory).await.unwrap();
+    let run_summary = duck.run(&current_directory).await.unwrap();
     let total_duration = timer.elapsed();
 
     // Output the results
     println!(
         "{}",
-        run_result
+        run_summary
             .iter_lint_reports()
             .map(|(path, gml, report)| {
                 report.generate_string(
@@ -74,8 +74,8 @@ async fn run_lint(
         "  {}",
         format!(
             "🦆 <( Found {} errors and {} warnings! )",
-            run_result.denial_count().to_string().bright_red(),
-            run_result.warning_count().to_string().yellow(),
+            run_summary.denial_count().to_string().bright_red(),
+            run_summary.warning_count().to_string().yellow(),
         )
         .bold()
     );
@@ -83,7 +83,7 @@ async fn run_lint(
         "  {}",
         format!(
             "Ran on {} lines in {:.2}s.",
-            run_result.lines_parsed().to_formatted_string(&Locale::en),
+            run_summary.lines_parsed().to_formatted_string(&Locale::en),
             total_duration.as_secs_f32(),
         )
         .italic()
@@ -95,15 +95,15 @@ async fn run_lint(
         ConfigUsage::Failed(error) => println!("{}: Your config was not used in this run, as duck encountered the following error while being parsed: {:?}\n", "error".bright_red().bold(), error),
         ConfigUsage::Some => {}
     }
-    if !run_result.io_errors().is_empty() {
+    if !run_summary.io_errors().is_empty() {
         warn!("The following errors occured while trying to read your project's files...\n");
-        run_result.io_errors().iter().for_each(|error| {
+        run_summary.io_errors().iter().for_each(|error| {
             println!("{error}");
         })
     }
-    if !run_result.parse_errors().is_empty() {
+    if !run_summary.parse_errors().is_empty() {
         warn!("The following errors occured while trying to parse the project...\n");
-        run_result.parse_errors().iter().for_each(|(path, file, error)| {
+        run_summary.parse_errors().iter().for_each(|(path, file, error)| {
             println!(
                 "{}",
                 error.generate_report(&FilePreviewUtil::new(file, path.to_str().unwrap(), error.span().0))
@@ -112,9 +112,9 @@ async fn run_lint(
     }
 
     // Return the status code
-    if (!allow_warnings && run_result.warning_count() != 0)
-        || (!allow_denials && run_result.denial_count() != 0)
-        || (!allow_errors && (!run_result.io_errors().is_empty() || !run_result.parse_errors().is_empty()))
+    if (!allow_warnings && run_summary.warning_count() != 0)
+        || (!allow_denials && run_summary.denial_count() != 0)
+        || (!allow_errors && (!run_summary.io_errors().is_empty() || !run_summary.parse_errors().is_empty()))
     {
         1
     } else {
