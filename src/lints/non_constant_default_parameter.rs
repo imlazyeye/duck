@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct NonConstantDefaultParameter;
 impl Lint for NonConstantDefaultParameter {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            tag: Self::tag(),
-            display_name: "Non constant default parameter".into(),
-            explanation: "Expressive default parameters are not supported in most languages due to their instability and tendency to hide important logic execution from the caller.",
-            suggestions: vec!["Create a seperated function for when this value is not provided".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Expressive default parameters are not supported in most languages due to their instability and tendency to hide important logic execution from the caller."
     }
 
     fn default_level() -> LintLevel {
@@ -41,7 +34,12 @@ impl EarlyExpressionPass for NonConstantDefaultParameter {
                         expression.expression(),
                         Expression::Identifier(_) | Expression::Literal(_),
                     ) {
-                        reports.push(Self::generate_report(span))
+                        Self::report(
+                            "Non constant default parameter",
+                            ["Create a seperated function for when this value is not provided".into()],
+                            span,
+                            reports,
+                        )
                     }
                 }
             }

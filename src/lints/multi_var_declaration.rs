@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct MultiVarDeclaration;
 impl Lint for MultiVarDeclaration {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Multiple local variables declared at once".into(),
-            tag: Self::tag(),
-            explanation: "While GML allows you to create multiple local variables at once, it can often lead to confusing syntax that would read better with each variable seperated.",
-            suggestions: vec!["Break these down into seperate declarations".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "While GML allows you to create multiple local variables at once, it can often lead to confusing syntax that would read better with each variable seperated."
     }
 
     fn default_level() -> LintLevel {
@@ -36,7 +29,12 @@ impl EarlyStatementPass for MultiVarDeclaration {
     ) {
         if let Statement::LocalVariableSeries(LocalVariableSeries { declarations }) = statement {
             if declarations.len() > 1 {
-                reports.push(Self::generate_report(span));
+                Self::report(
+                    "Multiple local variables declared at once",
+                    ["Break these down into seperate declarations".into()],
+                    span,
+                    reports,
+                );
             }
         }
     }

@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct SingleSwitchCase;
 impl Lint for SingleSwitchCase {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Single switch case".into(),
-            tag: Self::tag(),
-            explanation: "Switch statements that only match on a single element can be reduced to an `if` statement.",
-            suggestions: vec!["Use an `if` statement instead of a `switch` statement".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Switch statements that only match on a single element can be reduced to an `if` statement."
     }
 
     fn default_level() -> LintLevel {
@@ -36,7 +29,12 @@ impl EarlyStatementPass for SingleSwitchCase {
     ) {
         if let Statement::Switch(switch) = statement {
             if switch.cases().len() == 1 {
-                reports.push(Self::generate_report(span));
+                Self::report(
+                    "Single switch case",
+                    ["Use an `if` statement instead of a `switch` statement".into()],
+                    span,
+                    reports,
+                );
             }
         }
     }

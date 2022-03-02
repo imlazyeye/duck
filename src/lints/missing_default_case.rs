@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct MissingDefaultCase;
 impl Lint for MissingDefaultCase {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Missing default case".into(),
-            tag: Self::tag(),
-            explanation: "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.",
-            suggestions: vec!["Add a default case to the switch statement".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values."
     }
 
     fn default_level() -> LintLevel {
@@ -36,7 +29,12 @@ impl EarlyStatementPass for MissingDefaultCase {
     ) {
         if let Statement::Switch(switch) = statement {
             if switch.default_case().is_none() {
-                reports.push(Self::generate_report(span))
+                Self::report(
+                    "Missing default case",
+                    ["Add a default case to the switch statement".into()],
+                    span,
+                    reports,
+                )
             }
         }
     }

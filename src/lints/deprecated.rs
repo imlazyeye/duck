@@ -1,5 +1,5 @@
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport, EarlyStatementPass},
+    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel, LintReport},
     parsing::{Access, Call, Expression, Globalvar, Statement},
     utils::Span,
 };
@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct Deprecated;
 impl Lint for Deprecated {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            tag: Self::tag(),
-            display_name: "Use of deprecated feature".into(),
-            explanation: "Deprecated features are liable to be removed at any time and should be avoided.",
-            suggestions: vec![],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Deprecated features are liable to be removed at any time and should be avoided."
     }
 
     fn default_level() -> LintLevel {
@@ -35,14 +28,15 @@ impl EarlyStatementPass for Deprecated {
         reports: &mut Vec<LintReport>,
     ) {
         if let Statement::GlobalvarDeclaration(Globalvar { name }) = statement {
-            reports.push(Self::generate_report_with(
-                span,
+            Self::report(
                 "Use of globalvar",
                 [
                     format!("Change this to the newer `global.{}` syntax.", name),
                     "Scope this variable to a singular object".into(),
                 ],
-            ));
+                span,
+                reports,
+            );
         }
     }
 }
@@ -57,19 +51,21 @@ impl EarlyExpressionPass for Deprecated {
         if let Expression::Call(Call { left, .. }) = expression {
             if let Expression::Identifier(identifier) = left.expression() {
                 if gm_deprecated_functions().contains(&identifier.name.as_str()) {
-                    reports.push(Self::generate_report_with(
-                        span,
+                    Self::report(
                         format!("Use of deprecated function: {}", identifier.name),
                         [],
-                    ));
+                        span,
+                        reports,
+                    );
                 }
             }
         } else if let Expression::Access(Access::Array { index_two: Some(_), .. }) = expression {
-            reports.push(Self::generate_report_with(
-                span,
+            Self::report(
                 "Use of 2d array",
                 ["Use chained arrays instead (`foo[0][0]).".into()],
-            ));
+                span,
+                reports,
+            );
         }
     }
 }

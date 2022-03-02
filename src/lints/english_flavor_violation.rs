@@ -11,15 +11,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct EnglishFlavorViolation;
 impl Lint for EnglishFlavorViolation {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "English Flavor Violation".into(),
-            tag: Self::tag(),
-            explanation: "GML has many duplicated function names for the sake of supporting both British and American spelling. For consistency, codebases should stick to one.",
-            suggestions: vec![],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "GML has many duplicated function names for the sake of supporting both British and American spelling. For consistency, codebases should stick to one."
     }
 
     fn default_level() -> LintLevel {
@@ -46,22 +39,24 @@ impl EarlyExpressionPass for EnglishFlavorViolation {
                         if let Some(british_spelling) =
                             BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(identifier.name.as_str())
                         {
-                            reports.push(Self::generate_report_with(
-                                span,
+                            Self::report(
                                 format!("Use of British spelling: {}", identifier.name),
                                 [format!("Use `{}` instead", british_spelling)],
-                            ))
+                                span,
+                                reports,
+                            );
                         }
                     }
                     EnglishFlavor::British => {
                         if let Some(american_spelling) =
                             BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(identifier.name.as_str())
                         {
-                            reports.push(Self::generate_report_with(
-                                span,
+                            Self::report(
                                 format!("Use of American spelling: {}", identifier.name),
                                 [format!("Use `{}` instead", american_spelling)],
-                            ))
+                                span,
+                                reports,
+                            );
                         }
                     }
                 }

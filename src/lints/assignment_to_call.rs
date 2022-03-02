@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct AssignmentToCall;
 impl Lint for AssignmentToCall {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Assignment to call".into(),
-            tag: Self::tag(),
-            explanation: "While possible to compile, assigning a value to the call of a function does not do anything.",
-            suggestions: vec!["Re-evaluate this code -- this assignment does not do anything.".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "While possible to compile, assigning a value to the call of a function does not do anything."
     }
 
     fn default_level() -> LintLevel {
@@ -36,7 +29,12 @@ impl EarlyExpressionPass for AssignmentToCall {
     ) {
         if let Expression::Assignment(Assignment { left, .. }) = expression {
             if let Expression::Call(..) = left.expression() {
-                reports.push(Self::generate_report(span));
+                Self::report(
+                    "Assignment to call",
+                    ["Re-evaluate this code -- this assignment does not do anything.".into()],
+                    span,
+                    reports,
+                );
             }
         }
     }

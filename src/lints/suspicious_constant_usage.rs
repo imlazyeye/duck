@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct SuspicousConstantUsage;
 impl Lint for SuspicousConstantUsage {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            tag: Self::tag(),
-            display_name: "Susipcious constant usage".into(),
-            explanation: "Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.",
-            suggestions: vec![],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code."
     }
 
     fn default_level() -> LintLevel {
@@ -38,7 +31,7 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
             Expression::Evaluation(Evaluation { operator, right, .. }) => {
                 if let Some(literal) = right.expression().as_literal() {
                     if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
-                        reports.push(Self::generate_report(span))
+                        Self::report("Suspicious constant usage", [], span, reports)
                     }
                 }
             }
@@ -49,7 +42,7 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
                 ) {
                     if let Some(literal) = right.expression().as_literal() {
                         if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
-                            reports.push(Self::generate_report(span))
+                            Self::report("Suspicious constant usage", [], span, reports)
                         }
                     }
                 }

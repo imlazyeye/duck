@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use crate::lint::{LintLevel, LintLevelSetting};
+use std::collections::HashMap;
 
 /// A series of various settings shared by the lints to customize their
 /// behavior.
@@ -30,6 +29,18 @@ pub struct Config {
     /// such as "Len" or "Count".
     #[serde(default = "default_length_enum_member_name")]
     pub length_enum_member_name: String,
+    /// Whether or not to prefer `and` instead of `&&` for [and_preference].
+    #[serde(default)]
+    pub prefer_and_keyword: bool,
+    /// Whether or not to prefer `or` instead of `||` for [or_preference].
+    #[serde(default)]
+    pub prefer_or_keyword: bool,
+    /// Whether or not to prefer `mod` instead of `%` for [mod_preference].
+    #[serde(default)]
+    pub prefer_mod_keyword: bool,
+    /// Whether or not to prefer `not` instead of `!` for [not_preference].
+    #[serde(default)]
+    pub prefer_not_keyword: bool,
     /// Manual definitions for any lint's lint level. The key is the lint's tag.
     ///
     /// FIXME: We do not currently validate that all entries are valid lint
@@ -50,6 +61,10 @@ impl Default for Config {
             var_prefixes: default_var_prefixes(),
             length_enum_member_name: default_length_enum_member_name(),
             english_flavor: default_english_flavor(),
+            prefer_and_keyword: false,
+            prefer_or_keyword: false,
+            prefer_mod_keyword: false,
+            prefer_not_keyword: false,
             lint_levels: Default::default(),
         }
     }
@@ -64,6 +79,26 @@ impl Config {
         } else {
             LintLevelSetting::Default(default)
         }
+    }
+
+    /// Get the config's prefer and keyword.
+    pub fn prefer_and_keyword(&self) -> bool {
+        self.prefer_and_keyword
+    }
+
+    /// Get the config's prefer or keyword.
+    pub fn prefer_or_keyword(&self) -> bool {
+        self.prefer_or_keyword
+    }
+
+    /// Get the config's prefer mod keyword.
+    pub fn prefer_mod_keyword(&self) -> bool {
+        self.prefer_mod_keyword
+    }
+
+    /// Get the config's prefer not keyword.
+    pub fn prefer_not_keyword(&self) -> bool {
+        self.prefer_not_keyword
     }
 }
 

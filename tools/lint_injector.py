@@ -39,7 +39,7 @@ with open('../src/lints.rs', 'w') as f:
     f.write(new_mods)
 
 # Gather the old calls
-duck_operation = open('../src/duck_operation.rs', "r").read()
+duck_operation = open('../src/core/duck_operation.rs', "r").read()
 
 opreations = [
     {
@@ -111,7 +111,7 @@ for operation in opreations:
     duck_operation = duck_operation.replace(old_call, new_call)
 
 # Flush to the file
-open('../src/duck_operation.rs', 'w').write(duck_operation)
+open('../src/core/duck_operation.rs', 'w').write(duck_operation)
 
 # Now update the full config template...
 template = open('../bin/input.rs', 'r').read()

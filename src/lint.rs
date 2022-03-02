@@ -13,26 +13,31 @@ use colored::Colorize;
 /// called `MissingDefaultCase`, not, say, `DefaultCaseInSwitch`. This makes
 /// tagging read more clearly (ie: `#[allow(missing_default_case)])`).
 pub trait Lint {
-    /// Genreates a LintReport.
-    fn generate_report(span: Span) -> LintReport;
-
     /// Returns the string tag for this Lint.
     fn tag() -> &'static str;
 
     /// Returns the default LintLevel for this Lint.
     fn default_level() -> LintLevel;
 
+    /// Returns an explanation of what the lint does and why it is useful.
+    fn explanation() -> &'static str;
+
     /// Generates a LintReport based on `Lint::generate_report`, but replaces
     /// its name and extends any provided suggestions into it.
-    fn generate_report_with<const COUNT: usize>(
-        span: Span,
+    fn report<const COUNT: usize>(
         name: impl Into<String>,
-        additional_suggestions: [String; COUNT],
-    ) -> LintReport {
-        let mut report = Self::generate_report(span);
-        report.display_name = name.into();
-        report.suggestions.extend(additional_suggestions);
-        report
+        suggestions: [String; COUNT],
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        reports.push(LintReport {
+            span,
+            display_name: name.into(),
+            suggestions: suggestions.into(),
+            tag: Self::tag(),
+            default_level: Self::default_level(),
+            explanation: Self::explanation(),
+        });
     }
 }
 

@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct Exit;
 impl Lint for Exit {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Use of `exit`".into(),
-            tag: Self::tag(),
-            explanation: "`return` can always be used in place of exit, which provides more consistency across your codebase.",
-            suggestions: vec!["Use `return` instead of `exit`".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "`return` can always be used in place of exit, which provides more consistency across your codebase."
     }
 
     fn default_level() -> LintLevel {
@@ -35,7 +28,12 @@ impl EarlyStatementPass for Exit {
         reports: &mut Vec<LintReport>,
     ) {
         if *statement == Statement::Exit {
-            reports.push(Self::generate_report(span))
+            Self::report(
+                "Use of `exit`",
+                ["Use `return` instead of `exit`".into()],
+                span,
+                reports,
+            );
         }
     }
 }

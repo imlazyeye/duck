@@ -1,5 +1,5 @@
 use crate::{
-     lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
     parsing::{Call, Expression},
     utils::Span,
 };
@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct DrawSprite;
 impl Lint for DrawSprite {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Use of `draw_sprite`".into(),
-            tag: Self::tag(),
-            explanation: "Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called.",
-            suggestions: vec!["Replace this call with your API's ideal function".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called."
     }
 
     fn default_level() -> LintLevel {
@@ -37,11 +30,12 @@ impl EarlyExpressionPass for DrawSprite {
         if let Expression::Call(Call { left, .. }) = expression {
             if let Expression::Identifier(identifier) = left.expression() {
                 if gm_draw_sprite_functions().contains(&identifier.name.as_str()) {
-                    reports.push(Self::generate_report_with(
-                        span,
+                    Self::report(
                         format!("Use of `{}`", identifier.name),
-                        [],
-                    ))
+                        ["Replace this call with your API's ideal function".into()],
+                        span,
+                        reports,
+                    )
                 }
             }
         }

@@ -1,5 +1,5 @@
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport, EarlyStatementPass},
+    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel, LintReport},
     parsing::{Expression, Function, Statement},
     utils::Span,
 };
@@ -8,15 +8,8 @@ use heck::ToUpperCamelCase;
 #[derive(Debug, PartialEq)]
 pub struct NonPascalCase;
 impl Lint for NonPascalCase {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Identifier should be PascalCase".into(),
-            tag: Self::tag(),
-            explanation: "Pascal case is the ideal casing for \"types\" to distinguish them from other values.",
-            suggestions: vec![],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        " to distinguish them from other values."
     }
 
     fn default_level() -> LintLevel {
@@ -39,20 +32,22 @@ impl EarlyStatementPass for NonPascalCase {
             let name = &gml_enum.name;
             let ideal = pascal_case(name);
             if name != &ideal {
-                reports.push(Self::generate_report_with(
-                    span,
+                Self::report(
                     format!("Enum should be PascalCase: {name}"),
                     [format!("Change this to `{}`", ideal)],
-                ));
+                    span,
+                    reports,
+                );
             }
             gml_enum.members.iter().map(|member| member.name()).for_each(|name| {
                 let ideal = pascal_case(name);
                 if name != ideal {
-                    reports.push(Self::generate_report_with(
-                        span,
+                    Self::report(
                         format!("Enum member should be PascalCase: {name}"),
                         [format!("Change this to `{}`", ideal)],
-                    ));
+                        span,
+                        reports,
+                    );
                 }
             });
         }
@@ -74,11 +69,12 @@ impl EarlyExpressionPass for NonPascalCase {
         {
             let ideal = pascal_case(name);
             if name != &ideal {
-                reports.push(Self::generate_report_with(
-                    span,
+                Self::report(
                     "Constructor should be PascalCase: {name}",
                     [format!("Change this to `{}`", ideal)],
-                ));
+                    span,
+                    reports,
+                );
             }
         }
     }

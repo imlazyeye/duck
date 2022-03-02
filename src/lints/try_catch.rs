@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct TryCatch;
 impl Lint for TryCatch {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Use of `try` / `catch`".into(),
-            tag: Self::tag(),
-            explanation: "GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.",
-            suggestions: vec!["Adjust the architecture to inspect for an issue prior to the crash".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed."
     }
 
     fn default_level() -> LintLevel {
@@ -35,7 +28,12 @@ impl EarlyStatementPass for TryCatch {
         reports: &mut Vec<LintReport>,
     ) {
         if let Statement::TryCatch(..) = statement {
-            reports.push(Self::generate_report(span))
+            Self::report(
+                "Use of `try` / `catch`",
+                ["Adjust the architecture to inspect for an issue prior to the crash".into()],
+                span,
+                reports,
+            )
         }
     }
 }

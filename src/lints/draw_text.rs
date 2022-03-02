@@ -8,15 +8,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct DrawText;
 impl Lint for DrawText {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Use of `draw_text`".into(),
-            tag: Self::tag(),
-            explanation: "Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called.",
-            suggestions: vec!["Replace this call with your API's ideal function".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called."
     }
 
     fn default_level() -> LintLevel {
@@ -33,11 +26,12 @@ impl EarlyExpressionPass for DrawText {
         if let Expression::Call(Call { left, .. }) = expression {
             if let Expression::Identifier(identifier) = left.expression() {
                 if gm_draw_text_functions().contains(&identifier.name.as_str()) {
-                    reports.push(Self::generate_report_with(
-                        span,
+                    Self::report(
                         format!("Use of `{}`", identifier.name),
-                        [],
-                    ))
+                        ["Replace this call with your API's ideal function".into()],
+                        span,
+                        reports,
+                    )
                 }
             }
         }

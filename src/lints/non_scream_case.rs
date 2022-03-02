@@ -1,5 +1,5 @@
 use crate::{
-    lint::{ Lint, LintLevel, LintReport, EarlyStatementPass},
+    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
     parsing::{Macro, Statement},
     utils::Span,
 };
@@ -8,15 +8,8 @@ use heck::ToShoutySnakeCase;
 #[derive(Debug, PartialEq)]
 pub struct NonScreamCase;
 impl Lint for NonScreamCase {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Identifier should be SCREAM_CASE".into(),
-            tag: Self::tag(),
-            explanation: "Scream case is the ideal casing for constants to distingusih them from other values.",
-            suggestions: vec!["Change your casing to SCREAM_CASE".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Scream case is the ideal casing for constants to distingusih them from other values."
     }
 
     fn default_level() -> LintLevel {
@@ -38,11 +31,12 @@ impl EarlyStatementPass for NonScreamCase {
         if let Statement::MacroDeclaration(Macro { name, .. }) = statement {
             let ideal = scream_case(name);
             if name != &ideal {
-                reports.push(Self::generate_report_with(
-                    span,
+                Self::report(
                     format!("Macro should be SCREAM_CASE: {name}"),
                     [format!("Change this to `{}`", ideal)],
-                ));
+                    span,
+                    reports,
+                );
             }
         }
     }

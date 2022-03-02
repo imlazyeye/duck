@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct Global;
 impl Lint for Global {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Use of `global`".into(),
-            tag: Self::tag(),
-            explanation: "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere.",
-            suggestions: vec!["Scope this variable to an individual object".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere, and provide no guarentee that they've already been initiailized."
     }
 
     fn default_level() -> LintLevel {
@@ -35,7 +28,12 @@ impl EarlyExpressionPass for Global {
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::Access(Access::Global { .. }) = expression {
-            reports.push(Self::generate_report(span))
+            Self::report(
+                "Use of global variables",
+                ["Scope this variable to an individual object".into()],
+                span,
+                reports,
+            )
         }
     }
 }

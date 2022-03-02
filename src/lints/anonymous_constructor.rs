@@ -8,18 +8,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct AnonymousConstructor;
 impl Lint for AnonymousConstructor {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Use of an anonymous constructor".into(),
-            tag: Self::tag(),
-            explanation: "Constructors should be reserved for larger, higher scoped types.",
-            suggestions: vec![
-                "Change this to a named function".into(),
-                "Change this to a function that returns a struct literal".into(),
-            ],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Constructors should be reserved for larger, higher scoped types."
     }
 
     fn default_level() -> LintLevel {
@@ -39,7 +29,15 @@ impl EarlyExpressionPass for AnonymousConstructor {
             ..
         }) = expression
         {
-            reports.push(Self::generate_report(span))
+            Self::report(
+                "Use of an anonymous constructor",
+                [
+                    "Change this to a named function".into(),
+                    "Change this to a function that returns a struct literal".into(),
+                ],
+                span,
+                reports,
+            )
         }
     }
 }

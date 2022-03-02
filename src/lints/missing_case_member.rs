@@ -9,18 +9,8 @@ use itertools::Itertools;
 #[derive(Debug, PartialEq)]
 pub struct MissingCaseMember;
 impl Lint for MissingCaseMember {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Missing case member".into(),
-            tag: Self::tag(),
-            default_level: Self::default_level(),
-            explanation: "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.",
-            suggestions: vec![
-                "Add cases for the missing members".into(),
-                "Remove the intentional crash from your default case".into(),
-            ],
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case."
     }
 
     fn tag() -> &'static str {
@@ -101,11 +91,15 @@ impl LateStatementPass for MissingCaseMember {
 
             // If we have any, make a report!
             if !missing_members.is_empty() {
-                reports.push(Self::generate_report_with(
-                    span,
+                Self::report(
                     format!("Missing case members: {}", missing_members),
-                    [],
-                ));
+                    [
+                        "Add cases for the missing members".into(),
+                        "Remove the intentional crash from your default case".into(),
+                    ],
+                    span,
+                    reports,
+                );
             }
         }
     }

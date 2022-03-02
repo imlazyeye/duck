@@ -7,15 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct BoolEquality;
 impl Lint for BoolEquality {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Equality check on bool".into(),
-            tag: Self::tag(),
-            explanation: "Comparing a bool with a bool literal is more verbose than neccesary.",
-            suggestions: vec![],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Comparing a bool with a bool literal is more verbose than neccesary."
     }
 
     fn default_level() -> LintLevel {
@@ -42,16 +35,18 @@ impl EarlyExpressionPass for BoolEquality {
         {
             if let Some(literal) = right.expression().as_literal() {
                 match literal {
-                    Literal::True => reports.push(Self::generate_report_with(
-                        span,
+                    Literal::True => Self::report(
                         "Equality check with `true`",
                         ["Remove the `== true`".into()],
-                    )),
-                    Literal::False => reports.push(Self::generate_report_with(
                         span,
+                        reports,
+                    ),
+                    Literal::False => Self::report(
                         "Equality check with `false`",
                         ["Remove the `== false` and se `!foo` syntax instead".into()],
-                    )),
+                        span,
+                        reports,
+                    ),
                     _ => {}
                 }
             }

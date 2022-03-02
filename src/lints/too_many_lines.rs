@@ -1,20 +1,10 @@
-use crate::{
-    lint::{Lint, LintLevel, LintReport},
-    utils::Span,
-};
+use crate::lint::{Lint, LintLevel};
 
 #[derive(Debug, PartialEq)]
 pub struct TooManyLines;
 impl Lint for TooManyLines {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Too many lines".into(),
-            tag: Self::tag(),
-            explanation: "Functions with lots of lines are harder to work with due to the volume of code that must be read to understand them.",
-            suggestions: vec!["Split this into multiple functions".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Functions with lots of lines are harder to work with due to the volume of code that must be read to understand them."
     }
 
     fn default_level() -> LintLevel {

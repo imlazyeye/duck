@@ -7,18 +7,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct ShowDebugMessage;
 impl Lint for ShowDebugMessage {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            tag: Self::tag(),
-            display_name: "Use of `show_debug_message`".into(),
-            explanation: "Projects often implement their own logging framework and wish to avoid unwrapped prints to the console.",
-            suggestions: vec![
-                "Replace `show_debug_message` with a better logging function".into(),
-                "Remove this debug message".into(),
-            ],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Projects often implement their own logging framework and wish to avoid unwrapped prints to the console."
     }
 
     fn default_level() -> LintLevel {
@@ -40,7 +30,15 @@ impl EarlyExpressionPass for ShowDebugMessage {
         if let Expression::Call(Call { left, .. }) = expression {
             if let Expression::Identifier(identifier) = left.expression() {
                 if identifier.name == "show_debug_message" {
-                    reports.push(Self::generate_report(span))
+                    Self::report(
+                        "Use of `show_debug_message`",
+                        [
+                            "Replace `show_debug_message` with a better logging function".into(),
+                            "Remove this debug message".into(),
+                        ],
+                        span,
+                        reports,
+                    )
                 }
             }
         }

@@ -8,15 +8,8 @@ use crate::{
 #[derive(Debug, PartialEq)]
 pub struct Todo;
 impl Lint for Todo {
-    fn generate_report(span: Span) -> LintReport {
-        LintReport {
-            display_name: "Use of todo marker".into(),
-            tag: Self::tag(),
-            explanation: "Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.",
-            suggestions: vec!["Remove this todo marker".into()],
-            default_level: Self::default_level(),
-            span,
-        }
+    fn explanation() -> &'static str {
+        "Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place."
     }
 
     fn default_level() -> LintLevel {
@@ -33,7 +26,7 @@ impl EarlyExpressionPass for Todo {
         if let Expression::Call(Call { left, .. }) = expression {
             if let Expression::Identifier(identifier) = left.expression() {
                 if identifier.name == config.todo_keyword {
-                    reports.push(Self::generate_report(span))
+                    Self::report("Use of todo marker", ["Remove this todo marker".into()], span, reports)
                 }
             }
         }

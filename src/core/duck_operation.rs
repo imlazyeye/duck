@@ -97,7 +97,7 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<NonPascalCase>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<NonScreamCase>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<SingleSwitchCase>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<StatementParentheticalViolation>(config, statement, span, reports);
+        Self::run_early_lint_on_statement::<StatementParentheticalPreference>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<TryCatch>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<VarPrefixViolation>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<WithLoop>(config, statement, span, reports);
@@ -133,6 +133,7 @@ impl DuckOperation {
 
         // @early expression calls. Do not remove this comment!
         Self::run_early_lint_on_expression::<AccessorAlternative>(config, expression, span, reports);
+        Self::run_early_lint_on_expression::<AndPreference>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<AnonymousConstructor>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<AssignmentToCall>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<BoolEquality>(config, expression, span, reports);
@@ -141,8 +142,11 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<DrawText>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<EnglishFlavorViolation>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<Global>(config, expression, span, reports);
+        Self::run_early_lint_on_expression::<ModPreference>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<NonConstantDefaultParameter>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<NonPascalCase>(config, expression, span, reports);
+        Self::run_early_lint_on_expression::<NotPreference>(config, expression, span, reports);
+        Self::run_early_lint_on_expression::<OrPreference>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<RoomGoto>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<ShowDebugMessage>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<SuspicousConstantUsage>(config, expression, span, reports);
