@@ -2,7 +2,7 @@ use crate::parsing::*;
 use colored::Colorize;
 use pretty_assertions::assert_eq;
 
-fn harness_stmt(source: &str, expected: impl Into<Statement>) {
+fn harness_stmt(source: &'static str, expected: impl Into<Statement>) {
     let expected = expected.into();
     let mut parser = Parser::new(source, "test".into());
     let outputed = parser.statement().unwrap();

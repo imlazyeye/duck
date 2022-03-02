@@ -6,20 +6,20 @@ pub type Ast = Vec<StatementBox>;
 
 /// Recursively decsends Gml source, incremently returning various statements
 /// and expressions.
-pub struct Parser<'a> {
-    lexer: Peekable<Lexer<'a>>,
+pub struct Parser {
+    lexer: Peekable<Lexer>,
     cursor: usize,
 
     // rust analyzer mishaps below
     #[allow(dead_code)]
-    source_code: &'a str,
+    source_code: &'static str,
     #[allow(dead_code)]
     resource_path: PathBuf,
 }
 
-impl<'a> Parser<'a> {
+impl Parser {
     /// Creates a new parser.
-    pub fn new(source_code: &'a str, resource_path: PathBuf) -> Self {
+    pub fn new(source_code: &'static str, resource_path: PathBuf) -> Self {
         Self {
             lexer: Lexer::new(source_code).peekable(),
             cursor: 0,
@@ -822,7 +822,7 @@ impl<'a> Parser<'a> {
 }
 
 // Lexing tools
-impl<'a> Parser<'a> {
+impl Parser {
     /// Get the gml tokens's cursor.
     fn cursor(&mut self) -> usize {
         self.lexer.peek().map_or(self.cursor, |(c, _)| *c)

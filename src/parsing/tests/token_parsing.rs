@@ -5,7 +5,7 @@ use crate::parsing::{
 use colored::Colorize;
 
 #[allow(dead_code)]
-fn harness_tokens(source: &str, expected: impl Into<Vec<Token>>) {
+fn harness_tokens(source: &'static str, expected: impl Into<Vec<Token>>) {
     let outputed = Lexer::new(source).map(|(_, token)| token).collect::<Vec<Token>>();
     let expected = expected.into();
     if outputed != expected {

@@ -6,16 +6,16 @@ use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
 
 use super::token::Token;
 
-/// Takes gml  and converts it into tokens as an iterator.
-pub struct Lexer<'a> {
-    content: &'a str,
-    input_characters: Peekable<GraphemeIndices<'a>>,
+/// Takes gml and converts it into tokens as an iterator.
+pub struct Lexer {
+    content: &'static str,
+    input_characters: Peekable<GraphemeIndices<'static>>,
     cursor: usize,
 }
-impl<'a> Lexer<'a> {
+impl Lexer {
     /// Creates a new Lexer, taking a string of gml source.
-    pub fn new(content: &'a str) -> Self {
-        Lexer {
+    pub fn new(content: &'static str) -> Self {
+        Self {
             content,
             input_characters: content.grapheme_indices(true).peekable(),
             cursor: 0,
@@ -487,7 +487,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> Iterator for Lexer<'a> {
+impl Iterator for Lexer {
     type Item = (usize, Token);
     /// Returns the next Token in the Lexer.
     fn next(&mut self) -> Option<Self::Item> {
