@@ -1,24 +1,24 @@
-use std::iter::Peekable;
-
+use super::token::Token;
 use fnv::FnvHashSet;
 use once_cell::sync::Lazy;
+use std::iter::Peekable;
 use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
-
-use super::token::Token;
 
 /// Takes gml and converts it into tokens as an iterator.
 pub struct Lexer {
-    content: &'static str,
+    source: &'static str,
     input_characters: Peekable<GraphemeIndices<'static>>,
-    cursor: usize,
+    next_char_boundary: usize,
+    token_cursor: usize,
 }
 impl Lexer {
     /// Creates a new Lexer, taking a string of gml source.
-    pub fn new(content: &'static str) -> Self {
+    pub fn new(source: &'static str) -> Self {
         Self {
-            content,
-            input_characters: content.grapheme_indices(true).peekable(),
-            cursor: 0,
+            source,
+            input_characters: source.grapheme_indices(true).peekable(),
+            next_char_boundary: 1,
+            token_cursor: 0,
         }
     }
 
@@ -30,8 +30,7 @@ impl Lexer {
                 id if id.is_whitespace() => return self.lex(),
                 '.' => {
                     if self.peek().map_or(false, |c| matches!(c, '0'..='9')) {
-                        let mut lexeme = String::from(chr);
-                        self.construct_number(&mut lexeme);
+                        let lexeme = self.construct_number(start_index);
                         Some(Token::Real(lexeme.parse().unwrap()))
                     } else {
                         Some(Token::Dot)
@@ -42,17 +41,15 @@ impl Lexer {
                 ')' => Some(Token::RightParenthesis),
                 ';' => Some(Token::SemiColon),
                 '0' if self.match_take('x') => {
-                    let mut lexeme = String::new();
-                    self.construct_hex(&mut lexeme);
+                    let lexeme = self.construct_hex(self.next_char_boundary);
                     if !lexeme.is_empty() {
-                        Some(Token::Hex(lexeme))
+                        Some(Token::Hex(lexeme.into()))
                     } else {
-                        Some(Token::Invalid(lexeme))
+                        Some(Token::Invalid(lexeme.into()))
                     }
                 }
                 '0'..='9' => {
-                    let mut lexeme = String::from(chr);
-                    self.construct_number(&mut lexeme);
+                    let lexeme = self.construct_number(start_index);
                     Some(Token::Real(lexeme.parse().unwrap()))
                 }
                 '=' => {
@@ -128,17 +125,18 @@ impl Lexer {
                 ':' => Some(Token::Colon),
                 '[' => Some(Token::LeftSquareBracket),
                 ']' => Some(Token::RightSquareBracket),
+                // FIXME: Rather unfortunately our string parsing here is seperated from our string parsing below.
+                // Someone could probably stich them together, or at the very least, create a shared function for them.
                 '@' => {
                     let single_quote = self.match_take('\'');
                     let double_quote = self.match_take('"');
                     if single_quote || double_quote {
-                        let mut lexeme = String::new();
+                        let start_position = self.next_char_boundary;
                         let mut in_escape = false;
                         loop {
                             match self.take() {
                                 Some((_, chr)) => {
                                     if in_escape {
-                                        lexeme.push(chr);
                                         in_escape = false;
                                     } else {
                                         match chr {
@@ -147,14 +145,16 @@ impl Lexer {
                                             '\\' => {
                                                 in_escape = true;
                                             }
-                                            _ => lexeme.push(chr),
+                                            _ => {}
                                         }
                                     }
                                 }
                                 None => return (start_index, Token::Eof),
                             }
                         }
-                        Some(Token::StringLiteral(lexeme))
+                        Some(Token::StringLiteral(
+                            self.source[start_position..self.next_char_boundary - 1].to_string(),
+                        ))
                     } else {
                         Some(Token::AtSign)
                     }
@@ -193,13 +193,11 @@ impl Lexer {
                     }
                 }
                 '"' => {
-                    let mut lexeme = String::new();
                     let mut in_escape = false;
                     loop {
                         match self.take() {
                             Some((_, chr)) => {
                                 if in_escape {
-                                    lexeme.push(chr);
                                     in_escape = false;
                                 } else {
                                     match chr {
@@ -207,20 +205,21 @@ impl Lexer {
                                         '\\' => {
                                             in_escape = true;
                                         }
-                                        _ => lexeme.push(chr),
+                                        _ => {}
                                     }
                                 }
                             }
                             None => return (start_index, Token::Eof),
                         }
                     }
-                    Some(Token::StringLiteral(lexeme))
+                    Some(Token::StringLiteral(
+                        self.source[start_index + 1..self.next_char_boundary - 1].to_string(),
+                    ))
                 }
                 '$' => {
-                    let mut lexeme = String::new();
-                    self.construct_hex(&mut lexeme);
+                    let lexeme = self.construct_hex(self.next_char_boundary);
                     if !lexeme.is_empty() {
-                        Some(Token::Hex(lexeme))
+                        Some(Token::Hex(lexeme.into()))
                     } else {
                         Some(Token::DollarSign)
                     }
@@ -229,19 +228,16 @@ impl Lexer {
                 '#' => {
                     return if self.match_take_str("#macro", start_index) {
                         self.discard_whitespace();
-                        let mut iden_one = String::new();
-                        self.construct_word(&mut iden_one);
+                        let iden_one = self.construct_word(self.next_char_boundary);
                         let (name, config) = if self.match_take(':') {
-                            let mut name = String::new();
-                            self.construct_word(&mut name);
-                            (name, Some(iden_one))
+                            let name = self.construct_word(self.next_char_boundary);
+                            (name, Some(iden_one.into()))
                         } else {
                             (iden_one, None)
                         };
                         self.discard_whitespace();
-                        let mut body = String::new();
-                        self.consume_rest_of_line(&mut body);
-                        (start_index, Token::Macro(name, config, body))
+                        let body = self.consume_rest_of_line(self.next_char_boundary);
+                        (start_index, Token::Macro(name.into(), config, body.into()))
                     } else if self.match_take_str("#region", start_index)
                         || self.match_take_str("#endregion", start_index)
                     {
@@ -258,31 +254,42 @@ impl Lexer {
                         Some(Token::SlashEqual)
                     } else if self.match_take('/') {
                         // Eat up the whitespace first...
-                        let mut comment_lexeme = String::from("//");
-                        self.consume_whitespace_on_line(&mut comment_lexeme);
+                        self.consume_whitespace_on_line(start_index);
 
                         // See if this is an lint tag...
+                        //
+                        // FIXME: The parsing of lint tags is pretty gnarly. It should relaly be throwing errors when it
+                        // doesn't find the things it wants, but for now it just discards everything.
                         if self.match_take('#') && self.match_take('[') {
                             // Looking promising!!
-                            let mut lexeme = String::new();
-                            self.construct_word(&mut lexeme);
-                            match lexeme.as_ref() {
-                                "allow" | "warn" | "deny" => Some(Token::LintTag(lexeme)),
+                            let level = self.construct_word(self.next_char_boundary);
+                            match level {
+                                "allow" | "warn" | "deny" => {
+                                    if self.match_take('(') {
+                                        let tag = self.construct_word(self.next_char_boundary);
+                                        if self.match_take(')') && self.match_take(']') {
+                                            self.consume_rest_of_line(self.next_char_boundary);
+                                            Some(Token::LintTag(level.into(), tag.into()))
+                                        } else {
+                                            return self.lex();
+                                        }
+                                    } else {
+                                        return self.lex();
+                                    }
+                                }
                                 _ => return self.lex(),
                             }
                         } else {
-                            // It's just a comment -- eat it up
-                            self.consume_rest_of_line(&mut comment_lexeme);
+                            // It's just a comment -- eat it up, including the `//` and whitespace we ate.
+                            self.consume_rest_of_line(start_index);
                             // Some(Token::Comment(comment_lexeme))
                             return self.lex();
                         }
                     } else if self.match_take('*') {
                         // Multi-line comment
-                        let mut comment_lexeme = String::from("//");
                         loop {
                             match self.take() {
                                 Some((_, chr)) => {
-                                    comment_lexeme.push(chr);
                                     if chr == '*' && self.match_take('/') {
                                         break;
                                     }
@@ -300,11 +307,8 @@ impl Lexer {
 
                 // Check for keywords / identifiers
                 id if id.is_alphabetic() || id == '_' => {
-                    let mut lexeme = chr.into();
-                    self.construct_word(&mut lexeme);
-
                     // Now let's check for keywords
-                    match lexeme.as_ref() {
+                    match self.construct_word(start_index) {
                         "self" => Some(Token::SelfKeyword),
                         "var" => Some(Token::Var),
                         "return" => Some(Token::Return),
@@ -330,7 +334,7 @@ impl Lexer {
                         "global" => Some(Token::Global),
                         "div" => Some(Token::Div),
                         "mod" => Some(Token::Mod),
-                        "enum" => Some(Token::GmlEnum),
+                        "enum" => Some(Token::Enum),
                         "exit" => Some(Token::Exit),
                         "repeat" => Some(Token::Repeat),
                         "do" => Some(Token::Do),
@@ -344,7 +348,7 @@ impl Lexer {
                         "finally" => Some(Token::Finally),
                         "then" => Some(Token::Then),
                         id if MISC_GML_CONSTANTS.contains(id) => Some(Token::MiscConstant(id.to_string())),
-                        _ => Some(Token::Identifier(lexeme)),
+                        lexeme => Some(Token::Identifier(lexeme.into())),
                     }
                 }
 
@@ -365,11 +369,12 @@ impl Lexer {
         }
     }
 
-    /// Consumes the rest of the line into the stirng.
-    fn consume_rest_of_line(&mut self, lexeme: &mut String) {
+    /// Consumes the rest of the line into the string.
+    fn consume_rest_of_line(&mut self, start_pos: usize) -> &'static str {
         while self.peek().map_or(false, |chr| chr != '\r' && chr != '\n') {
-            lexeme.push(self.take().unwrap().1);
+            self.take().unwrap();
         }
+        &self.source[start_pos..self.next_char_boundary]
     }
 
     /// Discards the remainder of the line.
@@ -382,8 +387,8 @@ impl Lexer {
     /// Checks if the the following characters are upcoming in the source. If
     /// they are, consumes the characters.
     fn match_take_str(&mut self, lexeme: &str, start_pos: usize) -> bool {
-        if start_pos + lexeme.len() <= self.content.len() {
-            if &self.content[start_pos..start_pos + lexeme.len()] == lexeme {
+        if start_pos + lexeme.len() <= self.source.len() {
+            if &self.source[start_pos..start_pos + lexeme.len()] == lexeme {
                 for _ in 0..lexeme.len() - 1 {
                     self.take();
                 }
@@ -398,85 +403,58 @@ impl Lexer {
 
     /// Will keep eating characters into the given string until it reaches a
     /// charcter that can't be used in an identifier.
-    fn construct_word(&mut self, lexeme: &mut String) {
+    fn construct_word(&mut self, start_pos: usize) -> &'static str {
         while let Some(chr) = self.peek() {
             match chr {
                 '_' | 'A'..='Z' | 'a'..='z' | '0'..='9' => {
-                    lexeme.push(self.take().unwrap().1);
+                    self.take().unwrap();
                 }
                 _ => break,
             }
         }
+        &self.source[start_pos..self.next_char_boundary]
     }
 
     /// Will keep eating characters into the given string until it reaches a
     /// character that can't be used in an identifier.
-    fn construct_number(&mut self, lexeme: &mut String) {
+    fn construct_number(&mut self, start_pos: usize) -> &'static str {
         while self.peek().map_or(false, |chr| chr.is_numeric()) {
-            lexeme.push(self.take().unwrap().1);
+            self.take().unwrap();
         }
         // Floats!
         if self.match_take('.') {
-            lexeme.push('.');
             while self.peek().map_or(false, |chr| chr.is_numeric()) {
-                lexeme.push(self.take().unwrap().1);
+                self.take().unwrap();
             }
         }
+        &self.source[start_pos..self.next_char_boundary]
     }
 
     /// Will keep eating charcters into the given string so long as they are
     /// valid hex-characters (ie: 4ab02f)
-    fn construct_hex(&mut self, lexeme: &mut String) {
+    fn construct_hex(&mut self, start_pos: usize) -> &'static str {
         while let Some(chr) = self.peek() {
             match chr {
                 'A'..='F' | 'a'..='f' | '0'..='9' => {
-                    lexeme.push(self.take().unwrap().1);
+                    self.take().unwrap();
                 }
                 _ => break,
             }
         }
-    }
-
-    /// Returns the next character in the source code.
-    fn peek(&mut self) -> Option<char> {
-        self.input_characters.peek().and_then(|(_, g)| g.chars().next()) // TODO this is terrible!
-    }
-
-    /// Consumes and returns the next character in the source code.
-    fn take(&mut self) -> Option<(usize, char)> {
-        self.input_characters
-            .next()
-            .map(|(c, g)| (c, g.chars().next().unwrap())) // TODO this is
-        // terrible!
-    }
-
-    /// Consumes the next character in the source code if it matches the given
-    /// character. Returns if it succeeds.
-    fn match_take(&mut self, chr: char) -> bool {
-        if self.peek() == Some(chr) {
-            self.take();
-            return true;
-        }
-        false
-    }
-
-    /// Consumes the next character in the source code if it matches the given
-    /// character.
-    #[allow(dead_code)]
-    fn optional_take(&mut self, chr: char) {
-        self.match_take(chr);
+        &self.source[start_pos..self.next_char_boundary]
     }
 
     /// Consumes all upcoming characters that are whitespace into the string,
     /// stopping at the end of the line.
-    fn consume_whitespace_on_line(&mut self, lexeme: &mut String) {
+    fn consume_whitespace_on_line(&mut self, start_pos: usize) -> &'static str {
         while self
             .peek()
             .filter(|c| c.is_whitespace() && c != &'\n' && c != &'\r')
             .is_some()
         {
-            lexeme.push(self.take().unwrap().1);
+            self.take().unwrap();
         }
+        &self.source[start_pos..self.next_char_boundary]
     }
 
     /// Discards all upcoming characters that are whitespace.
@@ -485,6 +463,51 @@ impl Lexer {
             self.take();
         }
     }
+
+    /// Returns the next character in the source code.
+    ///
+    /// FIXME: Has bad behavior. Read the docs on [Lexer::take].
+    fn peek(&mut self) -> Option<char> {
+        self.input_characters.peek().and_then(|(_, g)| g.chars().next())
+    }
+
+    /// Consumes the next character in the source code if it matches the given
+    /// character. Returns if it succeeds.
+    fn match_take(&mut self, chr: char) -> bool {
+        if self.peek() == Some(chr) {
+            self.take();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Consumes and returns the next character in the source code.
+    ///
+    /// FIXME: This is currently set up poorly for non-latin characters.
+    ///
+    /// UTF8 "characters" (the way we as people see them) are not all a consistent byte length. A
+    /// `char`, however, is. This means that certain characters (most often letters used in
+    /// non-english languages, such as `ß`) can be composed of multiple `char`s. This is a big
+    /// problem for how we parse things!
+    ///
+    /// We already utilize the `unicode_segmentation` crate, which as far as my reading showed me,
+    /// is the answer to this sort of an issue. Fully adapting us to it though is not super easy
+    /// though (instead of parsing over chars, you are now parsing over &str's). When I tried to
+    /// throw it together, it was messy, and most importanlty, much slower.
+    ///
+    /// For now, we simply take the first `char` in any given grapheme and run away. This is bad
+    /// (and mildly anglocentric), and means that our parsing of non-standard utf-8 characters will
+    /// break. Fortunately, these most often come up within strings, not lexical code itself, and
+    /// duck does not currently do much with the contents of the strings.
+    ///
+    /// None the less, this will need to be addressed and fixed in the future!
+    fn take(&mut self) -> Option<(usize, char)> {
+        self.input_characters.next().map(|(c, g)| {
+            self.next_char_boundary = c + 1;
+            (c, g.chars().next().unwrap())
+        })
+    }
 }
 
 impl Iterator for Lexer {
@@ -492,7 +515,7 @@ impl Iterator for Lexer {
     /// Returns the next Token in the Lexer.
     fn next(&mut self) -> Option<Self::Item> {
         let (position, token) = self.lex();
-        self.cursor = position;
+        self.token_cursor = position;
         if token == Token::Eof {
             None
         } else {

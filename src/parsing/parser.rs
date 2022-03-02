@@ -57,7 +57,7 @@ impl Parser {
     pub(super) fn statement(&mut self) -> Result<StatementBox, ParseError> {
         match self.peek()? {
             Token::Macro(_, _, _) => self.macro_declaration(),
-            Token::GmlEnum => self.enum_declaration(),
+            Token::Enum => self.enum_declaration(),
             Token::Try => self.try_catch(),
             Token::For => self.for_loop(),
             Token::With => self.with(),
@@ -94,7 +94,7 @@ impl Parser {
 
     fn enum_declaration(&mut self) -> Result<StatementBox, ParseError> {
         let start = self.cursor();
-        self.require(Token::GmlEnum)?;
+        self.require(Token::Enum)?;
         let name = self.require_identifier()?;
         let mut gml_enum = Enum::new(name);
         self.require(Token::LeftBrace)?;

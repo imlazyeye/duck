@@ -12,7 +12,7 @@ pub enum Token {
     Return,
     Colon,
     Dot,
-    GmlEnum,
+    Enum,
     LeftBrace,
     RightBrace,
     LeftParenthesis,
@@ -92,11 +92,14 @@ pub enum Token {
     Noone,
     Not,
     Macro(String, Option<String>, String),
+    #[deprecated(
+        note = "Comment parsing get's very tricky, very fast, and until we have a bigger need (and better solution so that it doesn't hurt our overall parsing), the [Lexer] will just discard these."
+    )]
     Comment(String),
     Identifier(String),
     Real(f64),
     StringLiteral(String),
-    LintTag(String),
+    LintTag(String, String),
     Hex(String),
     MiscConstant(String),
     Invalid(String),

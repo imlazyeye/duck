@@ -7,7 +7,7 @@ fn harness_expr(source: &'static str, expected: impl Into<Expression>) {
     let mut parser = Parser::new(source, "test".into());
     let outputed = parser.expression().unwrap();
     println!("{}: {}", "Source".yellow(), source);
-    assert_eq!(expected, *outputed.expression())
+    assert_eq!(*outputed.expression(), expected)
 }
 
 #[test]

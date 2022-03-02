@@ -7,7 +7,7 @@ fn harness_stmt(source: &'static str, expected: impl Into<Statement>) {
     let mut parser = Parser::new(source, "test".into());
     let outputed = parser.statement().unwrap();
     println!("{}: {}", "Source".yellow(), source);
-    assert_eq!(expected, *outputed.statement())
+    assert_eq!(*outputed.statement(), expected)
 }
 
 #[test]
