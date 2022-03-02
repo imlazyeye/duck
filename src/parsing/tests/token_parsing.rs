@@ -38,50 +38,47 @@ fn int() {
 
 #[test]
 fn hex_0x() {
-    harness_single("0x1", Token::Hex("1".into()));
+    harness_single("0x1", Token::Hex("1"));
 }
 
 #[test]
 fn hex_dollar_sign() {
-    harness_single("$1", Token::Hex("1".into()));
+    harness_single("$1", Token::Hex("1"));
 }
 
 #[test]
 fn invalid_hex() {
-    harness_multi("$q", [Token::DollarSign, Token::Identifier("q".into())]);
+    harness_multi("$q", [Token::DollarSign, Token::Identifier("q")]);
 }
 
 #[test]
 fn string() {
-    harness_single("\"foo\"", Token::StringLiteral("foo".into()));
+    harness_single("\"foo\"", Token::StringLiteral("foo"));
 }
 
 #[test]
 fn multiline_string() {
-    harness_single("@\"\n\nfoo\"", Token::StringLiteral("\n\nfoo".into()));
+    harness_single("@\"\n\nfoo\"", Token::StringLiteral("\n\nfoo"));
 }
 
 #[test]
 fn multiline_string_alt() {
-    harness_single("@'\n\nfoo'", Token::StringLiteral("\n\nfoo".into()));
+    harness_single("@'\n\nfoo'", Token::StringLiteral("\n\nfoo"));
 }
 
 #[test]
 fn identifier() {
-    harness_single("foo", Token::Identifier("foo".into()));
+    harness_single("foo", Token::Identifier("foo"));
 }
 
 #[test]
 fn macro_declaration() {
-    harness_single("#macro foo 0", Token::Macro("foo".into(), None, "0".into()));
+    harness_single("#macro foo 0", Token::Macro("foo", None, "0"));
 }
 
 #[test]
 fn macro_declaration_with_config() {
-    harness_single(
-        "#macro bar:foo 0",
-        Token::Macro("foo".into(), Some("bar".into()), "0".into()),
-    );
+    harness_single("#macro bar:foo 0", Token::Macro("foo", Some("bar"), "0"));
 }
 
 #[test]
@@ -95,18 +92,9 @@ fn comments() {
 
 #[test]
 fn lint_tags() {
-    harness_single(
-        "// #[allow(and_keyword)]",
-        Token::LintTag("allow".into(), "and_keyword".into()),
-    );
-    harness_single(
-        "// #[warn(and_keyword)]",
-        Token::LintTag("warn".into(), "and_keyword".into()),
-    );
-    harness_single(
-        "// #[deny(and_keyword)]",
-        Token::LintTag("deny".into(), "and_keyword".into()),
-    );
+    harness_single("// #[allow(and_keyword)]", Token::LintTag("allow", "and_keyword"));
+    harness_single("// #[warn(and_keyword)]", Token::LintTag("warn", "and_keyword"));
+    harness_single("// #[deny(and_keyword)]", Token::LintTag("deny", "and_keyword"));
 }
 
 #[test]
@@ -215,11 +203,21 @@ fn symbols() {
 }
 
 #[test]
+fn non_standard_utf8() {
+    harness_single("🦆", Token::Invalid("🦆"))
+}
+
+#[test]
+fn non_standard_utf8_ending_comment() {
+    harness_multi("// 🦆", [])
+}
+
+#[test]
 fn constants() {
     for constant in MISC_GML_CONSTANTS.iter() {
         assert_eq!(
             Lexer::new(constant).next().map(|(_, t)| t),
-            Some(Token::MiscConstant(constant.to_string()))
+            Some(Token::MiscConstant(constant))
         );
     }
 }
@@ -233,7 +231,7 @@ fn builtin_variables() {
         }
         assert_eq!(
             Lexer::new(constant).next().map(|(_, t)| t),
-            Some(Token::Identifier(constant.to_string()))
+            Some(Token::Identifier(constant))
         );
     }
 }

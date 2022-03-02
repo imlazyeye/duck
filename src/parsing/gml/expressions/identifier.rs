@@ -1,4 +1,4 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::prelude::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
 
 /// Representation of an identifier in gml, which could be any variable.
 #[derive(Debug, PartialEq, Clone)]

@@ -108,7 +108,7 @@ impl Parser {
                 } else {
                     None
                 };
-                gml_enum.register_member(name, initializer);
+                gml_enum.register_member(name.into(), initializer);
                 self.match_take(Token::Comma);
             }
         }
@@ -358,7 +358,7 @@ impl Parser {
         // TODO: when we do static-analysis, this will be used
         let _static_token = self.match_take(Token::Static);
         if self.match_take(Token::Function).is_some() {
-            let name = self.match_take_identifier()?;
+            let name = self.match_take_identifier()?.map(|v| v.to_string());
             self.require(Token::LeftParenthesis)?;
             let mut parameters = vec![];
             loop {
@@ -614,7 +614,7 @@ impl Parser {
                 } else {
                     let name = self.require_identifier()?;
                     self.require(Token::Colon)?;
-                    elements.push((name, self.expression()?));
+                    elements.push((name.into(), self.expression()?));
                     self.match_take(Token::Comma);
                 }
             }
@@ -816,7 +816,7 @@ impl Parser {
         // without losing tokens.
         Err(ParseError::UnexpectedToken(
             self.span(start),
-            self.soft_peek().unwrap().clone(),
+            *self.soft_peek().unwrap(),
         ))
     }
 }
@@ -882,7 +882,7 @@ impl Parser {
 
     /// Returns the inner field of the next Token, requiring it to be an
     /// Identifier.
-    fn require_identifier(&mut self) -> Result<String, ParseError> {
+    fn require_identifier(&mut self) -> Result<&'static str, ParseError> {
         let next = self.take()?;
         if let Token::Identifier(v) = next {
             Ok(v)
@@ -892,7 +892,7 @@ impl Parser {
     }
 
     /// Returns the inner field of the next Token if it is an Identifier.
-    fn match_take_identifier(&mut self) -> Result<Option<String>, ParseError> {
+    fn match_take_identifier(&mut self) -> Result<Option<&str>, ParseError> {
         if matches!(self.peek()?, Token::Identifier(_)) {
             Ok(Some(self.require_identifier()?))
         } else {

@@ -39,7 +39,7 @@ impl EarlyExpressionPass for ShowDebugMessage {
     ) {
         if let Expression::Call(Call { left, .. }) = expression {
             if let Expression::Identifier(identifier) = left.expression() {
-                if identifier.name.as_str() == "show_debug_message" {
+                if identifier.name == "show_debug_message" {
                     reports.push(Self::generate_report(span))
                 }
             }

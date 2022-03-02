@@ -4,7 +4,7 @@ use super::{
     AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
 };
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Token {
     Switch,
     Case,
@@ -91,18 +91,18 @@ pub enum Token {
     Undefined,
     Noone,
     Not,
-    Macro(String, Option<String>, String),
+    Macro(&'static str, Option<&'static str>, &'static str),
     #[deprecated(
         note = "Comment parsing get's very tricky, very fast, and until we have a bigger need (and better solution so that it doesn't hurt our overall parsing), the [Lexer] will just discard these."
     )]
-    Comment(String),
-    Identifier(String),
+    Comment(&'static str),
+    Identifier(&'static str),
     Real(f64),
-    StringLiteral(String),
-    LintTag(String, String),
-    Hex(String),
-    MiscConstant(String),
-    Invalid(String),
+    StringLiteral(&'static str),
+    LintTag(&'static str, &'static str),
+    Hex(&'static str),
+    MiscConstant(&'static str),
+    Invalid(&'static str),
     Eof,
 }
 impl Token {
@@ -113,10 +113,10 @@ impl Token {
             Token::False => Some(Literal::False),
             Token::Undefined => Some(Literal::Undefined),
             Token::Noone => Some(Literal::Noone),
-            Token::StringLiteral(lexeme) => Some(Literal::String(lexeme.clone())),
+            Token::StringLiteral(lexeme) => Some(Literal::String(lexeme.to_string())),
             Token::Real(value) => Some(Literal::Real(*value)),
-            Token::Hex(lexeme) => Some(Literal::Hex(lexeme.clone())),
-            Token::MiscConstant(lexeme) => Some(Literal::Misc(lexeme.clone())),
+            Token::Hex(lexeme) => Some(Literal::Hex(lexeme.to_string())),
+            Token::MiscConstant(lexeme) => Some(Literal::Misc(lexeme.to_string())),
             _ => None,
         }
     }

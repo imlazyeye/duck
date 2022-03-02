@@ -1,5 +1,5 @@
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel, LintReport},
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport, EarlyStatementPass},
     parsing::{Access, Call, Expression, Globalvar, Statement},
     utils::Span,
 };

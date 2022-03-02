@@ -43,9 +43,9 @@ impl Lexer {
                 '0' if self.match_take('x') => {
                     let lexeme = self.construct_hex(self.next_char_boundary);
                     if !lexeme.is_empty() {
-                        Some(Token::Hex(lexeme.into()))
+                        Some(Token::Hex(lexeme))
                     } else {
-                        Some(Token::Invalid(lexeme.into()))
+                        Some(Token::Invalid(lexeme))
                     }
                 }
                 '0'..='9' => {
@@ -153,7 +153,7 @@ impl Lexer {
                             }
                         }
                         Some(Token::StringLiteral(
-                            self.source[start_position..self.next_char_boundary - 1].to_string(),
+                            &self.source[start_position..self.next_char_boundary - 1],
                         ))
                     } else {
                         Some(Token::AtSign)
@@ -213,13 +213,13 @@ impl Lexer {
                         }
                     }
                     Some(Token::StringLiteral(
-                        self.source[start_index + 1..self.next_char_boundary - 1].to_string(),
+                        &self.source[start_index + 1..self.next_char_boundary - 1],
                     ))
                 }
                 '$' => {
                     let lexeme = self.construct_hex(self.next_char_boundary);
                     if !lexeme.is_empty() {
-                        Some(Token::Hex(lexeme.into()))
+                        Some(Token::Hex(lexeme))
                     } else {
                         Some(Token::DollarSign)
                     }
@@ -231,13 +231,13 @@ impl Lexer {
                         let iden_one = self.construct_word(self.next_char_boundary);
                         let (name, config) = if self.match_take(':') {
                             let name = self.construct_word(self.next_char_boundary);
-                            (name, Some(iden_one.into()))
+                            (name, Some(iden_one))
                         } else {
                             (iden_one, None)
                         };
                         self.discard_whitespace();
                         let body = self.consume_rest_of_line(self.next_char_boundary);
-                        (start_index, Token::Macro(name.into(), config, body.into()))
+                        (start_index, Token::Macro(name, config, body))
                     } else if self.match_take_str("#region", start_index)
                         || self.match_take_str("#endregion", start_index)
                     {
@@ -269,7 +269,7 @@ impl Lexer {
                                         let tag = self.construct_word(self.next_char_boundary);
                                         if self.match_take(')') && self.match_take(']') {
                                             self.consume_rest_of_line(self.next_char_boundary);
-                                            Some(Token::LintTag(level.into(), tag.into()))
+                                            Some(Token::LintTag(level, tag))
                                         } else {
                                             return self.lex();
                                         }
@@ -347,13 +347,18 @@ impl Lexer {
                         "catch" => Some(Token::Catch),
                         "finally" => Some(Token::Finally),
                         "then" => Some(Token::Then),
-                        id if MISC_GML_CONSTANTS.contains(id) => Some(Token::MiscConstant(id.to_string())),
-                        lexeme => Some(Token::Identifier(lexeme.into())),
+                        id if MISC_GML_CONSTANTS.contains(id) => Some(Token::MiscConstant(id)),
+                        lexeme => Some(Token::Identifier(lexeme)),
                     }
                 }
 
                 // Literally anything else!
-                invalid => Some(Token::Invalid(invalid.into())),
+                invalid => {
+                    // this is chill, I promise
+                    let tmp = Box::leak(Box::new([0u8; 4]));
+                    let invalid = invalid.encode_utf8(tmp);
+                    Some(Token::Invalid(invalid))
+                }
             };
 
             if let Some(token_type) = token_type {
@@ -496,15 +501,16 @@ impl Lexer {
     /// though (instead of parsing over chars, you are now parsing over &str's). When I tried to
     /// throw it together, it was messy, and most importanlty, much slower.
     ///
-    /// For now, we simply take the first `char` in any given grapheme and run away. This is bad
-    /// (and mildly anglocentric), and means that our parsing of non-standard utf-8 characters will
-    /// break. Fortunately, these most often come up within strings, not lexical code itself, and
-    /// duck does not currently do much with the contents of the strings.
+    /// For now, we simply take the first `char` in any given grapheme, advance our cursor to the
+    /// end of the grapheme. As a result, we won't ever break, but we will have junk characters (for
+    /// example, `🦆 ` will turn into... something else!) Fortunately,
+    /// these most often come up within strings, not lexical code itself, and duck does not
+    /// currently do much with the contents of the strings.
     ///
     /// None the less, this will need to be addressed and fixed in the future!
     fn take(&mut self) -> Option<(usize, char)> {
         self.input_characters.next().map(|(c, g)| {
-            self.next_char_boundary = c + 1;
+            self.next_char_boundary = c + g.len(); // advances us to the start of the next graphmee
             (c, g.chars().next().unwrap())
         })
     }
