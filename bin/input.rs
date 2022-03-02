@@ -1,5 +1,5 @@
 use clap::{ArgEnum, Parser, Subcommand};
-use duck::{Config, LintLevel};
+use duck::{lint::LintLevel, Config};
 use std::{collections::HashMap, path::PathBuf};
 
 #[derive(Parser, Debug)]

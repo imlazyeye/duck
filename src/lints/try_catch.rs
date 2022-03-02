@@ -1,4 +1,8 @@
-use crate::{lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
+use crate::{
+    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
+    parsing::Statement,
+    utils::Span,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct TryCatch;

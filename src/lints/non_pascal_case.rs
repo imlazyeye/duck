@@ -1,12 +1,9 @@
-use heck::ToUpperCamelCase;
-
 use crate::{
-    gml::Function,
-    lint::{EarlyExpressionPass, EarlyStatementPass},
-    parsing::{Expression, Statement},
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport, EarlyStatementPass},
+    parsing::{Expression, Function, Statement},
     utils::Span,
-    Lint, LintLevel, LintReport,
 };
+use heck::ToUpperCamelCase;
 
 #[derive(Debug, PartialEq)]
 pub struct NonPascalCase;

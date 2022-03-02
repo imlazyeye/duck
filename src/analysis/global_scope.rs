@@ -1,4 +1,4 @@
-use crate::gml::Enum;
+use crate::parsing::Enum;
 use std::collections::HashMap;
 
 /// Tracks globally available symbols in a parsed project.

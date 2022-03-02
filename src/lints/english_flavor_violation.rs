@@ -2,8 +2,10 @@ use bimap::BiHashMap;
 use once_cell::sync::Lazy;
 
 use crate::{
-    config::EnglishFlavor, gml::Call, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel,
-    LintReport,
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    parsing::{Call, Expression},
+    utils::Span,
+    EnglishFlavor,
 };
 
 #[derive(Debug, PartialEq)]

@@ -1,6 +1,9 @@
+use crate::{
+    lint::{ Lint, LintLevel, LintReport, EarlyStatementPass},
+    parsing::{Macro, Statement},
+    utils::Span,
+};
 use heck::ToShoutySnakeCase;
-
-use crate::{gml::Macro, lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport};
 
 #[derive(Debug, PartialEq)]
 pub struct NonScreamCase;

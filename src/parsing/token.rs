@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use crate::gml::{
+use super::{
     AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
 };
 

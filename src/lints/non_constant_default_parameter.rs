@@ -1,4 +1,8 @@
-use crate::{gml::Function, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    parsing::{Expression, Function},
+    utils::Span,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct NonConstantDefaultParameter;

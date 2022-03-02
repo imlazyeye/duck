@@ -1,4 +1,8 @@
-use crate::{gml::Call, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    parsing::{Call, Expression},
+    utils::Span,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct DrawSprite;

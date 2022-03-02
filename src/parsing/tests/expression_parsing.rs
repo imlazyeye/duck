@@ -1,12 +1,4 @@
-use crate::{
-    gml::{
-        Access, Assignment, AssignmentOperator, Block, Call, Constructor, Equality, EqualityOperator, Evaluation,
-        EvaluationOperator, Function, Grouping, Identifier, Literal, Logical, LogicalOperator, NullCoalecence,
-        Parameter, Postfix, PostfixOperator, Return, Ternary, Unary, UnaryOperator,
-    },
-    parsing::{expression::Expression, parser::Parser},
-    prelude::{IntoExpressionBox, IntoStatementBox},
-};
+use crate::parsing::*;
 use colored::Colorize;
 use pretty_assertions::assert_eq;
 

@@ -1,5 +1,7 @@
 use crate::{
-    gml::Assignment, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport,
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    parsing::{Assignment, Expression},
+    utils::Span,
 };
 
 #[derive(Debug, PartialEq)]

@@ -1,5 +1,7 @@
 use crate::{
-    gml::LocalVariableSeries, lint::EarlyStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
+    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
+    parsing::{LocalVariableSeries, Statement},
+    utils::Span,
 };
 
 #[derive(Debug, PartialEq)]

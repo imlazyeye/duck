@@ -1,5 +1,8 @@
 use crate::{
-    analysis::GlobalScope, lint::LateStatementPass, parsing::Statement, utils::Span, Lint, LintLevel, LintReport,
+    analysis::GlobalScope,
+    lint::{LateStatementPass, Lint, LintLevel, LintReport},
+    parsing::Statement,
+    utils::Span,
 };
 use itertools::Itertools;
 

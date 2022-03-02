@@ -1,9 +1,7 @@
 use crate::{
-    gml::{Equality, EqualityOperator, Literal},
-    lint::EarlyExpressionPass,
-    parsing::Expression,
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    parsing::{Equality, EqualityOperator, Expression, Literal},
     utils::Span,
-    Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]

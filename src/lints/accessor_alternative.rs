@@ -1,9 +1,8 @@
 use crate::{
-    gml::{Call, Literal},
-    lint::EarlyExpressionPass,
-    parsing::Expression,
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    parsing::{Call, Expression, Literal},
     utils::Span,
-    Lint, LintLevel, LintReport,
+    Config,
 };
 
 #[derive(Debug, PartialEq)]
@@ -30,12 +29,7 @@ impl Lint for AccessorAlternative {
 }
 
 impl EarlyExpressionPass for AccessorAlternative {
-    fn visit_expression_early(
-        _config: &crate::Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
+    fn visit_expression_early(_config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
         if let Expression::Call(Call { left, arguments, .. }) = expression {
             if let Expression::Identifier(identifier) = left.expression() {
                 match identifier.name.as_ref() {

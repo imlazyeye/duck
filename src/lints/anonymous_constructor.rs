@@ -1,4 +1,9 @@
-use crate::{gml::Function, lint::EarlyExpressionPass, parsing::Expression, utils::Span, Lint, LintLevel, LintReport};
+use crate::{
+    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
+    parsing::{Expression, Function},
+    utils::Span,
+    Config,
+};
 
 #[derive(Debug, PartialEq)]
 pub struct AnonymousConstructor;
@@ -27,12 +32,7 @@ impl Lint for AnonymousConstructor {
 }
 
 impl EarlyExpressionPass for AnonymousConstructor {
-    fn visit_expression_early(
-        _config: &crate::Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
+    fn visit_expression_early(_config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
         if let Expression::FunctionDeclaration(Function {
             name: None,
             constructor: Some(_),

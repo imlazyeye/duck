@@ -1,8 +1,8 @@
 use crate::{
     analysis::GlobalScope,
-    config::Config,
     parsing::{Expression, Statement},
     utils::{FilePreviewUtil, Span},
+    Config,
 };
 use colored::Colorize;
 

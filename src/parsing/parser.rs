@@ -1,16 +1,4 @@
-use crate::{
-    gml::{
-        Access, Assignment, AssignmentOperator, Block, Call, Constructor, DoUntil, Enum, Equality, Evaluation,
-        EvaluationOperator, ForLoop, Function, Globalvar, Grouping, Identifier, If, Literal, LocalVariable,
-        LocalVariableSeries, Logical, Macro, NullCoalecence, Parameter, Postfix, RepeatLoop, Return, Switch,
-        SwitchCase, Ternary, TryCatch, Unary, WithLoop,
-    },
-    parsing::{
-        lexer::Lexer, Expression, ExpressionBox, IntoExpressionBox, IntoStatementBox, ParseError, Statement,
-        StatementBox, Token,
-    },
-    utils::Span,
-};
+use crate::{parsing::*, utils::Span};
 use std::{iter::Peekable, path::PathBuf};
 
 /// A collection of statements.

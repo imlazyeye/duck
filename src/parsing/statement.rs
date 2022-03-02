@@ -1,9 +1,8 @@
 use crate::{
-    gml::{
-        Block, DoUntil, Enum, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Return, Switch, TryCatch,
-        WhileLoop, WithLoop,
+    parsing::{
+        Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Return,
+        Switch, TryCatch, WhileLoop, WithLoop,
     },
-    parsing::ExpressionBox,
     utils::Span,
 };
 

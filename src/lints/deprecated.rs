@@ -1,9 +1,7 @@
 use crate::{
-    gml::{Access, Call, Globalvar},
-    lint::{EarlyExpressionPass, EarlyStatementPass},
-    parsing::{Expression, Statement},
+    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel, LintReport},
+    parsing::{Access, Call, Expression, Globalvar, Statement},
     utils::Span,
-    Lint, LintLevel, LintReport,
 };
 
 #[derive(Debug, PartialEq)]

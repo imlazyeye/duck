@@ -1,9 +1,8 @@
 use crate::{
-    gml::{DoUntil, If, RepeatLoop, WhileLoop, WithLoop},
-    lint::EarlyStatementPass,
-    parsing::{Expression, Statement},
+    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
+    parsing::{DoUntil, Expression, If, RepeatLoop, Statement, WhileLoop, WithLoop},
     utils::Span,
-    Config, Lint, LintLevel, LintReport,
+    Config,
 };
 
 #[derive(Debug, PartialEq)]

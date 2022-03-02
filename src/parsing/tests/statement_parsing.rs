@@ -1,12 +1,4 @@
-use crate::{
-    gml::{
-        Access, Assignment, AssignmentOperator, Block, DoUntil, Enum, EnumMember, Equality, EqualityOperator, ForLoop,
-        Globalvar, Grouping, Identifier, If, Literal, LocalVariable, LocalVariableSeries, Macro, Postfix,
-        PostfixOperator, RepeatLoop, Return, Switch, SwitchCase, TryCatch, WithLoop,
-    },
-    parsing::{parser::Parser, statement::Statement},
-    prelude::{IntoExpressionBox, IntoStatementBox},
-};
+use crate::parsing::*;
 use colored::Colorize;
 use pretty_assertions::assert_eq;
 
