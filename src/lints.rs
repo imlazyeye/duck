@@ -9,8 +9,6 @@ mod assignment_to_call;
 pub use assignment_to_call::AssignmentToCall;
 mod bool_equality;
 pub use bool_equality::BoolEquality;
-mod constructor_without_new;
-pub use constructor_without_new::ConstructorWithoutNew;
 mod deprecated;
 pub use deprecated::Deprecated;
 mod draw_sprite;

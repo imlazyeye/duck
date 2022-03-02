@@ -213,6 +213,11 @@ fn non_standard_utf8_ending_comment() {
 }
 
 #[test]
+fn empty_comment() {
+    harness_multi("//", [])
+}
+
+#[test]
 fn constants() {
     for constant in MISC_GML_CONSTANTS.iter() {
         assert_eq!(

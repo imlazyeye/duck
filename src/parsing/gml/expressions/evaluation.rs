@@ -1,7 +1,4 @@
-use crate::{
-    parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox},
-    prelude::Token,
-};
+use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox, Token};
 
 /// Representation of an assignment expression in gml.
 #[derive(Debug, PartialEq, Clone)]

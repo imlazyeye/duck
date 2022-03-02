@@ -1,10 +1,12 @@
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    lints::*,
-    prelude::{
-        Ast, Config, EarlyStatementPass, Expression, ExpressionBox, GlobalScope, GlobalScopeBuilder,
-        LateExpressionPass, LateStatementPass, ParseError, ParseVisitor, Parser, Span, Statement, StatementBox,
+    analysis::{GlobalScope, GlobalScopeBuilder},
+    lint::{
+        EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, Lint, LintLevel, LintReport,
     },
+    lints::*,
+    parsing::{Ast, Expression, ExpressionBox, ParseError, ParseVisitor, Parser, Statement, StatementBox},
+    utils::Span,
+    Config,
 };
 use std::path::Path;
 

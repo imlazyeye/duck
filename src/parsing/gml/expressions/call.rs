@@ -1,4 +1,4 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor};
+use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
 
 /// Representation of an assignment expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -42,5 +42,5 @@ impl ParseVisitor for Call {
             expression_visitor(arg);
         }
     }
-    fn visit_child_statements<S: FnMut(&crate::prelude::StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
 }

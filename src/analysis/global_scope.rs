@@ -18,7 +18,7 @@ impl GlobalScope {
         Self::default()
     }
 
-    /// Returns an option to the [GmlEnum] registered under the provided name.
+    /// Returns an option to the [Enum] registered under the provided name.
     pub fn find_enum(&self, name: impl Into<String>) -> Option<&Enum> {
         self.enums.get(&name.into())
     }

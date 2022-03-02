@@ -17,7 +17,7 @@ use std::{
 /// To generate a [RunResult] from a GameMaker Studio 2 project directory, you
 /// can use [Duck::run].
 /// ```
-/// use duck::prelude::*;
+/// use duck::*;
 /// use std::path::Path;
 ///
 /// # async {
@@ -31,7 +31,7 @@ use std::{
 /// The same result can be achieved without being forced to use async code by
 /// using [Duck::run_blocking].
 /// ```
-/// # use duck::prelude::*;
+/// # use duck::*;
 /// # use std::path::Path;
 /// # let duck = Duck::default();
 /// # let my_project_path = Path::new("~/Users/me/GameMaker Studio 2/My

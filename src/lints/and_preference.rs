@@ -1,6 +1,6 @@
 use crate::{
     lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    prelude::{Expression, Logical, LogicalOperator, Token},
+    parsing::{Expression, Logical, LogicalOperator, Token},
     utils::Span,
     Config,
 };
@@ -9,7 +9,7 @@ use crate::{
 pub struct AndPreference;
 impl Lint for AndPreference {
     fn explanation() -> &'static str {
-        "GML supports both `and` and `&&` to refer to logical and. Consistent use of one over the other yields cleaner code."
+        "GML supports both `and` and `&&` to refer to logical \"and\". Consistent use of one over the other yields cleaner code."
     }
 
     fn default_level() -> LintLevel {
