@@ -14,6 +14,11 @@ pub enum Access {
         /// The value being extracted from the local scope.
         right: ExpressionBox,
     },
+    /// Accessing the scope above the current one via `other`.
+    Other {
+        /// The value being extracted from the other scope.
+        right: ExpressionBox,
+    },
     /// Dot access with any struct or object.
     Dot {
         /// The value being accessed.
@@ -81,7 +86,7 @@ impl IntoExpressionBox for Access {}
 impl ParseVisitor for Access {
     fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
         match self {
-            Access::Global { right } | Access::Current { right } => expression_visitor(right),
+            Access::Global { right } | Access::Current { right } | Access::Other { right } => expression_visitor(right),
             Access::Dot { left, right }
             | Access::Map { left, key: right }
             | Access::List { left, index: right }

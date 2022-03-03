@@ -102,7 +102,8 @@ fn keywords() {
     harness_multi(
         "switch case break return enum default and or function constructor exit global
         div new mod globalvar try self catch with true false if else while for do until
-        repeat var continue static then finally undefined noone not xor",
+        repeat var continue static then finally undefined noone not xor other delete 
+        begin end throw",
         [
             Token::Switch,
             Token::Case,
@@ -142,6 +143,11 @@ fn keywords() {
             Token::Noone,
             Token::Not,
             Token::Xor,
+            Token::Other,
+            Token::Delete,
+            Token::Begin,
+            Token::End,
+            Token::Throw,
         ],
     )
 }
@@ -229,14 +235,7 @@ fn constants() {
 
 #[test]
 fn builtin_variables() {
-    for constant in MISC_GML_VARIABLES.iter() {
-        if constant == &"self" {
-            // self is a little strange... FIXME...
-            continue;
-        }
-        assert_eq!(
-            Lexer::new(constant).next().map(|(_, t)| t),
-            Some(Token::Identifier(constant))
-        );
+    for var in MISC_GML_VARIABLES.iter() {
+        assert_eq!(Lexer::new(var).next().map(|(_, t)| t), Some(Token::Identifier(var)));
     }
 }

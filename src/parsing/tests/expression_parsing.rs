@@ -1120,6 +1120,16 @@ fn self_dot_access() {
 }
 
 #[test]
+fn other_dot_access() {
+    harness_expr(
+        "other.bar",
+        Access::Other {
+            right: Identifier::new("bar").into_lazy_box(),
+        },
+    );
+}
+
+#[test]
 fn general_self_reference() {
     harness_expr(
         "foo = self",
@@ -1127,6 +1137,18 @@ fn general_self_reference() {
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::Equal(Token::Equal),
             Identifier::new("self").into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn general_other_reference() {
+    harness_expr(
+        "foo = other",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Identifier::new("other").into_lazy_box(),
         ),
     );
 }

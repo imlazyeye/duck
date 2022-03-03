@@ -704,6 +704,18 @@ impl Parser {
                         return Ok(Identifier::new("self").into_expression_box(self.span(start)));
                     }
                 }
+                Token::Other => {
+                    self.take()?;
+                    if self.match_take(Token::Dot).is_some() {
+                        Access::Other {
+                            right: self.grouping()?,
+                        }
+                    } else {
+                        // Using other as a reference!
+                        // FIXME: me too!
+                        return Ok(Identifier::new("other").into_expression_box(self.span(start)));
+                    }
+                }
                 _ => {
                     let left = self.ds_access(None)?;
                     if self.match_take(Token::Dot).is_some() {
