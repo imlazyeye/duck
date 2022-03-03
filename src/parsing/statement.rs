@@ -102,6 +102,22 @@ impl ParseVisitor for Statement {
         }
     }
 }
+impl Statement {
+    /// Returns the statement as a [Block] if it is a block.
+    pub fn as_block(&self) -> Option<&Block> {
+        match self {
+            Statement::Block(block) => Some(block),
+            _ => None,
+        }
+    }
+    /// Returns the statement as an [ExpressionBox] if it is an expression statement.
+    pub fn as_expression_statement(&self) -> Option<&ExpressionBox> {
+        match self {
+            Statement::Expression(expression_box) => Some(expression_box),
+            _ => None,
+        }
+    }
+}
 
 /// A wrapper around a Statement. Serves a few purposes:
 ///

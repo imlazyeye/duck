@@ -1,7 +1,8 @@
 use crate::{
+    Config,
     lint::{LintLevel, LintReport},
     parsing::ParseError,
-    Config, DuckTask,
+    DuckTask,
 };
 use enum_map::EnumMap;
 use std::{

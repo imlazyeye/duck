@@ -9,6 +9,8 @@ mod assignment_to_call;
 pub use assignment_to_call::AssignmentToCall;
 mod bool_equality;
 pub use bool_equality::BoolEquality;
+mod collapsable_if;
+pub use collapsable_if::CollapsableIf;
 mod deprecated;
 pub use deprecated::Deprecated;
 mod draw_sprite;

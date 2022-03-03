@@ -63,7 +63,7 @@ impl From<ConfigTemplate> for Config {
                     ("anonymous_constructor".into(), LintLevel::Allow),
                     ("assignment_to_call".into(), LintLevel::Deny),
                     ("bool_equality".into(), LintLevel::Allow),
-                    ("constructor_without_new".into(), LintLevel::Deny),
+                    ("collapsable_if".into(), LintLevel::Warn),
                     ("deprecated".into(), LintLevel::Warn),
                     ("draw_sprite".into(), LintLevel::Allow),
                     ("draw_text".into(), LintLevel::Allow),

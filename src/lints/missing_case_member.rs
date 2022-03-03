@@ -93,10 +93,7 @@ impl LateStatementPass for MissingCaseMember {
             if !missing_members.is_empty() {
                 Self::report(
                     format!("Missing case members: {}", missing_members),
-                    [
-                        "Add cases for the missing members".into(),
-                        "Remove the intentional crash from your default case".into(),
-                    ],
+                    ["Add cases for the missing members".into()],
                     span,
                     reports,
                 );

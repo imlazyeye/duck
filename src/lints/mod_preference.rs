@@ -1,8 +1,8 @@
 use crate::{
+    Config,
     lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
     parsing::{Evaluation, EvaluationOperator, Expression, Token},
     utils::Span,
-    Config,
 };
 
 #[derive(Debug, PartialEq)]

@@ -15,11 +15,14 @@ for root, dirs, files in os.walk('../src/lints/'):
             r'fn tag\(\) -> &\'static str \{\n\s+(.+)', lint_file).group(1)
         lint_level = re.search(
             'fn default_level\(\) -> LintLevel \{\n\s+(.+)', lint_file).group(1)
+        explanation = re.search(
+            'fn explanation\(\) -> &\'static str \{\n\s+"(.+)"', lint_file).group(1)
         lints.append({
             'name': lint_name,
             'file_name':  file_name.replace('.rs', ''),
             'tag': lint_tag,
             'level': lint_level,
+            'explanation': explanation,
             'visits_expression_early': 'impl EarlyExpressionPass' in lint_file,
             'visits_statement_early': 'impl EarlyStatementPass' in lint_file,
             'visits_expression_late': 'impl LateExpressionPass' in lint_file,
@@ -28,6 +31,27 @@ for root, dirs, files in os.walk('../src/lints/'):
 
 # Sort them alphabetically
 lints = sorted(lints, key=lambda i: i['name'])
+
+# Update the README...
+readme = open('../README.md', 'r').read()
+counter = re.search(r'Currently supports \[\d+ lints\]', readme).group(0)
+readme = readme.replace(
+    counter, 'Currently supports [{lint_count} lints]'.format(lint_count=len(lints)))
+open('../README.md', 'w').write(readme)
+print("Finished updating the README.md!")
+
+
+# Update the LINTS.md...
+lints_md = open('../LINTS.md', 'r').read()
+body = re.search(r'\|---\|---\|---\|(?:\n|.)+', lints_md).group(0)
+new_body = '|---|---|---|\n'
+for lint in lints:
+    new_body += '| {tag} | {level} | {explanation}\n'.format(
+        tag=lint['tag'].replace('"', ''), level=lint['level'], explanation=lint['explanation'])
+lints_md = lints_md.replace(body, new_body)
+open('../LINTS.md', 'w').write(lints_md)
+print("Finished updating LINTS.md!")
+
 
 # Declare everything in the mod's file
 new_mods = '#![allow(missing_docs)]\n'

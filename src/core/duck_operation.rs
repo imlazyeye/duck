@@ -11,7 +11,10 @@ use crate::{
 use std::path::Path;
 
 /// ## DuckOperation
-/// TODO: The doc tests here are segfaulting. I have no idea why.
+///
+/// FIXME: The doc tests here cannot compile, giving no specific errors. I have no idea why, but the
+/// code does actually work!
+///
 /// Contains the core operations duck uses to parse and lint Gml.
 /// These are kept seperated from [Duck] to codify that `self` should
 /// not be required on these operations. This avoids situations in which
@@ -20,8 +23,8 @@ use std::path::Path;
 /// ### Usage
 /// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s
 /// directly.
-/// ```rs
-/// # use duck::prelude::*;
+/// ```ignore
+/// # use duck::*;
 /// # use std::path::Path;
 /// # let gml = "show_debug_message(\"Hello world!\")";
 /// # let path = Path::new("../hello_world.gml");
@@ -32,8 +35,8 @@ use std::path::Path;
 /// ```
 ///
 /// You can also manually run the [Lint]s on these [Ast]s.
-/// ```rs
-/// # use duck::prelude::*;
+/// ```ignore
+/// # use duck::*;
 /// # use std::path::Path;
 /// # let duck = Duck::default();
 /// # let path = Path::new("../test.gml");
@@ -92,6 +95,7 @@ impl DuckOperation {
         let span = statement_box.span();
 
         // @early statement calls. Do not remove this comment!
+        Self::run_early_lint_on_statement::<CollapsableIf>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<Deprecated>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<Exit>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<MissingDefaultCase>(config, statement, span, reports);

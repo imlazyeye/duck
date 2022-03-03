@@ -43,7 +43,8 @@ impl DuckTask {
         let mut io_errors = vec![];
         let mut walker = WalkDir::new(directory.join("objects"))
             .filter(filter)
-            .chain(WalkDir::new(directory.join("scripts")).filter(filter));
+            .chain(WalkDir::new(directory.join("scripts")).filter(filter))
+            .chain(WalkDir::new(directory.join("rooms")).filter(filter));
         let (path_sender, path_receiver) = channel::<PathBuf>(1000);
         let handle = tokio::task::spawn(async move {
             loop {

@@ -136,6 +136,7 @@ fn new_config(template: ConfigTemplate) -> i32 {
     0
 }
 
+#[derive(Debug)]
 enum ConfigUsage {
     None,
     Some,

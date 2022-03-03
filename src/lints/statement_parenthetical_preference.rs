@@ -1,8 +1,8 @@
 use crate::{
+    Config,
     lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
     parsing::{DoUntil, Expression, If, RepeatLoop, Statement, WhileLoop, WithLoop},
     utils::Span,
-    Config,
 };
 
 #[derive(Debug, PartialEq)]

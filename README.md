@@ -7,7 +7,7 @@ A collection of customizable lints to identify common mistakes in GML ([GameMake
 
 Currently supports [33 lints](LINTS.md), with more on the way!
 
-`duck` is is a highly opinionated linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are *completely customizable*.
+`duck` is is a highly opinionated linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are _completely customizable_.
 
 `duck` is also extremely fast. It currently can fully process a 250,000 line project in less than a second.
 
@@ -23,6 +23,7 @@ Currently supports [33 lints](LINTS.md), with more on the way!
   - [Creating a configuration file](#creating-a-configuration-file)
   - [Setting lint levels](#setting-lint-levels)
   - [Running the linter](#running-the-linter)
+- [Limitations](#limitations)
 - [Contributing](#contributing)
 - [Support and Requests](#support-and-requests)
 
@@ -36,9 +37,9 @@ While `duck` expresses strong opinons on the GML it reads, those opinons are eni
 
 ```toml
 [lint-levels]
-and_keyword = "allow"
+and_preference = "allow"
 try_catch = "warn"
-constructor_without_new = "deny"
+missing_case_member = "deny"
 ```
 
 This demonstrates the three different levels: "allow" will tell `duck` to fully ignore the lint, "warn" will mark them as warnings, and "deny" will treat them like full errors.
@@ -56,7 +57,7 @@ var_prefixes = false
 
 Sometimes you need to break the rules. Perhaps there is a place in my codebase that I would really like to use a `globalvar` even though it is depreacted. In general though, I still don't want them to be allowed. You can tag the specific occurance of the issue to acknowledge (and ignore) the lint.
 
-```gml
+```js
 // #[allow(deprecated)]
 globalvar my_globalvar;
 ```
@@ -65,20 +66,18 @@ Tags are a great way to enable lints on things you don't want to _fully_ ban, bu
 
 ## Examples
 
-TODO: Addmitedly, this is just me being proud, and this might not need to be here.
-
 Let's use one of `duck`'s more powerful lints as an example: `missing_case_member`.
 
-```gml
-emum MyEnum {
-    A,
-    B,
-    C,
+```js
+enum MyEnum {
+    Foo,
+    Bar,
+    Buzz,
 }
 
 switch my_enum {
-    case MyEnum.A: break;
-    case MyEnum.B: break;
+    case MyEnum.Foo: break;
+    case MyEnum.Bar: break;
 }
 ```
 
@@ -86,7 +85,7 @@ While this code is acceptable GML, it contains a danger: we do not have a `case`
 
 Normally, this kind of an issue is difficult to detect. With `duck`, it's trivial:
 
-\<image>
+![example of the missing_case_member lint in action](https://i.imgur.com/SqO7QVP.png)
 
 As the suggestions there mention, there's a few ways we could resolve this. We could, of course, add in a case for `MyEnum.C`. We could also add a `default` case to our switch -- `duck` would then recognize that all the bases are covered. We could customize that behavior further by telling `duck` to ignore this error if we have a default case, _unless_ that default cases requests the game to crash -- then `duck` will recognize that the default case is not an intended outcome.
 
@@ -120,6 +119,10 @@ This will create a file called `.duck.toml` in your project's directory that wil
 | var_prefixes             | true, false           | Whether or not local variables should be prefixed with an underscore (ex: `var _foo` vs `var foo`). Used by `var_prefix_violation`.               |
 | english_flavor           | "american", "british" | The spelling of English words you prefer for GameMaker functions (ex: `color` vs `colour`). Used by `english_flavor_violation`.                   |
 | length_enum_member_name  | Any string            | A name to ignore in enums that denote its length (ie: `Len`, `Count`). Used by `missing_case_member`.                                             |
+| prefer_and_keyword       | true, false           | Whether or not the `and_preference` lint should require the `and` keyword or the `&&` symbol.                                                     |
+| prefer_or_keyword        | true, false           | Whether or not the `or_preference` lint should require the `or` keyword or the `\|\|` symbol                                                      |
+| prefer_mod_keyword       | true, false           | Whether or not the `mod_preference` lint should require the `mod` keyword or the `%` symbol.                                                      |
+| prefer_not_keyword       | true, false           | Whether or not the `not_preference` lint should require the `not` keyword or the `!` symbol.                                                      |
 
 ### Setting lint levels
 
@@ -138,6 +141,29 @@ If you would like to run the linter on a project outside the current directory y
 ```
 duck lint --path path/to/project
 ```
+
+## Limitations
+
+Generally speaking, `duck` tries to support parsing for anything that is valid gml. Exceptions to this policy are made on a case by case basis when the benefit of supporting something is outweighed by how much strain it would put on the codebase. If you encounter any parsing errors in duck that do not cause errors in GM, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
+
+### Single Equal Equalities
+
+The one noteable example of this is single-equals equalities:
+
+```js
+if foo = 1 {} // `foo = 1` is an equality expression
+foo = 1; // `foo = 1` is an assignment expression
+```
+
+Understanding the difference between these two `foo = 1` calls as a parser is very difficult to do elegantly and (as best as I can tell) require interpretting everything based on the context it is within. This is not a debt I'm interested in taking on at the moment, so for now, **duck does not support single-equals equality expressions**. This does _not_ mean that duck will encounter errors if you use them, it just means that it will mistake them for assignments, which may lead to false positives and negatives in your lints.
+
+### Gml Validity
+
+Just like `duck` aims to successfully parse anything that gml can, it also seeks to throw an error for anything gml would. Ideally, if `duck` passes with no errors, you should be confident that it will run in GM as well.
+
+`duck` is able to achieve this pretty well just by nature of it being able to fully parse gml's grammar. However, there is no way to know all of the specific errors the GameMaker compiler can throw, and as such, `duck` may be missing some. If `duck` ever successfully parses gml that does not pass in GameMaker, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
+
+You can view our tracking issue for any discrepancies between duck and GM here. TODO!!!
 
 ## Contributing
 

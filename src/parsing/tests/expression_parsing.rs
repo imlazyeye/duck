@@ -7,7 +7,23 @@ fn harness_expr(source: &'static str, expected: impl Into<Expression>) {
     let mut parser = Parser::new(source, "test".into());
     let outputed = parser.expression().unwrap();
     println!("{}: {}", "Source".yellow(), source);
+    println!("{}: {:?}", "Outputted".red(), *outputed.expression());
     assert_eq!(*outputed.expression(), expected)
+}
+
+/// This exists to navigate around the challenges of parsing assignments in gml.
+/// Please see the docs for [Assignment].
+fn harness_expr_from_stmt(source: &'static str, expected: impl Into<Expression>) {
+    let expected = expected.into();
+    let mut parser = Parser::new(source, "test".into());
+    let statement_box = parser.statement().unwrap();
+    let outputed = statement_box
+        .statement()
+        .as_expression_statement()
+        .unwrap()
+        .expression();
+    println!("{}: {}", "Source".yellow(), source);
+    assert_eq!(*outputed, expected)
 }
 
 #[test]
@@ -452,6 +468,18 @@ fn null_coalecence() {
 }
 
 #[test]
+fn function_assignment() {
+    harness_expr_from_stmt(
+        "foo = function() {}",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Function::new_anonymous(vec![], Block::new(vec![]).into_lazy_box()).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn ternary() {
     harness_expr(
         "foo ? 1 : 2",
@@ -465,7 +493,7 @@ fn ternary() {
 
 #[test]
 fn assign() {
-    harness_expr(
+    harness_expr_from_stmt(
         "foo = 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
@@ -476,8 +504,47 @@ fn assign() {
 }
 
 #[test]
+fn logical_assignment() {
+    harness_expr_from_stmt(
+        "foo = 1 && 1 && 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Logical::new(
+                Literal::Real(1.0).into_lazy_box(),
+                LogicalOperator::And(Token::DoubleAmpersand),
+                Logical::new(
+                    Literal::Real(1.0).into_lazy_box(),
+                    LogicalOperator::And(Token::DoubleAmpersand),
+                    Literal::Real(1.0).into_lazy_box(),
+                )
+                .into_lazy_box(),
+            )
+            .into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn ternary_assignment() {
+    harness_expr_from_stmt(
+        "foo = bar ? 1 : 2;",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Ternary::new(
+                Identifier::new("bar").into_lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(2.0).into_lazy_box(),
+            )
+            .into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn dot_assign() {
-    harness_expr(
+    harness_expr_from_stmt(
         "self.foo = 1",
         Assignment::new(
             Access::Current {
@@ -492,7 +559,7 @@ fn dot_assign() {
 
 #[test]
 fn ds_assign() {
-    harness_expr(
+    harness_expr_from_stmt(
         "foo[0] = 1",
         Assignment::new(
             Access::Array {
@@ -511,7 +578,7 @@ fn ds_assign() {
 #[test]
 // Valid GML, as much as it hurts. See `assignment_to_call`
 fn call_assign() {
-    harness_expr(
+    harness_expr_from_stmt(
         "foo() = 1",
         Assignment::new(
             Call::new(Identifier::new("foo").into_lazy_box(), vec![]).into_lazy_box(),
@@ -523,7 +590,7 @@ fn call_assign() {
 
 #[test]
 fn static_assign() {
-    harness_expr(
+    harness_expr_from_stmt(
         "static foo = 1",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
@@ -1131,7 +1198,7 @@ fn other_dot_access() {
 
 #[test]
 fn general_self_reference() {
-    harness_expr(
+    harness_expr_from_stmt(
         "foo = self",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
@@ -1143,7 +1210,7 @@ fn general_self_reference() {
 
 #[test]
 fn general_other_reference() {
-    harness_expr(
+    harness_expr_from_stmt(
         "foo = other",
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
