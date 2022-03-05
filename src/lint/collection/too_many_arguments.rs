@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Expression, Function, Span},
-    Config,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Expression, ExpressionBox, Function, OptionalInitilization},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,18 +23,25 @@ impl Lint for TooManyArguments {
 }
 
 impl EarlyExpressionPass for TooManyArguments {
-    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
-        if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression {
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression_box.expression() {
             if parameters.len() > config.max_arguments {
-                Self::report(
-                    "Too many arguments",
-                    [
-                        "Split this into multiple functions".into(),
-                        "Create a struct that holds the fields required by this function".into(),
-                    ],
-                    span,
-                    reports,
-                )
+                let start = parameters.first().unwrap().name_expression().span().0;
+                let end = match parameters.last().unwrap() {
+                    OptionalInitilization::Uninitialized(expr) => expr.span().1,
+                    OptionalInitilization::Initialized(stmt) => stmt.span().1,
+                };
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Too many arguments")
+                        .with_labels(vec![Label::primary(expression_box.file_id(), start..end).with_message(
+                            format!(
+                                "using {} arguments, but the maximum is set to {}",
+                                parameters.len(),
+                                config.max_arguments
+                            ),
+                        )]),
+                );
             }
         }
     }

@@ -58,18 +58,9 @@ async fn run_lint(
     // Output the results
     let writer = StandardStream::stderr(if color { ColorChoice::Always } else { ColorChoice::Auto });
     let config = codespan_reporting::term::Config::default();
-    for (file_id, report) in run_summary.iter_lint_reports() {
-        codespan_reporting::term::emit(
-            &mut writer.lock(),
-            &config,
-            run_summary.files(),
-            &report.generate_diagnostic(duck.config(), *file_id),
-        )
-        .unwrap();
+    for report in run_summary.diagnostics() {
+        codespan_reporting::term::emit(&mut writer.lock(), &config, run_summary.files(), report).unwrap();
     }
-    run_summary.parse_errors().iter().for_each(|error| {
-        codespan_reporting::term::emit(&mut writer.lock(), &config, run_summary.files(), &error.diagnostic()).unwrap();
-    });
 
     let seperation_string = String::from_utf8(vec![b'-'; 50]).unwrap();
     println!("  {}", "duck complete!".italic().bold());
@@ -78,10 +69,7 @@ async fn run_lint(
         "  {}",
         format!(
             "🦆 <( Found {} errors and {} warnings! )",
-            (run_summary.denial_count() + run_summary.parse_errors().len())
-                .to_string()
-                .bright_red()
-                .bold(),
+            (run_summary.denial_count()).to_string().bright_red().bold(),
             run_summary.warning_count().to_string().yellow().bold(),
         )
         .bold()
@@ -115,7 +103,7 @@ async fn run_lint(
     // Return the status code
     if (!allow_warnings && run_summary.warning_count() != 0)
         || (!allow_denials && run_summary.denial_count() != 0)
-        || (!allow_errors && (!run_summary.io_errors().is_empty() || !run_summary.parse_errors().is_empty()))
+        || (!allow_errors && (!run_summary.io_errors().is_empty()))
     {
         1
     } else {
@@ -156,7 +144,6 @@ fn explain_lint(name: String) -> i32 {
         "missing_default_case" => MissingDefaultCase::explanation().into(),
         "mod_preference" => ModPreference::explanation().into(),
         "multi_var_declaration" => MultiVarDeclaration::explanation().into(),
-        "no_space_begining_comment" => NoSpaceBeginingComment::explanation().into(),
         "non_constant_default_parameter" => NonConstantDefaultParameter::explanation().into(),
         "non_pascal_case" => NonPascalCase::explanation().into(),
         "non_scream_case" => NonScreamCase::explanation().into(),
@@ -169,7 +156,6 @@ fn explain_lint(name: String) -> i32 {
         "suspicious_constant_usage" => SuspicousConstantUsage::explanation().into(),
         "todo" => Todo::explanation().into(),
         "too_many_arguments" => TooManyArguments::explanation().into(),
-        "too_many_lines" => TooManyLines::explanation().into(),
         "try_catch" => TryCatch::explanation().into(),
         "var_prefix_violation" => VarPrefixViolation::explanation().into(),
         "with_loop" => WithLoop::explanation().into(),

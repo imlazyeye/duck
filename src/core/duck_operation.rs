@@ -1,10 +1,11 @@
+use codespan_reporting::diagnostic::Diagnostic;
+
 use crate::{
     analyze::{GlobalScope, GlobalScopeBuilder},
     lint::{
         collection::*, EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, Lint, LintLevel,
-        LintReport,
     },
-    parse::{Ast, Expression, ExpressionBox, ParseErrorReport, ParseVisitor, Parser, Span, Statement, StatementBox},
+    parse::{Ast, ExpressionBox, ParseErrorReport, ParseVisitor, Parser, Statement, StatementBox},
     Config, FileId,
 };
 
@@ -72,7 +73,7 @@ impl DuckOperation {
 
     /// Runs a [Statement] through the early pass, running any lint that
     /// implements [EarlyStatementPass], as well as collecting information
-    /// into the provided [Environment].
+    /// into the provided [GlobalScopeBuilder].
     ///
     /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
     /// more information.
@@ -80,32 +81,29 @@ impl DuckOperation {
         config: &Config,
         statement_box: &StatementBox,
         scope_builder: &mut GlobalScopeBuilder,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
         let statement = statement_box.statement();
-        let span = statement_box.span();
 
         // @early statement calls. Do not remove this comment!
-        Self::run_early_lint_on_statement::<AssignmentToCall>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<CollapsableIf>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<Deprecated>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<Exit>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<MissingDefaultCase>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<MultiVarDeclaration>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<NonPascalCase>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<NonScreamCase>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<SingleSwitchCase>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<StatementParentheticalPreference>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<SuspicousConstantUsage>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<TryCatch>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<VarPrefixViolation>(config, statement, span, reports);
-        Self::run_early_lint_on_statement::<WithLoop>(config, statement, span, reports);
+        Self::run_early_lint_on_statement::<AssignmentToCall>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<CollapsableIf>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<Deprecated>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<Exit>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<MissingDefaultCase>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<MultiVarDeclaration>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<SingleSwitchCase>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<StatementParentheticalPreference>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<SuspicousConstantUsage>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<TryCatch>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<VarPrefixViolation>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<WithLoop>(statement_box, config, reports);
         // @end early statement calls. Do not remove this comment!
 
         #[allow(clippy::single_match)]
         match statement {
             Statement::EnumDeclaration(gml_enum) => {
-                scope_builder.register_enum(gml_enum.clone());
+                scope_builder.register_enum(gml_enum.clone(), statement_box.location());
             }
             _ => {}
         }
@@ -117,7 +115,7 @@ impl DuckOperation {
 
     /// Runs an [Expression] through the early pass, running any lint that
     /// implements [EarlyExpressionPass], as well as collecting information
-    /// into the provided [Environment].
+    /// into the provided [GlobalScopeBuilder].
     ///
     /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
     /// more information.
@@ -125,31 +123,29 @@ impl DuckOperation {
         config: &Config,
         expression_box: &ExpressionBox,
         scope_builder: &mut GlobalScopeBuilder,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
         let expression = expression_box.expression();
-        let span = expression_box.span();
 
         // @early expression calls. Do not remove this comment!
-        Self::run_early_lint_on_expression::<AccessorAlternative>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<AndPreference>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<AnonymousConstructor>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<BoolEquality>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<Deprecated>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<DrawSprite>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<DrawText>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<EnglishFlavorViolation>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<Global>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<ModPreference>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<NonConstantDefaultParameter>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<NonPascalCase>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<NotPreference>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<OrPreference>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<RoomGoto>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<ShowDebugMessage>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<SuspicousConstantUsage>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<Todo>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<TooManyArguments>(config, expression, span, reports);
+        Self::run_early_lint_on_expression::<AccessorAlternative>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<AndPreference>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<AnonymousConstructor>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<BoolEquality>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<Deprecated>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<DrawSprite>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<DrawText>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<EnglishFlavorViolation>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<Global>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<ModPreference>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<NonConstantDefaultParameter>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<NotPreference>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<OrPreference>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<RoomGoto>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<ShowDebugMessage>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<SuspicousConstantUsage>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<Todo>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<TooManyArguments>(expression_box, config, reports);
         // @end early expression calls. Do not remove this comment!
 
         // Recurse...
@@ -165,19 +161,18 @@ impl DuckOperation {
     pub fn process_statement_late(
         config: &Config,
         statement_box: &StatementBox,
-        environment: &GlobalScope,
-        reports: &mut Vec<LintReport>,
+        global_scope: &GlobalScope,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
         let statement = statement_box.statement();
-        let span = statement_box.span();
 
         // @late statement calls. Do not remove this comment!
-        Self::run_late_lint_on_statement::<MissingCaseMember>(config, statement, environment, span, reports);
+        Self::run_late_lint_on_statement::<MissingCaseMember>(statement_box, config, reports, global_scope);
         // @end late statement calls. Do not remove this comment!
 
         // Recurse...
-        statement.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, environment, reports));
-        statement.visit_child_expressions(|expr| Self::process_expression_late(config, expr, environment, reports));
+        statement.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, global_scope, reports));
+        statement.visit_child_expressions(|expr| Self::process_expression_late(config, expr, global_scope, reports));
     }
 
     /// Runs an [Expression] through the late pass, running any lint that
@@ -189,8 +184,8 @@ impl DuckOperation {
     fn process_expression_late(
         config: &Config,
         expression_box: &ExpressionBox,
-        environment: &GlobalScope,
-        reports: &mut Vec<LintReport>,
+        global_scope: &GlobalScope,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
         let expression = expression_box.expression();
         #[allow(unused_variables)]
@@ -200,58 +195,54 @@ impl DuckOperation {
         // @end late expression calls. Do not remove this comment!
 
         // Recurse...
-        expression.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, environment, reports));
-        expression.visit_child_expressions(|expr| Self::process_expression_late(config, expr, environment, reports));
+        expression.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, global_scope, reports));
+        expression.visit_child_expressions(|expr| Self::process_expression_late(config, expr, global_scope, reports));
     }
 
     /// Performs a given [EarlyStatementPass] on a statement.
     fn run_early_lint_on_statement<T: Lint + EarlyStatementPass>(
+        statement_box: &StatementBox,
         config: &Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
         if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
-            T::visit_statement_early(config, statement, span, reports);
+            T::visit_statement_early(statement_box, config, reports);
         }
     }
 
     /// Performs a given [EarlyExpressionPass] on a statement.
     fn run_early_lint_on_expression<T: Lint + EarlyExpressionPass>(
+        expression_box: &ExpressionBox,
         config: &Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
         if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
-            T::visit_expression_early(config, expression, span, reports);
+            T::visit_expression_early(expression_box, config, reports);
         }
     }
 
     /// Performs a given [LateStatementPass] on a statement.
     fn run_late_lint_on_statement<T: Lint + LateStatementPass>(
+        statement_box: &StatementBox,
         config: &Config,
-        statement: &Statement,
-        environment: &GlobalScope,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
+        global_scope: &GlobalScope,
     ) {
         if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
-            T::visit_statement_late(config, environment, statement, span, reports);
+            T::visit_statement_late(statement_box, config, reports, global_scope);
         }
     }
 
     /// Performs a given [LateExpressionPass] on a statement.
     #[allow(dead_code)]
     fn run_late_lint_on_expression<T: Lint + LateExpressionPass>(
+        expression_box: &ExpressionBox,
         config: &Config,
-        expression: &Expression,
-        environment: &GlobalScope,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
+        global_scope: &GlobalScope,
     ) {
         if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
-            T::visit_expression_late(config, environment, expression, span, reports);
+            T::visit_expression_late(expression_box, config, reports, global_scope);
         }
     }
 }

@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::{Assignment, Expression, Statement},
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{Assignment, Expression, Statement, StatementBox},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,19 +23,17 @@ impl Lint for AssignmentToCall {
 }
 
 impl EarlyStatementPass for AssignmentToCall {
-    fn visit_statement_early(
-        _config: &crate::Config,
-        expression: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        if let Statement::Assignment(Assignment { left, .. }) = expression {
+    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let Statement::Assignment(Assignment { left, right, .. }) = statement_box.statement() {
             if let Expression::Call(..) = left.expression() {
-                Self::report(
-                    "Assignment to call",
-                    ["Re-evaluate this code -- this assignment does not do anything.".into()],
-                    span,
-                    reports,
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Assignment to call")
+                        .with_labels(vec![
+                            Label::secondary(right.file_id(), right.span()).with_message("assigning this value..."),
+                            Label::primary(left.file_id(), left.span())
+                                .with_message("...to this function call, which does not do anything."),
+                        ]),
                 );
             }
         }

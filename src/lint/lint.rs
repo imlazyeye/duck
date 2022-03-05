@@ -1,10 +1,9 @@
 use crate::{
     analyze::GlobalScope,
-    parse::{Expression, Span, Statement},
+    parse::{ExpressionBox, StatementBox},
     Config, FileId,
 };
-use codespan_reporting::diagnostic::{Diagnostic, Label};
-use colored::Colorize;
+use codespan_reporting::diagnostic::{Diagnostic, Severity};
 
 /// An individual lint in duck.
 ///
@@ -22,25 +21,8 @@ pub trait Lint {
     /// Returns an explanation of what the lint does and why it is useful.
     fn explanation() -> &'static str;
 
-    /// Generates a LintReport based on `Lint::generate_report`, but replaces
-    /// its name and extends any provided suggestions into it.
-    fn report<const COUNT: usize>(
-        name: impl Into<String>,
-        suggestions: [String; COUNT],
-        span: Span,
-        reports: &mut Vec<LintReport>,
-    ) {
-        reports.push(LintReport {
-            span,
-            display_name: name.into(),
-            suggestions: suggestions.into(),
-            tag: Self::tag(),
-            default_level: Self::default_level(),
-            explanation: Self::explanation(),
-        });
-    }
-
     /// Creates a diagnostic based on the user's lint level for this lint.
+    #[must_use = "Diagnostics made by lints must be put into the reports collection."]
     fn diagnostic(config: &Config) -> Diagnostic<FileId> {
         let level = config
             .lint_levels
@@ -59,14 +41,14 @@ pub trait Lint {
 /// collected).
 pub trait EarlyStatementPass {
     /// Runs on statements in the early pass.
-    fn visit_statement_early(config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>);
+    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>);
 }
 
 /// Lints who run an early pass on expressions (before type information has been
 /// collected).
 pub trait EarlyExpressionPass {
     /// Runs on expressions in the early pass.
-    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>);
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>);
 }
 
 /// Lints who run a late pass on statements (after type information has been
@@ -74,11 +56,10 @@ pub trait EarlyExpressionPass {
 pub trait LateStatementPass {
     /// Runs on statements in the late pass.
     fn visit_statement_late(
+        statement_box: &StatementBox,
         config: &Config,
-        environment: &GlobalScope,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
+        global_scope: &GlobalScope,
     );
 }
 
@@ -87,11 +68,10 @@ pub trait LateStatementPass {
 pub trait LateExpressionPass {
     /// Runs on expressions in the late pass.
     fn visit_expression_late(
+        expression_box: &ExpressionBox,
         config: &Config,
-        environment: &GlobalScope,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
+        global_scope: &GlobalScope,
     );
 }
 
@@ -128,6 +108,17 @@ impl LintLevel {
         }
     }
 }
+impl From<Severity> for LintLevel {
+    fn from(s: Severity) -> Self {
+        match s {
+            Severity::Bug => LintLevel::Deny,
+            Severity::Error => LintLevel::Deny,
+            Severity::Warning => LintLevel::Warn,
+            Severity::Note => LintLevel::Allow,
+            Severity::Help => LintLevel::Allow,
+        }
+    }
+}
 
 /// The origin of lint level for a lint.
 pub enum LintLevelSetting {
@@ -152,64 +143,3 @@ impl core::ops::Deref for LintLevelSetting {
 /// The data from a user-written tag (ie: #[allow(draw_text)])
 #[derive(Debug)]
 pub struct LintTag(pub String, pub LintLevel);
-
-/// A report returned by a lint if it fails.
-#[derive(Debug)]
-pub struct LintReport {
-    pub(super) display_name: String,
-    pub(super) tag: &'static str,
-    pub(super) default_level: LintLevel,
-    #[allow(dead_code)]
-    pub(super) explanation: &'static str,
-    pub(super) suggestions: Vec<String>,
-    pub(super) span: Span,
-}
-impl LintReport {
-    /// Generates a Diagnostic out of a lint report to be displayed to the user.
-    pub fn generate_diagnostic(&self, config: &Config, file_id: FileId) -> Diagnostic<FileId> {
-        let level = config.get_lint_level_setting(self.tag, self.default_level);
-        let mut suggestions: Vec<String> = self
-            .suggestions
-            .iter()
-            .map(|v| format!("{}: {}", "Hint".bold(), v))
-            .collect();
-        suggestions.push(format!(
-            "Ignore this by placing `// #[allow({})]` above this code or by adjusting your config's settings.",
-            self.tag,
-        ));
-        match *level {
-            LintLevel::Allow => Diagnostic::note(),
-            LintLevel::Warn => Diagnostic::warning(),
-            LintLevel::Deny => Diagnostic::error(),
-        }
-        .with_message(&self.display_name)
-        .with_labels(vec![Label::primary(file_id, self.span.0..self.span.1)])
-        .with_notes(suggestions)
-
-        // TODO: Point to the line in the user's config, or the lint tag that activated this
-        // match level {
-        //     LintLevelSetting::Default(_) => {}
-        //     LintLevelSetting::CodeSpecified(_) => {
-        //         diagnostic.with_labels(vec!["This lint was requested by the line above
-        // it.".into()]);     }
-        //     LintLevelSetting::ConfigSpecified(_) => {
-        //         diagnostic.with_labels(vec!["This lint was activated by your config.".into()]);
-        //     }
-        // }
-    }
-
-    /// Get the lint report's tag.
-    pub fn tag(&self) -> &str {
-        self.tag
-    }
-
-    /// Get the lint report's default level.
-    pub fn default_level(&self) -> LintLevel {
-        self.default_level
-    }
-
-    /// Get the lint report's span.
-    pub fn span(&self) -> Span {
-        self.span
-    }
-}

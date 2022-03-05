@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Call, Expression, Span},
-    Config,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Call, Expression, ExpressionBox},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,11 +23,17 @@ impl Lint for Todo {
 }
 
 impl EarlyExpressionPass for Todo {
-    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
-        if let Expression::Call(Call { left, .. }) = expression {
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
                 if identifier.name == config.todo_keyword {
-                    Self::report("Use of todo marker", ["Remove this todo marker".into()], span, reports)
+                    reports.push(
+                        Self::diagnostic(config)
+                            .with_message("Use of todo marker")
+                            .with_labels(vec![
+                                Label::primary(left.file_id(), left.span()).with_message("remove this todo marker"),
+                            ]),
+                    );
                 }
             }
         }

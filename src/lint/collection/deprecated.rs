@@ -1,6 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::{Access, Call, Expression, Globalvar, Span, Statement},
+    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel},
+    parse::{Access, Call, Expression, ExpressionBox, Globalvar, Statement, StatementBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,20 +24,18 @@ impl Lint for Deprecated {
 
 impl EarlyStatementPass for Deprecated {
     fn visit_statement_early(
-        _config: &crate::Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        statement_box: &StatementBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Statement::GlobalvarDeclaration(Globalvar { name }) = statement {
-            Self::report(
-                "Use of globalvar",
-                [
-                    format!("Change this to the newer `global.{}` syntax.", name),
-                    "Scope this variable to a singular object".into(),
-                ],
-                span,
-                reports,
+        if let Statement::GlobalvarDeclaration(Globalvar { name }) = statement_box.statement() {
+            reports.push(
+                Self::diagnostic(config)
+                    .with_message("Use of `globalvar`")
+                    .with_labels(vec![
+                        Label::primary(statement_box.file_id(), statement_box.span())
+                            .with_message(format!("Change this to the `global.{}` syntax", name)),
+                    ]),
             );
         }
     }
@@ -42,28 +43,30 @@ impl EarlyStatementPass for Deprecated {
 
 impl EarlyExpressionPass for Deprecated {
     fn visit_expression_early(
-        _config: &crate::Config,
-        expression: &crate::parse::Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        expression_box: &ExpressionBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Expression::Call(Call { left, .. }) = expression {
+        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
                 if gm_deprecated_functions().contains(&identifier.name.as_str()) {
-                    Self::report(
-                        format!("Use of deprecated function: {}", identifier.name),
-                        [],
-                        span,
-                        reports,
+                    reports.push(
+                        Self::diagnostic(config)
+                            .with_message(format!("Use of deprecated function: {}", identifier.name))
+                            .with_labels(vec![
+                                Label::primary(left.file_id(), left.span()).with_message("this function is deprecated"),
+                            ]),
                     );
                 }
             }
-        } else if let Expression::Access(Access::Array { index_two: Some(_), .. }) = expression {
-            Self::report(
-                "Use of 2d array",
-                ["Use chained arrays instead (`foo[0][0]).".into()],
-                span,
-                reports,
+        } else if let Expression::Access(Access::Array { index_two: Some(_), .. }) = expression_box.expression() {
+            reports.push(
+                Self::diagnostic(config)
+                    .with_message("Use of 2d array")
+                    .with_labels(vec![
+                        Label::primary(expression_box.file_id(), expression_box.span())
+                            .with_message("use chained arrays instead (`foo[0][0]`)"),
+                    ]),
             );
         }
     }

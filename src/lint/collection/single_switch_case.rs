@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::Statement,
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{Statement, StatementBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,18 +24,19 @@ impl Lint for SingleSwitchCase {
 
 impl EarlyStatementPass for SingleSwitchCase {
     fn visit_statement_early(
-        _config: &crate::Config,
-        statement: &crate::parse::Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        statement_box: &StatementBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Statement::Switch(switch) = statement {
+        if let Statement::Switch(switch) = statement_box.statement() {
             if switch.cases().len() == 1 {
-                Self::report(
-                    "Single switch case",
-                    ["Use an `if` statement instead of a `switch` statement".into()],
-                    span,
-                    reports,
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Switch statement with single case")
+                        .with_labels(vec![
+                            Label::primary(statement_box.file_id(), statement_box.span())
+                                .with_message("Use an `if` statement instead of a `switch` statement"),
+                        ]),
                 );
             }
         }

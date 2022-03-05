@@ -1,8 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    Config,
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Expression, Logical, LogicalOperator, Token},
-    parse::Span,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Expression, ExpressionBox, Logical, LogicalOperator, Token},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,16 +22,22 @@ impl Lint for AndPreference {
     }
 }
 impl EarlyExpressionPass for AndPreference {
-    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::Logical(Logical {
             operator: LogicalOperator::And(token),
             ..
-        }) = expression
+        }) = expression_box.expression()
         {
             if config.prefer_and_keyword() && token != &Token::And {
-                Self::report("Use of `&&`", ["Use `and` instead of `&&`".into()], span, reports);
+                reports.push(Self::diagnostic(config).with_message("Use of `&&`").with_labels(vec![
+                    Label::primary(expression_box.file_id(), expression_box.span())
+                        .with_message("use the `and` keyword instead of `&&`"),
+                ]));
             } else if token == &Token::And {
-                Self::report("Use of `and`", ["Use `&&` instead of `and`".into()], span, reports);
+                reports.push(Self::diagnostic(config).with_message("Use of `and`").with_labels(vec![
+                    Label::primary(expression_box.file_id(), expression_box.span())
+                        .with_message("use the `&&` opreator instead of `and`"),
+                ]));
             }
         }
     }

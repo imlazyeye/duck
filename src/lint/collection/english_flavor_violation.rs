@@ -1,10 +1,11 @@
 use bimap::BiHashMap;
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use once_cell::sync::Lazy;
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Call, Expression, Span},
-    EnglishFlavor,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Call, Expression, ExpressionBox},
+    EnglishFlavor, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -25,36 +26,39 @@ impl Lint for EnglishFlavorViolation {
 
 impl EarlyExpressionPass for EnglishFlavorViolation {
     fn visit_expression_early(
+        expression_box: &ExpressionBox,
         config: &crate::Config,
-        expression: &crate::parse::Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
         let english_flavor = &config.english_flavor;
-        if let Expression::Call(Call { left, .. }) = expression {
+        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
                 match english_flavor {
                     EnglishFlavor::American => {
-                        if let Some(british_spelling) =
-                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(identifier.name.as_str())
+                        if let Some(american_spelling) =
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(identifier.name.as_str())
                         {
-                            Self::report(
-                                format!("Use of British spelling: {}", identifier.name),
-                                [format!("Use `{}` instead", british_spelling)],
-                                span,
-                                reports,
+                            reports.push(
+                                Self::diagnostic(config)
+                                    .with_message(format!("Use of British spelling `{}`", identifier.name))
+                                    .with_labels(vec![
+                                        Label::primary(left.file_id(), left.span())
+                                            .with_message(format!("replace this with `{}`", american_spelling)),
+                                    ]),
                             );
                         }
                     }
                     EnglishFlavor::British => {
-                        if let Some(american_spelling) =
-                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(identifier.name.as_str())
+                        if let Some(british_spelling) =
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(identifier.name.as_str())
                         {
-                            Self::report(
-                                format!("Use of American spelling: {}", identifier.name),
-                                [format!("Use `{}` instead", american_spelling)],
-                                span,
-                                reports,
+                            reports.push(
+                                Self::diagnostic(config)
+                                    .with_message(format!("Use of American spelling `{}`", identifier.name))
+                                    .with_labels(vec![
+                                        Label::primary(left.file_id(), left.span())
+                                            .with_message(format!("replace this with `{}`", british_spelling)),
+                                    ]),
                             );
                         }
                     }

@@ -1,6 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Expression, Function, Span},
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Expression, ExpressionBox, Function},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,24 +24,28 @@ impl Lint for NonConstantDefaultParameter {
 
 impl EarlyExpressionPass for NonConstantDefaultParameter {
     fn visit_expression_early(
-        _config: &crate::Config,
-        expression: &Expression,
-        _span: Span,
-        reports: &mut Vec<LintReport>,
+        expression_box: &ExpressionBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression {
+        if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression_box.expression() {
             for param in parameters {
-                if let Some(expression) = &param.default_value {
+                if let Some(default_value_expression_box) = param.assignment_value() {
                     if !matches!(
-                        expression.expression(),
+                        default_value_expression_box.expression(),
                         Expression::Identifier(_) | Expression::Literal(_),
                     ) {
-                        Self::report(
-                            "Non constant default parameter",
-                            ["Create a seperated function for when this value is not provided".into()],
-                            expression.span(),
-                            reports,
-                        )
+                        reports.push(
+                            Self::diagnostic(config)
+                                .with_message("Non constant default parameter")
+                                .with_labels(vec![
+                                    Label::primary(
+                                        default_value_expression_box.file_id(),
+                                        default_value_expression_box.span(),
+                                    )
+                                    .with_message("this parameter's default value is not constant"),
+                                ]),
+                        );
                     }
                 }
             }

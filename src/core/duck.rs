@@ -1,11 +1,10 @@
-use crate::{
-    lint::{LintLevel, LintReport},
-    parse::ParseErrorReport,
-    Config, DuckTask, FileId,
+use crate::{lint::LintLevel, parse::ParseErrorReport, Config, DuckTask, FileId};
+use codespan_reporting::{
+    diagnostic::Diagnostic,
+    files::{Error, Files, SimpleFile},
 };
-use codespan_reporting::files::SimpleFiles;
 use enum_map::EnumMap;
-use std::{path::Path, sync::Arc};
+use std::{ops::Range, path::Path, sync::Arc};
 
 /// ## Duck
 /// The primary point of control for all of duck. For general usage, this is all
@@ -70,13 +69,12 @@ impl Duck {
         let late_pass_reports = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
-        let (line_count, files, io_errors) = file_handle.await?;
+        let (line_count, library, io_errors) = file_handle.await?;
         let parse_errors = parse_handle.await?;
 
         // Return the result!
         Ok(RunSummary::new(
-            self.config(),
-            files,
+            library,
             late_pass_reports,
             parse_errors,
             io_errors,
@@ -105,32 +103,29 @@ impl Duck {
 
 /// The data returned by calling [Duck::run].
 pub struct RunSummary {
-    report_collection: EnumMap<LintLevel, Vec<(FileId, LintReport)>>,
-    files: SimpleFiles<String, &'static str>,
-    parse_errors: Vec<ParseErrorReport>,
+    library: GmlLibrary,
+    diagonstic_counts: EnumMap<LintLevel, usize>,
+    diagnostics: Vec<Diagnostic<FileId>>,
     io_errors: Vec<std::io::Error>,
     lines_parsed: usize,
 }
 impl RunSummary {
     fn new(
-        config: &Config,
-        files: SimpleFiles<String, &'static str>,
-        lint_reports: Vec<(FileId, Vec<LintReport>)>,
+        library: GmlLibrary,
+        mut lint_reports: Vec<Diagnostic<FileId>>,
         parse_errors: Vec<ParseErrorReport>,
         io_errors: Vec<std::io::Error>,
         lines_parsed: usize,
     ) -> Self {
-        let mut report_collection: EnumMap<LintLevel, Vec<(FileId, LintReport)>> = EnumMap::default();
-        for (file_id, reports) in lint_reports {
-            for report in reports {
-                report_collection[*config.get_lint_level_setting(report.tag(), report.default_level())]
-                    .push((file_id, report));
-            }
+        let mut diagonstic_counts: EnumMap<LintLevel, usize> = EnumMap::default();
+        for report in lint_reports.iter() {
+            diagonstic_counts[report.severity.into()] += 1;
         }
+        lint_reports.append(&mut parse_errors.into_iter().map(|v| v.diagnostic()).collect());
         Self {
-            files,
-            report_collection,
-            parse_errors,
+            library,
+            diagonstic_counts,
+            diagnostics: lint_reports,
             io_errors,
             lines_parsed,
         }
@@ -138,24 +133,17 @@ impl RunSummary {
 
     /// Returns the number of warnings present in this [RunResult].
     pub fn warning_count(&self) -> usize {
-        self.report_collection[LintLevel::Warn].len()
+        self.diagonstic_counts[LintLevel::Warn]
     }
 
     /// Returns the number of denials present in this [RunResult].
     pub fn denial_count(&self) -> usize {
-        self.report_collection[LintLevel::Deny].len()
+        self.diagonstic_counts[LintLevel::Deny]
     }
 
-    /// Returns an iterator over all of the lint reports.
-    pub fn iter_lint_reports(&self) -> impl Iterator<Item = &(FileId, LintReport)> {
-        self.report_collection[LintLevel::Warn]
-            .iter()
-            .chain(self.report_collection[LintLevel::Deny].iter())
-    }
-
-    /// Get a reference to the run result's parse errors.
-    pub fn parse_errors(&self) -> &[ParseErrorReport] {
-        self.parse_errors.as_ref()
+    /// Get a reference to the run summary's diagnostics.
+    pub fn diagnostics(&self) -> &[Diagnostic<usize>] {
+        self.diagnostics.as_ref()
     }
 
     /// Get a reference to the run result's io errors.
@@ -169,7 +157,68 @@ impl RunSummary {
     }
 
     /// Get a reference to the run summary's files.
-    pub fn files(&self) -> &SimpleFiles<String, &'static str> {
-        &self.files
+    pub fn files(&self) -> &GmlLibrary {
+        &self.library
+    }
+}
+
+/// Holds onto the references of loaded gml to be looked up for diagnostics, and to later clean up
+/// all memory.
+#[derive(Debug, Default)]
+pub struct GmlLibrary {
+    files: Vec<SimpleFile<String, &'static str>>,
+}
+impl GmlLibrary {
+    /// Create a new files database.
+    pub fn new() -> GmlLibrary {
+        GmlLibrary { files: Vec::new() }
+    }
+
+    /// Add a file to the database, returning the handle that can be used to
+    /// refer to it again.
+    pub fn add(&mut self, name: String, source: &'static str) -> usize {
+        let file_id = self.files.len();
+        self.files.push(SimpleFile::new(name, source));
+        file_id
+    }
+
+    /// Get the file corresponding to the given id.
+    ///
+    /// ### Errors
+    /// Returns an error if the file is not found.
+    pub fn get(&self, file_id: usize) -> Result<&SimpleFile<String, &'static str>, Error> {
+        self.files.get(file_id).ok_or(Error::FileMissing)
+    }
+}
+impl<'a> Files<'a> for GmlLibrary {
+    type FileId = FileId;
+    type Name = String;
+    type Source = &'a str;
+
+    fn name(&self, file_id: usize) -> Result<String, Error> {
+        Ok(self.get(file_id)?.name().clone())
+    }
+
+    fn source(&self, file_id: usize) -> Result<&str, Error> {
+        Ok(self.get(file_id)?.source())
+    }
+
+    fn line_index(&self, file_id: usize, byte_index: usize) -> Result<usize, Error> {
+        self.get(file_id)?.line_index((), byte_index)
+    }
+
+    fn line_range(&self, file_id: usize, line_index: usize) -> Result<Range<usize>, Error> {
+        self.get(file_id)?.line_range((), line_index)
+    }
+}
+impl Drop for GmlLibrary {
+    fn drop(&mut self) {
+        for file in self.files.iter_mut() {
+            // SAFETY: Now, at the end of our lifespan, we restore all of our static references to the gml so
+            // they are properly dropped.
+            unsafe {
+                drop(Box::from_raw(&mut file.source()));
+            }
+        }
     }
 }

@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::Statement,
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{Statement, StatementBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,21 +24,16 @@ impl Lint for WithLoop {
 
 impl EarlyStatementPass for WithLoop {
     fn visit_statement_early(
-        _config: &crate::Config,
-        statement: &crate::parse::Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        statement_box: &StatementBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Statement::WithLoop(..) = statement {
-            Self::report(
-                "Use of with loop",
-                [
-                    "Use `instance_find` if looping over objects".into(),
-                    "Use direct dot reference `foo.bar` to manipulate single objects".into(),
-                ],
-                span,
-                reports,
-            )
+        if let Statement::WithLoop(..) = statement_box.statement() {
+            reports.push(
+                Self::diagnostic(config)
+                    .with_message("Use of `with`")
+                    .with_labels(vec![Label::primary(statement_box.file_id(), statement_box.span())]),
+            );
         }
     }
 }

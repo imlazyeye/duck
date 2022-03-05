@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Expression, Function, Span},
-    Config,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Expression, ExpressionBox, Function},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,22 +23,21 @@ impl Lint for AnonymousConstructor {
 }
 
 impl EarlyExpressionPass for AnonymousConstructor {
-    fn visit_expression_early(_config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::FunctionDeclaration(Function {
             name: None,
             constructor: Some(_),
             ..
-        }) = expression
+        }) = expression_box.expression()
         {
-            Self::report(
-                "Use of an anonymous constructor",
-                [
-                    "Change this to a named function".into(),
-                    "Change this to a function that returns a struct literal".into(),
-                ],
-                span,
-                reports,
-            )
+            reports.push(
+                Self::diagnostic(config)
+                    .with_message("Use of an anonymous constructor")
+                    .with_labels(vec![
+                        Label::primary(expression_box.file_id(), expression_box.span())
+                            .with_message("change this to a function that returns a struct literal, or instead convert this into a named constructor"),
+                    ]),
+            );
         }
     }
 }

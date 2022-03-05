@@ -1,8 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    Config,
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::{If, Statement},
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{If, Statement, StatementBox},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,19 +23,24 @@ impl Lint for CollapsableIf {
 }
 
 impl EarlyStatementPass for CollapsableIf {
-    fn visit_statement_early(_config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>) {
-        if let Statement::If(If { body, .. }) = statement {
-            if let Some(block) = body.statement().as_block().filter(|block| block.body.len() == 1) {
+    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let Statement::If(If { body: first_body, .. }) = statement_box.statement() {
+            if let Some(block) = first_body.statement().as_block().filter(|block| block.body.len() == 1) {
+                let nested_statement = block.body.first().unwrap();
                 if let Statement::If(If {
                     else_statement: None, ..
-                }) = block.body.first().unwrap().statement()
+                }) = nested_statement.statement()
                 {
-                    Self::report(
-                        "Collapsabe if statement",
-                        ["Combine these if statements into one".into()],
-                        span,
-                        reports,
-                    );
+                    reports.push(
+                        Self::diagnostic(config)
+                            .with_message("Collapsable if statement")
+                            .with_labels(vec![
+                                Label::secondary(nested_statement.file_id(), nested_statement.span())
+                                    .with_message("nested if statement"),
+                                Label::primary(statement_box.file_id(), statement_box.span())
+                                    .with_message("this can be combined with the nested if statement"),
+                            ]),
+                    )
                 }
             }
         }

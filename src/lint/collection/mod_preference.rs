@@ -1,8 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    Config,
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Evaluation, EvaluationOperator, Expression, Token},
-    parse::Span,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Evaluation, EvaluationOperator, Expression, ExpressionBox, Token},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,16 +22,22 @@ impl Lint for ModPreference {
     }
 }
 impl EarlyExpressionPass for ModPreference {
-    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::Evaluation(Evaluation {
             operator: EvaluationOperator::Modulo(token),
             ..
-        }) = expression
+        }) = expression_box.expression()
         {
             if config.prefer_mod_keyword() && token != &Token::Mod {
-                Self::report("Use of `%`", ["Use `mod` instead of `%`".into()], span, reports);
+                reports.push(Self::diagnostic(config).with_message("Use of `%`").with_labels(vec![
+                    Label::primary(expression_box.file_id(), expression_box.span())
+                        .with_message("use the `mod` keyword instead of `%`"),
+                ]));
             } else if token == &Token::Mod {
-                Self::report("Use of `mod`", ["Use `%` instead of `mod`".into()], span, reports);
+                reports.push(Self::diagnostic(config).with_message("Use of `mod`").with_labels(vec![
+                    Label::primary(expression_box.file_id(), expression_box.span())
+                        .with_message("use the `%` operator instead of `mod`"),
+                ]));
             }
         }
     }

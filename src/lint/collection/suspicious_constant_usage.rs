@@ -1,6 +1,12 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::{Assignment, AssignmentOperator, Evaluation, EvaluationOperator, Expression, Literal, Span, Statement},
+    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel},
+    parse::{
+        Assignment, AssignmentOperator, Evaluation, EvaluationOperator, Expression, ExpressionBox, Literal, Statement,
+        StatementBox,
+    },
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,15 +27,22 @@ impl Lint for SuspicousConstantUsage {
 
 impl EarlyExpressionPass for SuspicousConstantUsage {
     fn visit_expression_early(
-        _config: &crate::Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        expression_box: &ExpressionBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Expression::Evaluation(Evaluation { operator, right, .. }) = expression {
+        if let Expression::Evaluation(Evaluation { operator, right, .. }) = expression_box.expression() {
             if let Some(literal) = right.expression().as_literal() {
                 if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
-                    Self::report("Suspicious constant usage", [], span, reports)
+                    reports.push(
+                        Self::diagnostic(config)
+                            .with_message("Suspicious constant usage")
+                            .with_labels(vec![
+                                Label::primary(right.file_id(), right.span()).with_message("using this operator..."),
+                                Label::primary(right.file_id(), right.span())
+                                    .with_message("...with this literal, which is not a coherent operation"),
+                            ]),
+                    );
                 }
             }
         }
@@ -37,19 +50,27 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
 }
 impl EarlyStatementPass for SuspicousConstantUsage {
     fn visit_statement_early(
-        _config: &crate::Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        statement_box: &StatementBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Statement::Assignment(Assignment { operator, right, .. }) = statement {
+        if let Statement::Assignment(Assignment { operator, right, .. }) = statement_box.statement() {
             if !matches!(
                 *operator,
                 AssignmentOperator::Equal(_) | AssignmentOperator::NullCoalecenceEqual(_)
             ) {
                 if let Some(literal) = right.expression().as_literal() {
                     if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
-                        Self::report("Suspicious constant usage", [], span, reports)
+                        reports.push(
+                            Self::diagnostic(config)
+                                .with_message("Suspicious constant usage")
+                                .with_labels(vec![
+                                    Label::primary(right.file_id(), right.span())
+                                        .with_message("using this operator..."),
+                                    Label::primary(right.file_id(), right.span())
+                                        .with_message("...with this literal, which is not a coherent operation"),
+                                ]),
+                        );
                     }
                 }
             }

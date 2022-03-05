@@ -73,7 +73,7 @@ for lint in lints:
     new_mods += 'mod {file_name};\n'.format(file_name=lint['file_name'])
     new_mods += 'pub use {file_name}::{lint};\n'.format(
         file_name=lint['file_name'], lint=lint['name'])
-with open('../src/lints.rs', 'w') as f:
+with open('../src/lint/collection.rs', 'w') as f:
     f.write(new_mods)
 
 # Gather the old calls
@@ -84,25 +84,25 @@ opreations = [
         'name': 'early expression',
         'tag': 'visits_expression_early',
         'function_name': 'run_early_lint_on_expression',
-        'args': 'config, expression, span, reports'
+        'args': 'expression_box, config, reports'
     },
     {
         'name': 'early statement',
         'tag': 'visits_statement_early',
         'function_name': 'run_early_lint_on_statement',
-        'args': 'config, statement, span, reports'
+        'args': 'statement_box, config, reports'
     },
     {
         'name': 'late expression',
         'tag': 'visits_expression_late',
         'function_name': 'run_late_lint_on_expression',
-        'args': 'config, expression, environment, span, reports'
+        'args': 'expression_box, config, reports, global_scope'
     },
     {
         'name': 'late statement',
         'tag': 'visits_statement_late',
         'function_name': 'run_late_lint_on_statement',
-        'args': 'config, statement, environment, span, reports'
+        'args': 'statement_box, config, reports, global_scope'
     }
 ]
 

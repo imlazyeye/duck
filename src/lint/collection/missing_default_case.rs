@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::Statement,
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{Statement, StatementBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,19 +24,28 @@ impl Lint for MissingDefaultCase {
 
 impl EarlyStatementPass for MissingDefaultCase {
     fn visit_statement_early(
-        _config: &crate::Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        statement_box: &StatementBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Statement::Switch(switch) = statement {
+        if let Statement::Switch(switch) = statement_box.statement() {
             if switch.default_case().is_none() {
-                Self::report(
-                    "Missing default case",
-                    ["Add a default case to the switch statement".into()],
-                    span,
-                    reports,
-                )
+                let final_position = switch
+                    .cases()
+                    .iter()
+                    .last()
+                    .and_then(|case| case.iter_body_statements().last().map(|stmt| stmt.span().1))
+                    .unwrap_or(statement_box.span().1);
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Missing default case")
+                        .with_labels(vec![
+                            Label::primary(statement_box.file_id(), statement_box.span())
+                                .with_message("switch statement is missing a default case"),
+                            Label::secondary(statement_box.file_id(), final_position..final_position)
+                                .with_message("add a default case here"),
+                        ]),
+                );
             }
         }
     }

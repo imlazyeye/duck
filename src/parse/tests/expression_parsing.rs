@@ -33,7 +33,10 @@ fn function_with_parameters() {
         "function foo(bar, baz) {}",
         Function::new(
             "foo",
-            vec![Parameter::new("bar"), Parameter::new("baz")],
+            vec![
+                OptionalInitilization::Uninitialized(Identifier::new("bar").into_lazy_box()),
+                OptionalInitilization::Uninitialized(Identifier::new("baz").into_lazy_box()),
+            ],
             Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
@@ -46,8 +49,15 @@ fn default_parameters() {
         Function::new(
             "foo",
             vec![
-                Parameter::new_with_default("bar", Literal::Real(1.0).into_lazy_box()),
-                Parameter::new("baz"),
+                OptionalInitilization::Initialized(
+                    Assignment::new(
+                        Identifier::new("bar").into_lazy_box(),
+                        AssignmentOperator::Equal(Token::Equal),
+                        Literal::Real(1.0).into_lazy_box(),
+                    )
+                    .into_lazy_box(),
+                ),
+                OptionalInitilization::Uninitialized(Identifier::new("baz").into_lazy_box()),
             ],
             Block::new_standard(vec![]).into_lazy_box(),
         ),

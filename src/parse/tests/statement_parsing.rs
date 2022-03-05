@@ -35,7 +35,13 @@ fn two_macro_declaration() {
 fn enum_declaration() {
     harness_stmt(
         "enum Foo { Bar, Baz }",
-        Enum::new_with_members("Foo", vec![EnumMember::new("Bar", None), EnumMember::new("Baz", None)]),
+        Enum::new_with_members(
+            "Foo",
+            vec![
+                OptionalInitilization::Uninitialized(Identifier::new("Bar").into_lazy_box()),
+                OptionalInitilization::Uninitialized(Identifier::new("Baz").into_lazy_box()),
+            ],
+        ),
     )
 }
 
@@ -43,7 +49,13 @@ fn enum_declaration() {
 fn enum_declaration_begin_end() {
     harness_stmt(
         "enum Foo begin Bar, Baz end",
-        Enum::new_with_members("Foo", vec![EnumMember::new("Bar", None), EnumMember::new("Baz", None)]),
+        Enum::new_with_members(
+            "Foo",
+            vec![
+                OptionalInitilization::Uninitialized(Identifier::new("Bar").into_lazy_box()),
+                OptionalInitilization::Uninitialized(Identifier::new("Baz").into_lazy_box()),
+            ],
+        ),
     )
 }
 
@@ -54,8 +66,15 @@ fn enum_with_values() {
         Enum::new_with_members(
             "Foo",
             vec![
-                EnumMember::new("Bar", Some(Literal::Real(20.0).into_lazy_box())),
-                EnumMember::new("Baz", None),
+                OptionalInitilization::Initialized(
+                    Assignment::new(
+                        Identifier::new("Bar").into_lazy_box(),
+                        AssignmentOperator::Equal(Token::Equal),
+                        Literal::Real(20.0).into_lazy_box(),
+                    )
+                    .into_lazy_box(),
+                ),
+                OptionalInitilization::Uninitialized(Identifier::new("Baz").into_lazy_box()),
             ],
         ),
     )
@@ -68,16 +87,18 @@ fn enum_with_neighbor_values() {
         Enum::new_with_members(
             "Foo",
             vec![
-                EnumMember::new("Bar", None),
-                EnumMember::new(
-                    "Baz",
-                    Some(
+                OptionalInitilization::Uninitialized(Identifier::new("Bar").into_lazy_box()),
+                OptionalInitilization::Initialized(
+                    Assignment::new(
+                        Identifier::new("Baz").into_lazy_box(),
+                        AssignmentOperator::Equal(Token::Equal),
                         Access::Dot {
                             left: Identifier::new("Foo").into_lazy_box(),
                             right: Identifier::new("Bar").into_lazy_box(),
                         }
                         .into_lazy_box(),
-                    ),
+                    )
+                    .into_lazy_box(),
                 ),
             ],
         ),
@@ -93,7 +114,9 @@ fn globalvar() {
 fn local_variable() {
     harness_stmt(
         "var i;",
-        LocalVariableSeries::new(vec![LocalVariable::Uninitialized(Identifier::new("i").into_lazy_box())]),
+        LocalVariableSeries::new(vec![OptionalInitilization::Uninitialized(
+            Identifier::new("i").into_lazy_box(),
+        )]),
     )
 }
 
@@ -101,7 +124,7 @@ fn local_variable() {
 fn local_variable_with_value() {
     harness_stmt(
         "var i = 0;",
-        LocalVariableSeries::new(vec![LocalVariable::Initialized(
+        LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::new("i").into_lazy_box(),
                 AssignmentOperator::Equal(Token::Equal),
@@ -117,8 +140,8 @@ fn local_variable_series() {
     harness_stmt(
         "var i, j = 0, h;",
         LocalVariableSeries::new(vec![
-            LocalVariable::Uninitialized(Identifier::new("i").into_lazy_box()),
-            LocalVariable::Initialized(
+            OptionalInitilization::Uninitialized(Identifier::new("i").into_lazy_box()),
+            OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::new("j").into_lazy_box(),
                     AssignmentOperator::Equal(Token::Equal),
@@ -126,7 +149,7 @@ fn local_variable_series() {
                 )
                 .into_lazy_box(),
             ),
-            LocalVariable::Uninitialized(Identifier::new("h").into_lazy_box()),
+            OptionalInitilization::Uninitialized(Identifier::new("h").into_lazy_box()),
         ]),
     )
 }
@@ -135,7 +158,7 @@ fn local_variable_series() {
 fn local_variable_trailling_comma() {
     harness_stmt(
         "var i = 0,",
-        LocalVariableSeries::new(vec![LocalVariable::Initialized(
+        LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::new("i").into_lazy_box(),
                 AssignmentOperator::Equal(Token::Equal),
@@ -151,7 +174,7 @@ fn local_variable_series_ending_without_marker() {
     harness_stmt(
         "{ var i = 0 j = 0 }",
         Block::new_standard(vec![
-            LocalVariableSeries::new(vec![LocalVariable::Initialized(
+            LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
                     AssignmentOperator::Equal(Token::Equal),
@@ -200,7 +223,7 @@ fn for_loop() {
     harness_stmt(
         "for (var i = 0; i < 1; i++) {}",
         ForLoop::new(
-            LocalVariableSeries::new(vec![LocalVariable::Initialized(
+            LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
                     AssignmentOperator::Equal(Token::Equal),

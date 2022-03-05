@@ -112,19 +112,23 @@ impl ParseVisitor for Expression {
 /// T) 2. Contains the [Span] that describes where this expression came from
 /// 3. In the future, will hold static-analysis data
 #[derive(Debug, PartialEq, Clone)]
-pub struct ExpressionBox(pub Box<Expression>, pub Span, pub FileId);
+pub struct ExpressionBox(pub Box<Expression>, Location);
 impl ExpressionBox {
     /// Returns a reference to the inner expression.
     pub fn expression(&self) -> &Expression {
         self.0.as_ref()
     }
-    /// Returns a the span this expression originates from.
-    pub fn span(&self) -> Span {
+    /// Returns the Location this expression is from.
+    pub fn location(&self) -> Location {
         self.1
     }
-    /// Returns a the file id this expression comes from.
+    /// Returns the span this expression originates from.
+    pub fn span(&self) -> Span {
+        self.location().1
+    }
+    /// Returns the file id this expression originates from.
     pub fn file_id(&self) -> FileId {
-        self.2
+        self.location().0
     }
 }
 impl From<ExpressionBox> for Statement {
@@ -150,7 +154,7 @@ impl ParseVisitor for ExpressionBox {
 pub trait IntoExpressionBox: Sized + Into<Expression> {
     /// Converts self into an expression box with a provided span.
     fn into_expression_box(self, span: Span, file_id: FileId) -> ExpressionBox {
-        ExpressionBox(Box::new(self.into()), span, file_id)
+        ExpressionBox(Box::new(self.into()), Location(file_id, span))
     }
 
     /// Converts self into an expression box with a default span. Used in tests, where all spans are

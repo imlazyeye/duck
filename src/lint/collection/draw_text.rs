@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Call, Expression, Span},
-    Config,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Call, Expression, ExpressionBox},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,16 +23,18 @@ impl Lint for DrawText {
 }
 
 impl EarlyExpressionPass for DrawText {
-    fn visit_expression_early(_config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
-        if let Expression::Call(Call { left, .. }) = expression {
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
                 if gm_draw_text_functions().contains(&identifier.name.as_str()) {
-                    Self::report(
-                        format!("Use of `{}`", identifier.name),
-                        ["Replace this call with your API's ideal function".into()],
-                        span,
-                        reports,
-                    )
+                    reports.push(
+                        Self::diagnostic(config)
+                            .with_message(format!("Use of `{}`", identifier.name))
+                            .with_labels(vec![
+                                Label::primary(left.file_id(), left.span())
+                                    .with_message("replace this call with your API's ideal function"),
+                            ]),
+                    );
                 }
             }
         }

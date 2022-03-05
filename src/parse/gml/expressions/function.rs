@@ -1,4 +1,4 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, OptionalInitilization, ParseVisitor, StatementBox};
 
 /// Representation of function declaration in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -6,7 +6,7 @@ pub struct Function {
     /// The name, if any, of this function. Anonymous functions do not have names.
     pub name: Option<String>,
     /// The parameters of this function.
-    pub parameters: Vec<Parameter>,
+    pub parameters: Vec<OptionalInitilization>,
     /// The constructor behavior of this function, if any.
     pub constructor: Option<Constructor>,
     /// The body of the function declaration.
@@ -14,7 +14,7 @@ pub struct Function {
 }
 impl Function {
     /// Creates a new function declaration.
-    pub fn new(name: impl Into<String>, parameters: Vec<Parameter>, body: StatementBox) -> Self {
+    pub fn new(name: impl Into<String>, parameters: Vec<OptionalInitilization>, body: StatementBox) -> Self {
         Self {
             name: Some(name.into()),
             parameters,
@@ -24,7 +24,7 @@ impl Function {
     }
 
     /// Creates a new anonymous function declaration.
-    pub fn new_anonymous(parameters: Vec<Parameter>, body: StatementBox) -> Self {
+    pub fn new_anonymous(parameters: Vec<OptionalInitilization>, body: StatementBox) -> Self {
         Self {
             name: None,
             parameters,
@@ -36,7 +36,7 @@ impl Function {
     /// Creates a new constructor declaration.
     pub fn new_constructor(
         name: impl Into<Option<String>>,
-        parameters: Vec<Parameter>,
+        parameters: Vec<OptionalInitilization>,
         constructor: Constructor,
         body: StatementBox,
     ) -> Self {
@@ -56,9 +56,10 @@ impl From<Function> for Expression {
 impl IntoExpressionBox for Function {}
 impl ParseVisitor for Function {
     fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
-        for parameter in self.parameters.iter() {
-            if let Some(default_value) = &parameter.default_value {
-                expression_visitor(default_value);
+        for param in self.parameters.iter() {
+            match param {
+                OptionalInitilization::Uninitialized(expr) => expression_visitor(expr),
+                OptionalInitilization::Initialized(_) => {}
             }
         }
         if let Some(Constructor::WithInheritance(inheritance_call)) = &self.constructor {
@@ -66,6 +67,12 @@ impl ParseVisitor for Function {
         }
     }
     fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+        for param in self.parameters.iter() {
+            match param {
+                OptionalInitilization::Uninitialized(_) => {}
+                OptionalInitilization::Initialized(stmt) => statement_visitor(stmt),
+            }
+        }
         statement_visitor(&self.body);
     }
 }
@@ -77,30 +84,4 @@ pub enum Constructor {
     WithInheritance(ExpressionBox),
     /// A constructor that does not inherit from another constructor.
     WithoutInheritance,
-}
-
-/// Representation of a parameter in a function declaration.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Parameter {
-    /// The name of the parameter.
-    pub name: String,
-    /// The default value, if any, assigned to this parameter.
-    pub default_value: Option<ExpressionBox>,
-}
-impl Parameter {
-    /// Creates a new parameter.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            default_value: None,
-        }
-    }
-
-    /// Creates a new parameter with a default value.
-    pub fn new_with_default(name: impl Into<String>, default_value: ExpressionBox) -> Self {
-        Self {
-            name: name.into(),
-            default_value: Some(default_value),
-        }
-    }
 }

@@ -5,11 +5,11 @@
 
 A collection of customizable lints to identify common mistakes in GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
 
-Currently supports [33 lints](LINTS.md), with more on the way!
+Currently supports [31 lints](LINTS.md), with more on the way!
 
 `duck` is is a highly opinionated linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are _completely customizable_.
 
-`duck` is also extremely fast. It currently can fully process a 250,000 line project in less than a second.
+`duck` is also extremely fast. It currently can fully process a 250,000 line project in [less than half a second](#footnotes).
 
 ## Table of Contents
 
@@ -172,3 +172,7 @@ You can view our tracking issue for any discrepancies between duck and GM here. 
 ## Support and Requests
 
 Please [open an issue](https://github.com/imlazyeye/duck/issues) if you encounter any problems with `duck`, or if you have any feature requests you would like to make!
+
+### Footnotes
+
+- Benchmark was run on an MacBook Pro 2021 running an M1 Max with 32 GB of memory.

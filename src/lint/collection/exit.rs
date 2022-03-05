@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::Statement,
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{Statement, StatementBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,18 +24,15 @@ impl Lint for Exit {
 
 impl EarlyStatementPass for Exit {
     fn visit_statement_early(
-        _config: &crate::Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        statement_box: &StatementBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if *statement == Statement::Exit {
-            Self::report(
-                "Use of `exit`",
-                ["Use `return` instead of `exit`".into()],
-                span,
-                reports,
-            );
+        if let Statement::Exit = statement_box.statement() {
+            reports.push(Self::diagnostic(config).with_message("Use of `exit`").with_labels(vec![
+                    Label::primary(statement_box.file_id(), statement_box.span())
+                        .with_message("replace this with `return`"),
+                ]));
         }
     }
 }

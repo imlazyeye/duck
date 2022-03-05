@@ -1,8 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    Config,
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::{DoUntil, Expression, If, RepeatLoop, Statement, WhileLoop, WithLoop},
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{DoUntil, Expression, If, RepeatLoop, Statement, StatementBox, WhileLoop, WithLoop},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,8 +23,8 @@ impl Lint for StatementParentheticalPreference {
 }
 
 impl EarlyStatementPass for StatementParentheticalPreference {
-    fn visit_statement_early(config: &Config, statement: &Statement, span: Span, reports: &mut Vec<LintReport>) {
-        let expression = match statement {
+    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        let expression = match statement_box.statement() {
             Statement::Switch(switch) => Some(switch.matching_value()),
             Statement::If(If {
                 condition: expression, ..
@@ -46,25 +47,23 @@ impl EarlyStatementPass for StatementParentheticalPreference {
         if let Some(expression) = expression {
             let has_grouping = matches!(expression.expression(), Expression::Grouping(_));
             if has_grouping && !config.statement_parentheticals {
-                Self::report(
-                    "Parenthetical in statement expression",
-                    [
-                        "Remove the wrapping parenthesis from this expression".into(),
-                        "Change your preferences for this lint in .duck.toml".into(),
-                    ],
-                    span,
-                    reports,
-                )
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Unneccesary grouping in statement")
+                        .with_labels(vec![
+                            Label::primary(expression.file_id(), expression.span())
+                                .with_message("the surrounding parenthesis can be omitted"),
+                        ]),
+                );
             } else if !has_grouping && config.statement_parentheticals {
-                Self::report(
-                    "Lacking parenthetical in statement expression",
-                    [
-                        "Add wrapping parenthesis from this expression".into(),
-                        "Change your preferences for this lint in .duck.toml".into(),
-                    ],
-                    span,
-                    reports,
-                )
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Missing outer grouping in statement")
+                        .with_labels(vec![
+                            Label::primary(expression.file_id(), expression.span())
+                                .with_message("wrap this statement's expression in parenthesis"),
+                        ]),
+                );
             }
         }
     }

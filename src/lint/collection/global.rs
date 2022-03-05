@@ -1,6 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Access, Expression, Span},
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Access, Expression, ExpressionBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,18 +24,19 @@ impl Lint for Global {
 
 impl EarlyExpressionPass for Global {
     fn visit_expression_early(
-        _config: &crate::Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        expression_box: &ExpressionBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Expression::Access(Access::Global { .. }) = expression {
-            Self::report(
-                "Use of global variables",
-                ["Scope this variable to an individual object".into()],
-                span,
-                reports,
-            )
+        if let Expression::Access(Access::Global { .. }) = expression_box.expression() {
+            reports.push(
+                Self::diagnostic(config)
+                    .with_message("Use of global variable")
+                    .with_labels(vec![
+                        Label::primary(expression_box.file_id(), expression_box.span())
+                            .with_message("scope this variable to an individual object or struct"),
+                    ]),
+            );
         }
     }
 }

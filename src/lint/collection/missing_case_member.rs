@@ -1,9 +1,11 @@
 use crate::{
     analyze::GlobalScope,
-    lint::{LateStatementPass, Lint, LintLevel, LintReport},
-    parse::{Span, Statement},
+    lint::{LateStatementPass, Lint, LintLevel},
+    parse::{OptionalInitilization, Statement, StatementBox},
+    FileId,
 };
-use itertools::Itertools;
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use colored::Colorize;
 
 #[derive(Debug, PartialEq)]
 pub struct MissingCaseMember;
@@ -23,13 +25,12 @@ impl Lint for MissingCaseMember {
 
 impl LateStatementPass for MissingCaseMember {
     fn visit_statement_late(
+        statement_box: &StatementBox,
         config: &crate::Config,
-        environment: &GlobalScope,
-        statement: &crate::parse::Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        reports: &mut Vec<Diagnostic<FileId>>,
+        global_scope: &GlobalScope,
     ) {
-        if let Statement::Switch(switch) = statement {
+        if let Statement::Switch(switch) = statement_box.statement() {
             // Ignore switches that don't pertain to this lint
             // TODO: Check for user supplied crash calls here, and enable the lint if they're in the default
             // body!
@@ -38,8 +39,8 @@ impl LateStatementPass for MissingCaseMember {
             }
 
             // See if this is potentially switching over an enum
-            let gml_enum = if let Some(enum_name) = switch.potential_enum_type() {
-                if let Some(gml_enum) = environment.find_enum(enum_name) {
+            let (gml_enum, _) = if let Some(enum_name) = switch.potential_enum_type() {
+                if let Some(gml_enum) = global_scope.find_enum(enum_name) {
                     gml_enum
                 } else {
                     // We don't recognize this enum -- abort
@@ -84,17 +85,35 @@ impl LateStatementPass for MissingCaseMember {
             let missing_members = gml_enum
                 .members
                 .iter()
-                .map(|member| member.name())
-                .filter(|member| ignore_name != member && !member_names_discovered.contains(member))
-                .join(", ");
+                .filter(|member| ignore_name != member.name() && !member_names_discovered.contains(&member.name()))
+                .collect::<Vec<&OptionalInitilization>>();
 
             // If we have any, make a report!
             if !missing_members.is_empty() {
-                Self::report(
-                    format!("Missing case members: {}", missing_members),
-                    ["Add cases for the missing members".into()],
-                    span,
-                    reports,
+                let mut labels = vec![
+                    Label::primary(statement_box.file_id(), statement_box.span())
+                        .with_message("this switch statement..."),
+                ];
+                let mut notes = vec![];
+                for (i, member) in missing_members.iter().enumerate() {
+                    labels.push(
+                        Label::secondary(member.name_expression().file_id(), member.name_expression().span())
+                            .with_message(format!("missing {}, which is defined here", member.name())),
+                    );
+                    if i == 2 && missing_members.len() > 3 {
+                        notes.push(format!(
+                            "{}: only 3 of the {} missing members were displayed.",
+                            "note".bold(),
+                            missing_members.len(),
+                        ));
+                        break;
+                    }
+                }
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Missing case members in switch statement")
+                        .with_labels(labels)
+                        .with_notes(notes),
                 );
             }
         }

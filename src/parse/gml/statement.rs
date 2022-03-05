@@ -1,7 +1,7 @@
 use crate::{
     parse::{
-        Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Return,
-        Span, Switch, TryCatch, WhileLoop, WithLoop,
+        Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro, RepeatLoop,
+        Return, Span, Switch, TryCatch, WhileLoop, WithLoop,
     },
     FileId,
 };
@@ -138,19 +138,23 @@ impl Statement {
 /// 2. Contains the span that describes where this statement came from
 /// 3. In the future, will hold static-analysis data
 #[derive(Debug, PartialEq, Clone)]
-pub struct StatementBox(Box<Statement>, Span, FileId);
+pub struct StatementBox(Box<Statement>, Location);
 impl StatementBox {
     /// Returns a reference to the inner statement.
     pub fn statement(&self) -> &Statement {
         self.0.as_ref()
     }
+    /// Returns the Location this statement is from.
+    pub fn location(&self) -> Location {
+        self.1
+    }
     /// Returns the span this statement originates from.
     pub fn span(&self) -> Span {
-        self.1
+        self.location().1
     }
     /// Returns the file id this statement originates from.
     pub fn file_id(&self) -> FileId {
-        self.2
+        self.location().0
     }
 }
 
@@ -161,7 +165,7 @@ impl StatementBox {
 pub trait IntoStatementBox: Sized + Into<Statement> {
     /// Converts self into an statement box.
     fn into_statement_box(self, span: Span, file_id: FileId) -> StatementBox {
-        StatementBox(Box::new(self.into()), span, file_id)
+        StatementBox(Box::new(self.into()), Location(file_id, span))
     }
 
     /// Converts self into an statement box with a default span. Used in tests, where all spans are

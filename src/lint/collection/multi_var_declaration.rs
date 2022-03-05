@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
-    parse::{LocalVariableSeries, Statement},
-    parse::Span,
+    lint::{EarlyStatementPass, Lint, LintLevel},
+    parse::{LocalVariableSeries, Statement, StatementBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,18 +24,19 @@ impl Lint for MultiVarDeclaration {
 
 impl EarlyStatementPass for MultiVarDeclaration {
     fn visit_statement_early(
-        _config: &crate::Config,
-        statement: &Statement,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        statement_box: &StatementBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Statement::LocalVariableSeries(LocalVariableSeries { declarations }) = statement {
+        if let Statement::LocalVariableSeries(LocalVariableSeries { declarations }) = statement_box.statement() {
             if declarations.len() > 1 {
-                Self::report(
-                    "Multiple local variables declared at once",
-                    ["Break these down into seperate declarations".into()],
-                    span,
-                    reports,
+                reports.push(
+                    Self::diagnostic(config)
+                        .with_message("Multiple local variables declared at once")
+                        .with_labels(vec![
+                            Label::primary(statement_box.file_id(), statement_box.span())
+                                .with_message("seperate these into different declarations"),
+                        ]),
                 );
             }
         }

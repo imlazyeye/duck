@@ -1,7 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Call, Expression},
-    parse::Span,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Call, Expression, ExpressionBox},
+    FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -22,23 +24,21 @@ impl Lint for ShowDebugMessage {
 
 impl EarlyExpressionPass for ShowDebugMessage {
     fn visit_expression_early(
-        _config: &crate::Config,
-        expression: &Expression,
-        span: Span,
-        reports: &mut Vec<LintReport>,
+        expression_box: &ExpressionBox,
+        config: &crate::Config,
+        reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if let Expression::Call(Call { left, .. }) = expression {
+        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
                 if identifier.name == "show_debug_message" {
-                    Self::report(
-                        "Use of `show_debug_message`",
-                        [
-                            "Replace `show_debug_message` with a better logging function".into(),
-                            "Remove this debug message".into(),
-                        ],
-                        span,
-                        reports,
-                    )
+                    reports.push(
+                        Self::diagnostic(config)
+                            .with_message("Use of `show_debug_message`")
+                            .with_labels(vec![
+                                Label::primary(left.file_id(), left.span())
+                                    .with_message("remove this or replace this call with your API's ideal function"),
+                            ]),
+                    );
                 }
             }
         }

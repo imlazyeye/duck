@@ -115,7 +115,7 @@ impl Parser {
         let start = self.next_token_boundary();
         self.require(Token::Enum)?;
         let name = self.require_identifier()?;
-        let mut gml_enum = Enum::new(name);
+        let mut members = vec![];
         self.require_possibilities(&[Token::LeftBrace, Token::Begin])?;
         loop {
             if self
@@ -124,20 +124,26 @@ impl Parser {
             {
                 break;
             } else {
+                let member_start = self.next_token_boundary();
                 let name = self.require_identifier()?;
-                let initializer = if self.match_take(Token::Equal).is_some() {
-                    Some(self.expression()?)
+                let left = self.box_expression(Identifier::new(name), member_start);
+                let enum_member = if let Some(equal) = self.match_take(Token::Equal) {
+                    let right = self.expression()?;
+                    OptionalInitilization::Initialized(self.box_statement(
+                        Assignment::new(left, AssignmentOperator::Equal(equal), right),
+                        member_start,
+                    ))
                 } else {
-                    None
+                    OptionalInitilization::Uninitialized(left)
                 };
-                gml_enum.register_member(name.into(), initializer);
+                members.push(enum_member);
                 self.match_take(Token::Comma);
             }
         }
         // GM accepts semicolons here, and as such, so do we.
         // FIXME: create an infastrucutre such that we can lint this?
         self.match_take_repeating(Token::SemiColon);
-        Ok(self.box_statement(gml_enum, start))
+        Ok(self.box_statement(Enum::new_with_members(name, members), start))
     }
 
     fn try_catch(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -332,11 +338,11 @@ impl Parser {
             let left = self.box_expression(Identifier::new(name), start);
             let local_variable = if let Some(equal) = self.match_take(Token::Equal) {
                 let right = self.expression()?;
-                LocalVariable::Initialized(
+                OptionalInitilization::Initialized(
                     self.box_statement(Assignment::new(left, AssignmentOperator::Equal(equal), right), start),
                 )
             } else {
-                LocalVariable::Uninitialized(left)
+                OptionalInitilization::Uninitialized(left)
             };
             declarations.push(local_variable);
             if self.match_take(Token::Comma).is_none() {
@@ -595,11 +601,17 @@ impl Parser {
                         break;
                     }
                     _ => {
+                        let parameter_start = self.next_token_boundary();
                         let name = self.require_identifier()?;
+                        let name = self.box_expression(Identifier::new(name), parameter_start);
                         if self.match_take(Token::Equal).is_some() {
-                            parameters.push(Parameter::new_with_default(name, self.expression()?));
+                            let assignment =
+                                Assignment::new(name, AssignmentOperator::Equal(Token::Equal), self.expression()?);
+                            parameters.push(OptionalInitilization::Initialized(
+                                self.box_statement(assignment, parameter_start),
+                            ));
                         } else {
-                            parameters.push(Parameter::new(name));
+                            parameters.push(OptionalInitilization::Uninitialized(name));
                         };
                         self.match_take(Token::Comma);
                     }
@@ -690,17 +702,18 @@ impl Parser {
     }
 
     fn call(&mut self, left: Option<ExpressionBox>, uses_new: bool) -> Result<ExpressionBox, ParseErrorReport> {
-        let start = self.next_token_boundary();
         // If we've been provided a leftside expression, we *must* parse for a call.
         // Otherwise, the call is merely possible.
-        let left = if let Some(left) = left {
-            left
+        let (start, left) = if let Some(left) = left {
+            (left.span().0, left)
         } else {
+            let start = self.next_token_boundary();
+
             let dot = self.dot_access(None)?;
             if self.soft_peek() != Some(&Token::LeftParenthesis) {
                 return Ok(dot);
             }
-            dot
+            (start, dot)
         };
         self.require(Token::LeftParenthesis)?;
         let mut arguments = vec![];
@@ -729,9 +742,10 @@ impl Parser {
     }
 
     fn dot_access(&mut self, expression: Option<ExpressionBox>) -> Result<ExpressionBox, ParseErrorReport> {
-        let start = self.next_token_boundary();
+        let mut start = self.next_token_boundary();
         let access = if let Some(expression) = expression {
             self.require(Token::Dot)?;
+            start = expression.span().0;
             Access::Dot {
                 left: expression,
                 right: self.grouping()?,
@@ -786,15 +800,14 @@ impl Parser {
     }
 
     fn ds_access(&mut self, left: Option<ExpressionBox>) -> Result<ExpressionBox, ParseErrorReport> {
-        let start = self.next_token_boundary();
-        let left = if let Some(left) = left {
-            left
+        let (start, left) = if let Some(left) = left {
+            (left.span().0, left)
         } else {
             let left = self.grouping()?;
             if self.soft_peek() != Some(&Token::LeftSquareBracket) {
                 return Ok(left);
             }
-            left
+            (self.next_token_boundary(), left)
         };
         self.require(Token::LeftSquareBracket)?;
         let access = match self.peek()? {
@@ -862,11 +875,11 @@ impl Parser {
     }
 
     fn identifier(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
-        let start = self.next_token_boundary();
         // FIXME: This is our slightly ludicrous and temporary solution to the static keyword -- we just eat
         // it. Until we have static analysis, it means nothing to us!
         self.match_take(Token::Static);
 
+        let start = self.next_token_boundary();
         let peek = self.peek()?;
         if let Some(lexeme) = peek.as_identifier().map(|s| s.to_string()) {
             self.take()?;
@@ -1004,3 +1017,7 @@ impl From<Span> for Range<usize> {
         span.0..span.1
     }
 }
+
+/// A location for something in gml, combining a span and a file id.
+#[derive(Debug, PartialEq, Default, Copy, Clone)]
+pub struct Location(pub FileId, pub Span);

@@ -1,8 +1,9 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+
 use crate::{
-    Config,
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parse::{Expression, Logical, LogicalOperator, Token},
-    parse::Span,
+    lint::{EarlyExpressionPass, Lint, LintLevel},
+    parse::{Expression, ExpressionBox, Logical, LogicalOperator, Token},
+    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]
@@ -21,16 +22,22 @@ impl Lint for OrPreference {
     }
 }
 impl EarlyExpressionPass for OrPreference {
-    fn visit_expression_early(config: &Config, expression: &Expression, span: Span, reports: &mut Vec<LintReport>) {
+    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::Logical(Logical {
             operator: LogicalOperator::Or(token),
             ..
-        }) = expression
+        }) = expression_box.expression()
         {
             if config.prefer_or_keyword() && token != &Token::Or {
-                Self::report("Use of `||`", ["Use `or` instead of `||`".into()], span, reports);
+                reports.push(Self::diagnostic(config).with_message("Use of `||`").with_labels(vec![
+                    Label::primary(expression_box.file_id(), expression_box.span())
+                        .with_message("use the `or` keyword instead of `||`"),
+                ]));
             } else if token == &Token::Or {
-                Self::report("Use of `or`", ["Use `||` instead of `or`".into()], span, reports);
+                reports.push(Self::diagnostic(config).with_message("Use of `or`").with_labels(vec![
+                    Label::primary(expression_box.file_id(), expression_box.span())
+                        .with_message("use the `||` operator instead of `or`"),
+                ]));
             }
         }
     }

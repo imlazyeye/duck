@@ -20,11 +20,10 @@ Below are all of the lints currently supported in `duck`.
 | missing_default_case | LintLevel::Allow | Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.
 | mod_preference | LintLevel::Allow | GML supports both `mod` and `%` to perform modulo division. Consistent use of one over the other yields cleaner code.
 | multi_var_declaration | LintLevel::Allow | While GML allows you to create multiple local variables at once, it can often lead to confusing syntax that would read better with each variable seperated.
-| no_space_begining_comment | LintLevel::Allow | Comments should begin with a space after them to increase readability and consistency.
 | non_constant_default_parameter | LintLevel::Warn | Expressive default parameters are not supported in most languages due to their instability and tendency to hide important logic execution from the caller.
 | non_pascal_case | LintLevel::Warn |  to distinguish them from other values.
 | non_scream_case | LintLevel::Warn | Scream case is the ideal casing for constants to distingusih them from other values.
-| or_preference | LintLevel::Allow | GML supports both `not` and `!` to refer to unary \"not\". Consistent use of one over the other yields cleaner code.
+| not_preference | LintLevel::Allow | GML supports both `not` and `!` to refer to unary \"not\". Consistent use of one over the other yields cleaner code.
 | or_preference | LintLevel::Allow | GML supports both `or` and `||` to refer to logical \"or\" -- `||` is more consistent with other languages and is preferred.
 | room_goto | LintLevel::Allow | Projects that implement their own frameworks for room management may wish to be restrictive around when and where the `room_goto` functions are called.
 | show_debug_message | LintLevel::Allow | Projects often implement their own logging framework and wish to avoid unwrapped prints to the console.
@@ -33,7 +32,6 @@ Below are all of the lints currently supported in `duck`.
 | suspicious_constant_usage | LintLevel::Deny | Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.
 | todo | LintLevel::Allow | Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.
 | too_many_arguments | LintLevel::Warn | Functions with lots of parameters quickly become confusing and indicate a need for structural change.
-| too_many_lines | LintLevel::Warn | Functions with lots of lines are harder to work with due to the volume of code that must be read to understand them.
 | try_catch | LintLevel::Allow | GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.
 | var_prefix_violation | LintLevel::Allow | It is common practice in GML to prefix local variables (longer than one charcter) with an underscore as it helps to visually distinguish them from instance (or global) variables. You can select either option via the config.
 | with_loop | LintLevel::Allow | The `with` loop allows your code's context to suddenly change, both making it more difficult to read (as a given line of code is no longer promised to be executing in the scope expected from the file), but also making it more difficult to track down all of the places an object is modified.
