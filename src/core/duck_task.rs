@@ -130,10 +130,9 @@ impl DuckTask {
     ) -> (Receiver<EarlyPassEntry>, JoinHandle<()>) {
         let (early_pass_sender, early_pass_receiver) = channel::<EarlyPassEntry>(1000);
         let handle = tokio::task::spawn(async move {
-            while let Some((path, ast)) = ast_receiever.recv().await {
+            while let Some((file_id, ast)) = ast_receiever.recv().await {
                 for statement in ast {
                     let config = config.clone();
-                    let file_id = path.clone();
                     let sender = early_pass_sender.clone();
                     tokio::task::spawn(async move {
                         let mut reports = vec![];

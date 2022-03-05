@@ -1,14 +1,11 @@
 use crate::{
     lint::{LintLevel, LintReport},
-    parse::{ParseError, ParseErrorReport},
+    parse::ParseErrorReport,
     Config, DuckTask, FileId,
 };
 use codespan_reporting::files::SimpleFiles;
 use enum_map::EnumMap;
-use std::{
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{path::Path, sync::Arc};
 
 /// ## Duck
 /// The primary point of control for all of duck. For general usage, this is all

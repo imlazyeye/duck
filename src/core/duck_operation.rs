@@ -4,13 +4,9 @@ use crate::{
         collection::*, EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, Lint, LintLevel,
         LintReport,
     },
-    parse::{
-        Ast, Expression, ExpressionBox, ParseError, ParseErrorReport, ParseVisitor, Parser, Span, Statement,
-        StatementBox,
-    },
+    parse::{Ast, Expression, ExpressionBox, ParseErrorReport, ParseVisitor, Parser, Span, Statement, StatementBox},
     Config, FileId,
 };
-use std::path::Path;
 
 /// ## DuckOperation
 ///

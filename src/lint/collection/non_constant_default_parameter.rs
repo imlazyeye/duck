@@ -23,7 +23,7 @@ impl EarlyExpressionPass for NonConstantDefaultParameter {
     fn visit_expression_early(
         _config: &crate::Config,
         expression: &Expression,
-        span: Span,
+        _span: Span,
         reports: &mut Vec<LintReport>,
     ) {
         if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression {

@@ -1,5 +1,5 @@
 use crate::{parse::*, FileId};
-use std::{iter::Peekable, path::PathBuf};
+use std::{iter::Peekable, ops::Range};
 
 /// A collection of statements.
 pub type Ast = Vec<StatementBox>;
@@ -999,3 +999,8 @@ impl Parser {
 /// code.
 #[derive(Debug, PartialEq, Default, Copy, Clone)]
 pub struct Span(pub usize, pub usize);
+impl From<Span> for Range<usize> {
+    fn from(span: Span) -> Self {
+        span.0..span.1
+    }
+}

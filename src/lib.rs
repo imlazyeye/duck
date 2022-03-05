@@ -102,9 +102,6 @@ pub mod lint {
     }
 }
 
-/// Utilities used widely around the duck codebase.
-pub mod utils;
-
 /// Tools and types used to parse gml into an abstract syntax tree.
 pub mod parse {
     mod gml {

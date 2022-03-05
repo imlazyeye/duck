@@ -1,7 +1,6 @@
 use super::{ExpressionBox, Span, Token};
-use crate::{utils::FilePreviewUtil, FileId};
+use crate::FileId;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
-use colored::Colorize;
 
 /// A [ParseError] coupled with information about where the error originated.
 #[derive(Debug, PartialEq, Clone)]
@@ -50,18 +49,6 @@ pub enum ParseError {
     UnexpectedEnd,
 }
 impl ParseError {
-    /// Takes a [FilePreviewUtil] to create a display-ready report of the parse
-    /// error.
-    pub fn generate_report(&self, preview: &FilePreviewUtil) -> String {
-        let path_message = preview.path_message();
-        let snippet_message = preview.snippet_message();
-        format!(
-            "{}: {}\n{path_message}\n{snippet_message}\n",
-            "parse error".bright_red().bold(),
-            self.error_message().bright_white(),
-        )
-    }
-
     /// Returns a short message describing the error.
     fn error_message(&self) -> String {
         match self {

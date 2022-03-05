@@ -1,7 +1,6 @@
 use crate::{
     analyze::GlobalScope,
     parse::{Expression, Span, Statement},
-    utils::FilePreviewUtil,
     Config, FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -39,6 +38,20 @@ pub trait Lint {
             default_level: Self::default_level(),
             explanation: Self::explanation(),
         });
+    }
+
+    /// Creates a diagnostic based on the user's lint level for this lint.
+    fn diagnostic(config: &Config) -> Diagnostic<FileId> {
+        let level = config
+            .lint_levels
+            .iter()
+            .find(|(key, _)| key.as_str() == Self::tag())
+            .map_or_else(Self::default_level, |(_, level)| *level);
+        match level {
+            LintLevel::Allow => unreachable!(),
+            LintLevel::Warn => Diagnostic::warning(),
+            LintLevel::Deny => Diagnostic::error(),
+        }
     }
 }
 

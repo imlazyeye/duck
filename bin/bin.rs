@@ -3,7 +3,6 @@ use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use colored::Colorize;
 use duck::{
     lint::{collection::*, Lint},
-    utils::FilePreviewUtil,
     Config, Duck,
 };
 use num_format::{Locale, ToFormattedString};
