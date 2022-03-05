@@ -66,7 +66,7 @@ impl Parser {
             Token::While => self.while_loop(),
             Token::If => self.if_statement(),
             Token::Switch => self.switch(),
-            Token::LeftBrace => self.block(),
+            Token::LeftBrace | Token::Begin => self.block(),
             Token::Return => self.return_statement(),
             Token::Break => self.break_statement(),
             Token::Continue => self.continue_statement(),
@@ -97,9 +97,12 @@ impl Parser {
         self.require(Token::Enum)?;
         let name = self.require_identifier()?;
         let mut gml_enum = Enum::new(name);
-        self.require(Token::LeftBrace)?;
+        self.require_possibilities(&[Token::LeftBrace, Token::Begin])?;
         loop {
-            if self.match_take(Token::RightBrace).is_some() {
+            if self
+                .match_take_possibilities(&[Token::RightBrace, Token::End])
+                .is_some()
+            {
                 break;
             } else {
                 let name = self.require_identifier()?;
@@ -206,7 +209,7 @@ impl Parser {
             let mut body = vec![];
             loop {
                 match parser.peek()? {
-                    Token::Case | Token::Default | Token::RightBrace => break,
+                    Token::Case | Token::Default | Token::RightBrace | Token::End => break,
                     _ => body.push(parser.statement()?),
                 }
             }
@@ -214,7 +217,7 @@ impl Parser {
         }
         self.require(Token::Switch)?;
         let expression = self.expression()?;
-        self.require(Token::LeftBrace)?;
+        self.require_possibilities(&[Token::LeftBrace, Token::Begin])?;
         let mut members = vec![];
         let mut default = None;
         loop {
@@ -231,7 +234,7 @@ impl Parser {
                     self.require(Token::Colon)?;
                     default = Some(case_body(self)?);
                 }
-                Token::RightBrace => {
+                Token::RightBrace | Token::End => {
                     self.take()?;
                     break;
                 }
@@ -243,14 +246,17 @@ impl Parser {
 
     fn block(&mut self) -> Result<StatementBox, ParseError> {
         let start = self.cursor();
-        self.require(Token::LeftBrace)?;
+        let opening_delimeter = self.require_possibilities(&[Token::LeftBrace, Token::Begin])?;
         let mut statements: Vec<StatementBox> = vec![];
-        while *self.peek()? != Token::RightBrace {
-            statements.push(self.statement()?);
-        }
-        self.require(Token::RightBrace)?;
+        let closing_delimiter = loop {
+            if let Some(token) = self.match_take_possibilities(&[Token::RightBrace, Token::End]) {
+                break token;
+            } else {
+                statements.push(self.statement()?);
+            }
+        };
         self.match_take_repeating(Token::SemiColon);
-        Ok(Block::new(statements).into_statement_box(self.span(start)))
+        Ok(Block::new(statements, Some((opening_delimeter, closing_delimiter))).into_statement_box(self.span(start)))
     }
 
     fn return_statement(&mut self) -> Result<StatementBox, ParseError> {
@@ -608,10 +614,16 @@ impl Parser {
                     self.match_take(Token::Comma);
                 }
             }
-        } else if self.match_take(Token::LeftBrace).is_some() {
+        } else if self
+            .match_take_possibilities(&[Token::LeftBrace, Token::Begin])
+            .is_some()
+        {
             let mut elements = vec![];
             loop {
-                if self.match_take(Token::RightBrace).is_some() {
+                if self
+                    .match_take_possibilities(&[Token::RightBrace, Token::End])
+                    .is_some()
+                {
                     break Ok(Literal::Struct(elements).into_expression_box(self.span(start)));
                 } else {
                     let name = self.require_identifier()?;
@@ -872,6 +884,15 @@ impl Parser {
         }
     }
 
+    /// Consumes and returns the next token if it is within the array of types.
+    fn match_take_possibilities(&mut self, tokens: &[Token]) -> Option<Token> {
+        if self.peek().map(|token| tokens.contains(token)).unwrap_or(false) {
+            Some(self.take().unwrap())
+        } else {
+            None
+        }
+    }
+
     /// Continously eats next token if it is the given type.
     fn match_take_repeating(&mut self, token: Token) {
         loop {
@@ -891,6 +912,17 @@ impl Parser {
             Ok(found_token)
         } else {
             Err(ParseError::ExpectedToken(self.span(self.cursor), token))
+        }
+    }
+
+    /// Returns the next Token, returning an error if there is none, or if it is
+    /// not within the provided array of required types.
+    fn require_possibilities(&mut self, tokens: &[Token]) -> Result<Token, ParseError> {
+        let found_token = self.take()?;
+        if tokens.contains(&found_token) {
+            Ok(found_token)
+        } else {
+            Err(ParseError::ExpectedTokens(self.span(self.cursor), tokens.to_vec()))
         }
     }
 

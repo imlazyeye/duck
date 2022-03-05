@@ -24,7 +24,7 @@ fn config_macro() {
 fn two_macro_declaration() {
     harness_stmt(
         "{ \n#macro foo 0\n#macro bar 0\n }",
-        Block::new(vec![
+        Block::new_standard(vec![
             Macro::new("foo", "0").into_lazy_box(),
             Macro::new("bar", "0").into_lazy_box(),
         ]),
@@ -38,6 +38,15 @@ fn enum_declaration() {
         Enum::new_with_members("Foo", vec![EnumMember::new("Bar", None), EnumMember::new("Baz", None)]),
     )
 }
+
+#[test]
+fn enum_declaration_begin_end() {
+    harness_stmt(
+        "enum Foo begin Bar, Baz end",
+        Enum::new_with_members("Foo", vec![EnumMember::new("Bar", None), EnumMember::new("Baz", None)]),
+    )
+}
+
 
 #[test]
 fn enum_with_values() {
@@ -142,7 +151,7 @@ fn local_variable_trailling_comma() {
 fn local_variable_series_ending_without_marker() {
     harness_stmt(
         "{ var i = 0 j = 0 }",
-        Block::new(vec![
+        Block::new_standard(vec![
             LocalVariableSeries::new(vec![LocalVariable::Initialized(
                 Assignment::new(
                     Identifier::new("i").into_lazy_box(),
@@ -170,9 +179,9 @@ fn try_catch() {
     harness_stmt(
         "try {} catch (e) {}",
         TryCatch::new(
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
             Grouping::new(Identifier::new("e").into_lazy_box()).into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -182,10 +191,10 @@ fn try_catch_finally() {
     harness_stmt(
         "try {} catch (e) {} finally {}",
         TryCatch::new_with_finally(
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
             Grouping::new(Identifier::new("e").into_lazy_box()).into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -218,7 +227,7 @@ fn for_loop() {
                 .into_lazy_box(),
             )
             .into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     );
 }
@@ -229,7 +238,7 @@ fn with() {
         "with foo {}",
         WithLoop::new(
             Identifier::new("foo").into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -238,7 +247,10 @@ fn with() {
 fn repeat() {
     harness_stmt(
         "repeat 1 {}",
-        RepeatLoop::new(Literal::Real(1.0).into_lazy_box(), Block::new(vec![]).into_lazy_box()),
+        RepeatLoop::new(
+            Literal::Real(1.0).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
+        ),
     )
 }
 
@@ -247,7 +259,7 @@ fn do_until() {
     harness_stmt(
         "do { foo += 1; } until foo == 1;",
         DoUntil::new(
-            Block::new(vec![
+            Block::new_standard(vec![
                 Assignment::new(
                     Identifier::new("foo").into_lazy_box(),
                     AssignmentOperator::PlusEqual(Token::PlusEqual),
@@ -277,7 +289,7 @@ fn while_loop() {
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
-            Block::new(vec![
+            Block::new_standard(vec![
                 Assignment::new(
                     Identifier::new("foo").into_lazy_box(),
                     AssignmentOperator::PlusEqual(Token::PlusEqual),
@@ -302,7 +314,7 @@ fn if_statement() {
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -318,7 +330,7 @@ fn if_then() {
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
             None,
         ),
     )
@@ -335,8 +347,8 @@ fn if_else() {
                 Literal::Real(1.0).into_lazy_box(),
             )
             .into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -395,13 +407,13 @@ fn switch_default() {
 }
 
 #[test]
-fn empty_block() {
-    harness_stmt("{}", Block::new(vec![]))
+fn block() {
+    harness_stmt("{}", Block::new_standard(vec![]))
 }
 
 #[test]
-fn block() {
-    harness_stmt("{ return; }", Block::new(vec![Return::new(None).into_lazy_box()]))
+fn block_begin_end() {
+    harness_stmt("begin end", Block::new(vec![], Some((Token::Begin, Token::End))))
 }
 
 #[test]

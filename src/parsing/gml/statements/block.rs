@@ -1,4 +1,4 @@
-use crate::parsing::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
+use crate::parsing::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox, Token};
 
 /// Representation of a block (group of statements) in gml.
 ///
@@ -8,11 +8,22 @@ use crate::parsing::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, S
 pub struct Block {
     /// The statements contained in this block.
     pub body: Vec<StatementBox>,
+    /// The delimiter style of this block.
+    pub delimiters: Option<(Token, Token)>,
 }
 impl Block {
     /// Creates a new block.
-    pub fn new(body: Vec<StatementBox>) -> Self {
-        Self { body }
+    pub fn new(body: Vec<StatementBox>, delimiters: Option<(Token, Token)>) -> Self {
+        Self { body, delimiters }
+    }
+
+    /// Creates a new block that uses curly braces as the delimiters (let's be honest, this is
+    /// 99.99% of cases).
+    pub fn new_standard(body: Vec<StatementBox>) -> Self {
+        Self {
+            body,
+            delimiters: Some((Token::LeftBrace, Token::RightBrace)),
+        }
     }
 }
 impl From<Block> for Statement {

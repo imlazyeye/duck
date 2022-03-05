@@ -9,6 +9,8 @@ pub enum ParseError {
     UnexpectedToken(Span, Token),
     /// A token was required in the current context that was not found.
     ExpectedToken(Span, Token),
+    /// One of a collection of tokens were required in the current context that was not found.
+    ExpectedTokens(Span, Vec<Token>),
     /// An assignment was made to an invalid expression.
     ///
     /// ### Example
@@ -40,6 +42,7 @@ impl ParseError {
         match self {
             ParseError::UnexpectedToken(span, _) => span,
             ParseError::ExpectedToken(span, _) => span,
+            ParseError::ExpectedTokens(span, _) => span,
             ParseError::InvalidAssignmentTarget(span, _) => span,
             ParseError::IncompleteStatement(span, _) => span,
             ParseError::UnexpectedEnd(span) => span,
@@ -51,6 +54,7 @@ impl ParseError {
         match self {
             ParseError::UnexpectedToken(_, token) => format!("Unexpected token: {:?}", token),
             ParseError::ExpectedToken(_, token) => format!("Expected token: {:?}", token),
+            ParseError::ExpectedTokens(_, tokens) => format!("Expected one of the following tokens: {:?}", tokens),
             ParseError::InvalidAssignmentTarget(_, _) => "Invalid assignment target".into(),
             ParseError::IncompleteStatement(_, _) => "Incomplete statement".into(),
             ParseError::UnexpectedEnd(_) => "Unexpected end".into(),

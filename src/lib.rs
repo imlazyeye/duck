@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 #![warn(clippy::dbg_macro)]
 #![warn(clippy::print_stdout)]
-#![warn(clippy::map_unwrap_or)]
+#![warn(clippy::map_unwrap_or)] // gabe this was a mistake
 #![warn(clippy::missing_errors_doc)]
 #![warn(clippy::missing_panics_doc)]
 #![warn(clippy::similar_names)]
@@ -9,7 +9,6 @@
 #![warn(clippy::unimplemented)]
 #![warn(clippy::too_many_lines)]
 #![warn(clippy::undocumented_unsafe_blocks)]
-#![warn(clippy::use_self)]
 
 //! Utilities for parsing and linting Gml.
 

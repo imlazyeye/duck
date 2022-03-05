@@ -30,7 +30,7 @@ fn harness_expr_from_stmt(source: &'static str, expected: impl Into<Expression>)
 fn function() {
     harness_expr(
         "function foo() {}",
-        Function::new("foo", vec![], Block::new(vec![]).into_lazy_box()),
+        Function::new("foo", vec![], Block::new_standard(vec![]).into_lazy_box()),
     )
 }
 
@@ -38,7 +38,7 @@ fn function() {
 fn static_function() {
     harness_expr(
         "static function foo() {}",
-        Function::new("foo", vec![], Block::new(vec![]).into_lazy_box()),
+        Function::new("foo", vec![], Block::new_standard(vec![]).into_lazy_box()),
     )
 }
 
@@ -49,7 +49,7 @@ fn function_with_parameters() {
         Function::new(
             "foo",
             vec![Parameter::new("bar"), Parameter::new("baz")],
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -64,7 +64,7 @@ fn default_parameters() {
                 Parameter::new_with_default("bar", Literal::Real(1.0).into_lazy_box()),
                 Parameter::new("baz"),
             ],
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -73,7 +73,7 @@ fn default_parameters() {
 fn anonymous_function() {
     harness_expr(
         "function() {}",
-        Function::new_anonymous(vec![], Block::new(vec![]).into_lazy_box()),
+        Function::new_anonymous(vec![], Block::new_standard(vec![]).into_lazy_box()),
     )
 }
 
@@ -85,7 +85,7 @@ fn constructor() {
             Some("foo".into()),
             vec![],
             Constructor::WithoutInheritance,
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -98,7 +98,7 @@ fn inheritance() {
             Some("foo".into()),
             vec![],
             Constructor::WithInheritance(Call::new(Identifier::new("bar").into_lazy_box(), vec![]).into_lazy_box()),
-            Block::new(vec![]).into_lazy_box(),
+            Block::new_standard(vec![]).into_lazy_box(),
         ),
     )
 }
@@ -110,7 +110,7 @@ fn function_return_no_semi_colon() {
         Function::new(
             "foo",
             vec![],
-            Block::new(vec![Return::new(None).into_lazy_box()]).into_lazy_box(),
+            Block::new_standard(vec![Return::new(None).into_lazy_box()]).into_lazy_box(),
         ),
     )
 }
@@ -474,7 +474,7 @@ fn function_assignment() {
         Assignment::new(
             Identifier::new("foo").into_lazy_box(),
             AssignmentOperator::Equal(Token::Equal),
-            Function::new_anonymous(vec![], Block::new(vec![]).into_lazy_box()).into_lazy_box(),
+            Function::new_anonymous(vec![], Block::new_standard(vec![]).into_lazy_box()).into_lazy_box(),
         ),
     );
 }
@@ -911,6 +911,11 @@ fn simple_array() {
 #[test]
 fn empty_struct() {
     harness_expr("{}", Expression::Literal(Literal::Struct(vec![])));
+}
+
+#[test]
+fn struct_begin_end() {
+    harness_expr("begin end", Expression::Literal(Literal::Struct(vec![])));
 }
 
 #[test]
