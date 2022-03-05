@@ -6,6 +6,8 @@ use crate::{
     utils::Span,
 };
 
+use super::Assignment;
+
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -43,11 +45,12 @@ pub enum Statement {
     Continue,
     /// An exit statement.
     Exit,
+    /// An assignment statement.
+    Assignment(Assignment),
     /// A statement expression, or in other words, an expression being executed on its own.
     /// Common examples below:
     /// ```gml
     /// foo(); // call expression
-    /// foo += 1; // assignment expression
     /// foo++; // postfix expression
     /// ```
     Expression(ExpressionBox),
@@ -73,6 +76,7 @@ impl ParseVisitor for Statement {
             Statement::Switch(inner) => inner.visit_child_statements(statement_visitor),
             Statement::Block(inner) => inner.visit_child_statements(statement_visitor),
             Statement::Return(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::Assignment(inner) => inner.visit_child_statements(statement_visitor),
             Statement::Expression(inner) => inner.visit_child_statements(statement_visitor),
             Statement::Break | Statement::Continue | Statement::Exit => {}
         }
@@ -97,6 +101,7 @@ impl ParseVisitor for Statement {
             Statement::Switch(inner) => inner.visit_child_expressions(expression_visitor),
             Statement::Block(inner) => inner.visit_child_expressions(expression_visitor),
             Statement::Return(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::Assignment(inner) => inner.visit_child_expressions(expression_visitor),
             Statement::Expression(inner) => inner.visit_child_expressions(expression_visitor),
             Statement::Break | Statement::Continue | Statement::Exit => {}
         }
@@ -114,6 +119,14 @@ impl Statement {
     pub fn as_expression_statement(&self) -> Option<&ExpressionBox> {
         match self {
             Statement::Expression(expression_box) => Some(expression_box),
+            _ => None,
+        }
+    }
+
+    /// Returns the statement as an [Assignment] if it is an assignment statement.
+    pub fn as_assignment(&self) -> Option<&Assignment> {
+        match self {
+            Statement::Assignment(assignment) => Some(assignment),
             _ => None,
         }
     }

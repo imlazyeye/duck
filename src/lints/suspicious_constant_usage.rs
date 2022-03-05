@@ -1,6 +1,6 @@
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parsing::{Assignment, AssignmentOperator, Evaluation, EvaluationOperator, Expression, Literal},
+    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel, LintReport},
+    parsing::{Assignment, AssignmentOperator, Evaluation, EvaluationOperator, Expression, Literal, Statement},
     utils::Span,
 };
 
@@ -27,27 +27,33 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        match expression {
-            Expression::Evaluation(Evaluation { operator, right, .. }) => {
+        if let Expression::Evaluation(Evaluation { operator, right, .. }) = expression {
+            if let Some(literal) = right.expression().as_literal() {
+                if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
+                    Self::report("Suspicious constant usage", [], span, reports)
+                }
+            }
+        }
+    }
+}
+impl EarlyStatementPass for SuspicousConstantUsage {
+    fn visit_statement_early(
+        _config: &crate::Config,
+        statement: &Statement,
+        span: Span,
+        reports: &mut Vec<LintReport>,
+    ) {
+        if let Statement::Assignment(Assignment { operator, right, .. }) = statement {
+            if !matches!(
+                *operator,
+                AssignmentOperator::Equal(_) | AssignmentOperator::NullCoalecenceEqual(_)
+            ) {
                 if let Some(literal) = right.expression().as_literal() {
-                    if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
+                    if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
                         Self::report("Suspicious constant usage", [], span, reports)
                     }
                 }
             }
-            Expression::Assignment(Assignment { operator, right, .. }) => {
-                if !matches!(
-                    *operator,
-                    AssignmentOperator::Equal(_) | AssignmentOperator::NullCoalecenceEqual(_)
-                ) {
-                    if let Some(literal) = right.expression().as_literal() {
-                        if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
-                            Self::report("Suspicious constant usage", [], span, reports)
-                        }
-                    }
-                }
-            }
-            _ => {}
         }
     }
 }

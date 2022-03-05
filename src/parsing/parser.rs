@@ -73,7 +73,7 @@ impl Parser {
             Token::Exit => self.exit(),
             Token::Globalvar => self.globalvar_declaration(),
             Token::Var => self.local_variable_series(),
-            _ => self.expression_statement(),
+            _ => self.assignment(),
         }
     }
 
@@ -306,7 +306,7 @@ impl Parser {
             let local_variable = if let Some(equal) = self.match_take(Token::Equal) {
                 LocalVariable::Initialized(
                     Assignment::new(left, AssignmentOperator::Equal(equal), self.expression()?)
-                        .into_expression_box(self.span(start)),
+                        .into_statement_box(self.span(start)),
                 )
             } else {
                 LocalVariable::Uninitialized(left)
@@ -328,23 +328,54 @@ impl Parser {
         Ok(LocalVariableSeries::new(declarations).into_statement_box(self.span(start)))
     }
 
-    fn expression_statement(&mut self) -> Result<StatementBox, ParseError> {
+    fn assignment(&mut self) -> Result<StatementBox, ParseError> {
         let start = self.cursor();
-        let expression = self.expression()?;
+        let expression = self.unary()?; // Unaries are the highest possibel assignment expressions
+
+        // Check for an identifier followed by an assignment operator
+        let assignment = if let Some(operator) = self.soft_peek().and_then(|token| token.as_assignment_operator()) {
+            self.take()?;
+            Assignment::new(expression, operator, self.expression()?)
+        } else if let Expression::Equality(Equality {
+            left,
+            operator: EqualityOperator::Equal(Token::Equal),
+            right,
+        }) = *expression.0
+        {
+            Assignment::new(left, AssignmentOperator::Equal(Token::Equal), right)
+        } else {
+            // We can't make an assignment out of this -- create an expression statement instead.
+            return self.expression_statement(expression);
+        };
+        self.match_take_repeating(Token::SemiColon);
+
+        // VALIDATION
+        // Note for the below: yes, GM idiotically compiles `foo() = 1` despite it doing absolutely
+        // nothing and being extremely misleading. See `assignment_to_call`.
+        if !matches!(
+            assignment.left.expression(),
+            Expression::Identifier(..) | Expression::Access(..) | Expression::Call(..)
+        ) {
+            Err(ParseError::InvalidAssignmentTarget(self.span(start), assignment.left))
+        } else {
+            Ok(assignment.into_statement_box(self.span(start)))
+        }
+    }
+
+    fn expression_statement(&mut self, expression: ExpressionBox) -> Result<StatementBox, ParseError> {
+        let start = self.cursor();
         match expression.expression() {
             Expression::FunctionDeclaration(..)
-            | Expression::Assignment(..)
             | Expression::Postfix(..)
             | Expression::Unary(..)
             | Expression::Grouping(..)
             | Expression::Call(..) => {}
 
-            Expression::Identifier(..) => {
-                // Unfortunately, we can't (currently) understand if this is
-                // actually a mistake or is a macro.
-                // In the future, we may unfold code in an early pass that will
-                // help with this.
-            }
+            // Unfortunately, we can't (currently) understand if this is
+            // actually a mistake or is a macro.
+            // In the future, we may unfold code in an early pass that will
+            // help with this.
+            Expression::Identifier(..) => {}
 
             // Anything else is invalid.
             _ => {
@@ -356,87 +387,7 @@ impl Parser {
     }
 
     pub(super) fn expression(&mut self) -> Result<ExpressionBox, ParseError> {
-        self.function()
-    }
-
-    fn function(&mut self) -> Result<ExpressionBox, ParseError> {
-        let start = self.cursor();
-        // TODO: when we do static-analysis, this will be used
-        let _static_token = self.match_take(Token::Static);
-        if self.match_take(Token::Function).is_some() {
-            let name = self.match_take_identifier()?.map(|v| v.to_string());
-            self.require(Token::LeftParenthesis)?;
-            let mut parameters = vec![];
-            loop {
-                match self.peek()? {
-                    Token::RightParenthesis => {
-                        self.take()?;
-                        break;
-                    }
-                    _ => {
-                        let name = self.require_identifier()?;
-                        if self.match_take(Token::Equal).is_some() {
-                            parameters.push(Parameter::new_with_default(name, self.expression()?));
-                        } else {
-                            parameters.push(Parameter::new(name));
-                        };
-                        self.match_take(Token::Comma);
-                    }
-                }
-            }
-            let colon_position = self.cursor;
-            let inheritance = if self.match_take(Token::Colon).is_some() {
-                let name = self.identifier()?;
-                Some(self.call(Some(name), false)?)
-            } else {
-                None
-            };
-            let constructor = if self.match_take(Token::Constructor).is_some() {
-                match inheritance {
-                    Some(inheritance) => Some(Constructor::WithInheritance(inheritance)),
-                    None => Some(Constructor::WithoutInheritance),
-                }
-            } else {
-                if inheritance.is_some() {
-                    return Err(ParseError::UnexpectedToken(self.span(colon_position), Token::Colon));
-                }
-                None
-            };
-            let body = self.block()?;
-            Ok(Function {
-                name,
-                parameters,
-                constructor,
-                body,
-            }
-            .into_expression_box(self.span(start)))
-        } else {
-            self.null_coalecence()
-        }
-    }
-
-    fn null_coalecence(&mut self) -> Result<ExpressionBox, ParseError> {
-        let start = self.cursor();
-        let expression = self.ternary()?;
-        if self.match_take(Token::DoubleInterrobang).is_some() {
-            let value = self.expression()?;
-            Ok(NullCoalecence::new(expression, value).into_expression_box(self.span(start)))
-        } else {
-            Ok(expression)
-        }
-    }
-
-    fn ternary(&mut self) -> Result<ExpressionBox, ParseError> {
-        let start = self.cursor();
-        let expression = self.logical()?;
-        if self.match_take(Token::Interrobang).is_some() {
-            let true_value = self.expression()?;
-            self.require(Token::Colon)?;
-            let false_value = self.expression()?;
-            Ok(Ternary::new(expression, true_value, false_value).into_expression_box(self.span(start)))
-        } else {
-            Ok(expression)
-        }
+        self.logical()
     }
 
     fn logical(&mut self) -> Result<ExpressionBox, ParseError> {
@@ -533,7 +484,7 @@ impl Parser {
 
     fn multiplication(&mut self) -> Result<ExpressionBox, ParseError> {
         let start = self.cursor();
-        let expression = self.assignment()?;
+        let expression = self.unary()?;
         if let Some(operator) = self
             .soft_peek()
             .map(|token| token.as_evaluation_operator())
@@ -556,27 +507,6 @@ impl Parser {
         }
     }
 
-    fn assignment(&mut self) -> Result<ExpressionBox, ParseError> {
-        let start = self.cursor();
-        let expression = self.unary()?;
-        if let Some(operator) = self.soft_peek().and_then(|token| token.as_assignment_operator()) {
-            // Note for the below: yes, GM idiotically compiles `foo() = 1` despite it doing absolutely nothing
-            // and being extremely misleading. See `assignment_to_call`.
-            if !matches!(
-                expression.expression(),
-                Expression::Identifier(..) | Expression::Access(..) | Expression::Call(..)
-            ) {
-                Err(ParseError::InvalidAssignmentTarget(self.span(start), expression))
-            } else {
-                self.take()?;
-                let right = self.expression()?;
-                Ok(Assignment::new(expression, operator, right).into_expression_box(self.span(start)))
-            }
-        } else {
-            Ok(expression)
-        }
-    }
-
     fn unary(&mut self) -> Result<ExpressionBox, ParseError> {
         let start = self.cursor();
         if let Some(operator) = self.peek()?.as_unary_operator() {
@@ -590,12 +520,92 @@ impl Parser {
 
     fn postfix(&mut self) -> Result<ExpressionBox, ParseError> {
         let start = self.cursor();
-        let expression = self.literal()?;
+        let expression = self.null_coalecence()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_operator()) {
             self.take()?;
             Ok(Postfix::new(expression, operator).into_expression_box(self.span(start)))
         } else {
             Ok(expression)
+        }
+    }
+
+    fn null_coalecence(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.cursor();
+        let expression = self.ternary()?;
+        if self.match_take(Token::DoubleInterrobang).is_some() {
+            let value = self.expression()?;
+            Ok(NullCoalecence::new(expression, value).into_expression_box(self.span(start)))
+        } else {
+            Ok(expression)
+        }
+    }
+
+    fn ternary(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.cursor();
+        let expression = self.function()?;
+        if self.match_take(Token::Interrobang).is_some() {
+            let true_value = self.expression()?;
+            self.require(Token::Colon)?;
+            let false_value = self.expression()?;
+            Ok(Ternary::new(expression, true_value, false_value).into_expression_box(self.span(start)))
+        } else {
+            Ok(expression)
+        }
+    }
+
+    fn function(&mut self) -> Result<ExpressionBox, ParseError> {
+        let start = self.cursor();
+        // TODO: when we do static-analysis, this will be used
+        let _static_token = self.match_take(Token::Static);
+        if self.match_take(Token::Function).is_some() {
+            let name = self.match_take_identifier()?.map(|v| v.to_string());
+            self.require(Token::LeftParenthesis)?;
+            let mut parameters = vec![];
+            loop {
+                match self.peek()? {
+                    Token::RightParenthesis => {
+                        self.take()?;
+                        break;
+                    }
+                    _ => {
+                        let name = self.require_identifier()?;
+                        if self.match_take(Token::Equal).is_some() {
+                            parameters.push(Parameter::new_with_default(name, self.expression()?));
+                        } else {
+                            parameters.push(Parameter::new(name));
+                        };
+                        self.match_take(Token::Comma);
+                    }
+                }
+            }
+            let colon_position = self.cursor;
+            let inheritance = if self.match_take(Token::Colon).is_some() {
+                let name = self.identifier()?;
+                Some(self.call(Some(name), false)?)
+            } else {
+                None
+            };
+            let constructor = if self.match_take(Token::Constructor).is_some() {
+                match inheritance {
+                    Some(inheritance) => Some(Constructor::WithInheritance(inheritance)),
+                    None => Some(Constructor::WithoutInheritance),
+                }
+            } else {
+                if inheritance.is_some() {
+                    return Err(ParseError::UnexpectedToken(self.span(colon_position), Token::Colon));
+                }
+                None
+            };
+            let body = self.block()?;
+            Ok(Function {
+                name,
+                parameters,
+                constructor,
+                body,
+            }
+            .into_expression_box(self.span(start)))
+        } else {
+            self.literal()
         }
     }
 

@@ -1,6 +1,6 @@
-use crate::parsing::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox, Token};
+use crate::parsing::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox, Token};
 
-/// Representation of an assignment expression in gml.
+/// Representation of an assignment statement in gml.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Assignment {
     /// The left hand side of the assignment, aka the target.
@@ -16,12 +16,12 @@ impl Assignment {
         Self { left, operator, right }
     }
 }
-impl From<Assignment> for Expression {
+impl From<Assignment> for Statement {
     fn from(assignment: Assignment) -> Self {
         Self::Assignment(assignment)
     }
 }
-impl IntoExpressionBox for Assignment {}
+impl IntoStatementBox for Assignment {}
 impl ParseVisitor for Assignment {
     fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
         expression_visitor(&self.left);

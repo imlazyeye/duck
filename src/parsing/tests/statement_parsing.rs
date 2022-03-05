@@ -47,7 +47,6 @@ fn enum_declaration_begin_end() {
     )
 }
 
-
 #[test]
 fn enum_with_values() {
     harness_stmt(
@@ -161,13 +160,10 @@ fn local_variable_series_ending_without_marker() {
                 .into_lazy_box(),
             )])
             .into_lazy_box(),
-            Statement::Expression(
-                Assignment::new(
-                    Identifier::new("j").into_lazy_box(),
-                    AssignmentOperator::Equal(Token::Equal),
-                    Literal::Real(0.0).into_lazy_box(),
-                )
-                .into_lazy_box(),
+            Assignment::new(
+                Identifier::new("j").into_lazy_box(),
+                AssignmentOperator::Equal(Token::Equal),
+                Literal::Real(0.0).into_lazy_box(),
             )
             .into_lazy_box(),
         ]),
@@ -265,7 +261,6 @@ fn do_until() {
                     AssignmentOperator::PlusEqual(Token::PlusEqual),
                     Literal::Real(1.0).into_lazy_box(),
                 )
-                .into_lazy_box()
                 .into_lazy_box(),
             ])
             .into_lazy_box(),
@@ -295,7 +290,6 @@ fn while_loop() {
                     AssignmentOperator::PlusEqual(Token::PlusEqual),
                     Literal::Real(1.0).into_lazy_box(),
                 )
-                .into_lazy_box()
                 .into_lazy_box(),
             ])
             .into_lazy_box(),
@@ -439,4 +433,273 @@ fn exit() {
 #[test]
 fn excess_semicolons() {
     harness_stmt("exit;;;", Statement::Exit)
+}
+
+#[test]
+fn assign() {
+    harness_stmt(
+        "foo = 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn single_equals_equality() {
+    harness_stmt(
+        "foo = bar = 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Equality::new(
+                Identifier::new("bar").into_lazy_box(),
+                EqualityOperator::Equal(Token::Equal),
+                Literal::Real(1.0).into_lazy_box(),
+            )
+            .into_lazy_box(),
+        ),
+    )
+}
+
+#[test]
+fn function_assignment() {
+    harness_stmt(
+        "foo = function() {}",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Function::new_anonymous(vec![], Block::new_standard(vec![]).into_lazy_box()).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn logical_assignment() {
+    harness_stmt(
+        "foo = 1 && 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Logical::new(
+                Literal::Real(1.0).into_lazy_box(),
+                LogicalOperator::And(Token::DoubleAmpersand),
+                Literal::Real(1.0).into_lazy_box(),
+            )
+            .into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn ternary_assignment() {
+    harness_stmt(
+        "foo = bar ? 1 : 2;",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Ternary::new(
+                Identifier::new("bar").into_lazy_box(),
+                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(2.0).into_lazy_box(),
+            )
+            .into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn null_coalecence_assign() {
+    harness_stmt(
+        "foo = bar ?? 0;",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            NullCoalecence::new(
+                Identifier::new("bar").into_lazy_box(),
+                Literal::Real(0.0).into_lazy_box(),
+            )
+            .into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn dot_assign() {
+    harness_stmt(
+        "self.foo = 1",
+        Assignment::new(
+            Access::Current {
+                right: Identifier::new("foo").into_lazy_box(),
+            }
+            .into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn ds_assign() {
+    harness_stmt(
+        "foo[0] = 1",
+        Assignment::new(
+            Access::Array {
+                left: Identifier::new("foo").into_lazy_box(),
+                index_one: Literal::Real(0.0).into_lazy_box(),
+                index_two: None,
+                using_accessor: false,
+            }
+            .into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+// Valid GML, as much as it hurts. See `assignment_to_call`
+fn call_assign() {
+    harness_stmt(
+        "foo() = 1",
+        Assignment::new(
+            Call::new(Identifier::new("foo").into_lazy_box(), vec![]).into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn static_assign() {
+    harness_stmt(
+        "static foo = 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn plus_equal() {
+    harness_stmt(
+        "foo += 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::PlusEqual(Token::PlusEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn minus_equal() {
+    harness_stmt(
+        "foo -= 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::MinusEqual(Token::MinusEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn star_equal() {
+    harness_stmt(
+        "foo *= 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::StarEqual(Token::StarEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn slash_equal() {
+    harness_stmt(
+        "foo /= 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::SlashEqual(Token::SlashEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn and_equal() {
+    harness_stmt(
+        "foo &= 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::AndEqual(Token::AmpersandEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn or_equal() {
+    harness_stmt(
+        "foo |= 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::OrEqual(Token::PipeEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn xor_equal() {
+    harness_stmt(
+        "foo ^= 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::XorEqual(Token::CirumflexEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn mod_equal() {
+    harness_stmt(
+        "foo %= 1",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::ModEqual(Token::PercentEqual),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn general_self_reference() {
+    harness_stmt(
+        "foo = self",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Identifier::new("self").into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn general_other_reference() {
+    harness_stmt(
+        "foo = other",
+        Assignment::new(
+            Identifier::new("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::Equal),
+            Identifier::new("other").into_lazy_box(),
+        ),
+    );
 }

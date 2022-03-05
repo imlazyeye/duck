@@ -24,11 +24,21 @@ impl IntoStatementBox for LocalVariableSeries {}
 impl ParseVisitor for LocalVariableSeries {
     fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
         for declaration in self.declarations.iter() {
-            expression_visitor(declaration.inner());
+            match declaration {
+                LocalVariable::Uninitialized(expr) => expression_visitor(expr),
+                LocalVariable::Initialized(_) => {}
+            }
         }
     }
 
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+        for declaration in self.declarations.iter() {
+            match declaration {
+                LocalVariable::Uninitialized(_) => {}
+                LocalVariable::Initialized(stmt) => statement_visitor(stmt),
+            }
+        }
+    }
 }
 
 /// Representation of a local variable in gml.
@@ -38,13 +48,16 @@ impl ParseVisitor for LocalVariableSeries {
 /// assignment.
 #[derive(Debug, PartialEq, Clone)]
 pub enum LocalVariable {
-    /// Uninitialized local variable declarations, containing only their name as an identifier.
+    /// Uninitialized local variable declarations, containing only their name as an identifier as an
+    /// expression.
     Uninitialized(ExpressionBox),
-    /// Initialized local variables containing their full assignment expression.
-    Initialized(ExpressionBox),
+    /// Initialized local variables containing their full assignment statement.
+    Initialized(StatementBox),
 }
 impl LocalVariable {
     /// Retrieves the name of the local variable.
+    ///
+    /// FIXME: This code sure looks bad
     pub fn name(&self) -> &str {
         match self {
             LocalVariable::Uninitialized(expression_box) => {
@@ -54,8 +67,8 @@ impl LocalVariable {
                     .unwrap_or_else(|| unreachable!())
                     .name
             }
-            LocalVariable::Initialized(expression_box) => expression_box
-                .expression()
+            LocalVariable::Initialized(statement_box) => statement_box
+                .statement()
                 .as_assignment()
                 .unwrap_or_else(|| unreachable!())
                 .left
@@ -64,14 +77,6 @@ impl LocalVariable {
                 .unwrap_or_else(|| unreachable!())
                 .name
                 .as_ref(),
-        }
-    }
-
-    /// Returns a reference to the inner expression box.
-    pub fn inner(&self) -> &ExpressionBox {
-        match self {
-            LocalVariable::Uninitialized(e) => e,
-            LocalVariable::Initialized(e) => e,
         }
     }
 }

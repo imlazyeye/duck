@@ -95,6 +95,7 @@ impl DuckOperation {
         let span = statement_box.span();
 
         // @early statement calls. Do not remove this comment!
+        Self::run_early_lint_on_statement::<AssignmentToCall>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<CollapsableIf>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<Deprecated>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<Exit>(config, statement, span, reports);
@@ -104,6 +105,7 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<NonScreamCase>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<SingleSwitchCase>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<StatementParentheticalPreference>(config, statement, span, reports);
+        Self::run_early_lint_on_statement::<SuspicousConstantUsage>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<TryCatch>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<VarPrefixViolation>(config, statement, span, reports);
         Self::run_early_lint_on_statement::<WithLoop>(config, statement, span, reports);
@@ -141,7 +143,6 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<AccessorAlternative>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<AndPreference>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<AnonymousConstructor>(config, expression, span, reports);
-        Self::run_early_lint_on_expression::<AssignmentToCall>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<BoolEquality>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<Deprecated>(config, expression, span, reports);
         Self::run_early_lint_on_expression::<DrawSprite>(config, expression, span, reports);

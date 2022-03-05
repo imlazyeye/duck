@@ -18,8 +18,6 @@ pub enum Expression {
     NullCoalecence(NullCoalecence),
     /// A ternary operation.
     Ternary(Ternary),
-    /// An assignment.
-    Assignment(Assignment),
     /// A unary operation.
     Unary(Unary),
     /// A postfix operation.
@@ -44,14 +42,6 @@ impl Expression {
         }
     }
 
-    /// Returns the expression as an Assignment or None.
-    pub fn as_assignment(&self) -> Option<&Assignment> {
-        match self {
-            Expression::Assignment(assignment) => Some(assignment),
-            _ => None,
-        }
-    }
-
     /// Returns the expression a the interior fields of a Access::Dot, or None.
     pub fn as_dot_access(&self) -> Option<(&Self, &Self)> {
         match self {
@@ -68,6 +58,7 @@ impl Expression {
         }
     }
 }
+impl IntoExpressionBox for Expression {}
 impl ParseVisitor for Expression {
     fn visit_child_statements<S>(&self, statement_visitor: S)
     where
@@ -80,7 +71,6 @@ impl ParseVisitor for Expression {
             Expression::Evaluation(inner) => inner.visit_child_statements(statement_visitor),
             Expression::NullCoalecence(inner) => inner.visit_child_statements(statement_visitor),
             Expression::Ternary(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Assignment(inner) => inner.visit_child_statements(statement_visitor),
             Expression::Unary(inner) => inner.visit_child_statements(statement_visitor),
             Expression::Postfix(inner) => inner.visit_child_statements(statement_visitor),
             Expression::Access(inner) => inner.visit_child_statements(statement_visitor),
@@ -102,7 +92,6 @@ impl ParseVisitor for Expression {
             Expression::Evaluation(inner) => inner.visit_child_expressions(expression_visitor),
             Expression::NullCoalecence(inner) => inner.visit_child_expressions(expression_visitor),
             Expression::Ternary(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Assignment(inner) => inner.visit_child_expressions(expression_visitor),
             Expression::Unary(inner) => inner.visit_child_expressions(expression_visitor),
             Expression::Postfix(inner) => inner.visit_child_expressions(expression_visitor),
             Expression::Access(inner) => inner.visit_child_expressions(expression_visitor),

@@ -1,6 +1,6 @@
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
-    parsing::{Assignment, Expression},
+    lint::{EarlyStatementPass, Lint, LintLevel, LintReport},
+    parsing::{Assignment, Expression, Statement},
     utils::Span,
 };
 
@@ -20,14 +20,14 @@ impl Lint for AssignmentToCall {
     }
 }
 
-impl EarlyExpressionPass for AssignmentToCall {
-    fn visit_expression_early(
+impl EarlyStatementPass for AssignmentToCall {
+    fn visit_statement_early(
         _config: &crate::Config,
-        expression: &Expression,
+        expression: &Statement,
         span: Span,
         reports: &mut Vec<LintReport>,
     ) {
-        if let Expression::Assignment(Assignment { left, .. }) = expression {
+        if let Statement::Assignment(Assignment { left, .. }) = expression {
             if let Expression::Call(..) = left.expression() {
                 Self::report(
                     "Assignment to call",
