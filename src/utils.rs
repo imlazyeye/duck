@@ -60,8 +60,3 @@ impl<'a> FilePreviewUtil<'a> {
         format!(" {} {}", "-->".bold().bright_blue(), self.file_string())
     }
 }
-
-/// A start and end cursor measured in characters, used for expressing small sections of source
-/// code.
-#[derive(Debug, PartialEq, Default, Copy, Clone)]
-pub struct Span(pub usize, pub usize);

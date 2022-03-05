@@ -7,7 +7,7 @@ os.chdir(this_file_path)
 
 # Gather all lints
 lints = []
-for root, dirs, files in os.walk('../src/lints/'):
+for root, dirs, files in os.walk('../src/lint/collection/'):
     for file_name in files:
         lint_file = open(os.path.join(root, file_name)).read()
         lint_name = re.search(r'impl Lint for (\w+)', lint_file).group(1)

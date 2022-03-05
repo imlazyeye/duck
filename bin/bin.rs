@@ -1,6 +1,10 @@
 use clap::Parser;
 use colored::Colorize;
-use duck::{lint::Lint, lints::*, utils::FilePreviewUtil, Config, Duck};
+use duck::{
+    lint::{collection::*, Lint},
+    utils::FilePreviewUtil,
+    Config, Duck,
+};
 use num_format::{Locale, ToFormattedString};
 use std::path::{Path, PathBuf};
 

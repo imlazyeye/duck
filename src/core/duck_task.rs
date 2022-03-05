@@ -1,8 +1,8 @@
 use crate::{
-    analysis::{GlobalScope, GlobalScopeBuilder},
+    analyze::{GlobalScope, GlobalScopeBuilder},
     core::DuckOperation,
     lint::LintReport,
-    parsing::{Ast, ParseError, StatementBox},
+    parse::{Ast, ParseError, StatementBox},
     Config,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
