@@ -17,6 +17,7 @@ pub struct Parser {
     file_id: FileId,
 }
 
+// Basic features
 impl Parser {
     /// Creates a new parser.
     pub fn new(source_code: &'static str, file_id: FileId) -> Self {
@@ -42,23 +43,36 @@ impl Parser {
         Ok(statements)
     }
 
+    /// Wraps an expression in a box.
+    pub fn box_expression(&self, expression: impl IntoExpressionBox, start_position: usize) -> ExpressionBox {
+        expression.into_expression_box(self.span(start_position), self.file_id)
+    }
+
+    /// Wraps an expression in a box.
+    pub fn box_statement(&self, statement: impl IntoStatementBox, start_position: usize) -> StatementBox {
+        statement.into_statement_box(self.span(start_position), self.file_id)
+    }
+
     /// Creates a [Span] from the given position up until the pilot's current
     /// position.
     #[cfg(not(test))]
-    pub fn span(&mut self, start: usize) -> Span {
+    fn span(&self, start: usize) -> Span {
         Span(start, self.cursor + 1)
     }
 
     #[cfg(test)]
-    pub fn span(&self, _start: usize) -> Span {
+    fn span(&self, _start: usize) -> Span {
         Span::default()
     }
 
     /// Creates a new parse error report based on the the provided ParseError and current state.
     pub fn report(&self, parse_error: ParseError, start_position: usize) -> ParseErrorReport {
-        ParseErrorReport::new(parse_error, Span(start_position, self.cursor), self.file_id)
+        ParseErrorReport::new(parse_error, self.span(start_position), self.file_id)
     }
+}
 
+// Recursive descent
+impl Parser {
     pub(super) fn statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
         match self.peek()? {
             Token::Macro(_, _, _) => self.macro_declaration(),
@@ -91,7 +105,7 @@ impl Parser {
                 } else {
                     Macro::new(name, body)
                 };
-                Ok(mac.into_statement_box(self.span(start)))
+                Ok(self.box_statement(mac, start))
             }
             token => Err(self.report(ParseError::UnexpectedToken(token), start)),
         }
@@ -123,7 +137,7 @@ impl Parser {
         // GM accepts semicolons here, and as such, so do we.
         // FIXME: create an infastrucutre such that we can lint this?
         self.match_take_repeating(Token::SemiColon);
-        Ok(gml_enum.into_statement_box(self.span(start)))
+        Ok(self.box_statement(gml_enum, start))
     }
 
     fn try_catch(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -138,7 +152,7 @@ impl Parser {
         } else {
             TryCatch::new(try_body, catch_expr, catch_body)
         };
-        Ok(try_catch.into_statement_box(self.span(start)))
+        Ok(self.box_statement(try_catch, start))
     }
 
     fn for_loop(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -151,7 +165,7 @@ impl Parser {
         let tick = self.statement()?;
         self.match_take(Token::RightParenthesis);
         let body = self.statement()?;
-        Ok(ForLoop::new(initializer, condition, tick, body).into_statement_box(self.span(start)))
+        Ok(self.box_statement(ForLoop::new(initializer, condition, tick, body), start))
     }
 
     fn with(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -159,7 +173,7 @@ impl Parser {
         self.require(Token::With)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(WithLoop::new(condition, body).into_statement_box(self.span(start)))
+        Ok(self.box_statement(WithLoop::new(condition, body), start))
     }
 
     fn repeat(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -167,7 +181,7 @@ impl Parser {
         self.require(Token::Repeat)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(RepeatLoop::new(condition, body).into_statement_box(self.span(start)))
+        Ok(self.box_statement(RepeatLoop::new(condition, body), start))
     }
 
     fn do_until(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -177,7 +191,7 @@ impl Parser {
         self.require(Token::Until)?;
         let condition = self.expression()?;
         self.match_take_repeating(Token::SemiColon);
-        Ok(DoUntil::new(body, condition).into_statement_box(self.span(start)))
+        Ok(self.box_statement(DoUntil::new(body, condition), start))
     }
 
     fn while_loop(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -185,7 +199,7 @@ impl Parser {
         self.require(Token::While)?;
         let condition = self.expression()?;
         let body = self.statement()?;
-        Ok(If::new(condition, body).into_statement_box(self.span(start)))
+        Ok(self.box_statement(If::new(condition, body), start))
     }
 
     fn if_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -199,13 +213,15 @@ impl Parser {
         } else {
             None
         };
-        Ok(If {
-            condition,
-            body,
-            else_statement,
-            uses_then_keyword: then.is_some(),
-        }
-        .into_statement_box(self.span(start)))
+        Ok(self.box_statement(
+            If {
+                condition,
+                body,
+                else_statement,
+                uses_then_keyword: then.is_some(),
+            },
+            start,
+        ))
     }
 
     fn switch(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -249,7 +265,7 @@ impl Parser {
                 }
             }
         }
-        Ok(Switch::new(expression, members, default).into_statement_box(self.span(start)))
+        Ok(self.box_statement(Switch::new(expression, members, default), start))
     }
 
     fn block(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -264,7 +280,10 @@ impl Parser {
             }
         };
         self.match_take_repeating(Token::SemiColon);
-        Ok(Block::new(statements, Some((opening_delimeter, closing_delimiter))).into_statement_box(self.span(start)))
+        Ok(self.box_statement(
+            Block::new(statements, Some((opening_delimeter, closing_delimiter))),
+            start,
+        ))
     }
 
     fn return_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -272,28 +291,28 @@ impl Parser {
         self.require(Token::Return)?;
         let expression = self.expression().ok();
         self.match_take_repeating(Token::SemiColon);
-        Ok(Return::new(expression).into_statement_box(self.span(start)))
+        Ok(self.box_statement(Return::new(expression), start))
     }
 
     fn break_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
         let start = self.next_token_boundary();
         self.require(Token::Break)?;
         self.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Break.into_statement_box(self.span(start)))
+        Ok(self.box_statement(Statement::Break, start))
     }
 
     fn continue_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
         let start = self.next_token_boundary();
         self.require(Token::Continue)?;
         self.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Continue.into_statement_box(self.span(start)))
+        Ok(self.box_statement(Statement::Continue, start))
     }
 
     fn exit(&mut self) -> Result<StatementBox, ParseErrorReport> {
         let start = self.next_token_boundary();
         self.require(Token::Exit)?;
         self.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Exit.into_statement_box(self.span(start)))
+        Ok(self.box_statement(Statement::Exit, start))
     }
 
     fn globalvar_declaration(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -301,7 +320,7 @@ impl Parser {
         self.require(Token::Globalvar)?;
         let name = self.require_identifier()?;
         self.match_take_repeating(Token::SemiColon);
-        Ok(Globalvar::new(name).into_statement_box(self.span(start)))
+        Ok(self.box_statement(Globalvar::new(name), start))
     }
 
     fn local_variable_series(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -310,11 +329,11 @@ impl Parser {
         let mut declarations = vec![];
         loop {
             let name = self.require_identifier()?;
-            let left = Identifier::new(name).into_expression_box(self.span(start));
+            let left = self.box_expression(Identifier::new(name), start);
             let local_variable = if let Some(equal) = self.match_take(Token::Equal) {
+                let right = self.expression()?;
                 LocalVariable::Initialized(
-                    Assignment::new(left, AssignmentOperator::Equal(equal), self.expression()?)
-                        .into_statement_box(self.span(start)),
+                    self.box_statement(Assignment::new(left, AssignmentOperator::Equal(equal), right), start),
                 )
             } else {
                 LocalVariable::Uninitialized(left)
@@ -333,7 +352,7 @@ impl Parser {
             }
         }
         self.match_take_repeating(Token::SemiColon);
-        Ok(LocalVariableSeries::new(declarations).into_statement_box(self.span(start)))
+        Ok(self.box_statement(LocalVariableSeries::new(declarations), start))
     }
 
     fn assignment(&mut self) -> Result<StatementBox, ParseErrorReport> {
@@ -366,7 +385,7 @@ impl Parser {
         ) {
             Err(self.report(ParseError::InvalidAssignmentTarget(assignment.left), start))
         } else {
-            Ok(assignment.into_statement_box(self.span(start)))
+            Ok(self.box_statement(assignment, start))
         }
     }
 
@@ -391,7 +410,7 @@ impl Parser {
             }
         }
         self.match_take_repeating(Token::SemiColon);
-        Ok(Statement::Expression(expression).into_statement_box(self.span(start)))
+        Ok(self.box_statement(Statement::Expression(expression), start))
     }
 
     pub(super) fn expression(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
@@ -404,7 +423,7 @@ impl Parser {
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_logical_operator()) {
             self.take()?;
             let right = self.logical()?;
-            Ok(Logical::new(expression, operator, right).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Logical::new(expression, operator, right), start))
         } else {
             Ok(expression)
         }
@@ -416,7 +435,7 @@ impl Parser {
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_equality_operator()) {
             self.take()?;
             let right = self.equality()?;
-            Ok(Equality::new(expression, operator, right).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Equality::new(expression, operator, right), start))
         } else {
             Ok(expression)
         }
@@ -440,7 +459,7 @@ impl Parser {
         {
             self.take()?;
             let right = self.binary()?;
-            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Evaluation::new(expression, operator, right), start))
         } else {
             Ok(expression)
         }
@@ -462,7 +481,7 @@ impl Parser {
         {
             self.take()?;
             let right = self.bitshift()?;
-            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Evaluation::new(expression, operator, right), start))
         } else {
             Ok(expression)
         }
@@ -484,7 +503,7 @@ impl Parser {
         {
             self.take()?;
             let right = self.addition()?;
-            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Evaluation::new(expression, operator, right), start))
         } else {
             Ok(expression)
         }
@@ -509,7 +528,7 @@ impl Parser {
         {
             self.take()?;
             let right = self.multiplication()?;
-            Ok(Evaluation::new(expression, operator, right).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Evaluation::new(expression, operator, right), start))
         } else {
             Ok(expression)
         }
@@ -520,7 +539,7 @@ impl Parser {
         if let Some(operator) = self.peek()?.as_unary_operator() {
             self.take()?;
             let right = self.expression()?;
-            Ok(Unary::new(operator, right).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Unary::new(operator, right), start))
         } else {
             self.postfix()
         }
@@ -531,7 +550,7 @@ impl Parser {
         let expression = self.null_coalecence()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_operator()) {
             self.take()?;
-            Ok(Postfix::new(expression, operator).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Postfix::new(expression, operator), start))
         } else {
             Ok(expression)
         }
@@ -542,7 +561,7 @@ impl Parser {
         let expression = self.ternary()?;
         if self.match_take(Token::DoubleInterrobang).is_some() {
             let value = self.expression()?;
-            Ok(NullCoalecence::new(expression, value).into_expression_box(self.span(start)))
+            Ok(self.box_expression(NullCoalecence::new(expression, value), start))
         } else {
             Ok(expression)
         }
@@ -555,7 +574,7 @@ impl Parser {
             let true_value = self.expression()?;
             self.require(Token::Colon)?;
             let false_value = self.expression()?;
-            Ok(Ternary::new(expression, true_value, false_value).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Ternary::new(expression, true_value, false_value), start))
         } else {
             Ok(expression)
         }
@@ -605,13 +624,15 @@ impl Parser {
                 None
             };
             let body = self.block()?;
-            Ok(Function {
-                name,
-                parameters,
-                constructor,
-                body,
-            }
-            .into_expression_box(self.span(start)))
+            Ok(self.box_expression(
+                Function {
+                    name,
+                    parameters,
+                    constructor,
+                    body,
+                },
+                start,
+            ))
         } else {
             self.literal()
         }
@@ -621,12 +642,12 @@ impl Parser {
         let start = self.next_token_boundary();
         if let Some(literal) = self.peek()?.to_literal() {
             self.take()?;
-            Ok(literal.into_expression_box(self.span(start)))
+            Ok(self.box_expression(literal, start))
         } else if self.match_take(Token::LeftSquareBracket).is_some() {
             let mut elements = vec![];
             loop {
                 if self.match_take(Token::RightSquareBracket).is_some() {
-                    break Ok(Literal::Array(elements).into_expression_box(self.span(start)));
+                    break Ok(self.box_expression(Literal::Array(elements), start));
                 } else {
                     elements.push(self.expression()?);
                     self.match_take(Token::Comma);
@@ -642,7 +663,7 @@ impl Parser {
                     .match_take_possibilities(&[Token::RightBrace, Token::End])
                     .is_some()
                 {
-                    break Ok(Literal::Struct(elements).into_expression_box(self.span(start)));
+                    break Ok(self.box_expression(Literal::Struct(elements), start));
                 } else {
                     let name = self.require_identifier()?;
                     self.require(Token::Colon)?;
@@ -697,12 +718,14 @@ impl Parser {
                 }
             }
         }
-        Ok(Call {
-            left,
-            arguments,
-            uses_new,
-        }
-        .into_expression_box(self.span(start)))
+        Ok(self.box_expression(
+            Call {
+                left,
+                arguments,
+                uses_new,
+            },
+            start,
+        ))
     }
 
     fn dot_access(&mut self, expression: Option<ExpressionBox>) -> Result<ExpressionBox, ParseErrorReport> {
@@ -731,7 +754,7 @@ impl Parser {
                     } else {
                         // Using self as a referencce!
                         // FIXME: this gives me bad vibes and I feel like is a sign of bad architecting
-                        return Ok(Identifier::new("self").into_expression_box(self.span(start)));
+                        return Ok(self.box_expression(Identifier::new("self"), start));
                     }
                 }
                 Token::Other => {
@@ -743,7 +766,7 @@ impl Parser {
                     } else {
                         // Using other as a reference!
                         // FIXME: me too!
-                        return Ok(Identifier::new("other").into_expression_box(self.span(start)));
+                        return Ok(self.box_expression(Identifier::new("other"), start));
                     }
                 }
                 _ => {
@@ -759,7 +782,7 @@ impl Parser {
                 }
             }
         };
-        Ok(access.into_expression_box(self.span(start)))
+        Ok(self.box_expression(access, start))
     }
 
     fn ds_access(&mut self, left: Option<ExpressionBox>) -> Result<ExpressionBox, ParseErrorReport> {
@@ -824,7 +847,7 @@ impl Parser {
             }
         };
         self.require(Token::RightSquareBracket)?;
-        Ok(access.into_expression_box(self.span(start)))
+        Ok(self.box_expression(access, start))
     }
 
     fn grouping(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
@@ -832,7 +855,7 @@ impl Parser {
         if self.match_take(Token::LeftParenthesis).is_some() {
             let expression = self.expression()?;
             self.require(Token::RightParenthesis)?;
-            Ok(Grouping::new(expression).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Grouping::new(expression), start))
         } else {
             self.identifier()
         }
@@ -847,7 +870,7 @@ impl Parser {
         let peek = self.peek()?;
         if let Some(lexeme) = peek.as_identifier().map(|s| s.to_string()) {
             self.take()?;
-            Ok(Identifier::new(lexeme).into_expression_box(self.span(start)))
+            Ok(self.box_expression(Identifier::new(lexeme), start))
         } else {
             self.unexpected_token()
         }

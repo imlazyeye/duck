@@ -1,6 +1,9 @@
-use crate::parse::{
-    Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Return, Span,
-    Switch, TryCatch, WhileLoop, WithLoop,
+use crate::{
+    parse::{
+        Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Macro, RepeatLoop, Return,
+        Span, Switch, TryCatch, WhileLoop, WithLoop,
+    },
+    FileId,
 };
 
 use super::Assignment;
@@ -132,18 +135,22 @@ impl Statement {
 /// A wrapper around a Statement. Serves a few purposes:
 ///
 /// 1. Prevents infinite-sizing issues on [Statement] (type T cannot itself directly hold another T)
-/// 2. Contains the [Span] that describes where this statement came from
+/// 2. Contains the span that describes where this statement came from
 /// 3. In the future, will hold static-analysis data
 #[derive(Debug, PartialEq, Clone)]
-pub struct StatementBox(Box<Statement>, Span);
+pub struct StatementBox(Box<Statement>, Span, FileId);
 impl StatementBox {
     /// Returns a reference to the inner statement.
     pub fn statement(&self) -> &Statement {
         self.0.as_ref()
     }
-    /// Returns a reference to the [Span] this statement originates from.
+    /// Returns the span this statement originates from.
     pub fn span(&self) -> Span {
         self.1
+    }
+    /// Returns the file id this statement originates from.
+    pub fn file_id(&self) -> FileId {
+        self.2
     }
 }
 
@@ -152,9 +159,9 @@ impl StatementBox {
 ///
 /// TODO: This could be a derive macro!
 pub trait IntoStatementBox: Sized + Into<Statement> {
-    /// Converts self into an statement box with a provided span.
-    fn into_statement_box(self, span: Span) -> StatementBox {
-        StatementBox(Box::new(self.into()), span)
+    /// Converts self into an statement box.
+    fn into_statement_box(self, span: Span, file_id: FileId) -> StatementBox {
+        StatementBox(Box::new(self.into()), span, file_id)
     }
 
     /// Converts self into an statement box with a default span. Used in tests, where all spans are
@@ -163,7 +170,7 @@ pub trait IntoStatementBox: Sized + Into<Statement> {
     where
         Self: Sized,
     {
-        self.into_statement_box(Default::default())
+        self.into_statement_box(Default::default(), 0)
     }
 }
 
