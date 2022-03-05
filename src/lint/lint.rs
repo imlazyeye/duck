@@ -2,8 +2,9 @@ use crate::{
     analyze::GlobalScope,
     parse::{Expression, Span, Statement},
     utils::FilePreviewUtil,
-    Config,
+    Config, FileId,
 };
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use colored::Colorize;
 
 /// An individual lint in duck.
@@ -151,50 +152,37 @@ pub struct LintReport {
     pub(super) span: Span,
 }
 impl LintReport {
-    /// Generates a string out of a lint report to be displayed to the user.
-    pub fn generate_string(&self, config: &Config, preview: &FilePreviewUtil) -> String {
+    /// Generates a Diagnostic out of a lint report to be displayed to the user.
+    pub fn generate_diagnostic(&self, config: &Config, file_id: FileId) -> Diagnostic<FileId> {
         let level = config.get_lint_level_setting(self.tag, self.default_level);
-        let level_string = match *level {
-            LintLevel::Allow => "allowed".bright_black().bold(), // I dunno why you'd ever do
-            // this, but for now I don't
-            // wanna crash...
-            LintLevel::Warn => "warning".yellow().bold(),
-            LintLevel::Deny => "error".bright_red().bold(),
-        };
-        let path_message = preview.path_message();
-        let snippet_message = preview.snippet_message();
-        let show_suggestions = true;
-        let suggestion_message = if show_suggestions {
-            let mut suggestions: Vec<String> = self.suggestions.clone();
-            suggestions.push(format!(
-                "Ignore this by placing `// #[allow({})]` above this code",
-                self.tag,
-            ));
-            format!(
-                "\n\n {}: You can resolve this by doing one of the following:\n{}",
-                "suggestions".bold(),
-                suggestions
-                    .iter()
-                    .enumerate()
-                    .map(|(i, suggestion)| format!("  {}: {}\n", i + 1, suggestion))
-                    .collect::<String>(),
-            )
-        } else {
-            "".into()
-        };
-        let note_message = match level {
-            LintLevelSetting::Default(_) => "",
-            LintLevelSetting::CodeSpecified(_) => "\n note: This lint was requested by the line above it.\n",
-            LintLevelSetting::ConfigSpecified(_) => "\n note: This lint was activated by your config,\n",
+        let mut suggestions: Vec<String> = self
+            .suggestions
+            .iter()
+            .map(|v| format!("{}: {}", "Hint".bold(), v))
+            .collect();
+        suggestions.push(format!(
+            "Ignore this by placing `// #[allow({})]` above this code or by adjusting your config's settings.",
+            self.tag,
+        ));
+        match *level {
+            LintLevel::Allow => Diagnostic::note(),
+            LintLevel::Warn => Diagnostic::warning(),
+            LintLevel::Deny => Diagnostic::error(),
         }
-        .to_string()
-        .bold()
-        .bright_black();
-        format!(
-            "{}: {}\n{path_message}\n{snippet_message}{suggestion_message}{note_message}\n",
-            level_string,
-            self.display_name.bright_white(),
-        )
+        .with_message(&self.display_name)
+        .with_labels(vec![Label::primary(file_id, self.span.0..self.span.1)])
+        .with_notes(suggestions)
+
+        // TODO: Point to the line in the user's config, or the lint tag that activated this
+        // match level {
+        //     LintLevelSetting::Default(_) => {}
+        //     LintLevelSetting::CodeSpecified(_) => {
+        //         diagnostic.with_labels(vec!["This lint was requested by the line above
+        // it.".into()]);     }
+        //     LintLevelSetting::ConfigSpecified(_) => {
+        //         diagnostic.with_labels(vec!["This lint was activated by your config.".into()]);
+        //     }
+        // }
     }
 
     /// Get the lint report's tag.

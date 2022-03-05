@@ -36,7 +36,7 @@ impl EarlyExpressionPass for NonConstantDefaultParameter {
                         Self::report(
                             "Non constant default parameter",
                             ["Create a seperated function for when this value is not provided".into()],
-                            span,
+                            expression.span(),
                             reports,
                         )
                     }

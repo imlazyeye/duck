@@ -4,8 +4,11 @@ use crate::{
         collection::*, EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, Lint, LintLevel,
         LintReport,
     },
-    parse::{Ast, Expression, ExpressionBox, ParseError, ParseVisitor, Parser, Span, Statement, StatementBox},
-    Config,
+    parse::{
+        Ast, Expression, ExpressionBox, ParseError, ParseErrorReport, ParseVisitor, Parser, Span, Statement,
+        StatementBox,
+    },
+    Config, FileId,
 };
 use std::path::Path;
 
@@ -67,15 +70,8 @@ impl DuckOperation {
     /// ### Errors
     ///
     /// Returns a [ParseError] if the parsing was unsuccessful.
-    pub fn parse_gml(source_code: &str, path: &Path) -> Result<Ast, ParseError> {
-        let mut source: &'static str = Box::leak(Box::new(source_code.to_string()));
-        let ast = Parser::new(source, path.to_path_buf()).into_ast();
-        // SAFETY: to dance around the borrow checker, we leak the inputted string and then
-        // restore it to memory here in order to not actually leak the memory.
-        unsafe {
-            drop(Box::from_raw(&mut source));
-        }
-        ast
+    pub fn parse_gml(source_code: &'static str, file_id: &FileId) -> Result<Ast, ParseErrorReport> {
+        Parser::new(source_code, *file_id).into_ast()
     }
 
     /// Runs a [Statement] through the early pass, running any lint that

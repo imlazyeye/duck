@@ -1,4 +1,5 @@
 use clap::Parser;
+use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use colored::Colorize;
 use duck::{
     lint::{collection::*, Lint},
@@ -56,23 +57,19 @@ async fn run_lint(
     let total_duration = timer.elapsed();
 
     // Output the results
-    println!(
-        "{}",
-        run_summary
-            .iter_lint_reports()
-            .map(|(path, gml, report)| {
-                report.generate_string(
-                    duck.config(),
-                    &FilePreviewUtil::new(gml, path.to_str().unwrap(), report.span().0),
-                )
-            })
-            .collect::<String>()
-    );
-    run_summary.parse_errors().iter().for_each(|(path, file, error)| {
-        println!(
-            "{}",
-            error.generate_report(&FilePreviewUtil::new(file, path.to_str().unwrap(), error.span().0))
+    let writer = StandardStream::stderr(if color { ColorChoice::Always } else { ColorChoice::Auto });
+    let config = codespan_reporting::term::Config::default();
+    for (file_id, report) in run_summary.iter_lint_reports() {
+        codespan_reporting::term::emit(
+            &mut writer.lock(),
+            &config,
+            run_summary.files(),
+            &report.generate_diagnostic(duck.config(), *file_id),
         )
+        .unwrap();
+    }
+    run_summary.parse_errors().iter().for_each(|error| {
+        codespan_reporting::term::emit(&mut writer.lock(), &config, run_summary.files(), &error.diagnostic()).unwrap();
     });
 
     let seperation_string = String::from_utf8(vec![b'-'; 50]).unwrap();

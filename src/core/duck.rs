@@ -1,9 +1,9 @@
 use crate::{
-    Config,
     lint::{LintLevel, LintReport},
-    parse::ParseError,
-    DuckTask,
+    parse::{ParseError, ParseErrorReport},
+    Config, DuckTask, FileId,
 };
+use codespan_reporting::files::SimpleFiles;
 use enum_map::EnumMap;
 use std::{
     path::{Path, PathBuf},
@@ -73,12 +73,13 @@ impl Duck {
         let late_pass_reports = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
-        let (line_count, io_errors) = file_handle.await?;
+        let (line_count, files, io_errors) = file_handle.await?;
         let parse_errors = parse_handle.await?;
 
         // Return the result!
         Ok(RunSummary::new(
             self.config(),
+            files,
             late_pass_reports,
             parse_errors,
             io_errors,
@@ -107,30 +108,30 @@ impl Duck {
 
 /// The data returned by calling [Duck::run].
 pub struct RunSummary {
-    report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>>,
-    parse_errors: Vec<(PathBuf, String, ParseError)>,
+    report_collection: EnumMap<LintLevel, Vec<(FileId, LintReport)>>,
+    files: SimpleFiles<String, &'static str>,
+    parse_errors: Vec<ParseErrorReport>,
     io_errors: Vec<std::io::Error>,
     lines_parsed: usize,
 }
 impl RunSummary {
     fn new(
         config: &Config,
-        lint_reports: Vec<(PathBuf, String, Vec<LintReport>)>,
-        parse_errors: Vec<(PathBuf, String, ParseError)>,
+        files: SimpleFiles<String, &'static str>,
+        lint_reports: Vec<(FileId, Vec<LintReport>)>,
+        parse_errors: Vec<ParseErrorReport>,
         io_errors: Vec<std::io::Error>,
         lines_parsed: usize,
     ) -> Self {
-        let mut report_collection: EnumMap<LintLevel, Vec<(PathBuf, String, LintReport)>> = EnumMap::default();
-        for (path, gml, reports) in lint_reports {
+        let mut report_collection: EnumMap<LintLevel, Vec<(FileId, LintReport)>> = EnumMap::default();
+        for (file_id, reports) in lint_reports {
             for report in reports {
-                report_collection[*config.get_lint_level_setting(report.tag(), report.default_level())].push((
-                    path.clone(),
-                    gml.clone(),
-                    report,
-                ));
+                report_collection[*config.get_lint_level_setting(report.tag(), report.default_level())]
+                    .push((file_id, report));
             }
         }
         Self {
+            files,
             report_collection,
             parse_errors,
             io_errors,
@@ -149,14 +150,14 @@ impl RunSummary {
     }
 
     /// Returns an iterator over all of the lint reports.
-    pub fn iter_lint_reports(&self) -> impl Iterator<Item = &(PathBuf, String, LintReport)> {
+    pub fn iter_lint_reports(&self) -> impl Iterator<Item = &(FileId, LintReport)> {
         self.report_collection[LintLevel::Warn]
             .iter()
             .chain(self.report_collection[LintLevel::Deny].iter())
     }
 
     /// Get a reference to the run result's parse errors.
-    pub fn parse_errors(&self) -> &[(PathBuf, String, ParseError)] {
+    pub fn parse_errors(&self) -> &[ParseErrorReport] {
         self.parse_errors.as_ref()
     }
 
@@ -168,5 +169,10 @@ impl RunSummary {
     /// Get the run result's lines parsed.
     pub fn lines_parsed(&self) -> usize {
         self.lines_parsed
+    }
+
+    /// Get a reference to the run summary's files.
+    pub fn files(&self) -> &SimpleFiles<String, &'static str> {
+        &self.files
     }
 }

@@ -2,10 +2,11 @@ use crate::{
     analyze::{GlobalScope, GlobalScopeBuilder},
     core::DuckOperation,
     lint::LintReport,
-    parse::{Ast, ParseError, StatementBox},
+    parse::{Ast, ParseError, ParseErrorReport, StatementBox},
     Config,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
+use codespan_reporting::files::SimpleFiles;
 use futures::StreamExt;
 use std::{
     path::{Path, PathBuf},
@@ -69,21 +70,27 @@ impl DuckTask {
     #[allow(clippy::type_complexity)] // yeah yeah i'll make it better eventually
     pub fn start_file_load(
         mut path_receiver: Receiver<PathBuf>,
-    ) -> (Receiver<(PathBuf, String)>, JoinHandle<(usize, Vec<std::io::Error>)>) {
-        let (file_sender, file_receiver) = channel::<(PathBuf, String)>(1000);
+    ) -> (
+        Receiver<(FileId, &'static str)>,
+        JoinHandle<(usize, SimpleFiles<String, &'static str>, Vec<std::io::Error>)>,
+    ) {
+        let (file_sender, file_receiver) = channel::<(FileId, &'static str)>(1000);
         let handle = tokio::task::spawn(async move {
+            let mut files = SimpleFiles::new();
             let mut io_errors = vec![];
             let mut lines = 0;
             while let Some(path) = path_receiver.recv().await {
                 match tokio::fs::read_to_string(&path).await {
                     Ok(gml) => {
+                        let gml: &'static str = Box::leak(Box::new(gml));
                         lines += gml.lines().count();
-                        file_sender.send((path, gml)).await.unwrap();
+                        let file_id = files.add(path.to_str().unwrap().to_string(), gml);
+                        file_sender.send((file_id, gml)).await.unwrap();
                     }
                     Err(io_error) => io_errors.push(io_error),
                 };
             }
-            (lines, io_errors)
+            (lines, files, io_errors)
         });
         (file_receiver, handle)
     }
@@ -95,15 +102,15 @@ impl DuckTask {
     /// ### Panics
     /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_parse(
-        mut file_receiver: Receiver<(PathBuf, String)>,
-    ) -> (Receiver<ParseReport>, JoinHandle<ParseErrorCollection>) {
-        let (ast_sender, ast_receiver) = channel::<(PathBuf, String, Ast)>(1000);
+        mut file_receiver: Receiver<(FileId, &'static str)>,
+    ) -> (Receiver<ParseReport>, JoinHandle<Vec<ParseErrorReport>>) {
+        let (ast_sender, ast_receiver) = channel::<(FileId, Ast)>(1000);
         let handle = tokio::task::spawn(async move {
             let mut parse_errors = vec![];
-            while let Some((path, gml)) = file_receiver.recv().await {
-                match DuckOperation::parse_gml(&gml, &path) {
-                    Ok(ast) => ast_sender.send((path, gml, ast)).await.unwrap(),
-                    Err(parse_error) => parse_errors.push((path, gml, parse_error)),
+            while let Some((file_id, gml)) = file_receiver.recv().await {
+                match DuckOperation::parse_gml(gml, &file_id) {
+                    Ok(ast) => ast_sender.send((file_id, ast)).await.unwrap(),
+                    Err(parse_error) => parse_errors.push(parse_error),
                 }
             }
             parse_errors
@@ -119,15 +126,14 @@ impl DuckTask {
     /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_early_pass(
         config: Arc<Config>,
-        mut ast_receiever: Receiver<(PathBuf, String, Ast)>,
+        mut ast_receiever: Receiver<(FileId, Ast)>,
     ) -> (Receiver<EarlyPassEntry>, JoinHandle<()>) {
         let (early_pass_sender, early_pass_receiver) = channel::<EarlyPassEntry>(1000);
         let handle = tokio::task::spawn(async move {
-            while let Some((path, gml, ast)) = ast_receiever.recv().await {
+            while let Some((path, ast)) = ast_receiever.recv().await {
                 for statement in ast {
                     let config = config.clone();
-                    let gml = gml.clone();
-                    let path = path.clone();
+                    let file_id = path.clone();
                     let sender = early_pass_sender.clone();
                     tokio::task::spawn(async move {
                         let mut reports = vec![];
@@ -138,10 +144,7 @@ impl DuckTask {
                             &mut scope_builder,
                             &mut reports,
                         );
-                        sender
-                            .send((path, gml, statement, scope_builder, reports))
-                            .await
-                            .unwrap();
+                        sender.send((file_id, statement, scope_builder, reports)).await.unwrap();
                     });
                 }
             }
@@ -159,9 +162,9 @@ impl DuckTask {
         tokio::task::spawn(async move {
             let mut pass_two_queue = vec![];
             let mut global_scope = GlobalScope::new();
-            while let Some((path, gml, statement, scope_builder, reports)) = early_pass_receiever.recv().await {
+            while let Some((file_id, statement, scope_builder, reports)) = early_pass_receiever.recv().await {
                 global_scope.drain(scope_builder);
-                pass_two_queue.push((path, gml, statement, reports));
+                pass_two_queue.push((file_id, statement, reports));
             }
             (pass_two_queue, global_scope)
         })
@@ -178,9 +181,9 @@ impl DuckTask {
         iterations: Vec<LatePassEntry>,
         global_environemnt: GlobalScope,
     ) -> JoinHandle<LintReportCollection> {
-        let (lint_report_sender, mut lint_report_reciever) = channel::<(PathBuf, String, Vec<LintReport>)>(1000);
+        let (lint_report_sender, mut lint_report_reciever) = channel::<(FileId, Vec<LintReport>)>(1000);
         let global_environment = Arc::new(global_environemnt);
-        for (path, gml, statement, mut lint_reports) in iterations {
+        for (file_id, statement, mut lint_reports) in iterations {
             let sender = lint_report_sender.clone();
             let global_environment = global_environment.clone();
             let config = config.clone();
@@ -191,29 +194,32 @@ impl DuckTask {
                     global_environment.as_ref(),
                     &mut lint_reports,
                 );
-                sender.send((path, gml, lint_reports)).await.unwrap();
+                sender.send((file_id, lint_reports)).await.unwrap();
             });
         }
         tokio::task::spawn(async move {
             let mut lint_reports: LintReportCollection = vec![];
-            while let Some(values) = lint_report_reciever.recv().await {
-                lint_reports.push(values);
+            while let Some((file_id, reports)) = lint_report_reciever.recv().await {
+                lint_reports.push((file_id, reports));
             }
             lint_reports
         })
     }
 }
 
-/// The returned data from successful parses.
-pub type ParseReport = (PathBuf, String, Ast);
+/// A wrapper around `usize`, which `codespan-reporting` uses as an id for files. Just used to help
+/// with readability. The returned data from successful parses.
+pub type FileId = usize;
+/// The returend data from a parse.
+pub type ParseReport = (FileId, Ast);
 /// The returned data from unsuccessful parses.
-pub type ParseErrorCollection = Vec<(PathBuf, String, ParseError)>;
+pub type ParseErrorCollection = Vec<ParseError>;
 /// An individual statement's data to be sent to the early pass.
-pub type EarlyPassEntry = (PathBuf, String, StatementBox, GlobalScopeBuilder, Vec<LintReport>);
+pub type EarlyPassEntry = (FileId, StatementBox, GlobalScopeBuilder, Vec<LintReport>);
 /// An individual statement's data to be sent to the late pass.
-pub type LatePassEntry = (PathBuf, String, StatementBox, Vec<LintReport>);
+pub type LatePassEntry = (FileId, StatementBox, Vec<LintReport>);
 /// A collection of [LintReports] and corresponding data.. Each entry in the
 /// collection correlates to a single statement, containing the path to the file
 /// it is from, the source of that file, and a collection of each [LintReport]
 /// it triggered.
-pub type LintReportCollection = Vec<(PathBuf, String, Vec<LintReport>)>;
+pub type LintReportCollection = Vec<(FileId, Vec<LintReport>)>; // TODO: make FileId live in the Boxes

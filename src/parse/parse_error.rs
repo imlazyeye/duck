@@ -1,28 +1,53 @@
 use super::{ExpressionBox, Span, Token};
-use crate::utils::FilePreviewUtil;
+use crate::{utils::FilePreviewUtil, FileId};
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use colored::Colorize;
 
+/// A [ParseError] coupled with information about where the error originated.
+#[derive(Debug, PartialEq, Clone)]
+pub struct ParseErrorReport {
+    parse_error: ParseError,
+    span: Span,
+    file_id: FileId,
+}
+impl ParseErrorReport {
+    /// Creates a new parse error report.
+    pub fn new(parse_error: ParseError, span: Span, file_id: FileId) -> Self {
+        Self {
+            parse_error,
+            span,
+            file_id,
+        }
+    }
+
+    /// Converts the parse error report into a diagnostic.
+    pub fn diagnostic(&self) -> Diagnostic<FileId> {
+        Diagnostic::error()
+            .with_message(self.parse_error.error_message())
+            .with_labels(vec![Label::primary(self.file_id, self.span.0..self.span.1)])
+    }
+}
 /// The various errors that can be encountered when we parse gml.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ParseError {
     /// A token was encountered that was not expected in the current context.
-    UnexpectedToken(Span, Token),
+    UnexpectedToken(Token),
     /// A token was required in the current context that was not found.
-    ExpectedToken(Span, Token),
+    ExpectedToken(Token),
     /// One of a collection of tokens were required in the current context that was not found.
-    ExpectedTokens(Span, Vec<Token>),
+    ExpectedTokens(Vec<Token>),
     /// An assignment was made to an invalid expression.
     ///
     /// ### Example
     /// ```gml
     /// !foo = 0; // `!foo` yields a value (boolean), and values cannot be assigned to.
     /// ```
-    InvalidAssignmentTarget(Span, ExpressionBox),
+    InvalidAssignmentTarget(ExpressionBox),
     /// A only contains an expression that can not be a statement on its own.
-    IncompleteStatement(Span, ExpressionBox),
+    IncompleteStatement(ExpressionBox),
     /// The source of gml ended unexpectedly before a item could be successfully
     /// parsed.
-    UnexpectedEnd(Span),
+    UnexpectedEnd,
 }
 impl ParseError {
     /// Takes a [FilePreviewUtil] to create a display-ready report of the parse
@@ -37,27 +62,15 @@ impl ParseError {
         )
     }
 
-    /// Returns the span collected in the error.
-    pub fn span(&self) -> &Span {
-        match self {
-            ParseError::UnexpectedToken(span, _) => span,
-            ParseError::ExpectedToken(span, _) => span,
-            ParseError::ExpectedTokens(span, _) => span,
-            ParseError::InvalidAssignmentTarget(span, _) => span,
-            ParseError::IncompleteStatement(span, _) => span,
-            ParseError::UnexpectedEnd(span) => span,
-        }
-    }
-
     /// Returns a short message describing the error.
     fn error_message(&self) -> String {
         match self {
-            ParseError::UnexpectedToken(_, token) => format!("Unexpected token: {:?}", token),
-            ParseError::ExpectedToken(_, token) => format!("Expected token: {:?}", token),
-            ParseError::ExpectedTokens(_, tokens) => format!("Expected one of the following tokens: {:?}", tokens),
-            ParseError::InvalidAssignmentTarget(_, _) => "Invalid assignment target".into(),
-            ParseError::IncompleteStatement(_, _) => "Incomplete statement".into(),
-            ParseError::UnexpectedEnd(_) => "Unexpected end".into(),
+            ParseError::UnexpectedToken(token) => format!("Unexpected token: {:?}", token),
+            ParseError::ExpectedToken(token) => format!("Expected token: {:?}", token),
+            ParseError::ExpectedTokens(tokens) => format!("Expected one of the following tokens: {:?}", tokens),
+            ParseError::InvalidAssignmentTarget(_) => "Invalid assignment target".into(),
+            ParseError::IncompleteStatement(_) => "Incomplete statement".into(),
+            ParseError::UnexpectedEnd => "Unexpected end".into(),
         }
     }
 }
