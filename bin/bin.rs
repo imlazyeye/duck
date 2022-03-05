@@ -1,6 +1,6 @@
 use clap::Parser;
 use colored::Colorize;
-use duck::{utils::FilePreviewUtil, Config, Duck};
+use duck::{lint::Lint, lints::*, utils::FilePreviewUtil, Config, Duck};
 use num_format::{Locale, ToFormattedString};
 use std::path::{Path, PathBuf};
 
@@ -19,6 +19,7 @@ async fn main() {
             color,
         } => run_lint(path, allow_warnings, allow_errors, allow_duck_errors, color).await,
         Commands::NewConfig { template } => new_config(template.unwrap_or(ConfigTemplate::Default)),
+        Commands::Explain { lint_name } => explain_lint(lint_name),
     };
     std::process::exit(status_code);
 }
@@ -133,6 +134,57 @@ fn new_config(template: ConfigTemplate) -> i32 {
         std::fs::write(&config_path, toml::to_string(&config).unwrap()).unwrap();
         println!("Created a new configuration file at {:?}", config_path);
     }
+    0
+}
+
+fn explain_lint(name: String) -> i32 {
+    let message = match name.as_str() {
+        // @explain. Do not remove!
+        "accessor_alternative" => AccessorAlternative::explanation().into(),
+        "and_preference" => AndPreference::explanation().into(),
+        "anonymous_constructor" => AnonymousConstructor::explanation().into(),
+        "assignment_to_call" => AssignmentToCall::explanation().into(),
+        "bool_equality" => BoolEquality::explanation().into(),
+        "collapsable_if" => CollapsableIf::explanation().into(),
+        "deprecated" => Deprecated::explanation().into(),
+        "draw_sprite" => DrawSprite::explanation().into(),
+        "draw_text" => DrawText::explanation().into(),
+        "english_flavor_violation" => EnglishFlavorViolation::explanation().into(),
+        "exit" => Exit::explanation().into(),
+        "global" => Global::explanation().into(),
+        "missing_case_member" => MissingCaseMember::explanation().into(),
+        "missing_default_case" => MissingDefaultCase::explanation().into(),
+        "mod_preference" => ModPreference::explanation().into(),
+        "multi_var_declaration" => MultiVarDeclaration::explanation().into(),
+        "no_space_begining_comment" => NoSpaceBeginingComment::explanation().into(),
+        "non_constant_default_parameter" => NonConstantDefaultParameter::explanation().into(),
+        "non_pascal_case" => NonPascalCase::explanation().into(),
+        "non_scream_case" => NonScreamCase::explanation().into(),
+        "not_preference" => NotPreference::explanation().into(),
+        "or_preference" => OrPreference::explanation().into(),
+        "room_goto" => RoomGoto::explanation().into(),
+        "show_debug_message" => ShowDebugMessage::explanation().into(),
+        "single_switch_case" => SingleSwitchCase::explanation().into(),
+        "statement_parenthetical_preference" => StatementParentheticalPreference::explanation().into(),
+        "suspicious_constant_usage" => SuspicousConstantUsage::explanation().into(),
+        "todo" => Todo::explanation().into(),
+        "too_many_arguments" => TooManyArguments::explanation().into(),
+        "too_many_lines" => TooManyLines::explanation().into(),
+        "try_catch" => TryCatch::explanation().into(),
+        "var_prefix_violation" => VarPrefixViolation::explanation().into(),
+        "with_loop" => WithLoop::explanation().into(),
+        // @end explain. Do not remove!
+        _ => format!(
+            "{}: Failed to find a lint with the name '{}'!",
+            "error".bold().bright_red(),
+            name
+        ),
+    };
+    println!(
+        "{} {}: {message}",
+        "Explanation for".bright_white().bold(),
+        name.bold().bright_green()
+    );
     0
 }
 

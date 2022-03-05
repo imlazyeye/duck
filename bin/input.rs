@@ -42,6 +42,8 @@ pub enum Commands {
         #[clap(arg_enum)]
         template: Option<ConfigTemplate>,
     },
+    /// Prints the provided lint's explanation for what it does and why it may be useful.
+    Explain { lint_name: String },
 }
 
 #[derive(Parser, Debug, Copy, Clone, ArgEnum)]

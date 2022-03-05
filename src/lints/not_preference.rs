@@ -1,8 +1,8 @@
 use crate::{
-    Config,
     lint::{EarlyExpressionPass, Lint, LintLevel, LintReport},
     parsing::{Expression, Token, Unary, UnaryOperator},
     utils::Span,
+    Config,
 };
 
 #[derive(Debug, PartialEq)]
@@ -17,7 +17,7 @@ impl Lint for NotPreference {
     }
 
     fn tag() -> &'static str {
-        "or_preference"
+        "not_preference"
     }
 }
 impl EarlyExpressionPass for NotPreference {

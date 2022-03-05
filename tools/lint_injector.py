@@ -52,6 +52,20 @@ lints_md = lints_md.replace(body, new_body)
 open('../LINTS.md', 'w').write(lints_md)
 print("Finished updating LINTS.md!")
 
+# Update the bin explanations...
+bin_data = open('../bin/bin.rs', 'r').read()
+search = re.search(
+    r'( +)// @explain.+\n((\n|.)+?) +// @end explain.+', bin_data)
+tabs = search.group(1)
+old_call = search.group(2)
+new_body = ''
+for lint in lints:
+    new_body += '{tabs}{tag} => {name}::explanation().into(),\n'.format(
+        tabs=tabs, tag=lint['tag'], name=lint['name'])
+bin_data = bin_data.replace(old_call, new_body)
+open('../bin/bin.rs', 'w').write(bin_data)
+print("Finished updating bin.rs!")
+
 
 # Declare everything in the mod's file
 new_mods = '#![allow(missing_docs)]\n'
