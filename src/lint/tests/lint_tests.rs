@@ -24,12 +24,12 @@ fn harness_lint<T: Lint>(source: &str, expected_number: usize) {
     let mut reports = vec![];
     let mut scope_builder = GlobalScopeBuilder::new();
     for statement in ast.statements() {
-        DuckOperation::process_statement_early(&config, statement, &mut scope_builder, &mut reports);
+        DuckOperation::process_statement_early(statement, &mut scope_builder, &mut reports, &config);
     }
     let mut global_scope = GlobalScope::new();
     global_scope.drain(scope_builder);
     for statement in ast.statements() {
-        DuckOperation::process_statement_late(&config, statement, &global_scope, &mut reports);
+        DuckOperation::process_statement_late(statement, &global_scope, &mut reports, &config);
     }
     let writer = StandardStream::stdout(ColorChoice::Always);
     let config = codespan_reporting::term::Config::default();

@@ -22,42 +22,36 @@ use crate::{
 /// ### Usage
 /// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s
 /// directly.
-/// ```ignore
+/// ```
 /// # use duck::*;
-/// # use std::path::Path;
-/// # let gml = "show_debug_message(\"Hello world!\")";
-/// # let path = Path::new("../hello_world.gml");
-/// match DuckOperation::parse_gml("test", Path::new("test")) {
-///     Ok(ast) => {},
+/// # let gml = "show_debug_message(\"Hello world!\")".to_string();
+/// # let gml: &'static str = Box::leak(Box::new(gml));
+/// # let path = "../hello_world.gml".to_string();
+/// let mut gml_library = GmlLibrary::new();
+/// let file_id = gml_library.add(path, gml);
+/// match DuckOperation::parse_gml(gml, &file_id) {
+///     Ok(ast) => {}
 ///     Err(parse_error) => println!("Failed to parse gml: {parse_error:?}"),
 /// };
 /// ```
 ///
 /// You can also manually run the [Lint]s on these [Ast]s.
-/// ```ignore
+/// ```
 /// # use duck::*;
-/// # use std::path::Path;
 /// # let duck = Duck::default();
-/// # let path = Path::new("../test.gml");
-/// # let ast = DuckOperation::parse_gml("var a = 0;", path).unwrap();
-/// let mut gml_environment = GmlEnvironment::new();
-/// let mut lint_reports: Vec<LintReport> = vec![];
-/// let mut scope_builder = ScopeBuilder::new();
-/// DuckOperation::process_statement_early(
-///     &ast[0],
-///     &mut scope_builder,
-///     &mut lint_reports,
-///     duck.config(),
-/// );
-/// let global_id = gml_environment.global_id();
-/// let scope_id = gml_environment.new_scope(scope_builder, global_id);
-/// DuckOperation::process_statement_late(
-///     &ast[0],
-///     &gml_environment,
-///     &scope_id,
-///     &mut lint_reports,
-///     duck.config(),
-/// );
+/// # let gml = "show_debug_message(\"Hello world!\")".to_string();
+/// # let gml: &'static str = Box::leak(Box::new(gml));
+/// # let path = "../hello_world.gml".to_string();
+/// # let mut gml_library = GmlLibrary::new();
+/// # let file_id = gml_library.add(path, gml);
+/// # let ast = DuckOperation::parse_gml(gml, &file_id).unwrap();
+/// # let statement_box = ast.statements().first().unwrap();
+/// let mut global_scope = GlobalScope::new();
+/// let mut reports = vec![];
+/// let mut scope_builder = GlobalScopeBuilder::new();
+/// DuckOperation::process_statement_early(&statement_box, &mut scope_builder, &mut reports, duck.config());
+/// global_scope.drain(scope_builder);
+/// DuckOperation::process_statement_late(&statement_box, &global_scope, &mut reports, duck.config());
 /// ```
 pub struct DuckOperation;
 impl DuckOperation {
@@ -78,10 +72,10 @@ impl DuckOperation {
     /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
     /// more information.
     pub fn process_statement_early(
-        config: &Config,
         statement_box: &StatementBox,
         scope_builder: &mut GlobalScopeBuilder,
         reports: &mut Vec<Diagnostic<FileId>>,
+        config: &Config,
     ) {
         let statement = statement_box.statement();
 
@@ -110,8 +104,8 @@ impl DuckOperation {
         }
 
         // Recurse...
-        statement.visit_child_statements(|stmt| Self::process_statement_early(config, stmt, scope_builder, reports));
-        statement.visit_child_expressions(|expr| Self::process_expression_early(config, expr, scope_builder, reports));
+        statement.visit_child_statements(|stmt| Self::process_statement_early(stmt, scope_builder, reports, config));
+        statement.visit_child_expressions(|expr| Self::process_expression_early(expr, scope_builder, reports, config));
     }
 
     /// Runs an [Expression] through the early pass, running any lint that
@@ -121,10 +115,10 @@ impl DuckOperation {
     /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
     /// more information.
     pub fn process_expression_early(
-        config: &Config,
         expression_box: &ExpressionBox,
         scope_builder: &mut GlobalScopeBuilder,
         reports: &mut Vec<Diagnostic<FileId>>,
+        config: &Config,
     ) {
         let expression = expression_box.expression();
 
@@ -150,8 +144,8 @@ impl DuckOperation {
         // @end early expression calls. Do not remove this comment!
 
         // Recurse...
-        expression.visit_child_statements(|stmt| Self::process_statement_early(config, stmt, scope_builder, reports));
-        expression.visit_child_expressions(|expr| Self::process_expression_early(config, expr, scope_builder, reports));
+        expression.visit_child_statements(|stmt| Self::process_statement_early(stmt, scope_builder, reports, config));
+        expression.visit_child_expressions(|expr| Self::process_expression_early(expr, scope_builder, reports, config));
     }
 
     /// Runs a [Statement] through the late pass, running any lint that
@@ -160,10 +154,10 @@ impl DuckOperation {
     /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
     /// more information.
     pub fn process_statement_late(
-        config: &Config,
         statement_box: &StatementBox,
         global_scope: &GlobalScope,
         reports: &mut Vec<Diagnostic<FileId>>,
+        config: &Config,
     ) {
         let statement = statement_box.statement();
 
@@ -172,8 +166,8 @@ impl DuckOperation {
         // @end late statement calls. Do not remove this comment!
 
         // Recurse...
-        statement.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, global_scope, reports));
-        statement.visit_child_expressions(|expr| Self::process_expression_late(config, expr, global_scope, reports));
+        statement.visit_child_statements(|stmt| Self::process_statement_late(stmt, global_scope, reports, config));
+        statement.visit_child_expressions(|expr| Self::process_expression_late(expr, global_scope, reports, config));
     }
 
     /// Runs an [Expression] through the late pass, running any lint that
@@ -183,10 +177,10 @@ impl DuckOperation {
     /// for more information.
     #[allow(dead_code)]
     fn process_expression_late(
-        config: &Config,
         expression_box: &ExpressionBox,
         global_scope: &GlobalScope,
         reports: &mut Vec<Diagnostic<FileId>>,
+        config: &Config,
     ) {
         let expression = expression_box.expression();
         #[allow(unused_variables)]
@@ -196,8 +190,8 @@ impl DuckOperation {
         // @end late expression calls. Do not remove this comment!
 
         // Recurse...
-        expression.visit_child_statements(|stmt| Self::process_statement_late(config, stmt, global_scope, reports));
-        expression.visit_child_expressions(|expr| Self::process_expression_late(config, expr, global_scope, reports));
+        expression.visit_child_statements(|stmt| Self::process_statement_late(stmt, global_scope, reports, config));
+        expression.visit_child_expressions(|expr| Self::process_expression_late(expr, global_scope, reports, config));
     }
 
     /// Performs a given [EarlyStatementPass] on a statement.

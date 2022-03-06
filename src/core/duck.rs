@@ -58,7 +58,7 @@ impl Duck {
     pub async fn run(&self, project_directory: &Path) -> Result<RunSummary, tokio::task::JoinError> {
         // Load everything in and await through the early pass
         let config_arc = Arc::new(self.config.clone()); // TODO: this clone sucks
-        let (path_receiver, _) = DuckTask::start_gml_discovery(project_directory);
+        let (path_receiver, walker_handle) = DuckTask::start_gml_discovery(project_directory);
         let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
         let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
         let (early_receiever, _) = DuckTask::start_early_pass(config_arc.clone(), parse_receiver);
@@ -69,7 +69,8 @@ impl Duck {
         let late_pass_reports = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
-        let (line_count, library, io_errors) = file_handle.await?;
+        let (line_count, library, mut io_errors) = file_handle.await?;
+        io_errors.append(&mut walker_handle.await?);
         let parse_errors = parse_handle.await?;
 
         // Return the result!

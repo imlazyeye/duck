@@ -137,10 +137,10 @@ impl DuckTask {
                         let mut reports = vec![];
                         let mut scope_builder = GlobalScopeBuilder::new();
                         DuckOperation::process_statement_early(
-                            config.as_ref(),
                             &statement,
                             &mut scope_builder,
                             &mut reports,
+                            config.as_ref(),
                         );
                         sender.send((statement, scope_builder, reports)).await.unwrap();
                     });
@@ -187,10 +187,10 @@ impl DuckTask {
             let config = config.clone();
             tokio::task::spawn(async move {
                 DuckOperation::process_statement_late(
-                    config.as_ref(),
                     &statement,
                     global_environment.as_ref(),
                     &mut lint_reports,
+                    config.as_ref(),
                 );
                 sender.send(lint_reports).await.unwrap();
             });
