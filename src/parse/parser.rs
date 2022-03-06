@@ -44,7 +44,7 @@ impl Parser {
 
     /// Wraps an expression in a box.
     pub fn box_expression(&mut self, expression: impl IntoExpressionBox, span: Span) -> ExpressionBox {
-        expression.into_expression_box(span, self.file_id, self.lint_tag_slot.take())
+        expression.into_expression_box(span, self.file_id, self.lint_tag_slot.as_ref().cloned())
     }
 
     /// Wraps an expression in a box.

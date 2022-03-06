@@ -200,7 +200,11 @@ impl DuckOperation {
         config: &Config,
         reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
+        if statement_box
+            .lint_tag()
+            .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+            && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
+        {
             T::visit_statement_early(statement_box, config, reports);
         }
     }
@@ -211,7 +215,11 @@ impl DuckOperation {
         config: &Config,
         reports: &mut Vec<Diagnostic<FileId>>,
     ) {
-        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
+        if expression_box
+            .lint_tag()
+            .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+            && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
+        {
             T::visit_expression_early(expression_box, config, reports);
         }
     }
@@ -223,7 +231,11 @@ impl DuckOperation {
         reports: &mut Vec<Diagnostic<FileId>>,
         global_scope: &GlobalScope,
     ) {
-        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
+        if statement_box
+            .lint_tag()
+            .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+            && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
+        {
             T::visit_statement_late(statement_box, config, reports, global_scope);
         }
     }
@@ -236,7 +248,11 @@ impl DuckOperation {
         reports: &mut Vec<Diagnostic<FileId>>,
         global_scope: &GlobalScope,
     ) {
-        if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
+        if expression_box
+            .lint_tag()
+            .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+            && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
+        {
             T::visit_expression_late(expression_box, config, reports, global_scope);
         }
     }
