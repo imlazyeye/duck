@@ -30,12 +30,12 @@ impl EarlyExpressionPass for OrPreference {
         {
             if config.prefer_or_keyword() && token.token_type != TokenType::Or {
                 reports.push(Self::diagnostic(config).with_message("Use of `||`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), expression_box.span())
+                    Label::primary(expression_box.file_id(), token.span)
                         .with_message("use the `or` keyword instead of `||`"),
                 ]));
             } else if token.token_type == TokenType::Or {
                 reports.push(Self::diagnostic(config).with_message("Use of `or`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), expression_box.span())
+                    Label::primary(expression_box.file_id(), token.span)
                         .with_message("use the `||` operator instead of `or`"),
                 ]));
             }

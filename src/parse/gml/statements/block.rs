@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox, Token, TokenType};
+use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox, Token};
 
 /// Representation of a block (group of statements) in gml.
 ///
@@ -20,6 +20,7 @@ impl Block {
     /// Creates a new block with lazy, curly brace delimiters.
     #[cfg(test)]
     pub fn lazy(body: impl Into<Vec<StatementBox>>) -> Self {
+        use crate::parse::TokenType;
         Self::new(
             body.into(),
             Some((Token::lazy(TokenType::LeftBrace), Token::lazy(TokenType::RightBrace))),

@@ -30,12 +30,12 @@ impl EarlyExpressionPass for AndPreference {
         {
             if config.prefer_and_keyword() && token.token_type != TokenType::And {
                 reports.push(Self::diagnostic(config).with_message("Use of `&&`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), expression_box.span())
+                    Label::primary(expression_box.file_id(), token.span)
                         .with_message("use the `and` keyword instead of `&&`"),
                 ]));
             } else if token.token_type == TokenType::And {
                 reports.push(Self::diagnostic(config).with_message("Use of `and`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), expression_box.span())
+                    Label::primary(expression_box.file_id(), token.span)
                         .with_message("use the `&&` opreator instead of `and`"),
                 ]));
             }

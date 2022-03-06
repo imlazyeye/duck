@@ -28,7 +28,7 @@ impl EarlyExpressionPass for SingleEqualsComparison {
             operator:
                 EqualityOperator::Equal(Token {
                     token_type: TokenType::Equal,
-                    ..
+                    span,
                 }),
             ..
         }) = expression_box.expression()
@@ -37,8 +37,7 @@ impl EarlyExpressionPass for SingleEqualsComparison {
                 Self::diagnostic(config)
                     .with_message("Comparison with `=`")
                     .with_labels(vec![
-                        Label::primary(expression_box.file_id(), expression_box.span())
-                            .with_message("use `==` instead of `=`"),
+                        Label::primary(expression_box.file_id(), *span).with_message("use `==` instead of `=`"),
                     ]),
             );
         }

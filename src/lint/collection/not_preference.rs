@@ -30,12 +30,12 @@ impl EarlyExpressionPass for NotPreference {
         {
             if config.prefer_not_keyword() && token.token_type != TokenType::Not {
                 reports.push(Self::diagnostic(config).with_message("Use of `!`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), expression_box.span())
+                    Label::primary(expression_box.file_id(), token.span)
                         .with_message("use the `not` keyword instead of `!`"),
                 ]));
             } else if token.token_type == TokenType::Not {
                 reports.push(Self::diagnostic(config).with_message("Use of `not`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), expression_box.span())
+                    Label::primary(expression_box.file_id(), token.span)
                         .with_message("use the `!` operator instead of `not`"),
                 ]));
             }

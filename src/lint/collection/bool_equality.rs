@@ -26,7 +26,7 @@ impl EarlyExpressionPass for BoolEquality {
     fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::Equality(Equality {
             left,
-            operator: EqualityOperator::Equal(_),
+            operator: EqualityOperator::Equal(token),
             right,
         }) = expression_box.expression()
         {
@@ -40,7 +40,8 @@ impl EarlyExpressionPass for BoolEquality {
                     Literal::False => Self::diagnostic(config)
                         .with_message("Equality check with `false`")
                         .with_labels(vec![
-                            Label::primary(right.file_id(), right.span()).with_message("this can be omitted..."),
+                            Label::primary(right.file_id(), token.span.start()..right.span().end())
+                                .with_message("this can be omitted..."),
                             Label::secondary(left.file_id(), left.span().start()..left.span().start())
                                 .with_message("...if you add a not operator here (`!`, `not`)"),
                         ]),
