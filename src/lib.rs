@@ -73,6 +73,7 @@ pub mod parse {
         mod statements {
             mod assignment;
             mod block;
+            mod delete;
             mod do_until;
             mod r#enum;
             mod for_loop;
@@ -83,11 +84,13 @@ pub mod parse {
             mod repeat_loop;
             mod r#return;
             mod switch;
+            mod throw;
             mod try_catch;
             mod while_loop;
             mod with_loop;
             pub use assignment::*;
             pub use block::*;
+            pub use delete::*;
             pub use do_until::*;
             pub use for_loop::*;
             pub use globalvar::*;
@@ -98,6 +101,7 @@ pub mod parse {
             pub use r#return::*;
             pub use repeat_loop::*;
             pub use switch::*;
+            pub use throw::*;
             pub use try_catch::*;
             pub use while_loop::*;
             pub use with_loop::*;

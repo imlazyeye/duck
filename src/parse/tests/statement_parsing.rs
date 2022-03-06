@@ -445,7 +445,17 @@ fn return_with_value() {
 }
 
 #[test]
-fn r#break() {
+fn throw() {
+    harness_stmt("throw foo;", Throw::new(Identifier::lazy("foo").into_lazy_box()))
+}
+
+#[test]
+fn delete() {
+    harness_stmt("delete foo;", Delete::new(Identifier::lazy("foo").into_lazy_box()))
+}
+
+#[test]
+fn break_statement() {
     harness_stmt("break;", Statement::Break)
 }
 
@@ -740,5 +750,5 @@ fn comment_above_statement() {
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
             Identifier::lazy("bar").into_lazy_box(),
         ),
-    ); 
+    );
 }

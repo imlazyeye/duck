@@ -79,6 +79,8 @@ impl Parser {
             TokenType::Switch => self.switch(),
             TokenType::LeftBrace | TokenType::Begin => self.block(),
             TokenType::Return => self.return_statement(),
+            TokenType::Throw => self.throw(),
+            TokenType::Delete => self.delete(),
             TokenType::Break => self.break_statement(),
             TokenType::Continue => self.continue_statement(),
             TokenType::Exit => self.exit(),
@@ -299,6 +301,22 @@ impl Parser {
         let expression = self.expression().ok();
         self.match_take_repeating(TokenType::SemiColon);
         Ok(self.box_statement(Return::new(expression), start))
+    }
+
+    fn throw(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        self.require(TokenType::Throw)?;
+        let expression = self.expression()?;
+        self.match_take_repeating(TokenType::SemiColon);
+        Ok(self.box_statement(Throw::new(expression), start))
+    }
+
+    fn delete(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        self.require(TokenType::Delete)?;
+        let expression = self.expression()?;
+        self.match_take_repeating(TokenType::SemiColon);
+        Ok(self.box_statement(Delete::new(expression), start))
     }
 
     fn break_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
