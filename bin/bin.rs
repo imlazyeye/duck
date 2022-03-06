@@ -123,41 +123,104 @@ fn explain_lint(name: String) -> i32 {
     let (duck, _) = create_duck(&current_directory);
     let (message, default_level) = match name.as_str() {
         // @explain. Do not remove!
-        "accessor_alternative" => (AccessorAlternative::explanation().to_string(), AccessorAlternative::default_level()),
+        "accessor_alternative" => (
+            AccessorAlternative::explanation().to_string(),
+            AccessorAlternative::default_level(),
+        ),
         "and_preference" => (AndPreference::explanation().to_string(), AndPreference::default_level()),
-        "anonymous_constructor" => (AnonymousConstructor::explanation().to_string(), AnonymousConstructor::default_level()),
-        "assignment_to_call" => (AssignmentToCall::explanation().to_string(), AssignmentToCall::default_level()),
+        "anonymous_constructor" => (
+            AnonymousConstructor::explanation().to_string(),
+            AnonymousConstructor::default_level(),
+        ),
+        "assignment_to_call" => (
+            AssignmentToCall::explanation().to_string(),
+            AssignmentToCall::default_level(),
+        ),
         "bool_equality" => (BoolEquality::explanation().to_string(), BoolEquality::default_level()),
-        "casing_preference" => (CasingPreference::explanation().to_string(), CasingPreference::default_level()),
+        "casing_preference" => (
+            CasingPreference::explanation().to_string(),
+            CasingPreference::default_level(),
+        ),
         "collapsable_if" => (CollapsableIf::explanation().to_string(), CollapsableIf::default_level()),
         "deprecated" => (Deprecated::explanation().to_string(), Deprecated::default_level()),
         "draw_sprite" => (DrawSprite::explanation().to_string(), DrawSprite::default_level()),
         "draw_text" => (DrawText::explanation().to_string(), DrawText::default_level()),
-        "english_flavor_violation" => (EnglishFlavorViolation::explanation().to_string(), EnglishFlavorViolation::default_level()),
+        "english_flavor_violation" => (
+            EnglishFlavorViolation::explanation().to_string(),
+            EnglishFlavorViolation::default_level(),
+        ),
         "exit" => (Exit::explanation().to_string(), Exit::default_level()),
         "global" => (Global::explanation().to_string(), Global::default_level()),
-        "invalid_assignment" => (InvalidAssignment::explanation().to_string(), InvalidAssignment::default_level()),
-        "invalid_comparison" => (InvalidComparison::explanation().to_string(), InvalidComparison::default_level()),
-        "invalid_equality" => (InvalidEquality::explanation().to_string(), InvalidEquality::default_level()),
-        "missing_case_member" => (MissingCaseMember::explanation().to_string(), MissingCaseMember::default_level()),
-        "missing_default_case" => (MissingDefaultCase::explanation().to_string(), MissingDefaultCase::default_level()),
+        "invalid_assignment" => (
+            InvalidAssignment::explanation().to_string(),
+            InvalidAssignment::default_level(),
+        ),
+        "invalid_comparison" => (
+            InvalidComparison::explanation().to_string(),
+            InvalidComparison::default_level(),
+        ),
+        "invalid_equality" => (
+            InvalidEquality::explanation().to_string(),
+            InvalidEquality::default_level(),
+        ),
+        "missing_case_member" => (
+            MissingCaseMember::explanation().to_string(),
+            MissingCaseMember::default_level(),
+        ),
+        "missing_default_case" => (
+            MissingDefaultCase::explanation().to_string(),
+            MissingDefaultCase::default_level(),
+        ),
         "mod_preference" => (ModPreference::explanation().to_string(), ModPreference::default_level()),
-        "multi_var_declaration" => (MultiVarDeclaration::explanation().to_string(), MultiVarDeclaration::default_level()),
-        "non_constant_default_parameter" => (NonConstantDefaultParameter::explanation().to_string(), NonConstantDefaultParameter::default_level()),
+        "multi_var_declaration" => (
+            MultiVarDeclaration::explanation().to_string(),
+            MultiVarDeclaration::default_level(),
+        ),
+        "non_constant_default_parameter" => (
+            NonConstantDefaultParameter::explanation().to_string(),
+            NonConstantDefaultParameter::default_level(),
+        ),
         "not_preference" => (NotPreference::explanation().to_string(), NotPreference::default_level()),
         "or_preference" => (OrPreference::explanation().to_string(), OrPreference::default_level()),
         "room_goto" => (RoomGoto::explanation().to_string(), RoomGoto::default_level()),
-        "show_debug_message" => (ShowDebugMessage::explanation().to_string(), ShowDebugMessage::default_level()),
-        "single_equals_comparison" => (SingleEqualsComparison::explanation().to_string(), SingleEqualsComparison::default_level()),
-        "single_switch_case" => (SingleSwitchCase::explanation().to_string(), SingleSwitchCase::default_level()),
-        "statement_parenthetical_preference" => (StatementParentheticalPreference::explanation().to_string(), StatementParentheticalPreference::default_level()),
-        "suspicious_constant_usage" => (SuspicousConstantUsage::explanation().to_string(), SuspicousConstantUsage::default_level()),
+        "show_debug_message" => (
+            ShowDebugMessage::explanation().to_string(),
+            ShowDebugMessage::default_level(),
+        ),
+        "single_equals_comparison" => (
+            SingleEqualsComparison::explanation().to_string(),
+            SingleEqualsComparison::default_level(),
+        ),
+        "single_switch_case" => (
+            SingleSwitchCase::explanation().to_string(),
+            SingleSwitchCase::default_level(),
+        ),
+        "statement_parenthetical_preference" => (
+            StatementParentheticalPreference::explanation().to_string(),
+            StatementParentheticalPreference::default_level(),
+        ),
+        "suspicious_constant_usage" => (
+            SuspicousConstantUsage::explanation().to_string(),
+            SuspicousConstantUsage::default_level(),
+        ),
         "todo" => (Todo::explanation().to_string(), Todo::default_level()),
-        "too_many_arguments" => (TooManyArguments::explanation().to_string(), TooManyArguments::default_level()),
+        "too_many_arguments" => (
+            TooManyArguments::explanation().to_string(),
+            TooManyArguments::default_level(),
+        ),
         "try_catch" => (TryCatch::explanation().to_string(), TryCatch::default_level()),
-        "unassigned_constructor" => (UnassignedConstructor::explanation().to_string(), UnassignedConstructor::default_level()),
-        "useless_function" => (UselessFunction::explanation().to_string(), UselessFunction::default_level()),
-        "var_prefix_violation" => (VarPrefixViolation::explanation().to_string(), VarPrefixViolation::default_level()),
+        "unassigned_constructor" => (
+            UnassignedConstructor::explanation().to_string(),
+            UnassignedConstructor::default_level(),
+        ),
+        "useless_function" => (
+            UselessFunction::explanation().to_string(),
+            UselessFunction::default_level(),
+        ),
+        "var_prefix_violation" => (
+            VarPrefixViolation::explanation().to_string(),
+            VarPrefixViolation::default_level(),
+        ),
         "with_loop" => (WithLoop::explanation().to_string(), WithLoop::default_level()),
         // @end explain. Do not remove!
         _ => {

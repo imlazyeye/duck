@@ -3,7 +3,7 @@
 ![GitHub branch checks state](https://img.shields.io/github/checks-status/imlazyeye/duck/main)
 ![GitHub](https://img.shields.io/github/license/imlazyeye/duck)
 
-A collection of customizable lints to identify common mistakes in GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
+A fast and flexible linter for GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
 
 ![example of the missing_case_member lint in action](https://i.imgur.com/i3b6sH1.jpg)
 

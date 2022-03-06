@@ -25,7 +25,9 @@ impl Enum {
     /// this enum. For example, if our enum's name is "Foo", and our member
     /// is "Bar", returns "Foo.Bar".
     pub fn iter_constructed_names(&self) -> impl Iterator<Item = String> + '_ {
-        self.members.iter().map(|v| format!("{}.{}", self.name.lexeme, v.name()))
+        self.members
+            .iter()
+            .map(|v| format!("{}.{}", self.name.lexeme, v.name()))
     }
 }
 impl From<Enum> for Statement {
