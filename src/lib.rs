@@ -35,6 +35,7 @@ pub mod lint {
     #[cfg(test)]
     mod tests {
         mod lint_tests;
+        mod validity_tests;
     }
 }
 

@@ -15,7 +15,7 @@ fn config_for_lint<T: Lint>() -> Config {
     config
 }
 
-fn harness_lint<T: Lint>(source: &str, expected_number: usize) {
+pub(super) fn harness_lint<T: Lint>(source: &str, expected_number: usize) {
     let source = Box::leak(Box::new(source.unindent()));
     let config = config_for_lint::<T>();
     let mut library = GmlLibrary::new();
@@ -37,7 +37,13 @@ fn harness_lint<T: Lint>(source: &str, expected_number: usize) {
         for report in reports.iter() {
             codespan_reporting::term::emit(&mut writer.lock(), &config, &library, report).unwrap();
         }
-        assert_eq!(reports.len(), expected_number);
+        assert_eq!(
+            reports.len(),
+            expected_number,
+            "{} got the wrong number of lints on `{}`!",
+            T::tag(),
+            source
+        );
     }
     Box::leak(Box::new(library));
 }

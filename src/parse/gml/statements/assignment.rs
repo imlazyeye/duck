@@ -55,3 +55,20 @@ pub enum AssignmentOperator {
     /// %=
     ModEqual(Token),
 }
+impl AssignmentOperator {
+    /// Returns the inner token.
+    pub fn token(&self) -> &Token {
+        match self {
+            AssignmentOperator::Equal(token) => token,
+            AssignmentOperator::PlusEqual(token) => token,
+            AssignmentOperator::MinusEqual(token) => token,
+            AssignmentOperator::StarEqual(token) => token,
+            AssignmentOperator::SlashEqual(token) => token,
+            AssignmentOperator::XorEqual(token) => token,
+            AssignmentOperator::OrEqual(token) => token,
+            AssignmentOperator::AndEqual(token) => token,
+            AssignmentOperator::NullCoalecenceEqual(token) => token,
+            AssignmentOperator::ModEqual(token) => token,
+        }
+    }
+}

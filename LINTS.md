@@ -9,6 +9,7 @@ Below are all of the lints currently supported in `duck`.
 | anonymous_constructor | LintLevel::Allow | Constructors should be reserved for larger, higher scoped types.
 | assignment_to_call | LintLevel::Deny | While possible to compile, assigning a value to the call of a function does not do anything.
 | bool_equality | LintLevel::Allow | Comparing a bool with a bool literal is more verbose than neccesary.
+| casing_preference | LintLevel::Warn | Like any programming language, GML contains many different symbols that all can be styled in different ways. Picking consistent rules for each type creates a cleaner and more consistent codebase.
 | collapsable_if | LintLevel::Warn | If statements that contain nothing more than another if statement can be collapsed into a single statement.
 | deprecated | LintLevel::Warn | Deprecated features are liable to be removed at any time and should be avoided.
 | draw_sprite | LintLevel::Allow | Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called.
@@ -16,13 +17,14 @@ Below are all of the lints currently supported in `duck`.
 | english_flavor_violation | LintLevel::Allow | GML has many duplicated function names for the sake of supporting both British and American spelling. For consistency, codebases should stick to one.
 | exit | LintLevel::Allow | `return` can always be used in place of exit, which provides more consistency across your codebase.
 | global | LintLevel::Allow | While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere, and provide no guarentee that they've already been initiailized.
+| invalid_assignment_target | LintLevel::Deny | Certain assignment patterns are valid in gml but are undefined behavior and have no valid use cases.
+| invalid_comparison | LintLevel::Deny | Certain types allow comparison checks in gml but are undefined behavior and have no valid use cases.
+| invalid_equality | LintLevel::Deny | Certain types allow equality checks in gml but are undefined behavior and have no valid use cases.
 | missing_case_member | LintLevel::Warn | Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.
 | missing_default_case | LintLevel::Allow | Switch statements are often used to express all possible outcomes of a limited data set, but by not implementing a default case, no code will run to handle any alternate or unexpected values.
 | mod_preference | LintLevel::Allow | GML supports both `mod` and `%` to perform modulo division. Consistent use of one over the other yields cleaner code.
 | multi_var_declaration | LintLevel::Allow | While GML allows you to create multiple local variables at once, it can often lead to confusing syntax that would read better with each variable seperated.
 | non_constant_default_parameter | LintLevel::Warn | Expressive default parameters are not supported in most languages due to their instability and tendency to hide important logic execution from the caller.
-|  | LintLevel::Warn | temp
-|  | LintLevel::Warn | temp
 | not_preference | LintLevel::Allow | GML supports both `not` and `!` to refer to unary \"not\". Consistent use of one over the other yields cleaner code.
 | or_preference | LintLevel::Allow | GML supports both `or` and `||` to refer to logical \"or\" -- `||` is more consistent with other languages and is preferred.
 | room_goto | LintLevel::Allow | Projects that implement their own frameworks for room management may wish to be restrictive around when and where the `room_goto` functions are called.

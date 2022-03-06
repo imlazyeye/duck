@@ -722,6 +722,17 @@ impl Parser {
                 }
             }
         } else {
+            self.grouping()
+        }
+    }
+
+    fn grouping(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        if self.match_take(TokenType::LeftParenthesis).is_some() {
+            let expression = self.expression()?;
+            let token = self.require(TokenType::RightParenthesis)?;
+            Ok(self.box_expression(Grouping::new(expression), Span::new(start, token.span.end())))
+        } else {
             self.supreme()
         }
     }
@@ -809,7 +820,7 @@ impl Parser {
         let (access, end) = if let Some(expression) = expression {
             self.require(TokenType::Dot)?;
             start = expression.span().0;
-            let right = self.grouping()?;
+            let right = self.identifier()?;
             let end = right.span().end();
             (
                 Access::Dot {
@@ -823,14 +834,14 @@ impl Parser {
                 TokenType::Global => {
                     self.take()?;
                     self.require(TokenType::Dot)?;
-                    let right = self.grouping()?;
+                    let right = self.identifier()?;
                     let end = right.span().end();
                     (Access::Global { right }, end)
                 }
                 TokenType::SelfKeyword => {
                     let token = self.take()?;
                     if self.match_take(TokenType::Dot).is_some() {
-                        let right = self.grouping()?;
+                        let right = self.identifier()?;
                         let end = right.span().end();
                         (Access::Current { right }, end)
                     } else {
@@ -843,7 +854,7 @@ impl Parser {
                 TokenType::Other => {
                     let token = self.take()?;
                     if self.match_take(TokenType::Dot).is_some() {
-                        let right = self.grouping()?;
+                        let right = self.identifier()?;
                         let end = right.span().end();
                         (Access::Other { right }, end)
                     } else {
@@ -856,7 +867,7 @@ impl Parser {
                 _ => {
                     let left = self.ds_access(None)?;
                     if self.match_take(TokenType::Dot).is_some() {
-                        let right = self.grouping()?;
+                        let right = self.identifier()?;
                         let end = right.span().end();
                         (Access::Dot { left, right }, end)
                     } else {
@@ -872,7 +883,7 @@ impl Parser {
         let (start, left) = if let Some(left) = left {
             (left.span().0, left)
         } else {
-            let left = self.grouping()?;
+            let left = self.identifier()?;
             if !matches!(
                 self.soft_peek(),
                 Some(&Token {
@@ -936,17 +947,6 @@ impl Parser {
         };
         let token = self.require(TokenType::RightSquareBracket)?;
         Ok(self.box_expression(access, Span::new(start, token.span.end())))
-    }
-
-    fn grouping(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
-        let start = self.next_token_boundary();
-        if self.match_take(TokenType::LeftParenthesis).is_some() {
-            let expression = self.expression()?;
-            let token = self.require(TokenType::RightParenthesis)?;
-            Ok(self.box_expression(Grouping::new(expression), Span::new(start, token.span.end())))
-        } else {
-            self.identifier()
-        }
     }
 
     fn identifier(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {

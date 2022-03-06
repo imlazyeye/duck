@@ -8,16 +8,6 @@ fn harness_expr(source: &'static str, expected: impl Into<Expression>) {
     assert_eq!(*outputed.expression(), expected, "`{}` failed!", source)
 }
 
-fn harness_valid(source: &'static str) {
-    let mut parser = Parser::new(source, 0);
-    assert!(parser.expression().is_ok(), "`{}` was invalid!", source)
-}
-
-fn harness_invalid(source: &'static str) {
-    let mut parser = Parser::new(source, 0);
-    assert!(parser.expression().is_err(), "`{}` was valid!", source)
-}
-
 #[test]
 fn function() {
     harness_expr(
@@ -861,17 +851,6 @@ fn dot_access() {
         "foo.bar",
         Access::Dot {
             left: Identifier::lazy("foo").into_lazy_box(),
-            right: Identifier::lazy("bar").into_lazy_box(),
-        },
-    );
-}
-
-#[test]
-fn grouping_dot_access() {
-    harness_expr(
-        "(foo).bar",
-        Access::Dot {
-            left: Grouping::new(Identifier::lazy("foo").into_lazy_box()).into_lazy_box(),
             right: Identifier::lazy("bar").into_lazy_box(),
         },
     );

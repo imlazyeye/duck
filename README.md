@@ -5,7 +5,7 @@
 
 A collection of customizable lints to identify common mistakes in GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
 
-Currently supports [32 lints](LINTS.md), with more on the way!
+Currently supports [34 lints](LINTS.md), with more on the way!
 
 `duck` is is a highly opinionated linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are _completely customizable_.
 
