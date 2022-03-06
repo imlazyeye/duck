@@ -95,8 +95,12 @@ impl EarlyStatementPass for SuspicousConstantUsage {
 
 fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) -> bool {
     match operation_wrapper {
-        OperationWrapper::Assignment(AssignmentOperator::Equal(_))
-        | OperationWrapper::Equality(EqualityOperator::Equal(_)) => return false,
+        OperationWrapper::Assignment(AssignmentOperator::Equal(_)) => return false,
+        OperationWrapper::Equality(op) => {
+            if matches!(op, EqualityOperator::Equal(_) | EqualityOperator::NotEqual(_)) {
+                return false;
+            }
+        }
         _ => {}
     }
     match literal {
@@ -106,7 +110,7 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) 
         | Literal::Noone
         | Literal::Array(_)
         | Literal::Struct(_) => true,
-        Literal::String(_) | Literal::Real(_) | Literal::Hex(_) => true,
+        Literal::String(_) | Literal::Real(_) | Literal::Hex(_) => false,
         Literal::Misc(literal) => {
             match literal.as_str() {
                 "tile_index_mask" | "tile_flip" | "tile_mirror" | "tile_rotate" => {

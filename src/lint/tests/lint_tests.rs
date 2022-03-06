@@ -359,10 +359,13 @@ fn suspicious_constant_usage() {
     );
     harness_lint::<SuspicousConstantUsage>(
         "
+            foo = 2 - 1;
             foo = undefined;
             foo = bar == undefined;
             foo &= tile_index_mask;
             foo = 0 | tile_index_mask;
+            foo = bar >= 0;
+            foo = bar != undefined;
         ",
         0,
     );
