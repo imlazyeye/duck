@@ -34,8 +34,8 @@ impl EarlyStatementPass for MissingDefaultCase {
                     .cases()
                     .iter()
                     .last()
-                    .and_then(|case| case.iter_body_statements().last().map(|stmt| stmt.span().1))
-                    .unwrap_or(statement_box.span().1);
+                    .and_then(|case| case.iter_body_statements().last().map(|stmt| stmt.span().end()))
+                    .unwrap_or_else(|| statement_box.span().end());
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Missing default case")

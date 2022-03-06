@@ -1,15 +1,15 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
+use crate::parse::{ExpressionBox, Identifier, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of a globalvar in gml.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Globalvar {
     /// The name of the declared globalvar.
-    pub name: String,
+    pub name: Identifier,
 }
 impl Globalvar {
     /// Creates a new globalvar with the given name.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
+    pub fn new(name: Identifier) -> Self {
+        Self { name }
     }
 }
 impl From<Globalvar> for Statement {

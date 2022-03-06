@@ -26,7 +26,7 @@ impl EarlyExpressionPass for AccessorAlternative {
     fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::Call(Call { left, arguments, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
-                reports.push(match identifier.name.as_ref() {
+                reports.push(match identifier.lexeme.as_ref() {
                     "ds_list_find_value" => Self::diagnostic(config)
                         .with_message("Use of `ds_list_find_value`")
                         .with_labels(vec![

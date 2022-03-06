@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Expression, ExpressionBox, Token, Unary, UnaryOperator},
+    parse::{Expression, ExpressionBox, TokenType, Unary, UnaryOperator},
     Config, FileId,
 };
 
@@ -28,12 +28,12 @@ impl EarlyExpressionPass for NotPreference {
             ..
         }) = expression_box.expression()
         {
-            if config.prefer_not_keyword() && token != &Token::Not {
+            if config.prefer_not_keyword() && token.token_type != TokenType::Not {
                 reports.push(Self::diagnostic(config).with_message("Use of `!`").with_labels(vec![
                     Label::primary(expression_box.file_id(), expression_box.span())
                         .with_message("use the `not` keyword instead of `!`"),
                 ]));
-            } else if token == &Token::Not {
+            } else if token.token_type == TokenType::Not {
                 reports.push(Self::diagnostic(config).with_message("Use of `not`").with_labels(vec![
                     Label::primary(expression_box.file_id(), expression_box.span())
                         .with_message("use the `!` operator instead of `not`"),

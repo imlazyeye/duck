@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Expression, ExpressionBox, Logical, LogicalOperator, Token},
+    parse::{Expression, ExpressionBox, Logical, LogicalOperator, TokenType},
     Config, FileId,
 };
 
@@ -28,12 +28,12 @@ impl EarlyExpressionPass for AndPreference {
             ..
         }) = expression_box.expression()
         {
-            if config.prefer_and_keyword() && token != &Token::And {
+            if config.prefer_and_keyword() && token.token_type != TokenType::And {
                 reports.push(Self::diagnostic(config).with_message("Use of `&&`").with_labels(vec![
                     Label::primary(expression_box.file_id(), expression_box.span())
                         .with_message("use the `and` keyword instead of `&&`"),
                 ]));
-            } else if token == &Token::And {
+            } else if token.token_type == TokenType::And {
                 reports.push(Self::diagnostic(config).with_message("Use of `and`").with_labels(vec![
                     Label::primary(expression_box.file_id(), expression_box.span())
                         .with_message("use the `&&` opreator instead of `and`"),

@@ -1,5 +1,7 @@
 use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
 
+use super::Identifier;
+
 /// Representation of a literal in gml, aka a constant compile-time value.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Literal {
@@ -20,7 +22,7 @@ pub enum Literal {
     /// An array literal ([0, 1, 2])
     Array(Vec<ExpressionBox>),
     /// A struct literal ({a: 0, b: 0})
-    Struct(Vec<(String, ExpressionBox)>),
+    Struct(Vec<(Identifier, ExpressionBox)>),
     /// Any GML constant that we are aware of but do not have specific use for.
     Misc(String),
 }

@@ -1,10 +1,12 @@
 use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, OptionalInitilization, ParseVisitor, StatementBox};
 
+use super::Identifier;
+
 /// Representation of function declaration in gml.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function {
     /// The name, if any, of this function. Anonymous functions do not have names.
-    pub name: Option<String>,
+    pub name: Option<Identifier>,
     /// The parameters of this function.
     pub parameters: Vec<OptionalInitilization>,
     /// The constructor behavior of this function, if any.
@@ -14,9 +16,9 @@ pub struct Function {
 }
 impl Function {
     /// Creates a new function declaration.
-    pub fn new(name: impl Into<String>, parameters: Vec<OptionalInitilization>, body: StatementBox) -> Self {
+    pub fn new(name: Identifier, parameters: Vec<OptionalInitilization>, body: StatementBox) -> Self {
         Self {
-            name: Some(name.into()),
+            name: Some(name),
             parameters,
             constructor: None,
             body,
@@ -35,13 +37,13 @@ impl Function {
 
     /// Creates a new constructor declaration.
     pub fn new_constructor(
-        name: impl Into<Option<String>>,
+        name: Option<Identifier>,
         parameters: Vec<OptionalInitilization>,
         constructor: Constructor,
         body: StatementBox,
     ) -> Self {
         Self {
-            name: name.into(),
+            name,
             parameters,
             constructor: Some(constructor),
             body,

@@ -1,11 +1,130 @@
 #![allow(missing_docs)]
 
+use crate::parse::Span;
+
 use super::{
     AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
 };
 
+/// A combination of a TokenType and the Span it originates from.
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum Token {
+pub struct Token {
+    pub token_type: TokenType,
+    pub span: Span,
+}
+impl Token {
+    /// Creates a new token.
+    pub fn new(token_type: TokenType, span: Span) -> Self {
+        Self { token_type, span }
+    }
+
+    /// Creates a new token with a default span.
+    #[cfg(test)]
+    pub fn lazy(token_type: TokenType) -> Self {
+        Self::new(token_type, Span::default())
+    }
+}
+
+impl Token {
+    /// Returns a [Literal] corresponding to this Token, if possible.
+    pub fn to_literal(&self) -> Option<Literal> {
+        match self.token_type {
+            TokenType::True => Some(Literal::True),
+            TokenType::False => Some(Literal::False),
+            TokenType::Undefined => Some(Literal::Undefined),
+            TokenType::Noone => Some(Literal::Noone),
+            TokenType::StringLiteral(lexeme) => Some(Literal::String(lexeme.to_string())),
+            TokenType::Real(value) => Some(Literal::Real(value)),
+            TokenType::Hex(lexeme) => Some(Literal::Hex(lexeme.to_string())),
+            TokenType::MiscConstant(lexeme) => Some(Literal::Misc(lexeme.to_string())),
+            _ => None,
+        }
+    }
+
+    /// Returns a [EvaluationOperator] corresponding to this Token, if possible.
+    pub fn as_evaluation_operator(&self) -> Option<EvaluationOperator> {
+        match self.token_type {
+            TokenType::Plus => Some(EvaluationOperator::Plus(*self)),
+            TokenType::Minus => Some(EvaluationOperator::Minus(*self)),
+            TokenType::Slash => Some(EvaluationOperator::Slash(*self)),
+            TokenType::Star => Some(EvaluationOperator::Star(*self)),
+            TokenType::Div => Some(EvaluationOperator::Div(*self)),
+            TokenType::Mod | TokenType::Percent => Some(EvaluationOperator::Modulo(*self)),
+            TokenType::Ampersand => Some(EvaluationOperator::And(*self)),
+            TokenType::Pipe => Some(EvaluationOperator::Or(*self)),
+            TokenType::Circumflex => Some(EvaluationOperator::Xor(*self)),
+            TokenType::BitShiftLeft => Some(EvaluationOperator::BitShiftLeft(*self)),
+            TokenType::BitShiftRight => Some(EvaluationOperator::BitShiftRight(*self)),
+            _ => None,
+        }
+    }
+
+    /// Returns a [EqualityOperator] corresponding to this Token, if possible.
+    pub fn as_equality_operator(&self) -> Option<EqualityOperator> {
+        match self.token_type {
+            TokenType::Equal | TokenType::DoubleEqual => Some(EqualityOperator::Equal(*self)),
+            TokenType::BangEqual => Some(EqualityOperator::NotEqual(*self)),
+            TokenType::GreaterThan => Some(EqualityOperator::GreaterThan(*self)),
+            TokenType::GreaterThanOrEqual => Some(EqualityOperator::GreaterThanOrEqual(*self)),
+            TokenType::LessThan => Some(EqualityOperator::LessThan(*self)),
+            TokenType::LessThanOrEqual => Some(EqualityOperator::LessThanOrEqual(*self)),
+            _ => None,
+        }
+    }
+
+    /// Returns a [AssignmentOperator] corresponding to this Token, if possible.
+    pub fn as_assignment_operator(&self) -> Option<AssignmentOperator> {
+        match self.token_type {
+            TokenType::Equal => Some(AssignmentOperator::Equal(*self)),
+            TokenType::PlusEqual => Some(AssignmentOperator::PlusEqual(*self)),
+            TokenType::MinusEqual => Some(AssignmentOperator::MinusEqual(*self)),
+            TokenType::StarEqual => Some(AssignmentOperator::StarEqual(*self)),
+            TokenType::SlashEqual => Some(AssignmentOperator::SlashEqual(*self)),
+            TokenType::PipeEqual => Some(AssignmentOperator::OrEqual(*self)),
+            TokenType::AmpersandEqual => Some(AssignmentOperator::AndEqual(*self)),
+            TokenType::CirumflexEqual => Some(AssignmentOperator::XorEqual(*self)),
+            TokenType::DoubleInterrobangEquals => Some(AssignmentOperator::NullCoalecenceEqual(*self)),
+            TokenType::PercentEqual => Some(AssignmentOperator::ModEqual(*self)),
+            _ => None,
+        }
+    }
+
+    /// Returns a [UnaryOperator] corresponding to this Token, if possible.
+    pub fn as_unary_operator(&self) -> Option<UnaryOperator> {
+        match self.token_type {
+            TokenType::DoublePlus => Some(UnaryOperator::Increment(*self)),
+            TokenType::DoubleMinus => Some(UnaryOperator::Decrement(*self)),
+            TokenType::Bang | TokenType::Not => Some(UnaryOperator::Not(*self)),
+            TokenType::Plus => Some(UnaryOperator::Positive(*self)),
+            TokenType::Minus => Some(UnaryOperator::Negative(*self)),
+            TokenType::Tilde => Some(UnaryOperator::BitwiseNot(*self)),
+            _ => None,
+        }
+    }
+
+    /// Returns a [PostfixOperator] corresponding to this Token, if possible.
+    pub fn as_postfix_operator(&self) -> Option<PostfixOperator> {
+        match self.token_type {
+            TokenType::DoublePlus => Some(PostfixOperator::Increment(*self)),
+            TokenType::DoubleMinus => Some(PostfixOperator::Decrement(*self)),
+            _ => None,
+        }
+    }
+
+    /// Returns a [LogicalOperator] corresponding to this Token, if possible.
+    pub fn as_logical_operator(&self) -> Option<LogicalOperator> {
+        match self.token_type {
+            TokenType::And | TokenType::DoubleAmpersand => Some(LogicalOperator::And(*self)),
+            TokenType::Or | TokenType::DoublePipe => Some(LogicalOperator::Or(*self)),
+            TokenType::Xor => Some(LogicalOperator::Xor(*self)),
+            _ => None,
+        }
+    }
+}
+
+/// An individual token of gml.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum TokenType {
     Switch,
     Case,
     Break,
@@ -109,108 +228,4 @@ pub enum Token {
     MiscConstant(&'static str),
     Invalid(&'static str),
     Eof,
-}
-impl Token {
-    /// Returns a [Literal] corresponding to this Token, if possible.
-    pub fn to_literal(&self) -> Option<Literal> {
-        match self {
-            Token::True => Some(Literal::True),
-            Token::False => Some(Literal::False),
-            Token::Undefined => Some(Literal::Undefined),
-            Token::Noone => Some(Literal::Noone),
-            Token::StringLiteral(lexeme) => Some(Literal::String(lexeme.to_string())),
-            Token::Real(value) => Some(Literal::Real(*value)),
-            Token::Hex(lexeme) => Some(Literal::Hex(lexeme.to_string())),
-            Token::MiscConstant(lexeme) => Some(Literal::Misc(lexeme.to_string())),
-            _ => None,
-        }
-    }
-
-    /// Returns a [EvaluationOperator] corresponding to this Token, if possible.
-    pub fn as_evaluation_operator(&self) -> Option<EvaluationOperator> {
-        match self {
-            Token::Plus => Some(EvaluationOperator::Plus(*self)),
-            Token::Minus => Some(EvaluationOperator::Minus(*self)),
-            Token::Slash => Some(EvaluationOperator::Slash(*self)),
-            Token::Star => Some(EvaluationOperator::Star(*self)),
-            Token::Div => Some(EvaluationOperator::Div(*self)),
-            Token::Mod | Token::Percent => Some(EvaluationOperator::Modulo(*self)),
-            Token::Ampersand => Some(EvaluationOperator::And(*self)),
-            Token::Pipe => Some(EvaluationOperator::Or(*self)),
-            Token::Circumflex => Some(EvaluationOperator::Xor(*self)),
-            Token::BitShiftLeft => Some(EvaluationOperator::BitShiftLeft(*self)),
-            Token::BitShiftRight => Some(EvaluationOperator::BitShiftRight(*self)),
-            _ => None,
-        }
-    }
-
-    /// Returns a [EqualityOperator] corresponding to this Token, if possible.
-    pub fn as_equality_operator(&self) -> Option<EqualityOperator> {
-        match self {
-            Token::Equal | Token::DoubleEqual => Some(EqualityOperator::Equal(*self)),
-            Token::BangEqual => Some(EqualityOperator::NotEqual(*self)),
-            Token::GreaterThan => Some(EqualityOperator::GreaterThan(*self)),
-            Token::GreaterThanOrEqual => Some(EqualityOperator::GreaterThanOrEqual(*self)),
-            Token::LessThan => Some(EqualityOperator::LessThan(*self)),
-            Token::LessThanOrEqual => Some(EqualityOperator::LessThanOrEqual(*self)),
-            _ => None,
-        }
-    }
-
-    /// Returns a [AssignmentOperator] corresponding to this Token, if possible.
-    pub fn as_assignment_operator(&self) -> Option<AssignmentOperator> {
-        match self {
-            Token::Equal => Some(AssignmentOperator::Equal(*self)),
-            Token::PlusEqual => Some(AssignmentOperator::PlusEqual(*self)),
-            Token::MinusEqual => Some(AssignmentOperator::MinusEqual(*self)),
-            Token::StarEqual => Some(AssignmentOperator::StarEqual(*self)),
-            Token::SlashEqual => Some(AssignmentOperator::SlashEqual(*self)),
-            Token::PipeEqual => Some(AssignmentOperator::OrEqual(*self)),
-            Token::AmpersandEqual => Some(AssignmentOperator::AndEqual(*self)),
-            Token::CirumflexEqual => Some(AssignmentOperator::XorEqual(*self)),
-            Token::DoubleInterrobangEquals => Some(AssignmentOperator::NullCoalecenceEqual(*self)),
-            Token::PercentEqual => Some(AssignmentOperator::ModEqual(*self)),
-            _ => None,
-        }
-    }
-
-    /// Returns a [UnaryOperator] corresponding to this Token, if possible.
-    pub fn as_unary_operator(&self) -> Option<UnaryOperator> {
-        match self {
-            Token::DoublePlus => Some(UnaryOperator::Increment(*self)),
-            Token::DoubleMinus => Some(UnaryOperator::Decrement(*self)),
-            Token::Bang | Token::Not => Some(UnaryOperator::Not(*self)),
-            Token::Plus => Some(UnaryOperator::Positive(*self)),
-            Token::Minus => Some(UnaryOperator::Negative(*self)),
-            Token::Tilde => Some(UnaryOperator::BitwiseNot(*self)),
-            _ => None,
-        }
-    }
-
-    /// Returns a [PostfixOperator] corresponding to this Token, if possible.
-    pub fn as_postfix_operator(&self) -> Option<PostfixOperator> {
-        match self {
-            Token::DoublePlus => Some(PostfixOperator::Increment(*self)),
-            Token::DoubleMinus => Some(PostfixOperator::Decrement(*self)),
-            _ => None,
-        }
-    }
-
-    /// Returns a [LogicalOperator] corresponding to this Token, if possible.
-    pub fn as_logical_operator(&self) -> Option<LogicalOperator> {
-        match self {
-            Token::And | Token::DoubleAmpersand => Some(LogicalOperator::And(*self)),
-            Token::Or | Token::DoublePipe => Some(LogicalOperator::Or(*self)),
-            Token::Xor => Some(LogicalOperator::Xor(*self)),
-            _ => None,
-        }
-    }
-
-    /// Returns the String in this Token if it is an identifier.
-    pub fn as_identifier(&self) -> Option<&str> {
-        match self {
-            Token::Identifier(lexeme) => Some(lexeme),
-            _ => None,
-        }
-    }
 }

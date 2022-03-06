@@ -1,15 +1,26 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, Span, StatementBox};
 
 /// Representation of an identifier in gml, which could be any variable.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Identifier {
-    /// The name of this identifier.
-    pub name: String,
+    /// The name of this identifier
+    pub lexeme: String,
+    /// The span that came from the original token
+    pub span: Span,
 }
 impl Identifier {
     /// Creates a new identifier.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into() }
+    pub fn new(lexeme: impl Into<String>, span: Span) -> Self {
+        Self {
+            lexeme: lexeme.into(),
+            span,
+        }
+    }
+
+    /// Creates a new identifier with a default span.
+    #[cfg(test)]
+    pub fn lazy(lexeme: impl Into<String>) -> Self {
+        Self::new(lexeme, Span::default())
     }
 }
 impl From<Identifier> for Expression {

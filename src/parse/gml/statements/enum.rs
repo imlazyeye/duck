@@ -1,35 +1,31 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, OptionalInitilization, ParseVisitor, Statement, StatementBox};
+use crate::parse::{
+    ExpressionBox, Identifier, IntoStatementBox, OptionalInitilization, ParseVisitor, Statement, StatementBox,
+};
 
 /// Representation of an enum.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Enum {
     /// The name of the enum.
-    pub name: String,
+    pub name: Identifier,
     /// The OptionalInitilization's this enum contains.
     pub members: Vec<OptionalInitilization>,
 }
 impl Enum {
     /// Creates a new, empty enum with the given name.
-    pub fn new(name: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            members: vec![],
-        }
+    pub fn new(name: Identifier) -> Self {
+        Self { name, members: vec![] }
     }
 
     /// Creates a new enum with the given name and members.
-    pub fn new_with_members(name: impl Into<String>, members: Vec<OptionalInitilization>) -> Self {
-        Self {
-            name: name.into(),
-            members,
-        }
+    pub fn new_with_members(name: Identifier, members: Vec<OptionalInitilization>) -> Self {
+        Self { name, members }
     }
 
     /// Returns an iterator the fully constructed names of each GmlEnumMember in
     /// this enum. For example, if our enum's name is "Foo", and our member
     /// is "Bar", returns "Foo.Bar".
     pub fn iter_constructed_names(&self) -> impl Iterator<Item = String> + '_ {
-        self.members.iter().map(|v| format!("{}.{}", self.name, v.name()))
+        self.members.iter().map(|v| format!("{}.{}", self.name.lexeme, v.name()))
     }
 }
 impl From<Enum> for Statement {

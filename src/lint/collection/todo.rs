@@ -26,7 +26,7 @@ impl EarlyExpressionPass for Todo {
     fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
-                if identifier.name == config.todo_keyword {
+                if identifier.lexeme == config.todo_keyword {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Use of todo marker")

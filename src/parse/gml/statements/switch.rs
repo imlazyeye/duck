@@ -45,7 +45,7 @@ impl Switch {
                 .expression()
                 .as_dot_access()
                 .and_then(|(left, _)| left.as_identifier())
-                .map(|iden| iden.name.as_ref())
+                .map(|iden| iden.lexeme.as_ref())
         })
     }
 

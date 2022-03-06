@@ -30,10 +30,10 @@ impl EarlyExpressionPass for RoomGoto {
     ) {
         if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
-                if gm_room_goto_functions().contains(&identifier.name.as_str()) {
+                if gm_room_goto_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)
-                            .with_message(format!("Use of `{}`", identifier.name))
+                            .with_message(format!("Use of `{}`", identifier.lexeme))
                             .with_labels(vec![
                                 Label::primary(left.file_id(), left.span())
                                     .with_message("replace this call with your API's ideal function"),

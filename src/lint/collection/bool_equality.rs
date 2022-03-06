@@ -41,7 +41,7 @@ impl EarlyExpressionPass for BoolEquality {
                         .with_message("Equality check with `false`")
                         .with_labels(vec![
                             Label::primary(right.file_id(), right.span()).with_message("this can be omitted..."),
-                            Label::secondary(left.file_id(), left.span().0..left.span().0)
+                            Label::secondary(left.file_id(), left.span().start()..left.span().start())
                                 .with_message("...if you add a not operator here (`!`, `not`)"),
                         ]),
                     _ => return,

@@ -34,7 +34,7 @@ impl EarlyStatementPass for Deprecated {
                     .with_message("Use of `globalvar`")
                     .with_labels(vec![
                         Label::primary(statement_box.file_id(), statement_box.span())
-                            .with_message(format!("Change this to the `global.{}` syntax", name)),
+                            .with_message(format!("Change this to the `global.{}` syntax", name.lexeme)),
                     ]),
             );
         }
@@ -49,10 +49,10 @@ impl EarlyExpressionPass for Deprecated {
     ) {
         if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
-                if gm_deprecated_functions().contains(&identifier.name.as_str()) {
+                if gm_deprecated_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)
-                            .with_message(format!("Use of deprecated function: {}", identifier.name))
+                            .with_message(format!("Use of deprecated function: {}", identifier.lexeme))
                             .with_labels(vec![
                                 Label::primary(left.file_id(), left.span()).with_message("this function is deprecated"),
                             ]),

@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Equality, EqualityOperator, Expression, ExpressionBox, Token},
+    parse::{Equality, EqualityOperator, Expression, ExpressionBox, Token, TokenType},
     Config, FileId,
 };
 
@@ -25,7 +25,11 @@ impl Lint for SingleEqualsComparison {
 impl EarlyExpressionPass for SingleEqualsComparison {
     fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::Equality(Equality {
-            operator: EqualityOperator::Equal(Token::Equal),
+            operator:
+                EqualityOperator::Equal(Token {
+                    token_type: TokenType::Equal,
+                    ..
+                }),
             ..
         }) = expression_box.expression()
         {

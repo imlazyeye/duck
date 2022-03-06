@@ -1,4 +1,4 @@
-use super::{ExpressionBox, Span, Token};
+use super::{ExpressionBox, Span, Token, TokenType};
 use crate::FileId;
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
@@ -23,7 +23,7 @@ impl ParseErrorReport {
     pub fn diagnostic(&self) -> Diagnostic<FileId> {
         Diagnostic::error()
             .with_message(self.parse_error.error_message())
-            .with_labels(vec![Label::primary(self.file_id, self.span.0..self.span.1)])
+            .with_labels(vec![Label::primary(self.file_id, self.span.start()..self.span.end())])
     }
 }
 /// The various errors that can be encountered when we parse gml.
@@ -32,9 +32,9 @@ pub enum ParseError {
     /// A token was encountered that was not expected in the current context.
     UnexpectedToken(Token),
     /// A token was required in the current context that was not found.
-    ExpectedToken(Token),
+    ExpectedToken(TokenType),
     /// One of a collection of tokens were required in the current context that was not found.
-    ExpectedTokens(Vec<Token>),
+    ExpectedTokens(Vec<TokenType>),
     /// An assignment was made to an invalid expression.
     ///
     /// ### Example

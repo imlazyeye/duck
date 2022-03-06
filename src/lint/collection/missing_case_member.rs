@@ -63,7 +63,7 @@ impl LateStatementPass for MissingCaseMember {
 
                 // We are not safe to assume that the left and right are identifiers.
                 if let Some(this_identity_enum) = left.as_identifier() {
-                    if this_identity_enum.name != gml_enum.name {
+                    if this_identity_enum.lexeme != gml_enum.name.lexeme {
                         // The user has different enums in the same switch statement -- abandon this
                         // lint, and rely on `multi_type_switch`
                         return;
@@ -72,7 +72,7 @@ impl LateStatementPass for MissingCaseMember {
                     return; // INVALID_GML: non-constant in case expression
                 }
                 if let Some(member_identifier) = right.as_identifier() {
-                    member_names_discovered.push(member_identifier.name.as_str());
+                    member_names_discovered.push(member_identifier.lexeme.as_str());
                 } else {
                     return; // INVALID_GML: non-constant in case expression
                 };

@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Expression, ExpressionBox, Logical, LogicalOperator, Token},
+    parse::{Expression, ExpressionBox, Logical, LogicalOperator, TokenType},
     Config, FileId,
 };
 
@@ -28,12 +28,12 @@ impl EarlyExpressionPass for OrPreference {
             ..
         }) = expression_box.expression()
         {
-            if config.prefer_or_keyword() && token != &Token::Or {
+            if config.prefer_or_keyword() && token.token_type != TokenType::Or {
                 reports.push(Self::diagnostic(config).with_message("Use of `||`").with_labels(vec![
                     Label::primary(expression_box.file_id(), expression_box.span())
                         .with_message("use the `or` keyword instead of `||`"),
                 ]));
-            } else if token == &Token::Or {
+            } else if token.token_type == TokenType::Or {
                 reports.push(Self::diagnostic(config).with_message("Use of `or`").with_labels(vec![
                     Label::primary(expression_box.file_id(), expression_box.span())
                         .with_message("use the `||` operator instead of `or`"),

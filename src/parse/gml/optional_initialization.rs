@@ -31,7 +31,7 @@ impl OptionalInitilization {
             .expression()
             .as_identifier()
             .unwrap_or_else(|| unreachable!())
-            .name
+            .lexeme
             .as_str()
     }
     /// Retrieves the right-side expression in the assignment, if there is any assignment

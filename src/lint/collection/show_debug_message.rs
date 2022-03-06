@@ -30,7 +30,7 @@ impl EarlyExpressionPass for ShowDebugMessage {
     ) {
         if let Expression::Call(Call { left, .. }) = expression_box.expression() {
             if let Expression::Identifier(identifier) = left.expression() {
-                if identifier.name == "show_debug_message" {
+                if identifier.lexeme == "show_debug_message" {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Use of `show_debug_message`")

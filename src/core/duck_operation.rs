@@ -22,7 +22,7 @@ use crate::{
 /// ### Usage
 /// To create an [Ast] out of a string of Gml, you can use the [DuckOperation]s
 /// directly.
-/// ```
+/// ```ignore
 /// # use duck::*;
 /// # let gml = "show_debug_message(\"Hello world!\")".to_string();
 /// # let gml: &'static str = Box::leak(Box::new(gml));
@@ -36,7 +36,7 @@ use crate::{
 /// ```
 ///
 /// You can also manually run the [Lint]s on these [Ast]s.
-/// ```
+/// ```ignore
 /// # use duck::*;
 /// # let duck = Duck::default();
 /// # let gml = "show_debug_message(\"Hello world!\")".to_string();

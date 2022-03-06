@@ -36,11 +36,11 @@ impl EarlyExpressionPass for EnglishFlavorViolation {
                 match english_flavor {
                     EnglishFlavor::American => {
                         if let Some(american_spelling) =
-                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(identifier.name.as_str())
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_left(identifier.lexeme.as_str())
                         {
                             reports.push(
                                 Self::diagnostic(config)
-                                    .with_message(format!("Use of British spelling `{}`", identifier.name))
+                                    .with_message(format!("Use of British spelling `{}`", identifier.lexeme))
                                     .with_labels(vec![
                                         Label::primary(left.file_id(), left.span())
                                             .with_message(format!("replace this with `{}`", american_spelling)),
@@ -50,11 +50,11 @@ impl EarlyExpressionPass for EnglishFlavorViolation {
                     }
                     EnglishFlavor::British => {
                         if let Some(british_spelling) =
-                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(identifier.name.as_str())
+                            BRITISH_TO_AMERICAN_KEYWORDS.get_by_right(identifier.lexeme.as_str())
                         {
                             reports.push(
                                 Self::diagnostic(config)
-                                    .with_message(format!("Use of American spelling `{}`", identifier.name))
+                                    .with_message(format!("Use of American spelling `{}`", identifier.lexeme))
                                     .with_labels(vec![
                                         Label::primary(left.file_id(), left.span())
                                             .with_message(format!("replace this with `{}`", british_spelling)),

@@ -1,4 +1,4 @@
-use super::Token;
+use super::{Span, Token, TokenType};
 use fnv::FnvHashSet;
 use once_cell::sync::Lazy;
 use std::iter::Peekable;
@@ -9,7 +9,6 @@ pub struct Lexer {
     source: &'static str,
     input_characters: Peekable<GraphemeIndices<'static>>,
     next_char_boundary: usize,
-    token_cursor: usize,
 }
 impl Lexer {
     /// Creates a new Lexer, taking a string of gml source.
@@ -18,112 +17,111 @@ impl Lexer {
             source,
             input_characters: source.grapheme_indices(true).peekable(),
             next_char_boundary: 1,
-            token_cursor: 0,
         }
     }
 
     /// Consumes the Lexer's source code until it identifies the next Token.
-    fn lex(&mut self) -> (usize, Token) {
+    fn lex(&mut self) -> Token {
         if let Some((start_index, chr)) = self.take() {
             let token_type = match chr {
                 id if id.is_whitespace() => return self.lex(),
                 '.' => {
                     if self.peek().map_or(false, |c| matches!(c, '0'..='9')) {
                         let lexeme = self.construct_number(start_index);
-                        Some(Token::Real(lexeme.parse().unwrap()))
+                        Some(TokenType::Real(lexeme.parse().unwrap()))
                     } else {
-                        Some(Token::Dot)
+                        Some(TokenType::Dot)
                     }
                 }
-                ',' => Some(Token::Comma),
-                '(' => Some(Token::LeftParenthesis),
-                ')' => Some(Token::RightParenthesis),
-                ';' => Some(Token::SemiColon),
+                ',' => Some(TokenType::Comma),
+                '(' => Some(TokenType::LeftParenthesis),
+                ')' => Some(TokenType::RightParenthesis),
+                ';' => Some(TokenType::SemiColon),
                 '0' if self.match_take('x') => {
                     let lexeme = self.construct_hex(self.next_char_boundary);
                     if !lexeme.is_empty() {
-                        Some(Token::Hex(lexeme))
+                        Some(TokenType::Hex(lexeme))
                     } else {
-                        Some(Token::Invalid(lexeme))
+                        Some(TokenType::Invalid(lexeme))
                     }
                 }
                 '0'..='9' => {
                     let lexeme = self.construct_number(start_index);
-                    Some(Token::Real(lexeme.parse().unwrap()))
+                    Some(TokenType::Real(lexeme.parse().unwrap()))
                 }
                 '=' => {
                     if self.match_take('=') {
-                        Some(Token::DoubleEqual)
+                        Some(TokenType::DoubleEqual)
                     } else {
-                        Some(Token::Equal)
+                        Some(TokenType::Equal)
                     }
                 }
-                '{' => Some(Token::LeftBrace),
-                '}' => Some(Token::RightBrace),
+                '{' => Some(TokenType::LeftBrace),
+                '}' => Some(TokenType::RightBrace),
                 '-' => {
                     if self.match_take('=') {
-                        Some(Token::MinusEqual)
+                        Some(TokenType::MinusEqual)
                     } else if self.match_take('-') {
-                        Some(Token::DoubleMinus)
+                        Some(TokenType::DoubleMinus)
                     } else {
-                        Some(Token::Minus)
+                        Some(TokenType::Minus)
                     }
                 }
                 '+' => {
                     if self.match_take('=') {
-                        Some(Token::PlusEqual)
+                        Some(TokenType::PlusEqual)
                     } else if self.match_take('+') {
-                        Some(Token::DoublePlus)
+                        Some(TokenType::DoublePlus)
                     } else {
-                        Some(Token::Plus)
+                        Some(TokenType::Plus)
                     }
                 }
                 '*' => {
                     if self.match_take('=') {
-                        Some(Token::StarEqual)
+                        Some(TokenType::StarEqual)
                     } else {
-                        Some(Token::Star)
+                        Some(TokenType::Star)
                     }
                 }
                 '<' => {
                     if self.match_take('=') {
-                        Some(Token::LessThanOrEqual)
+                        Some(TokenType::LessThanOrEqual)
                     } else if self.match_take('<') {
-                        Some(Token::BitShiftLeft)
+                        Some(TokenType::BitShiftLeft)
                     } else {
-                        Some(Token::LessThan)
+                        Some(TokenType::LessThan)
                     }
                 }
                 '>' => {
                     if self.match_take('=') {
-                        Some(Token::GreaterThanOrEqual)
+                        Some(TokenType::GreaterThanOrEqual)
                     } else if self.match_take('>') {
-                        Some(Token::BitShiftRight)
+                        Some(TokenType::BitShiftRight)
                     } else {
-                        Some(Token::GreaterThan)
+                        Some(TokenType::GreaterThan)
                     }
                 }
                 '&' => {
                     if self.match_take('&') {
-                        Some(Token::DoubleAmpersand)
+                        Some(TokenType::DoubleAmpersand)
                     } else if self.match_take('=') {
-                        Some(Token::AmpersandEqual)
+                        Some(TokenType::AmpersandEqual)
                     } else {
-                        Some(Token::Ampersand)
+                        Some(TokenType::Ampersand)
                     }
                 }
                 '|' => {
                     if self.match_take('|') {
-                        Some(Token::DoublePipe)
+                        Some(TokenType::DoublePipe)
                     } else if self.match_take('=') {
-                        Some(Token::PipeEqual)
+                        Some(TokenType::PipeEqual)
                     } else {
-                        Some(Token::Pipe)
+                        Some(TokenType::Pipe)
                     }
                 }
-                ':' => Some(Token::Colon),
-                '[' => Some(Token::LeftSquareBracket),
-                ']' => Some(Token::RightSquareBracket),
+                ':' => Some(TokenType::Colon),
+                '[' => Some(TokenType::LeftSquareBracket),
+                ']' => Some(TokenType::RightSquareBracket),
                 // FIXME: Rather unfortunately our string parsing here is seperated from our string parsing below.
                 // Someone could probably stich them together, or at the very least, create a shared function for them.
                 '@' => {
@@ -148,47 +146,49 @@ impl Lexer {
                                         }
                                     }
                                 }
-                                None => return (start_index, Token::Eof),
+                                None => {
+                                    return Token::new(TokenType::Eof, Span::new(start_index, self.next_char_boundary));
+                                }
                             }
                         }
-                        Some(Token::StringLiteral(
+                        Some(TokenType::StringLiteral(
                             &self.source[start_position..self.next_char_boundary - 1],
                         ))
                     } else {
-                        Some(Token::AtSign)
+                        Some(TokenType::AtSign)
                     }
                 }
-                '~' => Some(Token::Tilde),
+                '~' => Some(TokenType::Tilde),
                 '%' => {
                     if self.match_take('=') {
-                        Some(Token::PercentEqual)
+                        Some(TokenType::PercentEqual)
                     } else {
-                        Some(Token::Percent)
+                        Some(TokenType::Percent)
                     }
                 }
                 '?' => {
                     if self.match_take('?') {
                         if self.match_take('=') {
-                            Some(Token::DoubleInterrobangEquals)
+                            Some(TokenType::DoubleInterrobangEquals)
                         } else {
-                            Some(Token::DoubleInterrobang)
+                            Some(TokenType::DoubleInterrobang)
                         }
                     } else {
-                        Some(Token::Interrobang)
+                        Some(TokenType::Interrobang)
                     }
                 }
                 '^' => {
                     if self.match_take('=') {
-                        Some(Token::CirumflexEqual)
+                        Some(TokenType::CirumflexEqual)
                     } else {
-                        Some(Token::Circumflex)
+                        Some(TokenType::Circumflex)
                     }
                 }
                 '!' => {
                     if self.match_take('=') {
-                        Some(Token::BangEqual)
+                        Some(TokenType::BangEqual)
                     } else {
-                        Some(Token::Bang)
+                        Some(TokenType::Bang)
                     }
                 }
                 '"' => {
@@ -208,19 +208,19 @@ impl Lexer {
                                     }
                                 }
                             }
-                            None => return (start_index, Token::Eof),
+                            None => return Token::new(TokenType::Eof, Span::new(start_index, self.next_char_boundary)),
                         }
                     }
-                    Some(Token::StringLiteral(
+                    Some(TokenType::StringLiteral(
                         &self.source[start_index + 1..self.next_char_boundary - 1],
                     ))
                 }
                 '$' => {
                     let lexeme = self.construct_hex(self.next_char_boundary);
                     if !lexeme.is_empty() {
-                        Some(Token::Hex(lexeme))
+                        Some(TokenType::Hex(lexeme))
                     } else {
-                        Some(Token::DollarSign)
+                        Some(TokenType::DollarSign)
                     }
                 }
                 // Regions / Macros
@@ -236,21 +236,24 @@ impl Lexer {
                         };
                         self.discard_whitespace();
                         let body = self.consume_rest_of_line(self.next_char_boundary);
-                        (start_index, Token::Macro(name, config, body))
+                        Token::new(
+                            TokenType::Macro(name, config, body),
+                            Span::new(start_index, self.next_char_boundary),
+                        )
                     } else if self.match_take_str("#region", start_index)
                         || self.match_take_str("#endregion", start_index)
                     {
                         self.discard_rest_of_line();
                         self.lex()
                     } else {
-                        (start_index, Token::Hash)
+                        Token::new(TokenType::Hash, Span::new(start_index, self.next_char_boundary))
                     };
                 }
 
                 // Slashes can be SO MANY THINGS
                 '/' => {
                     if self.match_take('=') {
-                        Some(Token::SlashEqual)
+                        Some(TokenType::SlashEqual)
                     } else if self.match_take('/') {
                         // Eat up the whitespace first...
                         self.consume_whitespace_on_line(start_index);
@@ -268,7 +271,7 @@ impl Lexer {
                                         let tag = self.construct_word(self.next_char_boundary);
                                         if self.match_take(')') && self.match_take(']') {
                                             self.consume_rest_of_line(self.next_char_boundary);
-                                            Some(Token::LintTag(level, tag))
+                                            Some(TokenType::LintTag(level, tag))
                                         } else {
                                             return self.lex();
                                         }
@@ -293,14 +296,16 @@ impl Lexer {
                                         break;
                                     }
                                 }
-                                None => return (start_index, Token::Eof),
+                                None => {
+                                    return Token::new(TokenType::Eof, Span::new(start_index, self.next_char_boundary));
+                                }
                             }
                         }
                         // Some(Token::Comment(comment_lexeme))
                         return self.lex();
                     } else {
                         // Just a slash
-                        Some(Token::Slash)
+                        Some(TokenType::Slash)
                     }
                 }
 
@@ -308,51 +313,51 @@ impl Lexer {
                 id if id.is_alphabetic() || id == '_' => {
                     // Now let's check for keywords
                     match self.construct_word(start_index) {
-                        "self" => Some(Token::SelfKeyword),
-                        "var" => Some(Token::Var),
-                        "return" => Some(Token::Return),
-                        "case" => Some(Token::Case),
-                        "if" => Some(Token::If),
-                        "else" => Some(Token::Else),
-                        "undefined" => Some(Token::Undefined),
-                        "noone" => Some(Token::Noone),
-                        "break" => Some(Token::Break),
-                        "new" => Some(Token::New),
-                        "function" => Some(Token::Function),
-                        "true" => Some(Token::True),
-                        "false" => Some(Token::False),
-                        "static" => Some(Token::Static),
-                        "for" => Some(Token::For),
-                        "while" => Some(Token::While),
-                        "and" => Some(Token::And),
-                        "or" => Some(Token::Or),
-                        "not" => Some(Token::Not),
-                        "switch" => Some(Token::Switch),
-                        "constructor" => Some(Token::Constructor),
-                        "default" => Some(Token::Default),
-                        "continue" => Some(Token::Continue),
-                        "global" => Some(Token::Global),
-                        "div" => Some(Token::Div),
-                        "mod" => Some(Token::Mod),
-                        "enum" => Some(Token::Enum),
-                        "exit" => Some(Token::Exit),
-                        "with" => Some(Token::With),
-                        "repeat" => Some(Token::Repeat),
-                        "do" => Some(Token::Do),
-                        "until" => Some(Token::Until),
-                        "globalvar" => Some(Token::Globalvar),
-                        "xor" => Some(Token::Xor),
-                        "other" => Some(Token::Other),
-                        "try" => Some(Token::Try),
-                        "catch" => Some(Token::Catch),
-                        "finally" => Some(Token::Finally),
-                        "throw" => Some(Token::Throw),
-                        "then" => Some(Token::Then),
-                        "delete" => Some(Token::Delete),
-                        "begin" => Some(Token::Begin),
-                        "end" => Some(Token::End),
-                        id if MISC_GML_CONSTANTS.contains(id) => Some(Token::MiscConstant(id)),
-                        lexeme => Some(Token::Identifier(lexeme)),
+                        "self" => Some(TokenType::SelfKeyword),
+                        "var" => Some(TokenType::Var),
+                        "return" => Some(TokenType::Return),
+                        "case" => Some(TokenType::Case),
+                        "if" => Some(TokenType::If),
+                        "else" => Some(TokenType::Else),
+                        "undefined" => Some(TokenType::Undefined),
+                        "noone" => Some(TokenType::Noone),
+                        "break" => Some(TokenType::Break),
+                        "new" => Some(TokenType::New),
+                        "function" => Some(TokenType::Function),
+                        "true" => Some(TokenType::True),
+                        "false" => Some(TokenType::False),
+                        "static" => Some(TokenType::Static),
+                        "for" => Some(TokenType::For),
+                        "while" => Some(TokenType::While),
+                        "and" => Some(TokenType::And),
+                        "or" => Some(TokenType::Or),
+                        "not" => Some(TokenType::Not),
+                        "switch" => Some(TokenType::Switch),
+                        "constructor" => Some(TokenType::Constructor),
+                        "default" => Some(TokenType::Default),
+                        "continue" => Some(TokenType::Continue),
+                        "global" => Some(TokenType::Global),
+                        "div" => Some(TokenType::Div),
+                        "mod" => Some(TokenType::Mod),
+                        "enum" => Some(TokenType::Enum),
+                        "exit" => Some(TokenType::Exit),
+                        "with" => Some(TokenType::With),
+                        "repeat" => Some(TokenType::Repeat),
+                        "do" => Some(TokenType::Do),
+                        "until" => Some(TokenType::Until),
+                        "globalvar" => Some(TokenType::Globalvar),
+                        "xor" => Some(TokenType::Xor),
+                        "other" => Some(TokenType::Other),
+                        "try" => Some(TokenType::Try),
+                        "catch" => Some(TokenType::Catch),
+                        "finally" => Some(TokenType::Finally),
+                        "throw" => Some(TokenType::Throw),
+                        "then" => Some(TokenType::Then),
+                        "delete" => Some(TokenType::Delete),
+                        "begin" => Some(TokenType::Begin),
+                        "end" => Some(TokenType::End),
+                        id if MISC_GML_CONSTANTS.contains(id) => Some(TokenType::MiscConstant(id)),
+                        lexeme => Some(TokenType::Identifier(lexeme)),
                     }
                 }
 
@@ -361,19 +366,19 @@ impl Lexer {
                     // this is chill, I promise
                     let tmp = Box::leak(Box::new([0u8; 4]));
                     let invalid = invalid.encode_utf8(tmp);
-                    Some(Token::Invalid(invalid))
+                    Some(TokenType::Invalid(invalid))
                 }
             };
 
             if let Some(token_type) = token_type {
-                (start_index, token_type)
+                Token::new(token_type, Span::new(start_index, self.next_char_boundary))
             } else {
                 self.lex()
             }
         } else {
-            (
-                0, // a lie, for the good of the people
-                Token::Eof,
+            Token::new(
+                TokenType::Eof,
+                Span::new(self.next_char_boundary, self.next_char_boundary),
             )
         }
     }
@@ -521,15 +526,14 @@ impl Lexer {
 }
 
 impl Iterator for Lexer {
-    type Item = (usize, Token);
+    type Item = Token;
     /// Returns the next Token in the Lexer.
     fn next(&mut self) -> Option<Self::Item> {
-        let (position, token) = self.lex();
-        self.token_cursor = position;
-        if token == Token::Eof {
+        let token = self.lex();
+        if token.token_type == TokenType::Eof {
             None
         } else {
-            Some((position, token))
+            Some(token)
         }
     }
 }

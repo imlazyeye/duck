@@ -26,10 +26,10 @@ impl EarlyExpressionPass for TooManyArguments {
     fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression_box.expression() {
             if parameters.len() > config.max_arguments {
-                let start = parameters.first().unwrap().name_expression().span().0;
+                let start = parameters.first().unwrap().name_expression().span().start();
                 let end = match parameters.last().unwrap() {
-                    OptionalInitilization::Uninitialized(expr) => expr.span().1,
-                    OptionalInitilization::Initialized(stmt) => stmt.span().1,
+                    OptionalInitilization::Uninitialized(expr) => expr.span().end(),
+                    OptionalInitilization::Initialized(stmt) => stmt.span().end(),
                 };
                 reports.push(
                     Self::diagnostic(config)

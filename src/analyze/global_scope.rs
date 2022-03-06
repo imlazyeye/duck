@@ -46,6 +46,6 @@ impl GlobalScopeBuilder {
 
     /// Registers a [GmlEnum] to this GlobalScope.
     pub fn register_enum(&mut self, gml_enum: Enum, location: Location) {
-        self.enums.insert(gml_enum.name.to_string(), (gml_enum, location));
+        self.enums.insert(gml_enum.name.lexeme.to_string(), (gml_enum, location));
     }
 }
