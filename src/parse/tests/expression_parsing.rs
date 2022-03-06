@@ -5,7 +5,17 @@ fn harness_expr(source: &'static str, expected: impl Into<Expression>) {
     let expected = expected.into();
     let mut parser = Parser::new(source, 0);
     let outputed = parser.expression().unwrap();
-    assert_eq!(*outputed.expression(), expected)
+    assert_eq!(*outputed.expression(), expected, "`{}` failed!", source)
+}
+
+fn harness_valid(source: &'static str) {
+    let mut parser = Parser::new(source, 0);
+    assert!(parser.expression().is_ok(), "`{}` was invalid!", source)
+}
+
+fn harness_invalid(source: &'static str) {
+    let mut parser = Parser::new(source, 0);
+    assert!(parser.expression().is_err(), "`{}` was valid!", source)
 }
 
 #[test]

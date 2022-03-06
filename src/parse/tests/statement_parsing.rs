@@ -8,6 +8,24 @@ fn harness_stmt(source: &'static str, expected: impl Into<Statement>) {
     assert_eq!(*outputed.statement(), expected)
 }
 
+fn harness_valid(source: &'static str) {
+    let parser = Parser::new(source, 0).into_ast();
+    assert!(
+        parser.map_or(false, |v| v.statements().len() == 1),
+        "`{}` was invalid!",
+        source
+    )
+}
+
+fn harness_invalid(source: &'static str) {
+    let parser = Parser::new(source, 0).into_ast();
+    assert!(
+        parser.map_or(true, |v| v.statements().len() != 1),
+        "`{}` was valid!",
+        source
+    )
+}
+
 #[test]
 fn macro_declaration() {
     harness_stmt("#macro foo 0", Statement::MacroDeclaration(Macro::new("foo", "0")))
@@ -741,4 +759,18 @@ fn comment_above_statement() {
             Identifier::lazy("bar").into_lazy_box(),
         ),
     );
+}
+
+#[test]
+fn assignment_targets() {
+    harness_valid("a.b = 1;");
+    harness_valid("a[0] = 1;");
+    harness_valid("a = 1;");
+    // harness_invalid("a() = 1;");
+    harness_invalid("a + b = 1;");
+    harness_invalid("function() {} = 1;");
+    harness_invalid("(a) = 1;");
+    harness_invalid("true = 1;");
+    harness_invalid("a++ = 1;");
+    harness_invalid("++a = 1;");
 }

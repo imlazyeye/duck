@@ -1,7 +1,7 @@
 use crate::{
     analyze::{GlobalScope, GlobalScopeBuilder},
     core::DuckOperation,
-    parse::{Ast, ParseError, ParseErrorReport, StatementBox},
+    parse::{Ast, StatementBox},
     Config, GmlLibrary,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
@@ -102,7 +102,7 @@ impl DuckTask {
     /// Panics if the receiver for the sender closes. This should not be possible!
     pub fn start_parse(
         mut file_receiver: Receiver<(FileId, &'static str)>,
-    ) -> (Receiver<ParseReport>, JoinHandle<Vec<ParseErrorReport>>) {
+    ) -> (Receiver<Ast>, JoinHandle<Vec<Diagnostic<FileId>>>) {
         let (ast_sender, ast_receiver) = channel::<Ast>(1000);
         let handle = tokio::task::spawn(async move {
             let mut parse_errors = vec![];
@@ -208,13 +208,7 @@ impl DuckTask {
 /// A wrapper around `usize`, which `codespan-reporting` uses as an id for files. Just used to help
 /// with readability. The returned data from successful parses.
 pub type FileId = usize;
-/// The returend data from a parse.
-pub type ParseReport = Ast;
-/// The returned data from unsuccessful parses.
-pub type ParseErrorCollection = Vec<ParseError>;
 /// An individual statement's data to be sent to the early pass.
 pub type EarlyPassEntry = (StatementBox, GlobalScopeBuilder, Vec<Diagnostic<FileId>>);
 /// An individual statement's data to be sent to the late pass.
 pub type LatePassEntry = (StatementBox, Vec<Diagnostic<FileId>>);
-/// A collection of diagnostics.
-pub type LintReportCollection = Vec<Diagnostic<FileId>>;

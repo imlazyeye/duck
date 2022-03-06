@@ -114,13 +114,11 @@ pub mod parse {
     }
     mod ast;
     mod lexer;
-    mod parse_error;
     mod parser;
     mod utils;
     pub use ast::*;
     pub use gml::*;
     pub use lexer::*;
-    pub use parse_error::*;
     pub use parser::*;
     pub use utils::*;
 

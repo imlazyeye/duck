@@ -5,7 +5,7 @@ use crate::{
     lint::{
         collection::*, EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, Lint, LintLevel,
     },
-    parse::{Ast, ExpressionBox, ParseErrorReport, ParseVisitor, Parser, Statement, StatementBox},
+    parse::{Ast, ExpressionBox, ParseVisitor, Parser, Statement, StatementBox},
     Config, FileId,
 };
 
@@ -61,7 +61,7 @@ impl DuckOperation {
     /// ### Errors
     ///
     /// Returns a [ParseError] if the parsing was unsuccessful.
-    pub fn parse_gml(source_code: &'static str, file_id: &FileId) -> Result<Ast, ParseErrorReport> {
+    pub fn parse_gml(source_code: &'static str, file_id: &FileId) -> Result<Ast, Diagnostic<FileId>> {
         Parser::new(source_code, *file_id).into_ast()
     }
 

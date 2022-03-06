@@ -1,4 +1,4 @@
-use crate::{lint::LintLevel, parse::ParseErrorReport, Config, DuckTask, FileId};
+use crate::{lint::LintLevel, Config, DuckTask, FileId};
 use codespan_reporting::{
     diagnostic::Diagnostic,
     files::{Error, Files, SimpleFile},
@@ -56,7 +56,7 @@ impl Duck {
     /// ### Errors
     /// Returns an error if we fail to join any of the tokio tasks.
     pub async fn run(&self, project_directory: &Path) -> Result<RunSummary, tokio::task::JoinError> {
-        // Load everything in and await through the early pass
+        // Load everything in and await through the early pass...
         let config_arc = Arc::new(self.config.clone()); // TODO: this clone sucks
         let (path_receiver, walker_handle) = DuckTask::start_gml_discovery(project_directory);
         let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
@@ -64,23 +64,16 @@ impl Duck {
         let (early_receiever, _) = DuckTask::start_early_pass(config_arc.clone(), parse_receiver);
         let (iterations, global_environment) = DuckTask::start_environment_assembly(early_receiever).await?;
 
-        // Now the late pass
         // Run the final pass...
-        let late_pass_reports = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
+        let mut diagnostics = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
         let (line_count, library, mut io_errors) = file_handle.await?;
         io_errors.append(&mut walker_handle.await?);
-        let parse_errors = parse_handle.await?;
+        diagnostics.append(&mut parse_handle.await?);
 
         // Return the result!
-        Ok(RunSummary::new(
-            library,
-            late_pass_reports,
-            parse_errors,
-            io_errors,
-            line_count,
-        ))
+        Ok(RunSummary::new(library, diagnostics, io_errors, line_count))
     }
 
     /// The blocking counterpart to [Duck::run].
@@ -113,8 +106,7 @@ pub struct RunSummary {
 impl RunSummary {
     fn new(
         library: GmlLibrary,
-        mut lint_reports: Vec<Diagnostic<FileId>>,
-        parse_errors: Vec<ParseErrorReport>,
+        lint_reports: Vec<Diagnostic<FileId>>,
         io_errors: Vec<std::io::Error>,
         lines_parsed: usize,
     ) -> Self {
@@ -122,7 +114,6 @@ impl RunSummary {
         for report in lint_reports.iter() {
             diagonstic_counts[report.severity.into()] += 1;
         }
-        lint_reports.append(&mut parse_errors.into_iter().map(|v| v.diagnostic()).collect());
         Self {
             library,
             diagonstic_counts,

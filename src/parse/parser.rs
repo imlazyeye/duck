@@ -1,3 +1,7 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use colored::Colorize;
+use itertools::Itertools;
+
 use crate::{
     lint::{LintLevel, LintTag},
     parse::*,
@@ -34,7 +38,7 @@ impl Parser {
     /// ### Errors
     ///
     /// Returns a [ParseError] if any of the source code caused an error.
-    pub fn into_ast(mut self) -> Result<Ast, ParseErrorReport> {
+    pub fn into_ast(mut self) -> Result<Ast, Diagnostic<FileId>> {
         let mut statements = vec![];
         while self.soft_peek().is_some() {
             statements.push(self.statement()?);
@@ -57,18 +61,13 @@ impl Parser {
     fn span(&self, start: usize) -> Span {
         Span::new(start, self.cursor + 1)
     }
-
-    /// Creates a new parse error report based on the the provided ParseError and current state.
-    pub fn report(&self, parse_error: ParseError, start_position: usize) -> ParseErrorReport {
-        ParseErrorReport::new(parse_error, self.span(start_position), self.file_id)
-    }
 }
 
 // Recursive descent (gml grammar)
 impl Parser {
-    pub(super) fn statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    pub(super) fn statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         match self.peek()?.token_type {
-            TokenType::Macro(_, _, _) => self.macro_declaration(),
+            TokenType::Macro(name, config, body) => self.macro_declaration(name, config, body),
             TokenType::Enum => self.enum_declaration(),
             TokenType::Try => self.try_catch(),
             TokenType::For => self.for_loop(),
@@ -89,23 +88,24 @@ impl Parser {
         }
     }
 
-    fn macro_declaration(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn macro_declaration(
+        &mut self,
+        name: &str,
+        config: Option<&str>,
+        body: &str,
+    ) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let token = self.take()?;
-        match token.token_type {
-            TokenType::Macro(name, config, body) => {
-                let mac = if let Some(config) = config {
-                    Macro::new_with_config(name, body, config)
-                } else {
-                    Macro::new(name, body)
-                };
-                Ok(self.box_statement(mac, start))
-            }
-            _ => Err(self.report(ParseError::UnexpectedToken(token), start)),
-        }
+        let _token = self.take()?;
+
+        let mac = if let Some(config) = config {
+            Macro::new_with_config(name, body, config)
+        } else {
+            Macro::new(name, body)
+        };
+        Ok(self.box_statement(mac, start))
     }
 
-    fn enum_declaration(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn enum_declaration(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Enum)?;
         let name = self.require_identifier()?;
@@ -141,7 +141,7 @@ impl Parser {
         Ok(self.box_statement(Enum::new_with_members(name, members), start))
     }
 
-    fn try_catch(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn try_catch(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Try)?;
         let try_body = self.block()?;
@@ -156,7 +156,7 @@ impl Parser {
         Ok(self.box_statement(try_catch, start))
     }
 
-    fn for_loop(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn for_loop(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::For)?;
         self.match_take(TokenType::LeftParenthesis);
@@ -169,7 +169,7 @@ impl Parser {
         Ok(self.box_statement(ForLoop::new(initializer, condition, tick, body), start))
     }
 
-    fn with(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn with(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::With)?;
         let condition = self.expression()?;
@@ -177,7 +177,7 @@ impl Parser {
         Ok(self.box_statement(WithLoop::new(condition, body), start))
     }
 
-    fn repeat(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn repeat(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Repeat)?;
         let condition = self.expression()?;
@@ -185,7 +185,7 @@ impl Parser {
         Ok(self.box_statement(RepeatLoop::new(condition, body), start))
     }
 
-    fn do_until(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn do_until(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Do)?;
         let body = self.statement()?;
@@ -195,7 +195,7 @@ impl Parser {
         Ok(self.box_statement(DoUntil::new(body, condition), start))
     }
 
-    fn while_loop(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn while_loop(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::While)?;
         let condition = self.expression()?;
@@ -203,7 +203,7 @@ impl Parser {
         Ok(self.box_statement(If::new(condition, body), start))
     }
 
-    fn if_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn if_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::If)?;
         let condition = self.expression()?;
@@ -225,9 +225,9 @@ impl Parser {
         ))
     }
 
-    fn switch(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn switch(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        fn case_body(parser: &mut Parser) -> Result<Vec<StatementBox>, ParseErrorReport> {
+        fn case_body(parser: &mut Parser) -> Result<Vec<StatementBox>, Diagnostic<FileId>> {
             let mut body = vec![];
             loop {
                 match parser.peek()?.token_type {
@@ -262,14 +262,20 @@ impl Parser {
                 }
                 _ => {
                     let token = self.take()?;
-                    return Err(self.report(ParseError::UnexpectedToken(token), start));
+                    return Err(Diagnostic::error()
+                        .with_message("Unexpected token in switch statement body")
+                        .with_labels(vec![
+                            Label::primary(self.file_id, token.span)
+                                .with_message("this token is not valid in this position".to_string()),
+                        ])
+                        .with_notes(vec!["Expected `case`, `default`, `}`, or `end`".into()]));
                 }
             }
         }
         Ok(self.box_statement(Switch::new(expression, members, default), start))
     }
 
-    fn block(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn block(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let opening_delimeter = self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
         let mut statements: Vec<StatementBox> = vec![];
@@ -287,7 +293,7 @@ impl Parser {
         ))
     }
 
-    fn return_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn return_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Return)?;
         let expression = self.expression().ok();
@@ -295,28 +301,28 @@ impl Parser {
         Ok(self.box_statement(Return::new(expression), start))
     }
 
-    fn break_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn break_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Break)?;
         self.match_take_repeating(TokenType::SemiColon);
         Ok(self.box_statement(Statement::Break, start))
     }
 
-    fn continue_statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn continue_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Continue)?;
         self.match_take_repeating(TokenType::SemiColon);
         Ok(self.box_statement(Statement::Continue, start))
     }
 
-    fn exit(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn exit(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Exit)?;
         self.match_take_repeating(TokenType::SemiColon);
         Ok(self.box_statement(Statement::Exit, start))
     }
 
-    fn globalvar_declaration(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn globalvar_declaration(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Globalvar)?;
         let name = self.require_identifier()?;
@@ -324,7 +330,7 @@ impl Parser {
         Ok(self.box_statement(Globalvar::new(name), start))
     }
 
-    fn local_variable_series(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn local_variable_series(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Var)?;
         let mut declarations = vec![];
@@ -363,7 +369,7 @@ impl Parser {
         Ok(self.box_statement(LocalVariableSeries::new(declarations), start))
     }
 
-    fn assignment(&mut self) -> Result<StatementBox, ParseErrorReport> {
+    fn assignment(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.unary()?; // Unaries are the highest possibel assignment expressions
 
@@ -391,21 +397,10 @@ impl Parser {
             return self.expression_statement(expression);
         };
         self.match_take_repeating(TokenType::SemiColon);
-
-        // VALIDATION
-        // Note for the below: yes, GM idiotically compiles `foo() = 1` despite it doing absolutely
-        // nothing and being extremely misleading. See `assignment_to_call`.
-        if !matches!(
-            assignment.left.expression(),
-            Expression::Identifier(..) | Expression::Access(..) | Expression::Call(..)
-        ) {
-            Err(self.report(ParseError::InvalidAssignmentTarget(assignment.left), start))
-        } else {
-            Ok(self.box_statement(assignment, start))
-        }
+        Ok(self.box_statement(assignment, start))
     }
 
-    fn expression_statement(&mut self, expression: ExpressionBox) -> Result<StatementBox, ParseErrorReport> {
+    fn expression_statement(&mut self, expression: ExpressionBox) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         match expression.expression() {
             Expression::FunctionDeclaration(..)
@@ -422,18 +417,27 @@ impl Parser {
 
             // Anything else is invalid.
             _ => {
-                return Err(self.report(ParseError::IncompleteStatement(expression), start));
+                return Err(Diagnostic::error()
+                    .with_message("Incomplete statement")
+                    .with_labels(vec![
+                        Label::primary(self.file_id, expression.span())
+                            .with_message("this expression does not form a complete statement".to_string()),
+                    ])
+                    .with_notes(vec![format!(
+                        "{}: did you mean to assign this value to something?",
+                        "hint".bold()
+                    )]));
             }
         }
         self.match_take_repeating(TokenType::SemiColon);
         Ok(self.box_statement(Statement::Expression(expression), start))
     }
 
-    pub(super) fn expression(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    pub(super) fn expression(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         self.logical()
     }
 
-    fn logical(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn logical(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.equality()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_logical_operator()) {
@@ -446,7 +450,7 @@ impl Parser {
         }
     }
 
-    fn equality(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn equality(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.binary()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_equality_operator()) {
@@ -459,7 +463,7 @@ impl Parser {
         }
     }
 
-    fn binary(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn binary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.bitshift()?;
         if let Some(operator) = self
@@ -484,7 +488,7 @@ impl Parser {
         }
     }
 
-    fn bitshift(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn bitshift(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.addition()?;
         if let Some(operator) = self
@@ -507,7 +511,7 @@ impl Parser {
         }
     }
 
-    fn addition(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn addition(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.multiplication()?;
         if let Some(operator) = self
@@ -536,7 +540,7 @@ impl Parser {
         }
     }
 
-    fn multiplication(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn multiplication(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.unary()?;
         if let Some(operator) = self
@@ -562,7 +566,7 @@ impl Parser {
         }
     }
 
-    fn unary(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn unary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         if let Some(operator) = self.peek()?.as_unary_operator() {
             self.take()?;
@@ -574,7 +578,7 @@ impl Parser {
         }
     }
 
-    fn postfix(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn postfix(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.null_coalecence()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_operator()) {
@@ -585,7 +589,7 @@ impl Parser {
         }
     }
 
-    fn null_coalecence(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn null_coalecence(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.ternary()?;
         if self.match_take(TokenType::DoubleInterrobang).is_some() {
@@ -597,7 +601,7 @@ impl Parser {
         }
     }
 
-    fn ternary(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn ternary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expression = self.function()?;
         if self.match_take(TokenType::Interrobang).is_some() {
@@ -611,7 +615,7 @@ impl Parser {
         }
     }
 
-    fn function(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn function(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         // TODO: when we do static-analysis, this will be used
         let _static_token = self.match_take(TokenType::Static);
@@ -619,11 +623,10 @@ impl Parser {
             let name = self.match_take_identifier()?;
             self.require(TokenType::LeftParenthesis)?;
             let mut parameters = vec![];
-            loop {
+            let right_parenthesis = loop {
                 match self.peek()?.token_type {
                     TokenType::RightParenthesis => {
-                        self.take()?;
-                        break;
+                        break self.take()?;
                     }
                     _ => {
                         let parameter_start = self.next_token_boundary();
@@ -642,22 +645,33 @@ impl Parser {
                         self.match_take(TokenType::Comma);
                     }
                 }
-            }
-            let colon = self.match_take(TokenType::Colon);
-            let inheritance = if colon.is_some() {
+            };
+            let inheritance = if self.peek()?.token_type == TokenType::Colon {
+                let colon = self.take()?;
                 let name = self.identifier()?;
-                Some(self.call(Some(name), false)?)
+                Some((colon, self.call(Some(name), false)?))
             } else {
                 None
             };
             let constructor = if self.match_take(TokenType::Constructor).is_some() {
                 match inheritance {
-                    Some(inheritance) => Some(Constructor::WithInheritance(inheritance)),
+                    Some((_, inheritance)) => Some(Constructor::WithInheritance(inheritance)),
                     None => Some(Constructor::WithoutInheritance),
                 }
             } else {
-                if let Some(colon) = colon {
-                    return Err(self.report(ParseError::UnexpectedToken(colon), colon.span.0));
+                if let Some((colon, inheritance)) = inheritance {
+                    return Err(Diagnostic::error()
+                        .with_message("Invalid usage of inheritance")
+                        .with_labels(vec![
+                            Label::primary(self.file_id, colon.span.start()..inheritance.span().end())
+                                .with_message("you are attempting to use constructor inheritance..".to_string()),
+                            Label::secondary(self.file_id, Span::new(start, right_parenthesis.span.end()))
+                                .with_message("...but this is not a constructor"),
+                        ])
+                        .with_notes(vec![format!(
+                            "{}: did you mean to assign this value to something?",
+                            "hint".bold()
+                        )]));
                 }
                 None
             };
@@ -677,7 +691,7 @@ impl Parser {
         }
     }
 
-    fn literal(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn literal(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         if let Some(literal) = self.peek()?.to_literal() {
             let token = self.take()?;
@@ -712,7 +726,7 @@ impl Parser {
         }
     }
 
-    fn supreme(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn supreme(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let mut has_new = self.match_take(TokenType::New);
         let mut expression = Some(self.call(None, has_new.take().is_some())?);
         loop {
@@ -734,7 +748,7 @@ impl Parser {
         }
     }
 
-    fn call(&mut self, left: Option<ExpressionBox>, uses_new: bool) -> Result<ExpressionBox, ParseErrorReport> {
+    fn call(&mut self, left: Option<ExpressionBox>, uses_new: bool) -> Result<ExpressionBox, Diagnostic<FileId>> {
         // If we've been provided a leftside expression, we *must* parse for a call.
         // Otherwise, the call is merely possible.
         let (start, left) = if let Some(left) = left {
@@ -768,7 +782,15 @@ impl Parser {
                         }
                     }
                     TokenType::RightParenthesis => break token.span.end(),
-                    _ => return Err(self.report(ParseError::UnexpectedToken(token), start)),
+                    _ => {
+                        return Err(Diagnostic::error()
+                            .with_message("Unexpected token in call arguments")
+                            .with_labels(vec![
+                                Label::primary(self.file_id, token.span)
+                                    .with_message("this token is not valid in this position".to_string()),
+                            ])
+                            .with_notes(vec!["Expected `,` or `)`".into()]));
+                    }
                 }
             }
         };
@@ -782,7 +804,7 @@ impl Parser {
         ))
     }
 
-    fn dot_access(&mut self, expression: Option<ExpressionBox>) -> Result<ExpressionBox, ParseErrorReport> {
+    fn dot_access(&mut self, expression: Option<ExpressionBox>) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let mut start = self.next_token_boundary();
         let (access, end) = if let Some(expression) = expression {
             self.require(TokenType::Dot)?;
@@ -846,7 +868,7 @@ impl Parser {
         Ok(self.box_expression(access, Span::new(start, end)))
     }
 
-    fn ds_access(&mut self, left: Option<ExpressionBox>) -> Result<ExpressionBox, ParseErrorReport> {
+    fn ds_access(&mut self, left: Option<ExpressionBox>) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let (start, left) = if let Some(left) = left {
             (left.span().0, left)
         } else {
@@ -916,7 +938,7 @@ impl Parser {
         Ok(self.box_expression(access, Span::new(start, token.span.end())))
     }
 
-    fn grouping(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn grouping(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         if self.match_take(TokenType::LeftParenthesis).is_some() {
             let expression = self.expression()?;
@@ -927,7 +949,7 @@ impl Parser {
         }
     }
 
-    fn identifier(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
+    fn identifier(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         // FIXME: This is our slightly ludicrous and temporary solution to the static keyword -- we just eat
         // it. Until we have static analysis, it means nothing to us!
         self.match_take(TokenType::Static);
@@ -939,10 +961,12 @@ impl Parser {
         }
     }
 
-    fn unexpected_token(&mut self) -> Result<ExpressionBox, ParseErrorReport> {
-        let start = self.next_token_boundary();
-        let token = *self.peek()?; // todo gabe here. if you don't know what this means, delete it
-        Err(self.report(ParseError::UnexpectedToken(token), start))
+    fn unexpected_token(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+        let token = *self.peek()?;
+        Err(Diagnostic::error().with_message("Invalid token").with_labels(vec![
+            Label::primary(self.file_id, token.span)
+                .with_message("this token is not valid in this position".to_string()),
+        ]))
     }
 }
 
@@ -985,28 +1009,37 @@ impl Parser {
 
     /// Returns the next Token, returning an error if there is none, or if it is
     /// not of the required type.
-    fn require(&mut self, token: TokenType) -> Result<Token, ParseErrorReport> {
+    fn require(&mut self, expected_type: TokenType) -> Result<Token, Diagnostic<FileId>> {
         let found_token = self.take()?;
-        if found_token.token_type == token {
+        if found_token.token_type == expected_type {
             Ok(found_token)
         } else {
-            Err(self.report(ParseError::ExpectedToken(token), self.cursor))
+            Err(Diagnostic::error().with_message("Expected token").with_labels(vec![
+                Label::primary(self.file_id, found_token.span)
+                    .with_message(format!("expected this to be a {:?} token", expected_type)),
+            ]))
         }
     }
 
     /// Returns the next Token, returning an error if there is none, or if it is
     /// not within the provided array of required types.
-    fn require_possibilities(&mut self, tokens: &[TokenType]) -> Result<Token, ParseErrorReport> {
+    fn require_possibilities(&mut self, tokens: &[TokenType]) -> Result<Token, Diagnostic<FileId>> {
         let found_token = self.take()?;
         if tokens.contains(&found_token.token_type) {
             Ok(found_token)
         } else {
-            Err(self.report(ParseError::ExpectedTokens(tokens.to_vec()), self.cursor))
+            let expected_types = tokens.iter().map(|v| format!("{v:?}")).join(", ");
+            Err(Diagnostic::error().with_message("Expected token").with_labels(vec![
+                Label::primary(self.file_id, found_token.span).with_message(format!(
+                    "expected this to be a one of the following tokens: {}",
+                    expected_types
+                )),
+            ]))
         }
     }
 
     /// Returns the next token as an Identifier if it is of TokenType::Identifier.
-    fn require_identifier(&mut self) -> Result<Identifier, ParseErrorReport> {
+    fn require_identifier(&mut self) -> Result<Identifier, Diagnostic<FileId>> {
         let next = self.take()?;
         if let Token {
             token_type: TokenType::Identifier(v),
@@ -1015,12 +1048,16 @@ impl Parser {
         {
             Ok(Identifier::new(v, span))
         } else {
-            Err(self.report(ParseError::UnexpectedToken(next), self.cursor))
+            Err(Diagnostic::error()
+                .with_message("Expected identifier")
+                .with_labels(vec![
+                    Label::primary(self.file_id, next.span).with_message("expected this to be an identifier"),
+                ]))
         }
     }
 
     /// Returns the inner field of the next Token if it is an Identifier.
-    fn match_take_identifier(&mut self) -> Result<Option<Identifier>, ParseErrorReport> {
+    fn match_take_identifier(&mut self) -> Result<Option<Identifier>, Diagnostic<FileId>> {
         if matches!(
             self.peek()?,
             Token {
@@ -1053,22 +1090,34 @@ impl Parser {
 
     /// Returns the type of the next Token, or returns an error if there is
     /// none.
-    fn peek(&mut self) -> Result<&Token, ParseErrorReport> {
+    fn peek(&mut self) -> Result<&Token, Diagnostic<FileId>> {
         self.collect_upcoming_comments();
         let start = self.next_token_boundary();
-        let report = self.report(ParseError::UnexpectedEnd, start); // FIXME: I'm doing this early because of the borrow checker
         let next = self.lexer.peek();
-        if let Some(next) = next { Ok(next) } else { Err(report) }
+        if let Some(next) = next {
+            Ok(next)
+        } else {
+            Err(Diagnostic::error()
+                .with_message("Unexpected end")
+                .with_labels(vec![Label::primary(self.file_id, start..start).with_message(
+                    "reached the end of the file in the middle of parsing a statement".to_string(),
+                )]))
+        }
     }
 
     /// Returns the next Token, returning an error if there is none.
-    fn take(&mut self) -> Result<Token, ParseErrorReport> {
+    fn take(&mut self) -> Result<Token, Diagnostic<FileId>> {
         self.collect_upcoming_comments();
+        let start = self.next_token_boundary();
         if let Some(token) = self.lexer.next() {
             self.cursor = token.span.0;
             Ok(token)
         } else {
-            Err(self.report(ParseError::UnexpectedEnd, self.cursor))
+            Err(Diagnostic::error()
+                .with_message("Unexpected end")
+                .with_labels(vec![Label::primary(self.file_id, start..start).with_message(
+                    "reached the end of the file in the middle of parsing a statement".to_string(),
+                )]))
         }
     }
 
