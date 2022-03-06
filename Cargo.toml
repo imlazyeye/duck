@@ -5,7 +5,7 @@ authors = ["Gabriel Weiner <imlazyeye@gmail.com"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/imlazyeye/duck"
-description = "A highly opinionated linter for GML. 🦆"
+description = "A fast and flexible linter for GML. 🦆"
 
 [lib]
 name = "duck"
@@ -13,7 +13,7 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "duck"
-path = "bin/bin.rs"
+path = "cli/main.rs"
 
 [[bench]]
 name = "benchmark"
