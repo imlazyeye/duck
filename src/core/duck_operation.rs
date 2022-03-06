@@ -90,6 +90,7 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<CollapsableIf>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<Deprecated>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<Exit>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<Global>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<MissingDefaultCase>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<MultiVarDeclaration>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<SingleSwitchCase>(statement_box, config, reports);
@@ -136,13 +137,13 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<DrawSprite>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<DrawText>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<EnglishFlavorViolation>(expression_box, config, reports);
-        Self::run_early_lint_on_expression::<Global>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<ModPreference>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<NonConstantDefaultParameter>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<NotPreference>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<OrPreference>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<RoomGoto>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<ShowDebugMessage>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<SingleEqualsComparison>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<SuspicousConstantUsage>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<Todo>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<TooManyArguments>(expression_box, config, reports);

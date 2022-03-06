@@ -1,19 +1,11 @@
 use crate::{parse::*, FileId};
 use std::{iter::Peekable, ops::Range};
 
-/// A collection of statements.
-pub type Ast = Vec<StatementBox>;
-
 /// Recursively decsends Gml source, incremently returning various statements
 /// and expressions.
 pub struct Parser {
     lexer: Peekable<Lexer>,
     cursor: usize,
-
-    // rust analyzer mishaps below
-    #[allow(dead_code)]
-    source_code: &'static str,
-    #[allow(dead_code)]
     file_id: FileId,
 }
 
@@ -25,7 +17,6 @@ impl Parser {
             lexer: Lexer::new(source_code).peekable(),
             cursor: 0,
             file_id,
-            source_code,
         }
     }
 
@@ -36,11 +27,11 @@ impl Parser {
     ///
     /// Returns a [ParseError] if any of the source code caused an error.
     pub fn into_ast(mut self) -> Result<Ast, ParseErrorReport> {
-        let mut statements: Ast = vec![];
+        let mut statements = vec![];
         while self.soft_peek().is_some() {
             statements.push(self.statement()?);
         }
-        Ok(statements)
+        Ok(Ast::new(statements))
     }
 
     /// Wraps an expression in a box.

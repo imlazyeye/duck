@@ -152,7 +152,7 @@ for operation in opreations:
 open('../src/core/duck_operation.rs', 'w').write(duck_operation)
 
 # Now update the full config template...
-template = open('../bin/input.rs', 'r').read()
+template = open('../src/core/config.rs', 'r').read()
 search = re.search(
     r'( +)// @tags\n((\n|.)+?) +// @end tags'.format(), template)
 tabs = search.group(1)
@@ -167,5 +167,5 @@ for lint in lints:
 template = template.replace(old_call, new_call)
 
 # Flush to the file
-open('../bin/input.rs', 'w').write(template)
+open('../src/core/config.rs', 'w').write(template)
 print("Finished updating lint calls!")

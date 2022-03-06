@@ -21,12 +21,13 @@ Below are all of the lints currently supported in `duck`.
 | mod_preference | LintLevel::Allow | GML supports both `mod` and `%` to perform modulo division. Consistent use of one over the other yields cleaner code.
 | multi_var_declaration | LintLevel::Allow | While GML allows you to create multiple local variables at once, it can often lead to confusing syntax that would read better with each variable seperated.
 | non_constant_default_parameter | LintLevel::Warn | Expressive default parameters are not supported in most languages due to their instability and tendency to hide important logic execution from the caller.
-| non_pascal_case | LintLevel::Warn |  to distinguish them from other values.
-| non_scream_case | LintLevel::Warn | Scream case is the ideal casing for constants to distingusih them from other values.
+|  | LintLevel::Warn | temp
+|  | LintLevel::Warn | temp
 | not_preference | LintLevel::Allow | GML supports both `not` and `!` to refer to unary \"not\". Consistent use of one over the other yields cleaner code.
 | or_preference | LintLevel::Allow | GML supports both `or` and `||` to refer to logical \"or\" -- `||` is more consistent with other languages and is preferred.
 | room_goto | LintLevel::Allow | Projects that implement their own frameworks for room management may wish to be restrictive around when and where the `room_goto` functions are called.
 | show_debug_message | LintLevel::Allow | Projects often implement their own logging framework and wish to avoid unwrapped prints to the console.
+| single_equals_comparison | LintLevel::Warn | The single-equals token can be used for both assignments and equalities in gml. This is atypical of most languages, and can lead to inconsistancies or bugs in projects.
 | single_switch_case | LintLevel::Warn | Switch statements that only match on a single element can be reduced to an `if` statement.
 | statement_parenthetical_preference | LintLevel::Allow | Parenthesis surrounding statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.
 | suspicious_constant_usage | LintLevel::Deny | Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.

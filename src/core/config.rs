@@ -70,6 +70,48 @@ impl Default for Config {
     }
 }
 impl Config {
+    /// Creates a config with every possible field present at its default value.
+    pub fn full() -> Self {
+        Self {
+            lint_levels: HashMap::from([
+                // @tags
+                ("accessor_alternative".into(), LintLevel::Warn),
+                ("and_preference".into(), LintLevel::Allow),
+                ("anonymous_constructor".into(), LintLevel::Allow),
+                ("assignment_to_call".into(), LintLevel::Deny),
+                ("bool_equality".into(), LintLevel::Allow),
+                ("collapsable_if".into(), LintLevel::Warn),
+                ("deprecated".into(), LintLevel::Warn),
+                ("draw_sprite".into(), LintLevel::Allow),
+                ("draw_text".into(), LintLevel::Allow),
+                ("english_flavor_violation".into(), LintLevel::Allow),
+                ("exit".into(), LintLevel::Allow),
+                ("global".into(), LintLevel::Allow),
+                ("missing_case_member".into(), LintLevel::Warn),
+                ("missing_default_case".into(), LintLevel::Allow),
+                ("mod_preference".into(), LintLevel::Allow),
+                ("multi_var_declaration".into(), LintLevel::Allow),
+                ("non_constant_default_parameter".into(), LintLevel::Warn),
+                ("".into(), LintLevel::Warn),
+                ("".into(), LintLevel::Warn),
+                ("not_preference".into(), LintLevel::Allow),
+                ("or_preference".into(), LintLevel::Allow),
+                ("room_goto".into(), LintLevel::Allow),
+                ("show_debug_message".into(), LintLevel::Allow),
+                ("single_equals_comparison".into(), LintLevel::Warn),
+                ("single_switch_case".into(), LintLevel::Warn),
+                ("statement_parenthetical_preference".into(), LintLevel::Allow),
+                ("suspicious_constant_usage".into(), LintLevel::Deny),
+                ("todo".into(), LintLevel::Allow),
+                ("too_many_arguments".into(), LintLevel::Warn),
+                ("try_catch".into(), LintLevel::Allow),
+                ("var_prefix_violation".into(), LintLevel::Allow),
+                ("with_loop".into(), LintLevel::Allow),
+                // @end tags
+            ]),
+            ..Default::default()
+        }
+    }
     /// Gets the level needed for a lint based on its tag, taking a default
     /// if the user hasn't specifide anything.
     pub fn get_lint_level_setting(&self, tag: &str, default: LintLevel) -> LintLevelSetting {

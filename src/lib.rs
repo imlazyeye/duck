@@ -7,7 +7,6 @@
 #![warn(clippy::similar_names)]
 #![warn(clippy::todo)]
 #![warn(clippy::unimplemented)]
-#![warn(clippy::too_many_lines)]
 #![warn(clippy::undocumented_unsafe_blocks)]
 
 //! Utilities for parsing and linting Gml.
@@ -32,6 +31,11 @@ pub mod lint {
 
     /// Collection of all of the various lints in duck.
     pub mod collection;
+
+    #[cfg(test)]
+    mod tests {
+        mod lint_tests;
+    }
 }
 
 /// Tools and types used to parse gml into an abstract syntax tree.
@@ -108,13 +112,17 @@ pub mod parse {
         pub use statements::*;
         pub use token::*;
     }
+    mod ast;
     mod lexer;
     mod parse_error;
     mod parser;
+    mod utils;
+    pub use ast::*;
     pub use gml::*;
     pub use lexer::*;
     pub use parse_error::*;
     pub use parser::*;
+    pub use utils::*;
 
     #[cfg(test)]
     mod tests;

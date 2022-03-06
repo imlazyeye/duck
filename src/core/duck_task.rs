@@ -130,7 +130,7 @@ impl DuckTask {
         let (early_pass_sender, early_pass_receiver) = channel::<EarlyPassEntry>(1000);
         let handle = tokio::task::spawn(async move {
             while let Some(ast) = ast_receiever.recv().await {
-                for statement in ast {
+                for statement in ast.unpack() {
                     let config = config.clone();
                     let sender = early_pass_sender.clone();
                     tokio::task::spawn(async move {

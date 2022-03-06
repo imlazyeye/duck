@@ -1,7 +1,7 @@
 use crate::{
     parse::{
-        Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro, RepeatLoop,
-        Return, Span, Switch, TryCatch, WhileLoop, WithLoop,
+        Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro,
+        ParseVisitor, RepeatLoop, Return, Span, Switch, TryCatch, WhileLoop, WithLoop,
     },
     FileId,
 };
@@ -77,12 +77,12 @@ impl ParseVisitor for Statement {
             Statement::Block(inner) => inner.visit_child_statements(statement_visitor),
             Statement::Return(inner) => inner.visit_child_statements(statement_visitor),
             Statement::Assignment(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::Expression(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::Expression(_) => {}
             Statement::Break | Statement::Continue | Statement::Exit => {}
         }
     }
 
-    fn visit_child_expressions<E>(&self, expression_visitor: E)
+    fn visit_child_expressions<E>(&self, mut expression_visitor: E)
     where
         E: FnMut(&ExpressionBox),
     {
@@ -102,7 +102,7 @@ impl ParseVisitor for Statement {
             Statement::Block(inner) => inner.visit_child_expressions(expression_visitor),
             Statement::Return(inner) => inner.visit_child_expressions(expression_visitor),
             Statement::Assignment(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Expression(inner) => inner.visit_child_expressions(expression_visitor),
+            Statement::Expression(inner) => expression_visitor(inner),
             Statement::Break | Statement::Continue | Statement::Exit => {}
         }
     }
@@ -176,13 +176,4 @@ pub trait IntoStatementBox: Sized + Into<Statement> {
     {
         self.into_statement_box(Default::default(), 0)
     }
-}
-
-/// Used to visit the children of a Statement as we recurse down the tree.
-pub trait ParseVisitor {
-    /// Visits all expressions this T contains.
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, expression_visitor: E);
-
-    /// Visits all statements this T contains.
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, statement_visitor: S);
 }

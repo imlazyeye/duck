@@ -23,7 +23,6 @@ impl Lexer {
     }
 
     /// Consumes the Lexer's source code until it identifies the next Token.
-    #[allow(clippy::too_many_lines)]
     fn lex(&mut self) -> (usize, Token) {
         if let Some((start_index, chr)) = self.take() {
             let token_type = match chr {

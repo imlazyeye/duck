@@ -3,7 +3,7 @@ use crate::{
     FileId,
 };
 
-use super::{IntoStatementBox, ParseVisitor, Statement};
+use super::{IntoStatementBox, Statement};
 
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]

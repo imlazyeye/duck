@@ -211,6 +211,8 @@ impl<'a> Files<'a> for GmlLibrary {
         self.get(file_id)?.line_range((), line_index)
     }
 }
+
+#[cfg(not(test))]
 impl Drop for GmlLibrary {
     fn drop(&mut self) {
         for file in self.files.iter_mut() {

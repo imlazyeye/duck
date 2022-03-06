@@ -24,7 +24,12 @@ impl Lint for CollapsableIf {
 
 impl EarlyStatementPass for CollapsableIf {
     fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Statement::If(If { body: first_body, .. }) = statement_box.statement() {
+        if let Statement::If(If {
+            body: first_body,
+            else_statement: None,
+            ..
+        }) = statement_box.statement()
+        {
             if let Some(block) = first_body.statement().as_block().filter(|block| block.body.len() == 1) {
                 let nested_statement = block.body.first().unwrap();
                 if let Statement::If(If {

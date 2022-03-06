@@ -1,13 +1,10 @@
 use crate::parse::*;
-use colored::Colorize;
 use pretty_assertions::assert_eq;
 
 fn harness_expr(source: &'static str, expected: impl Into<Expression>) {
     let expected = expected.into();
     let mut parser = Parser::new(source, 0);
     let outputed = parser.expression().unwrap();
-    println!("{}: {}", "Source".yellow(), source);
-    println!("{}: {:?}", "Outputted".red(), *outputed.expression());
     assert_eq!(*outputed.expression(), expected)
 }
 

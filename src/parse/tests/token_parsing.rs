@@ -2,13 +2,11 @@ use crate::parse::{
     lexer::{Lexer, MISC_GML_CONSTANTS, MISC_GML_VARIABLES},
     Token,
 };
-use colored::Colorize;
 use pretty_assertions::assert_eq;
 
 fn harness_multi(source: &'static str, expected: impl Into<Vec<Token>>) {
     let outputed = Lexer::new(source).map(|(_, token)| token).collect::<Vec<Token>>();
     let expected = expected.into();
-    println!("{}: {}", "Source".yellow(), source);
     assert_eq!(*outputed, expected)
 }
 

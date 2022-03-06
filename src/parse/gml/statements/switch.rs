@@ -3,9 +3,12 @@ use crate::parse::{Access, Expression, ExpressionBox, IntoStatementBox, ParseVis
 /// Representation of a gml switch statement.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Switch {
-    matching_value: ExpressionBox,
-    cases: Vec<SwitchCase>,
-    default_case: Option<Vec<StatementBox>>,
+    /// The value this switch statement is matching over.
+    pub matching_value: ExpressionBox,
+    /// The various cases in this switch statement.
+    pub cases: Vec<SwitchCase>,
+    /// The default case body, if any.
+    pub default_case: Option<Vec<StatementBox>>,
 }
 impl Switch {
     /// Creates a new switch with the provided matching value, cases, and

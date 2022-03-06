@@ -5,7 +5,7 @@
 
 A collection of customizable lints to identify common mistakes in GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
 
-Currently supports [31 lints](LINTS.md), with more on the way!
+Currently supports [32 lints](LINTS.md), with more on the way!
 
 `duck` is is a highly opinionated linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are _completely customizable_.
 
@@ -17,13 +17,13 @@ Currently supports [31 lints](LINTS.md), with more on the way!
   - [Lint Levels](#lint-levels)
   - [Lint Options](#lint-options)
   - [Tags](#tags)
+- [Validating GML](#validating-gml)
 - [Examples](#examples)
 - [Usage Guide](#usage-guide)
   - [Installation](#instalation)
   - [Creating a configuration file](#creating-a-configuration-file)
   - [Setting lint levels](#setting-lint-levels)
   - [Running the linter](#running-the-linter)
-- [Limitations](#limitations)
 - [Contributing](#contributing)
 - [Support and Requests](#support-and-requests)
 
@@ -63,6 +63,14 @@ globalvar my_globalvar;
 ```
 
 Tags are a great way to enable lints on things you don't want to _fully_ ban, but want to keep a close eye on.
+
+## Validating GML
+
+Generally speaking, `duck` tries to support parsing for anything that is valid gml. Exceptions to this policy are made on a case by case basis when the benefit of supporting something is outweighed by how much strain it would put on the codebase. If you encounter any parsing errors in duck that do not cause errors in GM, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
+
+`duck` also seeks to throw an error for anything gml would. Ideally, if `duck` passes with no errors, you should be confident that it will run in GM as well.
+
+`duck` is able to achieve this pretty well just by nature of it being able to fully parse gml's grammar. However, there is no way to know all of the specific errors the GameMaker compiler can throw, and as such, `duck` may be missing some. If `duck` ever successfully parses gml that does not pass in GameMaker, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
 
 ## Examples
 
@@ -142,29 +150,6 @@ If you would like to run the linter on a project outside the current directory y
 duck lint --path path/to/project
 ```
 
-## Limitations
-
-Generally speaking, `duck` tries to support parsing for anything that is valid gml. Exceptions to this policy are made on a case by case basis when the benefit of supporting something is outweighed by how much strain it would put on the codebase. If you encounter any parsing errors in duck that do not cause errors in GM, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
-
-### Single Equal Equalities
-
-The one noteable example of this is single-equals equalities:
-
-```js
-if foo = 1 {} // `foo = 1` is an equality expression
-foo = 1; // `foo = 1` is an assignment expression
-```
-
-Understanding the difference between these two `foo = 1` calls as a parser is very difficult to do elegantly and (as best as I can tell) require interpretting everything based on the context it is within. This is not a debt I'm interested in taking on at the moment, so for now, **duck does not support single-equals equality expressions**. This does _not_ mean that duck will encounter errors if you use them, it just means that it will mistake them for assignments, which may lead to false positives and negatives in your lints.
-
-### Gml Validity
-
-Just like `duck` aims to successfully parse anything that gml can, it also seeks to throw an error for anything gml would. Ideally, if `duck` passes with no errors, you should be confident that it will run in GM as well.
-
-`duck` is able to achieve this pretty well just by nature of it being able to fully parse gml's grammar. However, there is no way to know all of the specific errors the GameMaker compiler can throw, and as such, `duck` may be missing some. If `duck` ever successfully parses gml that does not pass in GameMaker, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
-
-You can view our tracking issue for any discrepancies between duck and GM here. TODO!!!
-
 ## Contributing
 
 `duck` is designed to be easily extensible, and contributions are extremely welcome! Please see [Contributing](CONTRIBUTING.md) for more information.
@@ -175,4 +160,4 @@ Please [open an issue](https://github.com/imlazyeye/duck/issues) if you encounte
 
 ### Footnotes
 
-- Benchmark was run on an MacBook Pro 2021 running an M1 Max with 32 GB of memory.
+- _Benchmark was run on an MacBook Pro 2021 running an M1 Max with 32 GB of memory._
