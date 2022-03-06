@@ -1,4 +1,5 @@
 use crate::{
+    lint::LintTag,
     parse::{Span, *},
     FileId,
 };
@@ -109,10 +110,12 @@ impl ParseVisitor for Expression {
 /// A wrapper around a Expression. Serves a few purposes:
 ///
 /// 1. Prevents infinite-sizing issues on [Expression] (type T cannot itself directly hold another
-/// T) 2. Contains the [Span] that describes where this expression came from
+/// T)
+/// 2. Contains the location that describes where this expression came from
+/// 3. Contains the lint tag, if any, that the user left on this statement
 /// 3. In the future, will hold static-analysis data
 #[derive(Debug, PartialEq, Clone)]
-pub struct ExpressionBox(pub Box<Expression>, Location);
+pub struct ExpressionBox(pub Box<Expression>, Location, Option<LintTag>);
 impl ExpressionBox {
     /// Returns a reference to the inner expression.
     pub fn expression(&self) -> &Expression {
@@ -129,6 +132,10 @@ impl ExpressionBox {
     /// Returns the file id this expression originates from.
     pub fn file_id(&self) -> FileId {
         self.location().0
+    }
+    /// Returns the lint tag attached to this statement, if any.
+    pub fn lint_tag(&self) -> Option<&LintTag> {
+        self.2.as_ref()
     }
 }
 impl From<ExpressionBox> for Statement {
@@ -152,9 +159,9 @@ impl ParseVisitor for ExpressionBox {
 ///
 /// TODO: This could be a derive macro!
 pub trait IntoExpressionBox: Sized + Into<Expression> {
-    /// Converts self into an expression box with a provided span.
-    fn into_expression_box(self, span: Span, file_id: FileId) -> ExpressionBox {
-        ExpressionBox(Box::new(self.into()), Location(file_id, span))
+    /// Converts self into an expression box.
+    fn into_expression_box(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> ExpressionBox {
+        ExpressionBox(Box::new(self.into()), Location(file_id, span), lint_tag)
     }
 
     /// Converts self into an expression box with a default span. Used in tests, where all spans are
@@ -163,6 +170,6 @@ pub trait IntoExpressionBox: Sized + Into<Expression> {
     where
         Self: Sized,
     {
-        self.into_expression_box(Default::default(), 0)
+        self.into_expression_box(Default::default(), 0, None)
     }
 }

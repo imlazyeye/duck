@@ -1,4 +1,8 @@
-use crate::{parse::*, FileId};
+use crate::{
+    lint::{LintLevel, LintTag},
+    parse::*,
+    FileId,
+};
 use std::{iter::Peekable, ops::Range};
 
 /// Recursively decsends Gml source, incremently returning various statements
@@ -7,6 +11,8 @@ pub struct Parser {
     lexer: Peekable<Lexer>,
     cursor: usize,
     file_id: FileId,
+    comments: Vec<Token>,
+    lint_tag_slot: Option<LintTag>,
 }
 
 // Basic features
@@ -17,6 +23,8 @@ impl Parser {
             lexer: Lexer::new(source_code).peekable(),
             cursor: 0,
             file_id,
+            comments: vec![],
+            lint_tag_slot: None,
         }
     }
 
@@ -35,13 +43,13 @@ impl Parser {
     }
 
     /// Wraps an expression in a box.
-    pub fn box_expression(&self, expression: impl IntoExpressionBox, span: Span) -> ExpressionBox {
-        expression.into_expression_box(span, self.file_id)
+    pub fn box_expression(&mut self, expression: impl IntoExpressionBox, span: Span) -> ExpressionBox {
+        expression.into_expression_box(span, self.file_id, self.lint_tag_slot.take())
     }
 
     /// Wraps an expression in a box.
-    pub fn box_statement(&self, statement: impl IntoStatementBox, start_position: usize) -> StatementBox {
-        statement.into_statement_box(self.span(start_position), self.file_id)
+    pub fn box_statement(&mut self, statement: impl IntoStatementBox, start_position: usize) -> StatementBox {
+        statement.into_statement_box(self.span(start_position), self.file_id, self.lint_tag_slot.take())
     }
 
     /// Creates a [Span] from the given position up until the pilot's current
@@ -56,7 +64,7 @@ impl Parser {
     }
 }
 
-// Recursive descent
+// Recursive descent (gml grammar)
 impl Parser {
     pub(super) fn statement(&mut self) -> Result<StatementBox, ParseErrorReport> {
         match self.peek()?.token_type {
@@ -940,30 +948,6 @@ impl Parser {
 
 // Lexing tools
 impl Parser {
-    /// Get the gml tokens's cursor.
-    fn next_token_boundary(&mut self) -> usize {
-        self.lexer.peek().map_or(self.cursor, |token| token.span.0)
-    }
-
-    /// Returns the type of the next Token, or returns an error if there is
-    /// none.
-    fn peek(&mut self) -> Result<&Token, ParseErrorReport> {
-        let start = self.next_token_boundary();
-        let report = self.report(ParseError::UnexpectedEnd, start); // FIXME: I'm doing this early because of the borrow checker
-        let next = self.lexer.peek();
-        if let Some(next) = next { Ok(next) } else { Err(report) }
-    }
-
-    /// Returns the type of the next Token if there is one. Used for situations
-    /// where no tokens remaining would be valid.
-    fn soft_peek(&mut self) -> Option<&Token> {
-        if let Some(token) = self.lexer.peek() {
-            Some(token)
-        } else {
-            None
-        }
-    }
-
     /// Consumes and returns the next token if it is the given type.
     fn match_take(&mut self, token_type: TokenType) -> Option<Token> {
         match self.peek() {
@@ -1050,13 +1034,74 @@ impl Parser {
         }
     }
 
+    /// Get the gml tokens's cursor.
+    fn next_token_boundary(&mut self) -> usize {
+        self.collect_upcoming_comments();
+        self.lexer.peek().map_or(self.cursor, |token| token.span.0)
+    }
+
+    /// Returns the type of the next Token if there is one. Used for situations
+    /// where no tokens remaining would be valid.
+    fn soft_peek(&mut self) -> Option<&Token> {
+        self.collect_upcoming_comments();
+        if let Some(token) = self.lexer.peek() {
+            Some(token)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the type of the next Token, or returns an error if there is
+    /// none.
+    fn peek(&mut self) -> Result<&Token, ParseErrorReport> {
+        self.collect_upcoming_comments();
+        let start = self.next_token_boundary();
+        let report = self.report(ParseError::UnexpectedEnd, start); // FIXME: I'm doing this early because of the borrow checker
+        let next = self.lexer.peek();
+        if let Some(next) = next { Ok(next) } else { Err(report) }
+    }
+
     /// Returns the next Token, returning an error if there is none.
     fn take(&mut self) -> Result<Token, ParseErrorReport> {
+        self.collect_upcoming_comments();
         if let Some(token) = self.lexer.next() {
             self.cursor = token.span.0;
             Ok(token)
         } else {
             Err(self.report(ParseError::UnexpectedEnd, self.cursor))
+        }
+    }
+
+    /// Looks ahead at the next token and collects it if it is a comment (including lint tags).
+    fn collect_upcoming_comments(&mut self) {
+        loop {
+            match self.lexer.peek() {
+                Some(Token {
+                    token_type: TokenType::Comment(_),
+                    ..
+                }) => self.comments.push(self.lexer.next().unwrap()),
+                Some(Token {
+                    token_type: TokenType::LintTag(level, tag),
+                    ..
+                }) => {
+                    // TODO: We currently don't have an easy way to validate a lint tag. We should create an
+                    // autogenerated lazy-static hashset.
+                    let lint_level = match *level {
+                        "allow" => LintLevel::Allow,
+                        "warn" => LintLevel::Warn,
+                        "deny" => LintLevel::Deny,
+                        _ => {
+                            // todo: returning the below error would be non trivial...
+                            // return Err(ParseError::InvalidLintLevel(self.lexer.next().unwrap())),
+                            self.lexer.next().unwrap();
+                            break;
+                        }
+                    };
+                    self.lint_tag_slot = Some(LintTag(tag.to_string(), lint_level));
+                    self.lexer.next().unwrap();
+                }
+                _ => break,
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 use crate::{
+    lint::LintTag,
     parse::{
         Block, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro,
         ParseVisitor, RepeatLoop, Return, Span, Switch, TryCatch, WhileLoop, WithLoop,
@@ -135,10 +136,11 @@ impl Statement {
 /// A wrapper around a Statement. Serves a few purposes:
 ///
 /// 1. Prevents infinite-sizing issues on [Statement] (type T cannot itself directly hold another T)
-/// 2. Contains the span that describes where this statement came from
+/// 2. Contains the location that describes where this statement came from
+/// 3. Contains the lint tag, if any, that the user left on this statement
 /// 3. In the future, will hold static-analysis data
 #[derive(Debug, PartialEq, Clone)]
-pub struct StatementBox(Box<Statement>, Location);
+pub struct StatementBox(Box<Statement>, Location, Option<LintTag>);
 impl StatementBox {
     /// Returns a reference to the inner statement.
     pub fn statement(&self) -> &Statement {
@@ -156,6 +158,10 @@ impl StatementBox {
     pub fn file_id(&self) -> FileId {
         self.location().0
     }
+    /// Returns the lint tag attached to this statement, if any.
+    pub fn lint_tag(&self) -> Option<&LintTag> {
+        self.2.as_ref()
+    }
 }
 
 /// Derives two methods to convert the T into an [StatementBox], supporting both a standard
@@ -164,8 +170,8 @@ impl StatementBox {
 /// TODO: This could be a derive macro!
 pub trait IntoStatementBox: Sized + Into<Statement> {
     /// Converts self into an statement box.
-    fn into_statement_box(self, span: Span, file_id: FileId) -> StatementBox {
-        StatementBox(Box::new(self.into()), Location(file_id, span))
+    fn into_statement_box(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> StatementBox {
+        StatementBox(Box::new(self.into()), Location(file_id, span), lint_tag)
     }
 
     /// Converts self into an statement box with a default span. Used in tests, where all spans are
@@ -174,6 +180,6 @@ pub trait IntoStatementBox: Sized + Into<Statement> {
     where
         Self: Sized,
     {
-        self.into_statement_box(Default::default(), 0)
+        self.into_statement_box(Default::default(), 0, None)
     }
 }

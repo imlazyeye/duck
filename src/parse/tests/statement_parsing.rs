@@ -727,3 +727,18 @@ fn general_other_reference() {
         ),
     );
 }
+
+#[test]
+fn comment_above_statement() {
+    harness_stmt(
+        "
+            // nothing in here!
+            foo = bar;    
+        ",
+        Assignment::new(
+            Identifier::lazy("foo").into_lazy_box(),
+            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            Identifier::lazy("bar").into_lazy_box(),
+        ),
+    );
+}

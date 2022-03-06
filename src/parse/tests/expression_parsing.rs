@@ -1115,3 +1115,22 @@ fn logically_joined_expressions() {
         ),
     );
 }
+
+#[test]
+fn comment_in_builder_chain() {
+    harness_expr(
+        "
+            foo()
+            // nothing in here!
+            .bar()
+        ",
+        Call::new(
+            Access::Dot {
+                left: Call::new(Identifier::lazy("foo").into_lazy_box(), vec![]).into_lazy_box(),
+                right: Identifier::lazy("bar").into_lazy_box(),
+            }
+            .into_lazy_box(),
+            vec![],
+        ),
+    );
+}

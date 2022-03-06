@@ -265,27 +265,21 @@ impl Lexer {
                         if self.match_take('#') && self.match_take('[') {
                             // Looking promising!!
                             let level = self.construct_word(self.next_char_boundary);
-                            match level {
-                                "allow" | "warn" | "deny" => {
-                                    if self.match_take('(') {
-                                        let tag = self.construct_word(self.next_char_boundary);
-                                        if self.match_take(')') && self.match_take(']') {
-                                            self.consume_rest_of_line(self.next_char_boundary);
-                                            Some(TokenType::LintTag(level, tag))
-                                        } else {
-                                            return self.lex();
-                                        }
-                                    } else {
-                                        return self.lex();
-                                    }
+                            if self.match_take('(') {
+                                let tag = self.construct_word(self.next_char_boundary);
+                                if self.match_take(')') && self.match_take(']') {
+                                    self.consume_rest_of_line(self.next_char_boundary);
+                                    Some(TokenType::LintTag(level, tag))
+                                } else {
+                                    return self.lex();
                                 }
-                                _ => return self.lex(),
+                            } else {
+                                return self.lex();
                             }
                         } else {
                             // It's just a comment -- eat it up, including the `//` and whitespace we ate.
-                            self.consume_rest_of_line(start_index);
-                            // Some(Token::Comment(comment_lexeme))
-                            return self.lex();
+                            let comment_lexeme = self.consume_rest_of_line(start_index);
+                            Some(TokenType::Comment(comment_lexeme))
                         }
                     } else if self.match_take('*') {
                         // Multi-line comment
@@ -301,8 +295,8 @@ impl Lexer {
                                 }
                             }
                         }
-                        // Some(Token::Comment(comment_lexeme))
-                        return self.lex();
+                        let comment_lexeme = &self.source[start_index..self.next_char_boundary];
+                        Some(TokenType::Comment(comment_lexeme))
                     } else {
                         // Just a slash
                         Some(TokenType::Slash)
@@ -512,7 +506,7 @@ impl Lexer {
     ///
     /// For now, we simply take the first `char` in any given grapheme, advance our cursor to the
     /// end of the grapheme. As a result, we won't ever break, but we will have junk characters (for
-    /// example, `🦆 ` will turn into... something else!) Fortunately,
+    /// example, `🦆` will turn into... something else!) Fortunately,
     /// these most often come up within strings, not lexical code itself, and duck does not
     /// currently do much with the contents of the strings.
     ///

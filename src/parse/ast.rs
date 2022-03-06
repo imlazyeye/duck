@@ -1,7 +1,7 @@
 use super::StatementBox;
 
 /// A collection of statements.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Ast {
     statements: Vec<StatementBox>,
 }

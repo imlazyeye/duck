@@ -216,9 +216,6 @@ pub enum TokenType {
     End,
     Throw,
     Macro(&'static str, Option<&'static str>, &'static str),
-    #[deprecated(
-        note = "Comment parsing get's very tricky, very fast, and until we have a bigger need (and better solution so that it doesn't hurt our overall parsing), the [Lexer] will just discard these."
-    )]
     Comment(&'static str),
     Identifier(&'static str),
     Real(f64),

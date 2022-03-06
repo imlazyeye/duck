@@ -84,10 +84,10 @@ fn macro_declaration_with_config() {
 #[test]
 fn comments() {
     // Note: comments are currently disabled!
-    harness_multi("// comment", []);
-    harness_multi("/// comment", []);
-    harness_multi("/* comment */", []);
-    harness_multi("/*\n comment \n*/", []);
+    harness_multi("// comment", [TokenType::Comment("// comment")]);
+    harness_multi("/// comment", [TokenType::Comment("/// comment")]);
+    harness_multi("/* comment */", [TokenType::Comment("/* comment */")]);
+    harness_multi("/*\n comment \n*/", [TokenType::Comment("/*\n comment \n*/")]);
 }
 
 #[test]
@@ -215,12 +215,12 @@ fn non_standard_utf8() {
 
 #[test]
 fn non_standard_utf8_ending_comment() {
-    harness_multi("// 🦆", [])
+    harness_multi("// 🦆", [TokenType::Comment("// 🦆")])
 }
 
 #[test]
 fn empty_comment() {
-    harness_multi("//", [])
+    harness_multi("//", [TokenType::Comment("//")])
 }
 
 #[test]

@@ -44,6 +44,8 @@ pub enum ParseError {
     InvalidAssignmentTarget(ExpressionBox),
     /// A only contains an expression that can not be a statement on its own.
     IncompleteStatement(ExpressionBox),
+    /// todo
+    InvalidLintLevel(Token),
     /// The source of gml ended unexpectedly before a item could be successfully
     /// parsed.
     UnexpectedEnd,
@@ -58,6 +60,7 @@ impl ParseError {
             ParseError::InvalidAssignmentTarget(_) => "Invalid assignment target".into(),
             ParseError::IncompleteStatement(_) => "Incomplete statement".into(),
             ParseError::UnexpectedEnd => "Unexpected end".into(),
+            ParseError::InvalidLintLevel(_) => "Invalid lint level".into(),
         }
     }
 }
