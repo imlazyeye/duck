@@ -31,8 +31,6 @@ impl ParseVisitor for Evaluation {
 }
 
 /// The various evaluation operations supported in gml.
-///
-/// TODO: Add the actual token
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum EvaluationOperator {
     /// +

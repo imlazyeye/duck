@@ -740,5 +740,5 @@ fn comment_above_statement() {
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
             Identifier::lazy("bar").into_lazy_box(),
         ),
-    );
+    ); 
 }

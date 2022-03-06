@@ -166,8 +166,6 @@ impl StatementBox {
 
 /// Derives two methods to convert the T into an [StatementBox], supporting both a standard
 /// `into_statement_box` method, and a `into_lazy_box` for tests.
-///
-/// TODO: This could be a derive macro!
 pub trait IntoStatementBox: Sized + Into<Statement> {
     /// Converts self into an statement box.
     fn into_statement_box(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> StatementBox {

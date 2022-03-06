@@ -31,8 +31,6 @@ impl ParseVisitor for Logical {
 }
 
 /// The various logical operations supported in gml.
-///
-/// TODO: Add the actual token
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum LogicalOperator {
     /// and, &&

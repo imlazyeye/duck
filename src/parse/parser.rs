@@ -835,7 +835,6 @@ impl Parser {
                         (Access::Current { right }, end)
                     } else {
                         // Using self as a referencce!
-                        // FIXME: this gives me bad vibes and I feel like is a sign of bad architecting
                         return Ok(self
                             .box_expression(Identifier::new("self", token.span), Span::new(start, token.span.end())));
                     }
@@ -848,7 +847,6 @@ impl Parser {
                         (Access::Other { right }, end)
                     } else {
                         // Using other as a reference!
-                        // FIXME: me too!
                         return Ok(self
                             .box_expression(Identifier::new("other", token.span), Span::new(start, token.span.end())));
                     }

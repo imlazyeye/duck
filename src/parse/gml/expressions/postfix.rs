@@ -28,8 +28,6 @@ impl ParseVisitor for Postfix {
 }
 
 /// The various postfix operations supported in gml.
-///
-/// TODO: Add the actual token
 #[derive(Debug, PartialEq, Clone)]
 pub enum PostfixOperator {
     /// ++

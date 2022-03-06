@@ -156,8 +156,6 @@ impl ParseVisitor for ExpressionBox {
 
 /// Derives two methods to convert the T into an [ExpressionBox], supporting both a standard
 /// `into_expression_box` method, and a `into_lazy_box` for tests.
-///
-/// TODO: This could be a derive macro!
 pub trait IntoExpressionBox: Sized + Into<Expression> {
     /// Converts self into an expression box.
     fn into_expression_box(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> ExpressionBox {

@@ -100,7 +100,7 @@ impl ParseVisitor for Switch {
 /// curly braces, but I now believe that `Blocks` should instead be better
 /// equipped to express whether or not they contain curly braces, and that case
 /// bodies should be made into `Block`s. While its not of huge concern right
-/// now, it will be an issue when static analyis is added, as case bodies won't
+/// now, it will be an issue when static analyisis is added, as case bodies won't
 /// properly create a new scope.
 #[derive(Debug, PartialEq, Clone)]
 pub struct SwitchCase(ExpressionBox, Vec<StatementBox>);
