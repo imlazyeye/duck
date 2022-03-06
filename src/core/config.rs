@@ -1,5 +1,5 @@
 use crate::lint::{LintLevel, LintLevelSetting};
-use std::collections::HashMap;
+use fnv::FnvHashMap;
 
 /// A series of various settings shared by the lints to customize their
 /// behavior.
@@ -50,7 +50,7 @@ pub struct Config {
     /// levels of the lint, and then we'd never have to fall back to calling
     /// Lint::default_level()...
     #[serde(default)]
-    pub lint_levels: HashMap<String, LintLevel>,
+    pub lint_levels: FnvHashMap<String, LintLevel>,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -72,47 +72,49 @@ impl Default for Config {
 impl Config {
     /// Creates a config with every possible field present at its default value.
     pub fn full() -> Self {
+        let mut lint_levels = FnvHashMap::default();
+        lint_levels.extend(std::collections::HashMap::from([
+            // @tags
+            ("accessor_alternative".into(), LintLevel::Warn),
+            ("and_preference".into(), LintLevel::Allow),
+            ("anonymous_constructor".into(), LintLevel::Allow),
+            ("assignment_to_call".into(), LintLevel::Deny),
+            ("bool_equality".into(), LintLevel::Allow),
+            ("casing_preference".into(), LintLevel::Warn),
+            ("collapsable_if".into(), LintLevel::Warn),
+            ("deprecated".into(), LintLevel::Warn),
+            ("draw_sprite".into(), LintLevel::Allow),
+            ("draw_text".into(), LintLevel::Allow),
+            ("english_flavor_violation".into(), LintLevel::Allow),
+            ("exit".into(), LintLevel::Allow),
+            ("global".into(), LintLevel::Allow),
+            ("invalid_assignment".into(), LintLevel::Deny),
+            ("invalid_comparison".into(), LintLevel::Deny),
+            ("invalid_equality".into(), LintLevel::Deny),
+            ("missing_case_member".into(), LintLevel::Warn),
+            ("missing_default_case".into(), LintLevel::Allow),
+            ("mod_preference".into(), LintLevel::Allow),
+            ("multi_var_declaration".into(), LintLevel::Allow),
+            ("non_constant_default_parameter".into(), LintLevel::Warn),
+            ("not_preference".into(), LintLevel::Allow),
+            ("or_preference".into(), LintLevel::Allow),
+            ("room_goto".into(), LintLevel::Allow),
+            ("show_debug_message".into(), LintLevel::Allow),
+            ("single_equals_comparison".into(), LintLevel::Warn),
+            ("single_switch_case".into(), LintLevel::Warn),
+            ("statement_parenthetical_preference".into(), LintLevel::Allow),
+            ("suspicious_constant_usage".into(), LintLevel::Deny),
+            ("todo".into(), LintLevel::Allow),
+            ("too_many_arguments".into(), LintLevel::Warn),
+            ("try_catch".into(), LintLevel::Allow),
+            ("unassigned_constructor".into(), LintLevel::Warn),
+            ("useless_function".into(), LintLevel::Deny),
+            ("var_prefix_violation".into(), LintLevel::Allow),
+            ("with_loop".into(), LintLevel::Allow),
+            // @end tags
+        ]));
         Self {
-            lint_levels: HashMap::from([
-                // @tags
-                ("accessor_alternative".into(), LintLevel::Warn),
-                ("and_preference".into(), LintLevel::Allow),
-                ("anonymous_constructor".into(), LintLevel::Allow),
-                ("assignment_to_call".into(), LintLevel::Deny),
-                ("bool_equality".into(), LintLevel::Allow),
-                ("casing_preference".into(), LintLevel::Warn),
-                ("collapsable_if".into(), LintLevel::Warn),
-                ("deprecated".into(), LintLevel::Warn),
-                ("draw_sprite".into(), LintLevel::Allow),
-                ("draw_text".into(), LintLevel::Allow),
-                ("english_flavor_violation".into(), LintLevel::Allow),
-                ("exit".into(), LintLevel::Allow),
-                ("global".into(), LintLevel::Allow),
-                ("invalid_assignment".into(), LintLevel::Deny),
-                ("invalid_comparison".into(), LintLevel::Deny),
-                ("invalid_equality".into(), LintLevel::Deny),
-                ("missing_case_member".into(), LintLevel::Warn),
-                ("missing_default_case".into(), LintLevel::Allow),
-                ("mod_preference".into(), LintLevel::Allow),
-                ("multi_var_declaration".into(), LintLevel::Allow),
-                ("non_constant_default_parameter".into(), LintLevel::Warn),
-                ("not_preference".into(), LintLevel::Allow),
-                ("or_preference".into(), LintLevel::Allow),
-                ("room_goto".into(), LintLevel::Allow),
-                ("show_debug_message".into(), LintLevel::Allow),
-                ("single_equals_comparison".into(), LintLevel::Warn),
-                ("single_switch_case".into(), LintLevel::Warn),
-                ("statement_parenthetical_preference".into(), LintLevel::Allow),
-                ("suspicious_constant_usage".into(), LintLevel::Deny),
-                ("todo".into(), LintLevel::Allow),
-                ("too_many_arguments".into(), LintLevel::Warn),
-                ("try_catch".into(), LintLevel::Allow),
-                ("unassigned_constructor".into(), LintLevel::Warn),
-                ("useless_function".into(), LintLevel::Deny),
-                ("var_prefix_violation".into(), LintLevel::Allow),
-                ("with_loop".into(), LintLevel::Allow),
-                // @end tags
-            ]),
+            lint_levels,
             ..Default::default()
         }
     }

@@ -6,7 +6,6 @@ use crate::{
 };
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use pretty_assertions::assert_eq;
-use unindent::Unindent;
 
 fn config_for_lint<T: Lint>() -> Config {
     let mut config = Config::full();
@@ -15,8 +14,7 @@ fn config_for_lint<T: Lint>() -> Config {
     config
 }
 
-pub(super) fn harness_lint<T: Lint>(source: &str, expected_number: usize) {
-    let source = Box::leak(Box::new(source.unindent()));
+pub(super) fn harness_lint<T: Lint>(source: &'static str, expected_number: usize) {
     let config = config_for_lint::<T>();
     let mut library = GmlLibrary::new();
     let file_id = library.add("test.gml".into(), source);
@@ -45,7 +43,6 @@ pub(super) fn harness_lint<T: Lint>(source: &str, expected_number: usize) {
             source
         );
     }
-    Box::leak(Box::new(library));
 }
 
 #[test]
