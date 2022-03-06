@@ -34,9 +34,9 @@ lints = sorted(lints, key=lambda i: i['name'])
 
 # Update the README...
 readme = open('../README.md', 'r').read()
-counter = re.search(r'Currently supports \[\d+ lints\]', readme).group(0)
+counter = re.search(r'currently supports \[\d+ lints\]', readme).group(0)
 readme = readme.replace(
-    counter, 'Currently supports [{lint_count} lints]'.format(lint_count=len(lints)))
+    counter, 'currently supports [{lint_count} lints]'.format(lint_count=len(lints)))
 open('../README.md', 'w').write(readme)
 print("Finished updating the README.md!")
 

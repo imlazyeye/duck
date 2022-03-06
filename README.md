@@ -5,35 +5,54 @@
 
 A collection of customizable lints to identify common mistakes in GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
 
-Currently supports [36 lints](LINTS.md), with more on the way!
+![example of the missing_case_member lint in action](https://i.imgur.com/i3b6sH1.jpg)
 
-`duck` is is a highly flexible linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are _completely customizable_.
+duck is is a highly flexible linter that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are _completely customizable_.
 
-`duck` is also extremely fast. It currently can fully process a 250,000 line project in [less than half a second](#footnotes).
+duck is also extremely fast. It currently can fully process a 250,000 line project in [less than half a second](#footnotes).
 
 ## Table of Contents
 
 - [Features](#features)
-  - [Customization](#customization)
   - [Linting](#examples)
   - [Validating GML](#validating-gml)
+  - [Customization](#customization)
 - [Usage Guide](#usage-guide)
   - [Installation](#instalation)
-  - [Creating a configuration file](#creating-a-configuration-file)
-  - [Setting lint levels](#setting-lint-levels)
+  - [Creating a config](#creataing-a-config)
   - [Running the linter](#running-the-linter)
 - [Contributing](#contributing)
 - [Support and Requests](#support-and-requests)
 
 ## Features
 
+### Linting
+
+duck's primary purpose is to lint gml. Many lints are purely stylistic, such as `single_equals_comparision`, which can discourage use of `=` in comparisions instead of `==`, and `collapsable_if`, which can detect when you could combine two if statements into one.
+
+Other lints attempt to offer more powerful analysis over your code than you are offered with GameMaker. For example, `missing_case_member` can detect if a switch statement that matches over an enum is missing a member from that type. `suspicous_constant_usage` can detect a wide variety of mistakes that will still compile in GameMaker.
+
+duck currently supports [36 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
+
+Even more powerful features like type analysis, scoping rules, and more will be introduced in the future. To track upcoming features, you can view [the roadmap](ROADMAP.md).
+
+### Validating GML
+
+duck can also be used to check for standard errors in GML, often providing more information than GameMaker normally would.
+
+![example of duck detecting a standard gml error](https://i.imgur.com/y42cngr.jpg)
+
+Generally speaking, duck tries to support parsing for anything that is valid GML. duck also seeks to throw an error for anything GameMaker would. Ideally, if duck passes with no errors, you should be confident that it will run in GM as well.
+
+If you find an inconsistency with duck and the GameMaker compiler, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
+
 ### Customization
 
-While `duck` expresses strong opinons on the GML it reads, those opinons are entirely in your control.
+While duck expresses strong opinons on the GML it reads, those opinons are entirely in your control.
 
 #### Lint Levels
 
-`duck` can use a configuration file per-project to change how it behaves. The most basic adjustment you can make is overriding the default "level" of any lint.
+duck can use a configuration file per-project to change how it behaves. The most basic adjustment you can make is overriding the default "level" of any lint.
 
 ```toml
 [lint-levels]
@@ -42,7 +61,7 @@ try_catch = "warn"
 missing_case_member = "deny"
 ```
 
-This demonstrates the three different levels: "allow" will tell `duck` to fully ignore the lint, "warn" will mark them as warnings, and "deny" will treat them like full errors.
+This demonstrates the three different levels: "allow" will tell duck to fully ignore the lint, "warn" will mark them as warnings, and "deny" will treat them like full errors.
 
 #### Lint options
 
@@ -66,54 +85,23 @@ globalvar my_globalvar;
 
 Tags are a great way to enable lints on things you don't want to _fully_ ban, but want to keep a close eye on.
 
-## Linting
-
-Let's use one of `duck`'s more powerful lints as an example: `missing_case_member`.
-
-```js
-enum MyEnum {
-    Foo,
-    Bar,
-    Buzz,
-}
-
-switch my_enum {
-    case MyEnum.Foo: break;
-    case MyEnum.Bar: break;
-}
-```
-
-While this code is acceptable GML, it contains a danger: we do not have a `case` set up if `my_enum` is equal to `MyEnum.Buzz`. Perhaps we did not consider, `MyEnum.Buzz` when writing this code, or maybe it was implemented after this code was written.
-
-Normally, this kind of an issue is difficult to detect. With `duck`, it's trivial:
-
-![example of the missing_case_member lint in action](https://i.imgur.com/VPPfm9e.jpg)
-
-As the suggestions there mention, there's a few ways we could resolve this. We could, of course, add in a case for `MyEnum.Buzz`. We could also add a `default` case to our switch -- `duck` would then recognize that all the bases are covered. We could customize that behavior further by telling `duck` to ignore this lint if we have a default case, _unless_ that default case requests the game to crash -- then `duck` will recognize that the default case is not an intended outcome.
-
-### Validating GML
-
-`duck` can also be used to check for standard errors in GML, often providing more information than GameMaker normally would.
-
-![example of duck detecting a standard gml error](https://i.imgur.com/y42cngr.jpg)
-
-Generally speaking, `duck` tries to support parsing for anything that is valid GML. `duck` also seeks to throw an error for anything GameMaker would. Ideally, if `duck` passes with no errors, you should be confident that it will run in GM as well.
-
-If you find an inconsistency with `duck` and the GameMaker compiler, please [submit an issue!](https://github.com/imlazyeye/duck/issues)
-
 ## Usage
 
-Using `duck` is simple. There are a few methods you can use to aqquire it:
+Using duck is simple. There are a few methods you can use to aqquire it:
 
 ### Instalation
 
 To install manually, do the following:
 
 1. Download the latest release here
-2. Add `duck` to your PATH environment variable (optional)
-   - You can pass `duck` a path directly when using it, but adding it to your `PATH` will be much more convenient
+2. Add duck to your PATH environment variable (optional)
+   - You can pass duck a path directly when using it, but adding it to your `PATH` will be much more convenient
 
 If you're a Rust developer, you can just run `cargo install --git https://github.com/imlazyeye/duck` .
+
+### Creating a config
+
+You can learn how to customize duck's behavior [here](CONFIGURATION.md).
 
 ### Running the linter
 
@@ -129,15 +117,13 @@ If you would like to run the linter on a project outside the current directory y
 duck lint --path path/to/project
 ```
 
-You can learn how to customize `duck`'s behavior [here](CONFIGURATION.md).
-
 ## Contributing
 
-`duck` is designed to be easily extensible, and contributions are extremely welcome! Please see [Contributing](CONTRIBUTING.md) for more information.
+duck is designed to be easily extensible, and contributions are extremely welcome! Please see [Contributing](CONTRIBUTING.md) for more information.
 
 ## Support and Requests
 
-Please [open an issue](https://github.com/imlazyeye/duck/issues) if you encounter any problems with `duck`, or if you have any feature requests you would like to make!
+Please [open an issue](https://github.com/imlazyeye/duck/issues) if you encounter any problems with duck, or if you have any feature requests you would like to make!
 
 ### Footnotes
 

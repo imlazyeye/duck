@@ -1,12 +1,16 @@
 # Configuration
 
-`duck` can be customized with with a `.duck.toml` file in your project's directory.
+duck can be customized with with a `.duck.toml` file in your project's directory.
 
 ### Creating a configuration file
 
-To create a new configuration file, navigate in your terminal to the directory of your project and run `duck new-config`.
+To create a new configuration file, navigate in your terminal to the directory of your project and run the following command:
 
-This will create a file called `.duck.toml` in your project's directory that will be used on subsequent runs of `duck`. Opening this file will reveal many pre-set properties, some of which you may be able to able to adjust without any instruction. Either way, a full list of the possible values your config can hold are below.
+```
+duck new-config
+```
+
+This will create a file called `.duck.toml` in your project's directory that will be used on subsequent runs of duck. Opening this file will reveal many pre-set properties, some of which you may be able to able to adjust without any instruction. Either way, a full list of the possible values your config can hold are below.
 
 ### Setting lint levels
 

@@ -1,6 +1,6 @@
 # Lints
 
-Below are all of the lints currently supported in `duck`.
+Below are all of the lints currently supported in duck.
 
 | Tag | Default Level | Explanation
 |---|---|---|
