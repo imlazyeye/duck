@@ -414,6 +414,39 @@ fn try_catch() {
 }
 
 #[test]
+fn unassigned_constructor() {
+    harness_lint::<UnassignedConstructor>(
+        "
+            new Foo();
+        ",
+        1,
+    );
+    harness_lint::<UnassignedConstructor>(
+        "
+            Foo();
+        ",
+        0,
+    );
+}
+
+#[test]
+fn useless_function() {
+    harness_lint::<UselessFunction>(
+        "
+            function() {}
+        ",
+        1,
+    );
+    harness_lint::<UselessFunction>(
+        "
+            function foo() {}
+            var foo = function() {}
+        ",
+        0,
+    );
+}
+
+#[test]
 fn var_prefix_violation() {
     harness_lint::<VarPrefixViolation>(
         "

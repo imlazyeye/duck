@@ -65,7 +65,7 @@ fn access_targets() {
     harness_valid("a = b().c;");
     harness_valid("a = b.c;");
     harness_valid("a = ++b.c;");
-    harness_invalid("a = (b).c;");
+    harness_valid("a = (b).c;");
     harness_invalid("a = function(){}.b;");
     harness_invalid("a = true.b;");
     harness_invalid("a = b++.c;");
@@ -77,7 +77,7 @@ fn call_targets() {
     harness_valid("a()();");
     harness_valid("a();");
     harness_valid("++a();");
-    harness_invalid("(a)();");
+    harness_valid("(a)();");
     harness_invalid("function(){}();");
     harness_invalid("true();");
     harness_invalid("a = b++();");

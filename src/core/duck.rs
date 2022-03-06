@@ -106,18 +106,18 @@ pub struct RunSummary {
 impl RunSummary {
     fn new(
         library: GmlLibrary,
-        lint_reports: Vec<Diagnostic<FileId>>,
+        diagnostics: Vec<Diagnostic<FileId>>,
         io_errors: Vec<std::io::Error>,
         lines_parsed: usize,
     ) -> Self {
         let mut diagonstic_counts: EnumMap<LintLevel, usize> = EnumMap::default();
-        for report in lint_reports.iter() {
+        for report in diagnostics.iter() {
             diagonstic_counts[report.severity.into()] += 1;
         }
         Self {
             library,
             diagonstic_counts,
-            diagnostics: lint_reports,
+            diagnostics,
             io_errors,
             lines_parsed,
         }

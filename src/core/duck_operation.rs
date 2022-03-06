@@ -92,6 +92,8 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<StatementParentheticalPreference>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<SuspicousConstantUsage>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<TryCatch>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<UnassignedConstructor>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<UselessFunction>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<VarPrefixViolation>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<WithLoop>(statement_box, config, reports);
         // @end early statement calls. Do not remove this comment!

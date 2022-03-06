@@ -17,7 +17,7 @@ Below are all of the lints currently supported in `duck`.
 | english_flavor_violation | LintLevel::Allow | GML has many duplicated function names for the sake of supporting both British and American spelling. For consistency, codebases should stick to one.
 | exit | LintLevel::Allow | `return` can always be used in place of exit, which provides more consistency across your codebase.
 | global | LintLevel::Allow | While useful at times, global variables reduce saftey since they can be accessed or mutated anywhere, and provide no guarentee that they've already been initiailized.
-| invalid_assignment_target | LintLevel::Deny | Certain assignment patterns are valid in gml but are undefined behavior and have no valid use cases.
+| invalid_assignment | LintLevel::Deny | Certain assignment patterns are valid in gml but are undefined behavior and have no valid use cases.
 | invalid_comparison | LintLevel::Deny | Certain types allow comparison checks in gml but are undefined behavior and have no valid use cases.
 | invalid_equality | LintLevel::Deny | Certain types allow equality checks in gml but are undefined behavior and have no valid use cases.
 | missing_case_member | LintLevel::Warn | Switch statements matching over an enum typically want to cover all possible cases if they do not implement a default case.
@@ -36,5 +36,7 @@ Below are all of the lints currently supported in `duck`.
 | todo | LintLevel::Allow | Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.
 | too_many_arguments | LintLevel::Warn | Functions with lots of parameters quickly become confusing and indicate a need for structural change.
 | try_catch | LintLevel::Allow | GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.
+| unassigned_constructor | LintLevel::Warn | Invoking a constructor function without saving the new struct is often a mistake. If the constructor is saving a refernce of itself within its own declaration, this should still be given a wrapper function so that the behavior is not hidden. Avoiding this as an intentional pattern allows this lint to better alert you to mistakes.
+| useless_function | LintLevel::Deny | Anonymous functions that are not assigned to a variable can never be referenced.
 | var_prefix_violation | LintLevel::Allow | It is common practice in GML to prefix local variables (longer than one charcter) with an underscore as it helps to visually distinguish them from instance (or global) variables. You can select either option via the config.
 | with_loop | LintLevel::Allow | The `with` loop allows your code's context to suddenly change, both making it more difficult to read (as a given line of code is no longer promised to be executing in the scope expected from the file), but also making it more difficult to track down all of the places an object is modified.

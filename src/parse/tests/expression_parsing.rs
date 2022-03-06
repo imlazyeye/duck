@@ -437,12 +437,36 @@ fn equal() {
 }
 
 #[test]
+fn colon_equal() {
+    harness_expr(
+        "1 := 1",
+        Equality::new(
+            Literal::Real(1.0).into_lazy_box(),
+            EqualityOperator::Equal(Token::lazy(TokenType::ColonEqual)),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn bang_equal() {
     harness_expr(
         "1 != 1",
         Equality::new(
             Literal::Real(1.0).into_lazy_box(),
             EqualityOperator::NotEqual(Token::lazy(TokenType::BangEqual)),
+            Literal::Real(1.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
+fn greater_than_less_than() {
+    harness_expr(
+        "1 <> 1",
+        Equality::new(
+            Literal::Real(1.0).into_lazy_box(),
+            EqualityOperator::NotEqual(Token::lazy(TokenType::GreaterThanLessThan)),
             Literal::Real(1.0).into_lazy_box(),
         ),
     );

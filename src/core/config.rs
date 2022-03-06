@@ -88,7 +88,7 @@ impl Config {
                 ("english_flavor_violation".into(), LintLevel::Allow),
                 ("exit".into(), LintLevel::Allow),
                 ("global".into(), LintLevel::Allow),
-                ("invalid_assignment_target".into(), LintLevel::Deny),
+                ("invalid_assignment".into(), LintLevel::Deny),
                 ("invalid_comparison".into(), LintLevel::Deny),
                 ("invalid_equality".into(), LintLevel::Deny),
                 ("missing_case_member".into(), LintLevel::Warn),
@@ -107,6 +107,8 @@ impl Config {
                 ("todo".into(), LintLevel::Allow),
                 ("too_many_arguments".into(), LintLevel::Warn),
                 ("try_catch".into(), LintLevel::Allow),
+                ("unassigned_constructor".into(), LintLevel::Warn),
+                ("useless_function".into(), LintLevel::Deny),
                 ("var_prefix_violation".into(), LintLevel::Allow),
                 ("with_loop".into(), LintLevel::Allow),
                 // @end tags

@@ -40,7 +40,6 @@ readme = readme.replace(
 open('../README.md', 'w').write(readme)
 print("Finished updating the README.md!")
 
-
 # Update the LINTS.md...
 lints_md = open('../LINTS.md', 'r').read()
 body = re.search(r'\|---\|---\|---\|(?:\n|.)+', lints_md).group(0)
@@ -60,7 +59,7 @@ tabs = search.group(1)
 old_call = search.group(2)
 new_body = ''
 for lint in lints:
-    new_body += '{tabs}{tag} => {name}::explanation().into(),\n'.format(
+    new_body += '{tabs}{tag} => ({name}::explanation().to_string(), {name}::default_level()),\n'.format(
         tabs=tabs, tag=lint['tag'], name=lint['name'])
 bin_data = bin_data.replace(old_call, new_body)
 open('../bin/bin.rs', 'w').write(bin_data)

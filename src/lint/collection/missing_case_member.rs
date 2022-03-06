@@ -91,8 +91,7 @@ impl LateStatementPass for MissingCaseMember {
             // If we have any, make a report!
             if !missing_members.is_empty() {
                 let mut labels = vec![
-                    Label::primary(statement_box.file_id(), statement_box.span())
-                        .with_message("this switch statement..."),
+                    Label::primary(statement_box.file_id(), statement_box.span()).with_message("this switch statement"),
                 ];
                 let mut notes = vec![];
                 for (i, member) in missing_members.iter().enumerate() {

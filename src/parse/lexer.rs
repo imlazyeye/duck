@@ -88,6 +88,8 @@ impl Lexer {
                         Some(TokenType::LessThanOrEqual)
                     } else if self.match_take('<') {
                         Some(TokenType::BitShiftLeft)
+                    } else if self.match_take('>') {
+                        Some(TokenType::GreaterThanLessThan)
                     } else {
                         Some(TokenType::LessThan)
                     }
@@ -119,7 +121,13 @@ impl Lexer {
                         Some(TokenType::Pipe)
                     }
                 }
-                ':' => Some(TokenType::Colon),
+                ':' => {
+                    if self.match_take('=') {
+                        Some(TokenType::ColonEqual)
+                    } else {
+                        Some(TokenType::Colon)
+                    }
+                }
                 '[' => Some(TokenType::LeftSquareBracket),
                 ']' => Some(TokenType::RightSquareBracket),
                 // FIXME: Rather unfortunately our string parsing here is seperated from our string parsing below.

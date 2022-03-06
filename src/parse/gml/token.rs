@@ -62,8 +62,8 @@ impl Token {
     /// Returns a [EqualityOperator] corresponding to this Token, if possible.
     pub fn as_equality_operator(&self) -> Option<EqualityOperator> {
         match self.token_type {
-            TokenType::Equal | TokenType::DoubleEqual => Some(EqualityOperator::Equal(*self)),
-            TokenType::BangEqual => Some(EqualityOperator::NotEqual(*self)),
+            TokenType::Equal | TokenType::DoubleEqual | TokenType::ColonEqual => Some(EqualityOperator::Equal(*self)),
+            TokenType::BangEqual | TokenType::GreaterThanLessThan => Some(EqualityOperator::NotEqual(*self)),
             TokenType::GreaterThan => Some(EqualityOperator::GreaterThan(*self)),
             TokenType::GreaterThanOrEqual => Some(EqualityOperator::GreaterThanOrEqual(*self)),
             TokenType::LessThan => Some(EqualityOperator::LessThan(*self)),
@@ -215,6 +215,8 @@ pub enum TokenType {
     Begin,
     End,
     Throw,
+    ColonEqual,
+    GreaterThanLessThan,
     Macro(&'static str, Option<&'static str>, &'static str),
     Comment(&'static str),
     Identifier(&'static str),

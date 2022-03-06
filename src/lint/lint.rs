@@ -130,8 +130,6 @@ impl From<Severity> for LintLevel {
 pub enum LintLevelSetting {
     /// The lint level was established by its default settings.
     Default(LintLevel),
-    /// The lint level was established by a tag in the code.
-    CodeSpecified(LintLevel),
     /// The lint level was established by the user's configuration.
     ConfigSpecified(LintLevel),
 }
@@ -139,9 +137,7 @@ impl core::ops::Deref for LintLevelSetting {
     type Target = LintLevel;
     fn deref(&self) -> &Self::Target {
         match self {
-            LintLevelSetting::Default(level)
-            | LintLevelSetting::CodeSpecified(level)
-            | LintLevelSetting::ConfigSpecified(level) => level,
+            LintLevelSetting::Default(level) | LintLevelSetting::ConfigSpecified(level) => level,
         }
     }
 }
