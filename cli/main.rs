@@ -132,14 +132,10 @@ fn explain_lint(name: String) -> i32 {
             AnonymousConstructor::explanation().to_string(),
             AnonymousConstructor::default_level(),
         ),
-        "assignment_to_call" => (
-            AssignmentToCall::explanation().to_string(),
-            AssignmentToCall::default_level(),
-        ),
         "bool_equality" => (BoolEquality::explanation().to_string(), BoolEquality::default_level()),
-        "casing_preference" => (
-            CasingPreference::explanation().to_string(),
-            CasingPreference::default_level(),
+        "casing_rules" => (
+            CasingRules::explanation().to_string(),
+            CasingRules::default_level(),
         ),
         "collapsable_if" => (CollapsableIf::explanation().to_string(), CollapsableIf::default_level()),
         "deprecated" => (Deprecated::explanation().to_string(), Deprecated::default_level()),

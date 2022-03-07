@@ -7,9 +7,8 @@ Below are all of the lints currently supported in duck.
 | accessor_alternative | LintLevel::Warn | GML offers accessors as an alternative to many common functions which are preferable for their readability and brevity.
 | and_preference | LintLevel::Allow | GML supports both `and` and `&&` to refer to logical \"and\". Consistent use of one over the other yields cleaner code.
 | anonymous_constructor | LintLevel::Allow | Constructors should be reserved for larger, higher scoped types.
-| assignment_to_call | LintLevel::Deny | While possible to compile, assigning a value to the call of a function does not do anything.
 | bool_equality | LintLevel::Allow | Comparing a bool with a bool literal is more verbose than neccesary.
-| casing_preference | LintLevel::Warn | Like any programming language, GML contains many different symbols that all can be styled in different ways. Picking consistent rules for each type creates a cleaner and more consistent codebase.
+| casing_rules | LintLevel::Allow | Like any programming language, GML contains many different symbols that all can be styled in different ways. Picking consistent rules for each type creates a cleaner and more consistent codebase.
 | collapsable_if | LintLevel::Warn | If statements that contain nothing more than another if statement can be collapsed into a single statement.
 | deprecated | LintLevel::Warn | Deprecated features are liable to be removed at any time and should be avoided.
 | draw_sprite | LintLevel::Allow | Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called.

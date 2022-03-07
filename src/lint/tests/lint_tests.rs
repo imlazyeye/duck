@@ -81,16 +81,6 @@ fn anonymous_constructor() {
 }
 
 #[test]
-fn assignment_to_call() {
-    harness_lint::<AssignmentToCall>(
-        "
-            foo() = bar;
-        ",
-        1,
-    );
-}
-
-#[test]
 fn bool_equality() {
     harness_lint::<BoolEquality>(
         "
@@ -98,6 +88,39 @@ fn bool_equality() {
             foo = bar == false;
         ",
         2,
+    );
+}
+
+/// Relying on the definitions in [CasingRules::default()].
+#[test]
+fn casing_rules() {
+    harness_lint::<CasingRules>(
+        "
+            var fooBar = 0;
+            #macro fooBar 0
+            enum fooBar { 
+                fooBar
+            }
+            globalvar fooBar;
+            global.fooBar = 0;
+            function fooBar() {}
+            function fooBar() constructor {}
+        ",
+        8,
+    );
+        harness_lint::<CasingRules>(
+        "
+            var foo_bar = 0;
+            #macro FOO_BAR 0
+            enum FooBar { 
+                FooBar
+            }
+            globalvar foo_bar;
+            global.foo_bar = 0;
+            function foo_bar() {}
+            function FooBar() constructor {}
+        ",
+        0,
     );
 }
 

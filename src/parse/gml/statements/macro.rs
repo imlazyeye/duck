@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
+use crate::parse::{ExpressionBox, Identifier, IntoStatementBox, ParseVisitor, Statement, StatementBox};
 
 /// Representation of a macro declaration in gml.
 ///
@@ -13,7 +13,7 @@ use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, Sta
 #[derive(Debug, PartialEq, Clone)]
 pub struct Macro {
     /// The name this macro was declared with.
-    pub name: String,
+    pub name: Identifier,
     /// The config (if any) the macro is bound to.
     pub config: Option<String>,
     /// The body of the macro, in raw gml.
@@ -21,18 +21,18 @@ pub struct Macro {
 }
 impl Macro {
     /// Creates a new macro with the given name and body.
-    pub fn new(name: impl Into<String>, body: impl Into<String>) -> Self {
+    pub fn new(name: Identifier, body: impl Into<String>) -> Self {
         Self {
-            name: name.into(),
+            name,
             config: None,
             body: body.into(),
         }
     }
 
     /// Creates a new configuration-bound macro with the given name and body.
-    pub fn new_with_config(name: impl Into<String>, body: impl Into<String>, config: impl Into<String>) -> Self {
+    pub fn new_with_config(name: Identifier, body: impl Into<String>, config: impl Into<String>) -> Self {
         Self {
-            name: name.into(),
+            name,
             config: Some(config.into()),
             body: body.into(),
         }

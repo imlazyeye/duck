@@ -1,5 +1,7 @@
 use crate::lint::{LintLevel, LintLevelSetting};
 use fnv::FnvHashMap;
+use heck::{ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
+use itertools::Itertools;
 
 /// A series of various settings shared by the lints to customize their
 /// behavior.
@@ -41,6 +43,12 @@ pub struct Config {
     /// Whether or not to prefer `not` instead of `!` for [not_preference].
     #[serde(default)]
     pub prefer_not_keyword: bool,
+    /// The casing preferences for all symbols in gml, used by `casing_rules`.
+    /// Instance/self-bound variables are noteably missing from this. These cannot be
+    /// reliably added until static analysis is added to `duck`, which will come in
+    /// a future update.
+    #[serde(default)]
+    pub casing_rules: CasingRules,
     /// Manual definitions for any lint's lint level. The key is the lint's tag.
     ///
     /// FIXME: We do not currently validate that all entries are valid lint
@@ -65,6 +73,7 @@ impl Default for Config {
             prefer_or_keyword: false,
             prefer_mod_keyword: false,
             prefer_not_keyword: false,
+            casing_rules: Default::default(),
             lint_levels: Default::default(),
         }
     }
@@ -78,9 +87,8 @@ impl Config {
             ("accessor_alternative".into(), LintLevel::Warn),
             ("and_preference".into(), LintLevel::Allow),
             ("anonymous_constructor".into(), LintLevel::Allow),
-            ("assignment_to_call".into(), LintLevel::Deny),
             ("bool_equality".into(), LintLevel::Allow),
-            ("casing_preference".into(), LintLevel::Warn),
+            ("casing_rules".into(), LintLevel::Allow),
             ("collapsable_if".into(), LintLevel::Warn),
             ("deprecated".into(), LintLevel::Warn),
             ("draw_sprite".into(), LintLevel::Allow),
@@ -181,4 +189,86 @@ pub enum EnglishFlavor {
     American,
     /// British spelling preference (ie: `draw_colour`).
     British,
+}
+
+/// A container of casing rules used by `casing_rules`.
+#[derive(Debug, PartialEq, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CasingRules {
+    /// Casing preference for constructors.
+    pub constructor_rule: Casing,
+    /// Casing preference for functions.
+    pub function_rule: Casing,
+    /// Casing preference for enums.
+    pub enum_rule: Casing,
+    /// Casing preference for enum members.
+    pub enum_member_rule: Casing,
+    /// Casing preference for macros.
+    pub macro_rule: Casing,
+    /// Casing preference for globals.
+    pub global_rule: Casing,
+    /// Casing preference for local variables.
+    pub local_var_rule: Casing,
+    /// Casing preference for struct fields.
+    pub struct_field: Casing,
+}
+impl Default for CasingRules {
+    fn default() -> Self {
+        Self {
+            constructor_rule: Casing::Pascal,
+            function_rule: Casing::Snake,
+            enum_rule: Casing::Pascal,
+            enum_member_rule: Casing::Pascal,
+            macro_rule: Casing::Scream,
+            global_rule: Casing::Snake,
+            local_var_rule: Casing::Snake,
+            struct_field: Casing::Snake,
+        }
+    }
+}
+
+/// The various casing options supported by duck for the `casing_rules` lint.
+#[derive(Debug, PartialEq, Copy, Clone, enum_map::Enum, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Casing {
+    /// Allows any type of casing.
+    Any,
+    /// snake_case
+    Snake,
+    /// camelCase
+    Camel,
+    /// PascalCase
+    Pascal,
+    /// SCREAM_CASE
+    Scream,
+}
+impl Casing {
+    /// Returns none if the string already matches the casing, otherwise returns a string with the
+    /// desired appearance.
+    pub fn test(&self, lexeme: &str) -> Option<String> {
+        let mut output = match self {
+            Casing::Any => return None,
+            Casing::Snake => lexeme.to_snake_case(),
+            Casing::Camel => lexeme.to_lower_camel_case(),
+            Casing::Pascal => lexeme.to_upper_camel_case(),
+            Casing::Scream => lexeme.to_shouty_snake_case(),
+        };
+        // We allow underscore prefxies, which heck removes (ie: __FooBar is valid PascalCase to us)
+        output.insert_str(0, &lexeme[0..self.prefix_len(lexeme)]);
+        if output.as_str() != lexeme { Some(output) } else { None }
+    }
+    /// Returns the length of the prefix in this lexeme. Ie: `__foo` has a `__` prefix.
+    fn prefix_len(&self, lexeme: &str) -> usize {
+        lexeme.chars().find_position(|c| c != &'_').map_or(0, |(i, _)| i)
+    }
+}
+impl std::fmt::Display for Casing {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Casing::Any => f.pad("any"),
+            Casing::Snake => f.pad("snake_case"),
+            Casing::Camel => f.pad("camelCase"),
+            Casing::Pascal => f.pad("PascalCase"),
+            Casing::Scream => f.pad("SCREAM_CASE"),
+        }
+    }
 }

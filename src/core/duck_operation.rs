@@ -80,7 +80,7 @@ impl DuckOperation {
         let statement = statement_box.statement();
 
         // @early statement calls. Do not remove this comment!
-        Self::run_early_lint_on_statement::<AssignmentToCall>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<CasingRules>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<CollapsableIf>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<Deprecated>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<Exit>(statement_box, config, reports);
@@ -130,6 +130,7 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<AndPreference>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<AnonymousConstructor>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<BoolEquality>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<CasingRules>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<Deprecated>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<DrawSprite>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<DrawText>(expression_box, config, reports);
@@ -137,7 +138,6 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<InvalidComparison>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<InvalidEquality>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<ModPreference>(expression_box, config, reports);
-        Self::run_early_lint_on_expression::<NonConstantDefaultParameter>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<NotPreference>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<OrPreference>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<RoomGoto>(expression_box, config, reports);
@@ -192,6 +192,7 @@ impl DuckOperation {
         let span = expression_box.span();
 
         // @late expression calls. Do not remove this comment!
+        Self::run_late_lint_on_expression::<NonConstantDefaultParameter>(expression_box, config, reports, global_scope);
         // @end late expression calls. Do not remove this comment!
 
         // Recurse...

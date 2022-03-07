@@ -98,7 +98,10 @@ impl Parser {
     ) -> Result<StatementBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let _token = self.take()?;
-
+        // this is all strange, and is just a sign of a known fact -- our lack of proper support for macros
+        // causes weird architecture
+        let macro_length = "#macro ".len();
+        let name = Identifier::new(name, Span::new(start + macro_length, start + macro_length + name.len()));
         let mac = if let Some(config) = config {
             Macro::new_with_config(name, body, config)
         } else {

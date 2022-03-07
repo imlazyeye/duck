@@ -1,13 +1,14 @@
 import os
 import re
+import subprocess
 
 # Switch to the tools directory
 this_file_path = os.path.dirname(__file__)
-os.chdir(this_file_path)
+os.chdir(os.path.dirname(this_file_path))
 
 # Gather all lints
 lints = []
-for root, dirs, files in os.walk('../src/lint/collection/'):
+for root, dirs, files in os.walk('src/lint/collection/'):
     for file_name in files:
         lint_file = open(os.path.join(root, file_name)).read()
         lint_name = re.search(r'impl Lint for (\w+)', lint_file).group(1)
@@ -33,26 +34,26 @@ for root, dirs, files in os.walk('../src/lint/collection/'):
 lints = sorted(lints, key=lambda i: i['name'])
 
 # Update the README...
-readme = open('../README.md', 'r').read()
+readme = open('README.md', 'r').read()
 counter = re.search(r'currently supports \[\d+ lints\]', readme).group(0)
 readme = readme.replace(
     counter, 'currently supports [{lint_count} lints]'.format(lint_count=len(lints)))
-open('../README.md', 'w').write(readme)
+open('README.md', 'w').write(readme)
 print("Finished updating the README.md!")
 
 # Update the LINTS.md...
-lints_md = open('../LINTS.md', 'r').read()
+lints_md = open('LINTS.md', 'r').read()
 body = re.search(r'\|---\|---\|---\|(?:\n|.)+', lints_md).group(0)
 new_body = '|---|---|---|\n'
 for lint in lints:
     new_body += '| {tag} | {level} | {explanation}\n'.format(
         tag=lint['tag'].replace('"', ''), level=lint['level'], explanation=lint['explanation'])
 lints_md = lints_md.replace(body, new_body)
-open('../LINTS.md', 'w').write(lints_md)
+open('LINTS.md', 'w').write(lints_md)
 print("Finished updating LINTS.md!")
 
 # Update the bin explanations...
-bin_data = open('../bin/bin.rs', 'r').read()
+bin_data = open('cli/main.rs', 'r').read()
 search = re.search(
     r'( +)// @explain.+\n((\n|.)+?) +// @end explain.+', bin_data)
 tabs = search.group(1)
@@ -62,7 +63,7 @@ for lint in lints:
     new_body += '{tabs}{tag} => ({name}::explanation().to_string(), {name}::default_level()),\n'.format(
         tabs=tabs, tag=lint['tag'], name=lint['name'])
 bin_data = bin_data.replace(old_call, new_body)
-open('../bin/bin.rs', 'w').write(bin_data)
+open('cli/main.rs', 'w').write(bin_data)
 print("Finished updating bin.rs!")
 
 
@@ -72,11 +73,11 @@ for lint in lints:
     new_mods += 'mod {file_name};\n'.format(file_name=lint['file_name'])
     new_mods += 'pub use {file_name}::{lint};\n'.format(
         file_name=lint['file_name'], lint=lint['name'])
-with open('../src/lint/collection.rs', 'w') as f:
+with open('src/lint/collection.rs', 'w') as f:
     f.write(new_mods)
 
 # Gather the old calls
-duck_operation = open('../src/core/duck_operation.rs', "r").read()
+duck_operation = open('src/core/duck_operation.rs', "r").read()
 
 opreations = [
     {
@@ -143,15 +144,17 @@ for operation in opreations:
                 lint=lint['name'],
                 args=args,
             )
+    if new_call == '':
+        new_call = '{tabs}// currently empty!\n'.format(tabs=tabs)
 
     # Replace the calls in the file
     duck_operation = duck_operation.replace(old_call, new_call)
 
 # Flush to the file
-open('../src/core/duck_operation.rs', 'w').write(duck_operation)
+open('src/core/duck_operation.rs', 'w').write(duck_operation)
 
 # Now update the full config template...
-template = open('../src/core/config.rs', 'r').read()
+template = open('src/core/config.rs', 'r').read()
 search = re.search(
     r'( +)// @tags\n((\n|.)+?) +// @end tags'.format(), template)
 tabs = search.group(1)
@@ -166,5 +169,9 @@ for lint in lints:
 template = template.replace(old_call, new_call)
 
 # Flush to the file
-open('../src/core/config.rs', 'w').write(template)
-print("Finished updating lint calls!")
+open('src/core/config.rs', 'w').write(template)
+
+# Call cargo fmt
+subprocess.run(['cargo', '+nightly', 'fmt', '--all'])
+
+print("Finished updating lints!")

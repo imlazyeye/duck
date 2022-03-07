@@ -63,12 +63,13 @@ impl EarlyExpressionPass for AccessorAlternative {
                                     {
                                         Self::diagnostic(config)
                                             .with_message("Use of `variable_struct_get`")
-                                            .with_labels(vec![
-                                            Label::primary(expression_box.file_id(), expression_box.span())
-                                                .with_message(
-                                                    "this can be replaced with a dot access syntax (`struct.property`)",
-                                                ),
-                                        ])
+                                            .with_labels(vec![Label::primary(
+                                                expression_box.file_id(),
+                                                expression_box.span(),
+                                            )
+                                            .with_message(
+                                                "this can be replaced with a dot access syntax (`struct.property`)",
+                                            )])
                                     }
 
                                     // If not, they could still use the $ accessor
