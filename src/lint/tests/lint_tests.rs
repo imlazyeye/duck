@@ -108,7 +108,7 @@ fn casing_rules() {
         ",
         8,
     );
-        harness_lint::<CasingRules>(
+    harness_lint::<CasingRules>(
         "
             var foo_bar = 0;
             #macro FOO_BAR 0
@@ -148,6 +148,34 @@ fn collapsable_if() {
             } else {
                 call();
             }
+        ",
+        0,
+    );
+}
+
+#[test]
+fn condition_wrapper() {
+    harness_lint::<ConditionWrapper>(
+        "
+            with foo {}
+            repeat foo {}
+            while foo {}
+            do {} until foo;
+            while foo {}
+            if foo {}
+            switch foo {}
+        ",
+        7,
+    );
+    harness_lint::<ConditionWrapper>(
+        "
+            with (foo) {}
+            repeat (foo) {}
+            while (foo) {}
+            do {} until (foo);
+            while (foo) {}
+            if (foo) {}
+            switch (foo) {}
         ",
         0,
     );
@@ -360,17 +388,6 @@ fn single_equals_comparison() {
 }
 
 #[test]
-fn statement_parenthetical_preference() {
-    harness_lint::<StatementParentheticalPreference>(
-        "
-            if (foo) {}
-            if foo {}
-        ",
-        1,
-    );
-}
-
-#[test]
 fn suspicious_constant_usage() {
     harness_lint::<SuspicousConstantUsage>(
         "
@@ -444,6 +461,44 @@ fn unassigned_constructor() {
     harness_lint::<UnassignedConstructor>(
         "
             Foo();
+        ",
+        0,
+    );
+}
+
+#[test]
+fn unnecessary_grouping() {
+    harness_lint::<UnnecessaryGrouping>(
+        "
+            foo = (1 + 1);
+            delete (1 + 1);
+            return (1 + 1);
+            throw (1 + 1);
+            foo[(1 + 1)]();
+            foo((1 + 1))
+        ",
+        6,
+    );
+    harness_lint::<UnnecessaryGrouping>(
+        "
+            // Stylistic, thereof not a part of this lint (see `condition_wrapper`)
+            do {} until (foo);
+            if (foo) {}
+            repeat (foo) {}
+            switch (foo) {}
+            try {} catch(foo) {}
+            while (foo) {}
+            with (foo) {}
+
+            // Fine in general
+            foo = bar && (buzz || pazz) ? 1 : 0;
+            foo = -(1 + 1);
+            foo = 1 && !(bar);
+            foo = 1 && (2 || 3);
+            foo = 1 + (bar);
+            foo = 1 == (true);
+            foo = (1 + 1) / 2;
+            foo = ((1 + 1) / 2) - 1;
         ",
         0,
     );

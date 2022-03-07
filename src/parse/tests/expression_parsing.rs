@@ -496,6 +496,23 @@ fn ternary() {
 }
 
 #[test]
+fn ternary_order_of_ops() {
+    harness_expr(
+        "foo && bar ? 1 : 2",
+        Ternary::new(
+            Logical::new(
+                Identifier::lazy("foo").into_lazy_box(),
+                LogicalOperator::And(Token::lazy(TokenType::DoubleAmpersand)),
+                Identifier::lazy("bar").into_lazy_box(),
+            )
+            .into_lazy_box(),
+            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(2.0).into_lazy_box(),
+        ),
+    );
+}
+
+#[test]
 fn not() {
     harness_expr(
         "!foo",
@@ -1017,7 +1034,22 @@ fn ds_dot_access() {
 
 #[test]
 fn grouping() {
-    harness_expr("(0)", Grouping::new(Literal::Real(0.0).into_lazy_box()));
+    harness_expr("(0)", Grouping::lazy(Literal::Real(0.0).into_lazy_box()));
+}
+
+#[test]
+fn nested_grouping() {
+    harness_expr(
+        "((0) * 0)",
+        Grouping::lazy(
+            Evaluation::new(
+                Grouping::lazy(Literal::Real(0.0).into_lazy_box()).into_lazy_box(),
+                EvaluationOperator::Star(Token::lazy(TokenType::Star)),
+                Literal::Real(0.0).into_lazy_box(),
+            )
+            .into_lazy_box(),
+        ),
+    );
 }
 
 #[test]

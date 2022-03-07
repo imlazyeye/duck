@@ -91,7 +91,7 @@ impl EarlyExpressionPass for CasingRules {
             }
             Expression::Access(Access::Global { right, .. }) => {
                 Self::check_for(
-                    right.expression().as_identifier().unwrap(), // TODO
+                    right.expression().as_identifier().unwrap(),
                     config.casing_rules.global_rule,
                     expression_box.file_id(),
                     config,

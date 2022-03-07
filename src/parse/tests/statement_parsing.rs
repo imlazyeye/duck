@@ -203,7 +203,7 @@ fn try_catch() {
         "try {} catch (e) {}",
         TryCatch::new(
             Block::lazy(vec![]).into_lazy_box(),
-            Grouping::new(Identifier::lazy("e").into_lazy_box()).into_lazy_box(),
+            Grouping::lazy(Identifier::lazy("e").into_lazy_box()).into_lazy_box(),
             Block::lazy(vec![]).into_lazy_box(),
         ),
     )
@@ -215,7 +215,7 @@ fn try_catch_finally() {
         "try {} catch (e) {} finally {}",
         TryCatch::new_with_finally(
             Block::lazy(vec![]).into_lazy_box(),
-            Grouping::new(Identifier::lazy("e").into_lazy_box()).into_lazy_box(),
+            Grouping::lazy(Identifier::lazy("e").into_lazy_box()).into_lazy_box(),
             Block::lazy(vec![]).into_lazy_box(),
             Block::lazy(vec![]).into_lazy_box(),
         ),

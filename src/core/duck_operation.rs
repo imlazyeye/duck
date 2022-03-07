@@ -89,10 +89,11 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<MissingDefaultCase>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<MultiVarDeclaration>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<SingleSwitchCase>(statement_box, config, reports);
-        Self::run_early_lint_on_statement::<StatementParentheticalPreference>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<ConditionWrapper>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<SuspicousConstantUsage>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<TryCatch>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<UnassignedConstructor>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<UnnecessaryGrouping>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<UselessFunction>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<VarPrefixViolation>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<WithLoop>(statement_box, config, reports);
@@ -146,6 +147,7 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<SuspicousConstantUsage>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<Todo>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<TooManyArguments>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<UnnecessaryGrouping>(expression_box, config, reports);
         // @end early expression calls. Do not remove this comment!
 
         // Recurse...

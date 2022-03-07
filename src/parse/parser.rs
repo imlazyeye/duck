@@ -455,7 +455,33 @@ impl Parser {
     }
 
     pub(super) fn expression(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
-        self.logical()
+        self.null_coalecence()
+    }
+
+    fn null_coalecence(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        let expression = self.ternary()?;
+        if self.match_take(TokenType::DoubleInterrobang).is_some() {
+            let value = self.expression()?;
+            let end = value.span().end();
+            Ok(self.box_expression(NullCoalecence::new(expression, value), Span::new(start, end)))
+        } else {
+            Ok(expression)
+        }
+    }
+
+    fn ternary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        let expression = self.logical()?;
+        if self.match_take(TokenType::Interrobang).is_some() {
+            let true_value = self.expression()?;
+            self.require(TokenType::Colon)?;
+            let false_value = self.expression()?;
+            let end = false_value.span().end();
+            Ok(self.box_expression(Ternary::new(expression, true_value, false_value), Span::new(start, end)))
+        } else {
+            Ok(expression)
+        }
     }
 
     fn logical(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
@@ -601,36 +627,10 @@ impl Parser {
 
     fn postfix(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.null_coalecence()?;
+        let expression = self.function()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_operator()) {
             let token = self.take()?;
             Ok(self.box_expression(Postfix::new(expression, operator), Span::new(start, token.span.end())))
-        } else {
-            Ok(expression)
-        }
-    }
-
-    fn null_coalecence(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
-        let start = self.next_token_boundary();
-        let expression = self.ternary()?;
-        if self.match_take(TokenType::DoubleInterrobang).is_some() {
-            let value = self.expression()?;
-            let end = value.span().end();
-            Ok(self.box_expression(NullCoalecence::new(expression, value), Span::new(start, end)))
-        } else {
-            Ok(expression)
-        }
-    }
-
-    fn ternary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
-        let start = self.next_token_boundary();
-        let expression = self.function()?;
-        if self.match_take(TokenType::Interrobang).is_some() {
-            let true_value = self.expression()?;
-            self.require(TokenType::Colon)?;
-            let false_value = self.expression()?;
-            let end = false_value.span().end();
-            Ok(self.box_expression(Ternary::new(expression, true_value, false_value), Span::new(start, end)))
         } else {
             Ok(expression)
         }
@@ -959,10 +959,13 @@ impl Parser {
 
     fn grouping(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        if self.match_take(TokenType::LeftParenthesis).is_some() {
+        if let Some(left_token) = self.match_take(TokenType::LeftParenthesis) {
             let expression = self.expression()?;
-            let token = self.require(TokenType::RightParenthesis)?;
-            Ok(self.box_expression(Grouping::new(expression), Span::new(start, token.span.end())))
+            let right_token = self.require(TokenType::RightParenthesis)?;
+            Ok(self.box_expression(
+                Grouping::new(expression, (left_token, right_token)),
+                Span::new(start, right_token.span.end()),
+            ))
         } else {
             self.identifier()
         }

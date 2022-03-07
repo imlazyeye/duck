@@ -32,7 +32,7 @@ duck's primary purpose is to lint gml. Many lints are purely stylistic, such as 
 
 Other lints attempt to offer more powerful analysis over your code than you are offered with GameMaker. For example, `missing_case_member` can detect if a switch statement that matches over an enum is missing a member from that type. `suspicous_constant_usage` can detect a wide variety of mistakes that will still compile in GameMaker.
 
-duck currently supports [35 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
+duck currently supports [36 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
 
 Even more powerful features like type analysis, scoping rules, and more will be introduced in the future. To track upcoming features, you can view [the roadmap](ROADMAP.md).
 

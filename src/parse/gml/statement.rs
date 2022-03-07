@@ -171,6 +171,14 @@ impl StatementBox {
         self.2.as_ref()
     }
 }
+impl ParseVisitor for StatementBox {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, expression_visitor: E) {
+        self.statement().visit_child_expressions(expression_visitor)
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, statement_visitor: S) {
+        self.statement().visit_child_statements(statement_visitor)
+    }
+}
 
 /// Derives two methods to convert the T into an [StatementBox], supporting both a standard
 /// `into_statement_box` method, and a `into_lazy_box` for tests.

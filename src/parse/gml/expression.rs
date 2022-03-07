@@ -61,6 +61,14 @@ impl Expression {
             _ => None,
         }
     }
+
+    /// Returns the expression as a Grouping or None.
+    pub fn as_grouping(&self) -> Option<&Grouping> {
+        match self {
+            Expression::Grouping(inner) => Some(inner),
+            _ => None,
+        }
+    }
 }
 impl IntoExpressionBox for Expression {}
 impl ParseVisitor for Expression {
