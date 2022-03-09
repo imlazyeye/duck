@@ -9,7 +9,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 pub struct UnnecessaryGrouping;
 impl Lint for UnnecessaryGrouping {
     fn explanation() -> &'static str {
-        "Wrapping expressions in parenthesis more than once is redundant."
+        "Parenthesis around an expression that do not change how the logic is executed are redundant and can be removed."
     }
 
     fn default_level() -> LintLevel {
