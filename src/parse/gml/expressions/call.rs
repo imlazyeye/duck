@@ -36,11 +36,18 @@ impl From<Call> for Expression {
 }
 impl IntoExpressionBox for Call {}
 impl ParseVisitor for Call {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
-        expression_visitor(&self.left);
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+        visitor(&self.left);
         for arg in &self.arguments {
-            expression_visitor(arg);
+            visitor(arg);
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        visitor(&mut self.left);
+        for arg in &mut self.arguments {
+            visitor(arg);
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
 }

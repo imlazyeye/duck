@@ -57,25 +57,45 @@ impl From<Function> for Expression {
 }
 impl IntoExpressionBox for Function {}
 impl ParseVisitor for Function {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
         for param in self.parameters.iter() {
             match param {
-                OptionalInitilization::Uninitialized(expr) => expression_visitor(expr),
+                OptionalInitilization::Uninitialized(expr) => visitor(expr),
                 OptionalInitilization::Initialized(_) => {}
             }
         }
         if let Some(Constructor::WithInheritance(inheritance_call)) = &self.constructor {
-            expression_visitor(inheritance_call);
+            visitor(inheritance_call);
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        for param in self.parameters.iter_mut() {
+            match param {
+                OptionalInitilization::Uninitialized(expr) => visitor(expr),
+                OptionalInitilization::Initialized(_) => {}
+            }
+        }
+        if let Some(Constructor::WithInheritance(inheritance_call)) = &mut self.constructor {
+            visitor(inheritance_call);
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
         for param in self.parameters.iter() {
             match param {
                 OptionalInitilization::Uninitialized(_) => {}
-                OptionalInitilization::Initialized(stmt) => statement_visitor(stmt),
+                OptionalInitilization::Initialized(stmt) => visitor(stmt),
             }
         }
-        statement_visitor(&self.body);
+        visitor(&self.body);
+    }
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+        for param in self.parameters.iter_mut() {
+            match param {
+                OptionalInitilization::Uninitialized(_) => {}
+                OptionalInitilization::Initialized(stmt) => visitor(stmt),
+            }
+        }
+        visitor(&mut self.body);
     }
 }
 

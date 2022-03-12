@@ -22,20 +22,35 @@ impl From<LocalVariableSeries> for Statement {
 }
 impl IntoStatementBox for LocalVariableSeries {}
 impl ParseVisitor for LocalVariableSeries {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
         for declaration in self.declarations.iter() {
             match declaration {
-                OptionalInitilization::Uninitialized(expr) => expression_visitor(expr),
+                OptionalInitilization::Uninitialized(expr) => visitor(expr),
                 OptionalInitilization::Initialized(_) => {}
             }
         }
     }
-
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        for declaration in self.declarations.iter_mut() {
+            match declaration {
+                OptionalInitilization::Uninitialized(expr) => visitor(expr),
+                OptionalInitilization::Initialized(_) => {}
+            }
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
         for declaration in self.declarations.iter() {
             match declaration {
                 OptionalInitilization::Uninitialized(_) => {}
-                OptionalInitilization::Initialized(stmt) => statement_visitor(stmt),
+                OptionalInitilization::Initialized(stmt) => visitor(stmt),
+            }
+        }
+    }
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+        for declaration in self.declarations.iter_mut() {
+            match declaration {
+                OptionalInitilization::Uninitialized(_) => {}
+                OptionalInitilization::Initialized(stmt) => visitor(stmt),
             }
         }
     }

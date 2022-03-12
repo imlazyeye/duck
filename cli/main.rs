@@ -56,7 +56,6 @@ async fn run_lint(
     }
 
     let seperation_string = String::from_utf8(vec![b'-'; 50]).unwrap();
-    println!("  {}", "duck complete!".italic().bold());
     println!("{seperation_string}");
     println!(
         "  {}",

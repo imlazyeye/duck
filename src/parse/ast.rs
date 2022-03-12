@@ -20,4 +20,9 @@ impl Ast {
     pub fn statements(&self) -> &[StatementBox] {
         self.statements.as_ref()
     }
+
+    /// Get a mutable reference to the ast's statements.
+    pub fn statements_mut(&mut self) -> &mut Vec<StatementBox> {
+        &mut self.statements
+    }
 }

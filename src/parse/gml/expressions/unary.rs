@@ -21,10 +21,14 @@ impl From<Unary> for Expression {
 }
 impl IntoExpressionBox for Unary {}
 impl ParseVisitor for Unary {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
-        expression_visitor(&self.right);
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+        visitor(&self.right);
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        visitor(&mut self.right);
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
 }
 
 /// The various unary operations supported in gml.

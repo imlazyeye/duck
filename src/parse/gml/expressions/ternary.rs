@@ -27,10 +27,16 @@ impl From<Ternary> for Expression {
 }
 impl IntoExpressionBox for Ternary {}
 impl ParseVisitor for Ternary {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
-        expression_visitor(&self.condition);
-        expression_visitor(&self.true_value);
-        expression_visitor(&self.false_value);
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+        visitor(&self.condition);
+        visitor(&self.true_value);
+        visitor(&self.false_value);
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        visitor(&mut self.condition);
+        visitor(&mut self.true_value);
+        visitor(&mut self.false_value);
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
 }

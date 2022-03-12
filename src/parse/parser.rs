@@ -406,7 +406,7 @@ impl Parser {
                     span,
                 }),
             right,
-        }) = *expression.0
+        }) = *expression.expression
         {
             Assignment::new(
                 left,

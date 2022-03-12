@@ -34,6 +34,8 @@ impl From<Literal> for Expression {
 }
 impl IntoExpressionBox for Literal {}
 impl ParseVisitor for Literal {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut _visitor: E) {}
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, _visitor: E) {}
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
 }

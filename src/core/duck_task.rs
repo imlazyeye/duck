@@ -1,5 +1,5 @@
 use crate::{
-    analyze::{GlobalScope, GlobalScopeBuilder},
+    analyze::{GlobalScope, GlobalScopeBuilder, ScopeWriter},
     core::DuckOperation,
     parse::{Ast, StatementBox},
     Config, GmlLibrary,
@@ -130,15 +130,17 @@ impl DuckTask {
         let (early_pass_sender, early_pass_receiver) = channel::<EarlyPassEntry>(1000);
         let handle = tokio::task::spawn(async move {
             while let Some(ast) = ast_receiever.recv().await {
-                for statement in ast.unpack() {
+                for mut statement in ast.unpack() {
                     let config = config.clone();
                     let sender = early_pass_sender.clone();
                     tokio::task::spawn(async move {
                         let mut reports = vec![];
                         let mut scope_builder = GlobalScopeBuilder::new();
+                        let mut scope_writer = ScopeWriter::new();
                         DuckOperation::process_statement_early(
-                            &statement,
+                            &mut statement,
                             &mut scope_builder,
+                            &mut scope_writer,
                             &mut reports,
                             config.as_ref(),
                         );

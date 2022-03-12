@@ -71,22 +71,39 @@ impl From<Switch> for Statement {
 }
 impl IntoStatementBox for Switch {}
 impl ParseVisitor for Switch {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
-        expression_visitor(self.matching_value());
-        for case in self.cases() {
-            expression_visitor(case.identity());
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+        visitor(&self.matching_value);
+        for case in self.cases.iter() {
+            visitor(&case.0);
         }
     }
-
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
-        for case in self.cases() {
-            for statement in case.iter_body_statements() {
-                statement_visitor(statement);
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        visitor(&mut self.matching_value);
+        for case in self.cases.iter_mut() {
+            visitor(&mut case.0);
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
+        for case in self.cases.iter() {
+            for statement in case.1.iter() {
+                visitor(statement);
             }
         }
-        if let Some(default) = self.default_case() {
+        if let Some(default) = self.default_case.as_ref() {
             for statement in default.iter() {
-                statement_visitor(statement);
+                visitor(statement);
+            }
+        }
+    }
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+        for case in self.cases.iter_mut() {
+            for statement in case.1.iter_mut() {
+                visitor(statement);
+            }
+        }
+        if let Some(default) = self.default_case.as_mut() {
+            for statement in default.iter_mut() {
+                visitor(statement);
             }
         }
     }

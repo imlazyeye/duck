@@ -135,4 +135,7 @@ pub mod parse {
 pub mod analyze {
     mod global_scope;
     pub use global_scope::*;
+    #[allow(missing_docs)]
+    mod scope;
+    pub use scope::*;
 }

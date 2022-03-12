@@ -21,11 +21,16 @@ impl From<DoUntil> for Statement {
 }
 impl IntoStatementBox for DoUntil {}
 impl ParseVisitor for DoUntil {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
-        expression_visitor(&self.condition);
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+        visitor(&self.condition);
     }
-
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
-        statement_visitor(&self.body);
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        visitor(&mut self.condition);
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
+        visitor(&self.body);
+    }
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+        visitor(&mut self.body);
     }
 }

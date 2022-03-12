@@ -19,11 +19,16 @@ impl From<Return> for Statement {
 }
 impl IntoStatementBox for Return {}
 impl ParseVisitor for Return {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
         if let Some(value) = &self.value {
-            expression_visitor(value);
+            visitor(value);
         }
     }
-
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        if let Some(value) = &mut self.value {
+            visitor(value);
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
 }

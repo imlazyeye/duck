@@ -1,4 +1,5 @@
 use crate::{
+    analyze::Scope,
     lint::LintTag,
     parse::{
         Block, Delete, DoUntil, Enum, ExpressionBox, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro,
@@ -62,55 +63,108 @@ pub enum Statement {
 }
 impl IntoStatementBox for Statement {}
 impl ParseVisitor for Statement {
-    fn visit_child_expressions<E>(&self, mut expression_visitor: E)
+    fn visit_child_expressions<E>(&self, mut visitor: E)
     where
         E: FnMut(&ExpressionBox),
     {
         match self {
-            Statement::MacroDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::EnumDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::GlobalvarDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::LocalVariableSeries(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::TryCatch(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::ForLoop(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::WithLoop(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::RepeatLoop(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::DoUntil(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::WhileLoop(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::If(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Switch(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Block(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Return(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Throw(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Delete(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Assignment(inner) => inner.visit_child_expressions(expression_visitor),
-            Statement::Expression(inner) => expression_visitor(inner),
+            Statement::MacroDeclaration(inner) => inner.visit_child_expressions(visitor),
+            Statement::EnumDeclaration(inner) => inner.visit_child_expressions(visitor),
+            Statement::GlobalvarDeclaration(inner) => inner.visit_child_expressions(visitor),
+            Statement::LocalVariableSeries(inner) => inner.visit_child_expressions(visitor),
+            Statement::TryCatch(inner) => inner.visit_child_expressions(visitor),
+            Statement::ForLoop(inner) => inner.visit_child_expressions(visitor),
+            Statement::WithLoop(inner) => inner.visit_child_expressions(visitor),
+            Statement::RepeatLoop(inner) => inner.visit_child_expressions(visitor),
+            Statement::DoUntil(inner) => inner.visit_child_expressions(visitor),
+            Statement::WhileLoop(inner) => inner.visit_child_expressions(visitor),
+            Statement::If(inner) => inner.visit_child_expressions(visitor),
+            Statement::Switch(inner) => inner.visit_child_expressions(visitor),
+            Statement::Block(inner) => inner.visit_child_expressions(visitor),
+            Statement::Return(inner) => inner.visit_child_expressions(visitor),
+            Statement::Throw(inner) => inner.visit_child_expressions(visitor),
+            Statement::Delete(inner) => inner.visit_child_expressions(visitor),
+            Statement::Assignment(inner) => inner.visit_child_expressions(visitor),
+            Statement::Expression(inner) => visitor(inner),
+            Statement::Break | Statement::Continue | Statement::Exit => {}
+        }
+    }
+    fn visit_child_expressions_mut<E>(&mut self, mut visitor: E)
+    where
+        E: FnMut(&mut ExpressionBox),
+    {
+        match self {
+            Statement::MacroDeclaration(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::EnumDeclaration(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::GlobalvarDeclaration(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::LocalVariableSeries(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::TryCatch(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::ForLoop(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::WithLoop(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::RepeatLoop(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::DoUntil(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::WhileLoop(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::If(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::Switch(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::Block(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::Return(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::Throw(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::Delete(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::Assignment(inner) => inner.visit_child_expressions_mut(visitor),
+            Statement::Expression(inner) => visitor(inner),
             Statement::Break | Statement::Continue | Statement::Exit => {}
         }
     }
 
-    fn visit_child_statements<S>(&self, statement_visitor: S)
+    fn visit_child_statements<S>(&self, visitor: S)
     where
         S: FnMut(&StatementBox),
     {
         match self {
-            Statement::MacroDeclaration(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::EnumDeclaration(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::GlobalvarDeclaration(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::LocalVariableSeries(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::TryCatch(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::ForLoop(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::WithLoop(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::RepeatLoop(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::DoUntil(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::WhileLoop(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::If(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::Switch(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::Block(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::Return(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::Throw(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::Delete(inner) => inner.visit_child_statements(statement_visitor),
-            Statement::Assignment(inner) => inner.visit_child_statements(statement_visitor),
+            Statement::MacroDeclaration(inner) => inner.visit_child_statements(visitor),
+            Statement::EnumDeclaration(inner) => inner.visit_child_statements(visitor),
+            Statement::GlobalvarDeclaration(inner) => inner.visit_child_statements(visitor),
+            Statement::LocalVariableSeries(inner) => inner.visit_child_statements(visitor),
+            Statement::TryCatch(inner) => inner.visit_child_statements(visitor),
+            Statement::ForLoop(inner) => inner.visit_child_statements(visitor),
+            Statement::WithLoop(inner) => inner.visit_child_statements(visitor),
+            Statement::RepeatLoop(inner) => inner.visit_child_statements(visitor),
+            Statement::DoUntil(inner) => inner.visit_child_statements(visitor),
+            Statement::WhileLoop(inner) => inner.visit_child_statements(visitor),
+            Statement::If(inner) => inner.visit_child_statements(visitor),
+            Statement::Switch(inner) => inner.visit_child_statements(visitor),
+            Statement::Block(inner) => inner.visit_child_statements(visitor),
+            Statement::Return(inner) => inner.visit_child_statements(visitor),
+            Statement::Throw(inner) => inner.visit_child_statements(visitor),
+            Statement::Delete(inner) => inner.visit_child_statements(visitor),
+            Statement::Assignment(inner) => inner.visit_child_statements(visitor),
+            Statement::Expression(_) => {}
+            Statement::Break | Statement::Continue | Statement::Exit => {}
+        }
+    }
+
+    fn visit_child_statements_mut<S>(&mut self, visitor: S)
+    where
+        S: FnMut(&mut StatementBox),
+    {
+        match self {
+            Statement::MacroDeclaration(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::EnumDeclaration(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::GlobalvarDeclaration(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::LocalVariableSeries(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::TryCatch(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::ForLoop(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::WithLoop(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::RepeatLoop(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::DoUntil(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::WhileLoop(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::If(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::Switch(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::Block(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::Return(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::Throw(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::Delete(inner) => inner.visit_child_statements_mut(visitor),
+            Statement::Assignment(inner) => inner.visit_child_statements_mut(visitor),
             Statement::Expression(_) => {}
             Statement::Break | Statement::Continue | Statement::Exit => {}
         }
@@ -141,22 +195,26 @@ impl Statement {
     }
 }
 
-/// A wrapper around a Statement. Serves a few purposes:
-///
-/// 1. Prevents infinite-sizing issues on [Statement] (type T cannot itself directly hold another T)
-/// 2. Contains the location that describes where this statement came from
-/// 3. Contains the lint tag, if any, that the user left on this statement
-/// 3. In the future, will hold static-analysis data
+/// A wrapper around a Statement, containing additional information discovered while parsing.
 #[derive(Debug, PartialEq, Clone)]
-pub struct StatementBox(Box<Statement>, Location, Option<LintTag>);
+pub struct StatementBox {
+    pub statement: Box<Statement>,
+    pub scope: Option<Scope>,
+    location: Location,
+    lint_tag: Option<LintTag>,
+}
 impl StatementBox {
     /// Returns a reference to the inner statement.
     pub fn statement(&self) -> &Statement {
-        self.0.as_ref()
+        self.statement.as_ref()
+    }
+    /// Returns a mutable reference to the inner statement.
+    pub fn statement_mut(&mut self) -> &mut Statement {
+        self.statement.as_mut()
     }
     /// Returns the Location this statement is from.
     pub fn location(&self) -> Location {
-        self.1
+        self.location
     }
     /// Returns the span this statement originates from.
     pub fn span(&self) -> Span {
@@ -168,15 +226,21 @@ impl StatementBox {
     }
     /// Returns the lint tag attached to this statement, if any.
     pub fn lint_tag(&self) -> Option<&LintTag> {
-        self.2.as_ref()
+        self.lint_tag.as_ref()
     }
 }
 impl ParseVisitor for StatementBox {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, expression_visitor: E) {
-        self.statement().visit_child_expressions(expression_visitor)
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, visitor: E) {
+        self.statement().visit_child_expressions(visitor)
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, statement_visitor: S) {
-        self.statement().visit_child_statements(statement_visitor)
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, visitor: E) {
+        self.statement_mut().visit_child_expressions_mut(visitor)
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, visitor: S) {
+        self.statement().visit_child_statements(visitor)
+    }
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, visitor: S) {
+        self.statement_mut().visit_child_statements_mut(visitor)
     }
 }
 
@@ -185,7 +249,12 @@ impl ParseVisitor for StatementBox {
 pub trait IntoStatementBox: Sized + Into<Statement> {
     /// Converts self into an statement box.
     fn into_statement_box(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> StatementBox {
-        StatementBox(Box::new(self.into()), Location(file_id, span), lint_tag)
+        StatementBox {
+            statement: Box::new(self.into()),
+            scope: None,
+            location: Location(file_id, span),
+            lint_tag,
+        }
     }
 
     /// Converts self into an statement box with a default span. Used in tests, where all spans are

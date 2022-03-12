@@ -3,15 +3,11 @@ use super::{ExpressionBox, StatementBox};
 /// Used to visit the children of a Statement/Expression as we recurse down the tree.
 pub trait ParseVisitor {
     /// Visits all expressions this T contains.
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, expression_visitor: E);
-
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, visitor: E);
+    /// Visits all expressions this T contains mutably.
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, visitor: E);
     /// Visits all statements this T contains.
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, statement_visitor: S);
-}
-
-/// Used for unit tests to assert that items are equal while ignoring their location information.
-pub trait LooseEq {
-    /// Returns if the two items are loosely equal, ignoring fields that are not important to the
-    /// comparision.
-    fn loose_eq(&self, other: &Self) -> bool;
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, visitor: S);
+    /// Visits all statements this T contains mutably.
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, visitor: S);
 }

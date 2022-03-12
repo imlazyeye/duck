@@ -34,11 +34,16 @@ impl From<Block> for Statement {
 }
 impl IntoStatementBox for Block {}
 impl ParseVisitor for Block {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, _expression_visitor: E) {}
-
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut _visitor: E) {}
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, _visitor: E) {}
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+        for statement in self.body.iter_mut() {
+            visitor(statement);
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
         for statement in self.body.iter() {
-            statement_visitor(statement);
+            visitor(statement);
         }
     }
 }

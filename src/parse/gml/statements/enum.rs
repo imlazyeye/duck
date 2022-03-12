@@ -37,20 +37,35 @@ impl From<Enum> for Statement {
 }
 impl IntoStatementBox for Enum {}
 impl ParseVisitor for Enum {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
         for member in self.members.iter() {
             match member {
-                OptionalInitilization::Uninitialized(expression) => expression_visitor(expression),
+                OptionalInitilization::Uninitialized(expression) => visitor(expression),
                 OptionalInitilization::Initialized(_) => {}
             }
         }
     }
-
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut statement_visitor: S) {
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        for member in self.members.iter_mut() {
+            match member {
+                OptionalInitilization::Uninitialized(expression) => visitor(expression),
+                OptionalInitilization::Initialized(_) => {}
+            }
+        }
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
         for member in self.members.iter() {
             match member {
                 OptionalInitilization::Uninitialized(_) => {}
-                OptionalInitilization::Initialized(statement) => statement_visitor(statement),
+                OptionalInitilization::Initialized(statement) => visitor(statement),
+            }
+        }
+    }
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+        for member in self.members.iter_mut() {
+            match member {
+                OptionalInitilization::Uninitialized(_) => {}
+                OptionalInitilization::Initialized(statement) => visitor(statement),
             }
         }
     }

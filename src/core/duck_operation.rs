@@ -1,7 +1,7 @@
 use codespan_reporting::diagnostic::Diagnostic;
 
 use crate::{
-    analyze::{GlobalScope, GlobalScopeBuilder},
+    analyze::{GlobalScope, GlobalScopeBuilder, ScopeWriter},
     lint::{
         collection::*, EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, Lint, LintLevel,
     },
@@ -72,13 +72,12 @@ impl DuckOperation {
     /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
     /// more information.
     pub fn process_statement_early(
-        statement_box: &StatementBox,
+        statement_box: &mut StatementBox,
         scope_builder: &mut GlobalScopeBuilder,
+        scope_writer: &mut ScopeWriter,
         reports: &mut Vec<Diagnostic<FileId>>,
         config: &Config,
     ) {
-        let statement = statement_box.statement();
-
         // @early statement calls. Do not remove this comment!
         Self::run_early_lint_on_statement::<CasingRules>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<CollapsableIf>(statement_box, config, reports);
@@ -100,7 +99,7 @@ impl DuckOperation {
         // @end early statement calls. Do not remove this comment!
 
         #[allow(clippy::single_match)]
-        match statement {
+        match statement_box.statement() {
             Statement::EnumDeclaration(gml_enum) => {
                 scope_builder.register_enum(gml_enum.clone(), statement_box.location());
             }
@@ -108,8 +107,13 @@ impl DuckOperation {
         }
 
         // Recurse...
-        statement.visit_child_statements(|stmt| Self::process_statement_early(stmt, scope_builder, reports, config));
-        statement.visit_child_expressions(|expr| Self::process_expression_early(expr, scope_builder, reports, config));
+        let statement = statement_box.statement_mut();
+        statement.visit_child_statements_mut(|stmt| {
+            Self::process_statement_early(stmt, scope_builder, scope_writer, reports, config)
+        });
+        statement.visit_child_expressions_mut(|expr| {
+            Self::process_expression_early(expr, scope_builder, scope_writer, reports, config)
+        });
     }
 
     /// Runs an [Expression] through the early pass, running any lint that
@@ -119,13 +123,12 @@ impl DuckOperation {
     /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
     /// more information.
     pub fn process_expression_early(
-        expression_box: &ExpressionBox,
+        expression_box: &mut ExpressionBox,
         scope_builder: &mut GlobalScopeBuilder,
+        scope_writer: &mut ScopeWriter,
         reports: &mut Vec<Diagnostic<FileId>>,
         config: &Config,
     ) {
-        let expression = expression_box.expression();
-
         // @early expression calls. Do not remove this comment!
         Self::run_early_lint_on_expression::<AccessorAlternative>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<AndPreference>(expression_box, config, reports);
@@ -151,8 +154,13 @@ impl DuckOperation {
         // @end early expression calls. Do not remove this comment!
 
         // Recurse...
-        expression.visit_child_statements(|stmt| Self::process_statement_early(stmt, scope_builder, reports, config));
-        expression.visit_child_expressions(|expr| Self::process_expression_early(expr, scope_builder, reports, config));
+        let expression = expression_box.expression_mut();
+        expression.visit_child_statements_mut(|stmt| {
+            Self::process_statement_early(stmt, scope_builder, scope_writer, reports, config)
+        });
+        expression.visit_child_expressions_mut(|expr| {
+            Self::process_expression_early(expr, scope_builder, scope_writer, reports, config)
+        });
     }
 
     /// Runs a [Statement] through the late pass, running any lint that
@@ -166,13 +174,12 @@ impl DuckOperation {
         reports: &mut Vec<Diagnostic<FileId>>,
         config: &Config,
     ) {
-        let statement = statement_box.statement();
-
         // @late statement calls. Do not remove this comment!
         Self::run_late_lint_on_statement::<MissingCaseMember>(statement_box, config, reports, global_scope);
         // @end late statement calls. Do not remove this comment!
 
         // Recurse...
+        let statement = statement_box.statement();
         statement.visit_child_statements(|stmt| Self::process_statement_late(stmt, global_scope, reports, config));
         statement.visit_child_expressions(|expr| Self::process_expression_late(expr, global_scope, reports, config));
     }
@@ -182,22 +189,18 @@ impl DuckOperation {
     ///
     ///  NOTE: This function is largely auto-generated! See `CONTRIBUTING.md`
     /// for more information.
-    #[allow(dead_code)]
     fn process_expression_late(
         expression_box: &ExpressionBox,
         global_scope: &GlobalScope,
         reports: &mut Vec<Diagnostic<FileId>>,
         config: &Config,
     ) {
-        let expression = expression_box.expression();
-        #[allow(unused_variables)]
-        let span = expression_box.span();
-
         // @late expression calls. Do not remove this comment!
         Self::run_late_lint_on_expression::<NonConstantDefaultParameter>(expression_box, config, reports, global_scope);
         // @end late expression calls. Do not remove this comment!
 
         // Recurse...
+        let expression = expression_box.expression();
         expression.visit_child_statements(|stmt| Self::process_statement_late(stmt, global_scope, reports, config));
         expression.visit_child_expressions(|expr| Self::process_expression_late(expr, global_scope, reports, config));
     }

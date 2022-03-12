@@ -84,24 +84,24 @@ impl From<Access> for Expression {
 }
 impl IntoExpressionBox for Access {}
 impl ParseVisitor for Access {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut expression_visitor: E) {
+    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
         match self {
-            Access::Global { right } | Access::Current { right } | Access::Other { right } => expression_visitor(right),
+            Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
             Access::Dot { left, right }
             | Access::Map { left, key: right }
             | Access::List { left, index: right }
             | Access::Struct { left, key: right } => {
-                expression_visitor(left);
-                expression_visitor(right);
+                visitor(left);
+                visitor(right);
             }
             Access::Grid {
                 left,
                 index_one,
                 index_two,
             } => {
-                expression_visitor(left);
-                expression_visitor(index_one);
-                expression_visitor(index_two);
+                visitor(left);
+                visitor(index_one);
+                visitor(index_two);
             }
             Access::Array {
                 left,
@@ -109,13 +109,48 @@ impl ParseVisitor for Access {
                 index_two,
                 using_accessor: _,
             } => {
-                expression_visitor(left);
-                expression_visitor(index_one);
+                visitor(left);
+                visitor(index_one);
                 if let Some(index_two) = index_two {
-                    expression_visitor(index_two);
+                    visitor(index_two);
                 }
             }
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, _statement_visitor: S) {}
+    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+        match self {
+            Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
+            Access::Dot { left, right }
+            | Access::Map { left, key: right }
+            | Access::List { left, index: right }
+            | Access::Struct { left, key: right } => {
+                visitor(left);
+                visitor(right);
+            }
+            Access::Grid {
+                left,
+                index_one,
+                index_two,
+            } => {
+                visitor(left);
+                visitor(index_one);
+                visitor(index_two);
+            }
+            Access::Array {
+                left,
+                index_one,
+                index_two,
+                using_accessor: _,
+            } => {
+                visitor(left);
+                visitor(index_one);
+                if let Some(index_two) = index_two {
+                    visitor(index_two);
+                }
+            }
+        }
+    }
+
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
 }

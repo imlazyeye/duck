@@ -1,4 +1,5 @@
 use crate::{
+    analyze::Scope,
     lint::LintTag,
     parse::{Span, *},
     FileId,
@@ -72,66 +73,111 @@ impl Expression {
 }
 impl IntoExpressionBox for Expression {}
 impl ParseVisitor for Expression {
-    fn visit_child_statements<S>(&self, statement_visitor: S)
+    fn visit_child_statements<S>(&self, visitor: S)
     where
         S: FnMut(&StatementBox),
     {
         match self {
-            Expression::FunctionDeclaration(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Logical(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Equality(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Evaluation(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::NullCoalecence(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Ternary(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Unary(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Postfix(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Access(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Call(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Grouping(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Literal(inner) => inner.visit_child_statements(statement_visitor),
-            Expression::Identifier(inner) => inner.visit_child_statements(statement_visitor),
+            Expression::FunctionDeclaration(inner) => inner.visit_child_statements(visitor),
+            Expression::Logical(inner) => inner.visit_child_statements(visitor),
+            Expression::Equality(inner) => inner.visit_child_statements(visitor),
+            Expression::Evaluation(inner) => inner.visit_child_statements(visitor),
+            Expression::NullCoalecence(inner) => inner.visit_child_statements(visitor),
+            Expression::Ternary(inner) => inner.visit_child_statements(visitor),
+            Expression::Unary(inner) => inner.visit_child_statements(visitor),
+            Expression::Postfix(inner) => inner.visit_child_statements(visitor),
+            Expression::Access(inner) => inner.visit_child_statements(visitor),
+            Expression::Call(inner) => inner.visit_child_statements(visitor),
+            Expression::Grouping(inner) => inner.visit_child_statements(visitor),
+            Expression::Literal(inner) => inner.visit_child_statements(visitor),
+            Expression::Identifier(inner) => inner.visit_child_statements(visitor),
         }
     }
 
-    fn visit_child_expressions<E>(&self, expression_visitor: E)
+    fn visit_child_statements_mut<S>(&mut self, visitor: S)
+    where
+        S: FnMut(&mut StatementBox),
+    {
+        match self {
+            Expression::FunctionDeclaration(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Logical(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Equality(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Evaluation(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::NullCoalecence(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Ternary(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Unary(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Postfix(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Access(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Call(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Grouping(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Literal(inner) => inner.visit_child_statements_mut(visitor),
+            Expression::Identifier(inner) => inner.visit_child_statements_mut(visitor),
+        }
+    }
+
+    fn visit_child_expressions<E>(&self, visitor: E)
     where
         E: FnMut(&ExpressionBox),
     {
         match self {
-            Expression::FunctionDeclaration(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Logical(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Equality(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Evaluation(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::NullCoalecence(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Ternary(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Unary(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Postfix(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Access(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Call(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Grouping(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Literal(inner) => inner.visit_child_expressions(expression_visitor),
-            Expression::Identifier(inner) => inner.visit_child_expressions(expression_visitor),
+            Expression::FunctionDeclaration(inner) => inner.visit_child_expressions(visitor),
+            Expression::Logical(inner) => inner.visit_child_expressions(visitor),
+            Expression::Equality(inner) => inner.visit_child_expressions(visitor),
+            Expression::Evaluation(inner) => inner.visit_child_expressions(visitor),
+            Expression::NullCoalecence(inner) => inner.visit_child_expressions(visitor),
+            Expression::Ternary(inner) => inner.visit_child_expressions(visitor),
+            Expression::Unary(inner) => inner.visit_child_expressions(visitor),
+            Expression::Postfix(inner) => inner.visit_child_expressions(visitor),
+            Expression::Access(inner) => inner.visit_child_expressions(visitor),
+            Expression::Call(inner) => inner.visit_child_expressions(visitor),
+            Expression::Grouping(inner) => inner.visit_child_expressions(visitor),
+            Expression::Literal(inner) => inner.visit_child_expressions(visitor),
+            Expression::Identifier(inner) => inner.visit_child_expressions(visitor),
+        }
+    }
+
+    fn visit_child_expressions_mut<E>(&mut self, visitor: E)
+    where
+        E: FnMut(&mut ExpressionBox),
+    {
+        match self {
+            Expression::FunctionDeclaration(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Logical(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Equality(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Evaluation(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::NullCoalecence(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Ternary(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Unary(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Postfix(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Access(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Call(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Grouping(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Literal(inner) => inner.visit_child_expressions_mut(visitor),
+            Expression::Identifier(inner) => inner.visit_child_expressions_mut(visitor),
         }
     }
 }
 
-/// A wrapper around a Expression. Serves a few purposes:
-///
-/// 1. Prevents infinite-sizing issues on [Expression] (type T cannot itself directly hold another
-/// T)
-/// 2. Contains the location that describes where this expression came from
-/// 3. Contains the lint tag, if any, that the user left on this statement
-/// 3. In the future, will hold static-analysis data
+/// A wrapper around a Expression, containing additional information discovered while parsing.
 #[derive(Debug, PartialEq, Clone)]
-pub struct ExpressionBox(pub Box<Expression>, Location, Option<LintTag>);
+pub struct ExpressionBox {
+    pub expression: Box<Expression>,
+    pub scope: Option<Scope>,
+    location: Location,
+    lint_tag: Option<LintTag>,
+}
 impl ExpressionBox {
     /// Returns a reference to the inner expression.
     pub fn expression(&self) -> &Expression {
-        self.0.as_ref()
+        self.expression.as_ref()
+    }
+    /// Returns a mutable reference to the inner expression.
+    pub fn expression_mut(&mut self) -> &mut Expression {
+        self.expression.as_mut()
     }
     /// Returns the Location this expression is from.
     pub fn location(&self) -> Location {
-        self.1
+        self.location
     }
     /// Returns the span this expression originates from.
     pub fn span(&self) -> Span {
@@ -143,7 +189,7 @@ impl ExpressionBox {
     }
     /// Returns the lint tag attached to this statement, if any.
     pub fn lint_tag(&self) -> Option<&LintTag> {
-        self.2.as_ref()
+        self.lint_tag.as_ref()
     }
 }
 impl From<ExpressionBox> for Statement {
@@ -153,12 +199,17 @@ impl From<ExpressionBox> for Statement {
 }
 impl IntoStatementBox for ExpressionBox {}
 impl ParseVisitor for ExpressionBox {
-    fn visit_child_expressions<E: FnMut(&Self)>(&self, expression_visitor: E) {
-        self.expression().visit_child_expressions(expression_visitor)
+    fn visit_child_expressions<E: FnMut(&Self)>(&self, visitor: E) {
+        self.expression().visit_child_expressions(visitor)
     }
-
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, statement_visitor: S) {
-        self.expression().visit_child_statements(statement_visitor)
+    fn visit_child_expressions_mut<E: FnMut(&mut Self)>(&mut self, visitor: E) {
+        self.expression_mut().visit_child_expressions_mut(visitor)
+    }
+    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, visitor: S) {
+        self.expression().visit_child_statements(visitor)
+    }
+    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, visitor: S) {
+        self.expression_mut().visit_child_statements_mut(visitor)
     }
 }
 
@@ -167,7 +218,12 @@ impl ParseVisitor for ExpressionBox {
 pub trait IntoExpressionBox: Sized + Into<Expression> {
     /// Converts self into an expression box.
     fn into_expression_box(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> ExpressionBox {
-        ExpressionBox(Box::new(self.into()), Location(file_id, span), lint_tag)
+        ExpressionBox {
+            expression: Box::new(self.into()),
+            location: Location(file_id, span),
+            scope: None,
+            lint_tag,
+        }
     }
 
     /// Converts self into an expression box with a default span. Used in tests, where all spans are
