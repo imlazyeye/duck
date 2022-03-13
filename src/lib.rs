@@ -138,4 +138,8 @@ pub mod analyze {
     #[allow(missing_docs)]
     mod scope;
     pub use scope::*;
+    #[cfg(test)]
+    mod tests {
+        mod analysis;
+    }
 }

@@ -1,5 +1,5 @@
 use crate::{
-    analyze::{GlobalScope, GlobalScopeBuilder, ScopeWriter},
+    analyze::{GlobalScope, GlobalScopeBuilder},
     lint::{collection::*, Lint, LintLevel},
     parse::*,
     Config, DuckOperation, GmlLibrary,
@@ -21,9 +21,8 @@ pub(super) fn harness_lint<T: Lint>(source: &'static str, expected_number: usize
     let mut ast = Parser::new(source, file_id).into_ast().unwrap();
     let mut reports = vec![];
     let mut scope_builder = GlobalScopeBuilder::new();
-    let mut scope_writer = ScopeWriter::new();
     for statement in ast.statements_mut() {
-        DuckOperation::process_statement_early(statement, &mut scope_builder, &mut scope_writer, &mut reports, &config);
+        DuckOperation::process_statement_early(statement, &mut scope_builder, &mut reports, &config);
     }
     let mut global_scope = GlobalScope::new();
     global_scope.drain(scope_builder);

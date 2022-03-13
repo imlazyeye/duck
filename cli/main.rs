@@ -134,6 +134,10 @@ fn explain_lint(name: String) -> i32 {
         "bool_equality" => (BoolEquality::explanation().to_string(), BoolEquality::default_level()),
         "casing_rules" => (CasingRules::explanation().to_string(), CasingRules::default_level()),
         "collapsable_if" => (CollapsableIf::explanation().to_string(), CollapsableIf::default_level()),
+        "condition_wrapper" => (
+            ConditionWrapper::explanation().to_string(),
+            ConditionWrapper::default_level(),
+        ),
         "deprecated" => (Deprecated::explanation().to_string(), Deprecated::default_level()),
         "draw_sprite" => (DrawSprite::explanation().to_string(), DrawSprite::default_level()),
         "draw_text" => (DrawText::explanation().to_string(), DrawText::default_level()),
@@ -186,10 +190,6 @@ fn explain_lint(name: String) -> i32 {
         "single_switch_case" => (
             SingleSwitchCase::explanation().to_string(),
             SingleSwitchCase::default_level(),
-        ),
-        "condition_wrapper" => (
-            ConditionWrapper::explanation().to_string(),
-            ConditionWrapper::default_level(),
         ),
         "suspicious_constant_usage" => (
             SuspicousConstantUsage::explanation().to_string(),

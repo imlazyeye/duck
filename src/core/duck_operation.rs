@@ -1,11 +1,11 @@
 use codespan_reporting::diagnostic::Diagnostic;
 
 use crate::{
-    analyze::{GlobalScope, GlobalScopeBuilder, ScopeWriter},
+    analyze::{GlobalScope, GlobalScopeBuilder},
     lint::{
         collection::*, EarlyExpressionPass, EarlyStatementPass, LateExpressionPass, LateStatementPass, Lint, LintLevel,
     },
-    parse::{Ast, ExpressionBox, ParseVisitor, Parser, Statement, StatementBox},
+    parse::{Ast, ExpressionBox, ParseVisitor, Parser, StatementBox},
     Config, FileId,
 };
 
@@ -74,13 +74,13 @@ impl DuckOperation {
     pub fn process_statement_early(
         statement_box: &mut StatementBox,
         scope_builder: &mut GlobalScopeBuilder,
-        scope_writer: &mut ScopeWriter,
         reports: &mut Vec<Diagnostic<FileId>>,
         config: &Config,
     ) {
         // @early statement calls. Do not remove this comment!
         Self::run_early_lint_on_statement::<CasingRules>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<CollapsableIf>(statement_box, config, reports);
+        Self::run_early_lint_on_statement::<ConditionWrapper>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<Deprecated>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<Exit>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<Global>(statement_box, config, reports);
@@ -88,7 +88,6 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<MissingDefaultCase>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<MultiVarDeclaration>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<SingleSwitchCase>(statement_box, config, reports);
-        Self::run_early_lint_on_statement::<ConditionWrapper>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<SuspicousConstantUsage>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<TryCatch>(statement_box, config, reports);
         Self::run_early_lint_on_statement::<UnassignedConstructor>(statement_box, config, reports);
@@ -98,22 +97,12 @@ impl DuckOperation {
         Self::run_early_lint_on_statement::<WithLoop>(statement_box, config, reports);
         // @end early statement calls. Do not remove this comment!
 
-        #[allow(clippy::single_match)]
-        match statement_box.statement() {
-            Statement::EnumDeclaration(gml_enum) => {
-                scope_builder.register_enum(gml_enum.clone(), statement_box.location());
-            }
-            _ => {}
-        }
-
         // Recurse...
         let statement = statement_box.statement_mut();
-        statement.visit_child_statements_mut(|stmt| {
-            Self::process_statement_early(stmt, scope_builder, scope_writer, reports, config)
-        });
-        statement.visit_child_expressions_mut(|expr| {
-            Self::process_expression_early(expr, scope_builder, scope_writer, reports, config)
-        });
+        statement
+            .visit_child_statements_mut(|stmt| Self::process_statement_early(stmt, scope_builder, reports, config));
+        statement
+            .visit_child_expressions_mut(|expr| Self::process_expression_early(expr, scope_builder, reports, config));
     }
 
     /// Runs an [Expression] through the early pass, running any lint that
@@ -125,7 +114,6 @@ impl DuckOperation {
     pub fn process_expression_early(
         expression_box: &mut ExpressionBox,
         scope_builder: &mut GlobalScopeBuilder,
-        scope_writer: &mut ScopeWriter,
         reports: &mut Vec<Diagnostic<FileId>>,
         config: &Config,
     ) {
@@ -135,6 +123,7 @@ impl DuckOperation {
         Self::run_early_lint_on_expression::<AnonymousConstructor>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<BoolEquality>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<CasingRules>(expression_box, config, reports);
+        Self::run_early_lint_on_expression::<ConditionWrapper>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<Deprecated>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<DrawSprite>(expression_box, config, reports);
         Self::run_early_lint_on_expression::<DrawText>(expression_box, config, reports);
@@ -155,12 +144,10 @@ impl DuckOperation {
 
         // Recurse...
         let expression = expression_box.expression_mut();
-        expression.visit_child_statements_mut(|stmt| {
-            Self::process_statement_early(stmt, scope_builder, scope_writer, reports, config)
-        });
-        expression.visit_child_expressions_mut(|expr| {
-            Self::process_expression_early(expr, scope_builder, scope_writer, reports, config)
-        });
+        expression
+            .visit_child_statements_mut(|stmt| Self::process_statement_early(stmt, scope_builder, reports, config));
+        expression
+            .visit_child_expressions_mut(|expr| Self::process_expression_early(expr, scope_builder, reports, config));
     }
 
     /// Runs a [Statement] through the late pass, running any lint that

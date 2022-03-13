@@ -1,48 +1,36 @@
 use crate::parse::Location;
 use fnv::FnvHashMap;
 
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Scope {
-    values: FnvHashMap<&'static str, Value>,
-    block_to_parent: FnvHashMap<Block, Block>,
+    declarations: FnvHashMap<String, Declaration>,
+}
+impl Scope {
+    pub fn declaration(&self, name: &str) -> Option<&Declaration> {
+        self.declarations.get(name)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct ScopeWriter {
-    scope: Scope,
-    current_block: Block,
+    declarations: FnvHashMap<String, Declaration>,
 }
 impl ScopeWriter {
     pub fn new() -> Self {
         Self {
-            scope: Scope::default(),
-            current_block: Block::new(),
+            declarations: FnvHashMap::default(),
         }
     }
-    pub fn declare(&mut self, name: &'static str, ownership: Ownership, location: Location) {
-        self.scope.values.insert(
-            name,
-            Value {
-                ownership,
-                declaration_location: location,
-                block: self.current_block,
-            },
-        );
+    pub fn declare(&mut self, name: impl Into<String>, location: Location) {
+        self.declarations.insert(name.into(), Declaration { location });
     }
-    pub fn enter_block(&mut self) {
-        let new_block = Block::new();
-        self.scope.block_to_parent.insert(new_block, self.current_block);
-        self.current_block = new_block;
-    }
-    pub fn depart_block(&mut self) {
-        self.current_block = *self
-            .scope
-            .block_to_parent
-            .get(&self.current_block)
-            .expect("Cannot depart the base scope!");
+    pub fn contains(&self, name: &str) -> bool {
+        self.declarations.contains_key(name)
     }
     pub fn snapshot(&self) -> Scope {
-        self.scope.clone()
+        Scope {
+            declarations: self.declarations.clone(),
+        }
     }
 }
 impl Default for ScopeWriter {
@@ -52,28 +40,6 @@ impl Default for ScopeWriter {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Value {
-    ownership: Ownership,
-    declaration_location: Location,
-    block: Block,
-}
-
-#[derive(Debug, Hash, Clone, Copy, PartialEq, Eq)]
-pub struct Block(u64);
-impl Block {
-    pub fn new() -> Self {
-        Self(rand::random())
-    }
-}
-impl Default for Block {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Ownership {
-    File,
-    Namespace,
-    Global,
+pub struct Declaration {
+    pub location: Location,
 }

@@ -10,6 +10,7 @@ Below are all of the lints currently supported in duck.
 | bool_equality | LintLevel::Allow | Comparing a bool with a bool literal is more verbose than neccesary.
 | casing_rules | LintLevel::Allow | Like any programming language, GML contains many different symbols that all can be styled in different ways. Picking consistent rules for each type creates a cleaner and more consistent codebase.
 | collapsable_if | LintLevel::Warn | If statements that contain nothing more than another if statement can be collapsed into a single statement.
+| condition_wrapper | LintLevel::Allow | Parenthesis surrounding certain statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.
 | deprecated | LintLevel::Warn | Deprecated features are liable to be removed at any time and should be avoided.
 | draw_sprite | LintLevel::Allow | Projects that implement their own rendering backend may wish to be restrictive around when and where the `draw_sprite` functions are called.
 | draw_text | LintLevel::Allow | Projects that implement their own UI frameworks / localization may wish to be restrictive around when and where the `draw_text` functions are called.
@@ -30,13 +31,12 @@ Below are all of the lints currently supported in duck.
 | show_debug_message | LintLevel::Allow | Projects often implement their own logging framework and wish to avoid unwrapped prints to the console.
 | single_equals_comparison | LintLevel::Warn | The single-equals token can be used for both assignments and equalities in gml. This is atypical of most languages, and can lead to inconsistancies or bugs in projects.
 | single_switch_case | LintLevel::Warn | Switch statements that only match on a single element can be reduced to an `if` statement.
-| statement_parenthetical_preference | LintLevel::Allow | Parenthesis surrounding certain statement expressions are optional in GML, resulting in differing opinions on whether or not to use them. You can select either option via the config.
 | suspicious_constant_usage | LintLevel::Deny | Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.
 | todo | LintLevel::Allow | Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.
 | too_many_arguments | LintLevel::Warn | Functions with lots of parameters quickly become confusing and indicate a need for structural change.
 | try_catch | LintLevel::Allow | GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.
 | unassigned_constructor | LintLevel::Warn | Invoking a constructor function without saving the new struct is often a mistake. If the constructor is saving a refernce of itself within its own declaration, this should still be given a wrapper function so that the behavior is not hidden. Avoiding this as an intentional pattern allows this lint to better alert you to mistakes.
-| unnecessary_grouping | LintLevel::Warn | Wrapping expressions in parenthesis more than once is redundant.
+| unnecessary_grouping | LintLevel::Warn | Parenthesis around an expression that do not change how the logic is executed are redundant and can be removed.
 | useless_function | LintLevel::Deny | Anonymous functions that are not assigned to a variable can never be referenced.
 | var_prefix_violation | LintLevel::Allow | It is common practice in GML to prefix local variables (longer than one charcter) with an underscore as it helps to visually distinguish them from instance (or global) variables. You can select either option via the config.
 | with_loop | LintLevel::Allow | The `with` loop allows your code's context to suddenly change, both making it more difficult to read (as a given line of code is no longer promised to be executing in the scope expected from the file), but also making it more difficult to track down all of the places an object is modified.

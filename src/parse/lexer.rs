@@ -540,9 +540,9 @@ impl Iterator for Lexer {
     }
 }
 
-pub(super) static MISC_GML_CONSTANTS: Lazy<FnvHashSet<&'static str>> =
+pub static MISC_GML_CONSTANTS: Lazy<FnvHashSet<&'static str>> =
     Lazy::new(|| serde_json::from_str(include_str!("../../assets/misc_gml_constants.json")).unwrap());
 
 #[allow(dead_code)]
-pub(super) static MISC_GML_VARIABLES: Lazy<FnvHashSet<&'static str>> =
+pub static MISC_GML_VARIABLES: Lazy<FnvHashSet<&'static str>> =
     Lazy::new(|| serde_json::from_str(include_str!("../../assets/misc_gml_variables.json")).unwrap());
