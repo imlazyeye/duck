@@ -41,19 +41,19 @@ impl Parser {
     pub fn into_ast(mut self) -> Result<Ast, Diagnostic<FileId>> {
         let mut statements = vec![];
         while self.soft_peek().is_some() {
-            statements.push(self.statement()?);
+            statements.push(self.stmt()?);
         }
         Ok(Ast::new(statements))
     }
 
     /// Wraps an expression in a box.
-    pub fn box_expression(&mut self, expression: impl IntoExpressionBox, span: Span) -> ExpressionBox {
-        expression.into_expression_box(span, self.file_id, self.lint_tag_slot.as_ref().cloned())
+    pub fn new_expr(&mut self, expr: impl IntoExpr, span: Span) -> Expr {
+        expr.into_expr(span, self.file_id, self.lint_tag_slot.as_ref().cloned())
     }
 
     /// Wraps an expression in a box.
-    pub fn box_statement(&mut self, statement: impl IntoStatementBox, start_position: usize) -> StatementBox {
-        statement.into_statement_box(self.span(start_position), self.file_id, self.lint_tag_slot.take())
+    pub fn new_stmt(&mut self, stmt: impl IntoStmt, start_position: usize) -> Stmt {
+        stmt.into_stmt(self.span(start_position), self.file_id, self.lint_tag_slot.take())
     }
 
     /// Creates a [Span] from the given position up until the pilot's current
@@ -65,7 +65,7 @@ impl Parser {
 
 // Recursive descent (gml grammar)
 impl Parser {
-    pub(super) fn statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    pub(super) fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         match self.peek()?.token_type {
             TokenType::Macro(name, config, body) => self.macro_declaration(name, config, body),
             TokenType::Enum => self.enum_declaration(),
@@ -75,14 +75,14 @@ impl Parser {
             TokenType::Repeat => self.repeat(),
             TokenType::Do => self.do_until(),
             TokenType::While => self.while_loop(),
-            TokenType::If => self.if_statement(),
+            TokenType::If => self.if_stmt(),
             TokenType::Switch => self.switch(),
             TokenType::LeftBrace | TokenType::Begin => self.block(),
-            TokenType::Return => self.return_statement(),
+            TokenType::Return => self.return_stmt(),
             TokenType::Throw => self.throw(),
             TokenType::Delete => self.delete(),
-            TokenType::Break => self.break_statement(),
-            TokenType::Continue => self.continue_statement(),
+            TokenType::Break => self.break_stmt(),
+            TokenType::Continue => self.continue_stmt(),
             TokenType::Exit => self.exit(),
             TokenType::Globalvar => self.globalvar_declaration(),
             TokenType::Var => self.local_variable_series(),
@@ -90,12 +90,7 @@ impl Parser {
         }
     }
 
-    fn macro_declaration(
-        &mut self,
-        name: &str,
-        config: Option<&str>,
-        body: &str,
-    ) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn macro_declaration(&mut self, name: &str, config: Option<&str>, body: &str) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let _token = self.take()?;
         // this is all strange, and is just a sign of a known fact -- our lack of proper support for macros
@@ -107,10 +102,10 @@ impl Parser {
         } else {
             Macro::new(name, body)
         };
-        Ok(self.box_statement(mac, start))
+        Ok(self.new_stmt(mac, start))
     }
 
-    fn enum_declaration(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn enum_declaration(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Enum)?;
         let name = self.require_identifier()?;
@@ -126,10 +121,10 @@ impl Parser {
                 let member_start = self.next_token_boundary();
                 let name = self.require_identifier()?;
                 let span = name.span;
-                let left = self.box_expression(name, span);
+                let left = self.new_expr(name, span);
                 let enum_member = if let Some(equal) = self.match_take(TokenType::Equal) {
-                    let right = self.expression()?;
-                    OptionalInitilization::Initialized(self.box_statement(
+                    let right = self.expr()?;
+                    OptionalInitilization::Initialized(self.new_stmt(
                         Assignment::new(left, AssignmentOperator::Equal(equal), right),
                         member_start,
                     ))
@@ -143,107 +138,107 @@ impl Parser {
         // GM accepts semicolons here, and as such, so do we.
         // FIXME: create an infastrucutre such that we can lint this?
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Enum::new_with_members(name, members), start))
+        Ok(self.new_stmt(Enum::new_with_members(name, members), start))
     }
 
-    fn try_catch(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn try_catch(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Try)?;
         let try_body = self.block()?;
         self.require(TokenType::Catch)?;
-        let catch_expr = self.expression()?;
+        let catch_expr = self.expr()?;
         let catch_body = self.block()?;
         let try_catch = if self.match_take(TokenType::Finally).is_some() {
             TryCatch::new_with_finally(try_body, catch_expr, catch_body, self.block()?)
         } else {
             TryCatch::new(try_body, catch_expr, catch_body)
         };
-        Ok(self.box_statement(try_catch, start))
+        Ok(self.new_stmt(try_catch, start))
     }
 
-    fn for_loop(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn for_loop(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::For)?;
         self.match_take(TokenType::LeftParenthesis);
-        let initializer = self.statement()?;
-        let condition = self.expression()?;
+        let initializer = self.stmt()?;
+        let condition = self.expr()?;
         self.match_take_repeating(TokenType::SemiColon);
-        let tick = self.statement()?;
+        let tick = self.stmt()?;
         self.match_take(TokenType::RightParenthesis);
-        let body = self.statement()?;
-        Ok(self.box_statement(ForLoop::new(initializer, condition, tick, body), start))
+        let body = self.stmt()?;
+        Ok(self.new_stmt(ForLoop::new(initializer, condition, tick, body), start))
     }
 
-    fn with(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn with(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::With)?;
-        let condition = self.expression()?;
-        let body = self.statement()?;
-        Ok(self.box_statement(WithLoop::new(condition, body), start))
+        let condition = self.expr()?;
+        let body = self.stmt()?;
+        Ok(self.new_stmt(WithLoop::new(condition, body), start))
     }
 
-    fn repeat(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn repeat(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Repeat)?;
-        let condition = self.expression()?;
-        let body = self.statement()?;
-        Ok(self.box_statement(RepeatLoop::new(condition, body), start))
+        let condition = self.expr()?;
+        let body = self.stmt()?;
+        Ok(self.new_stmt(RepeatLoop::new(condition, body), start))
     }
 
-    fn do_until(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn do_until(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Do)?;
-        let body = self.statement()?;
+        let body = self.stmt()?;
         self.require(TokenType::Until)?;
-        let condition = self.expression()?;
+        let condition = self.expr()?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(DoUntil::new(body, condition), start))
+        Ok(self.new_stmt(DoUntil::new(body, condition), start))
     }
 
-    fn while_loop(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn while_loop(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::While)?;
-        let condition = self.expression()?;
-        let body = self.statement()?;
-        Ok(self.box_statement(If::new(condition, body), start))
+        let condition = self.expr()?;
+        let body = self.stmt()?;
+        Ok(self.new_stmt(If::new(condition, body), start))
     }
 
-    fn if_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn if_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::If)?;
-        let condition = self.expression()?;
+        let condition = self.expr()?;
         let then = self.match_take(TokenType::Then);
-        let body = self.statement()?;
-        let else_statement = if self.match_take(TokenType::Else).is_some() {
-            Some(self.statement()?)
+        let body = self.stmt()?;
+        let else_stmt = if self.match_take(TokenType::Else).is_some() {
+            Some(self.stmt()?)
         } else {
             None
         };
-        Ok(self.box_statement(
+        Ok(self.new_stmt(
             If {
                 condition,
                 body,
-                else_statement,
+                else_stmt,
                 uses_then_keyword: then.is_some(),
             },
             start,
         ))
     }
 
-    fn switch(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn switch(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        fn case_body(parser: &mut Parser) -> Result<Vec<StatementBox>, Diagnostic<FileId>> {
+        fn case_body(parser: &mut Parser) -> Result<Vec<Stmt>, Diagnostic<FileId>> {
             let mut body = vec![];
             loop {
                 match parser.peek()?.token_type {
                     TokenType::Case | TokenType::Default | TokenType::RightBrace | TokenType::End => break,
-                    _ => body.push(parser.statement()?),
+                    _ => body.push(parser.stmt()?),
                 }
             }
             Ok(body)
         }
         self.require(TokenType::Switch)?;
-        let expression = self.expression()?;
+        let expr = self.expr()?;
         self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
         let mut members = vec![];
         let mut default = None;
@@ -251,7 +246,7 @@ impl Parser {
             match self.peek()?.token_type {
                 TokenType::Case => {
                     self.take()?;
-                    let identity = self.expression()?;
+                    let identity = self.expr()?;
                     self.require(TokenType::Colon)?;
                     let body = case_body(self)?;
                     members.push(SwitchCase::new(identity, body))
@@ -277,92 +272,92 @@ impl Parser {
                 }
             }
         }
-        Ok(self.box_statement(Switch::new(expression, members, default), start))
+        Ok(self.new_stmt(Switch::new(expr, members, default), start))
     }
 
-    fn block(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn block(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let opening_delimeter = self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
-        let mut statements: Vec<StatementBox> = vec![];
+        let mut statements: Vec<Stmt> = vec![];
         let closing_delimiter = loop {
             if let Some(token) = self.match_take_possibilities(&[TokenType::RightBrace, TokenType::End]) {
                 break token;
             } else {
-                statements.push(self.statement()?);
+                statements.push(self.stmt()?);
             }
         };
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(
+        Ok(self.new_stmt(
             Block::new(statements, Some((opening_delimeter, closing_delimiter))),
             start,
         ))
     }
 
-    fn return_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn return_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Return)?;
-        let expression = self.expression().ok();
+        let expr = self.expr().ok();
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Return::new(expression), start))
+        Ok(self.new_stmt(Return::new(expr), start))
     }
 
-    fn throw(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn throw(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Throw)?;
-        let expression = self.expression()?;
+        let expr = self.expr()?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Throw::new(expression), start))
+        Ok(self.new_stmt(Throw::new(expr), start))
     }
 
-    fn delete(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn delete(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Delete)?;
-        let expression = self.expression()?;
+        let expr = self.expr()?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Delete::new(expression), start))
+        Ok(self.new_stmt(Delete::new(expr), start))
     }
 
-    fn break_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn break_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Break)?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Statement::Break, start))
+        Ok(self.new_stmt(StmtType::Break, start))
     }
 
-    fn continue_statement(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn continue_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Continue)?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Statement::Continue, start))
+        Ok(self.new_stmt(StmtType::Continue, start))
     }
 
-    fn exit(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn exit(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Exit)?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Statement::Exit, start))
+        Ok(self.new_stmt(StmtType::Exit, start))
     }
 
-    fn globalvar_declaration(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn globalvar_declaration(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Globalvar)?;
         let name = self.require_identifier()?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Globalvar::new(name), start))
+        Ok(self.new_stmt(Globalvar::new(name), start))
     }
 
-    fn local_variable_series(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn local_variable_series(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Var)?;
         let mut declarations = vec![];
         loop {
             let name = self.require_identifier()?;
             let span = name.span;
-            let left = self.box_expression(name, span);
+            let left = self.new_expr(name, span);
             let local_variable = if let Some(equal) = self.match_take(TokenType::Equal) {
-                let right = self.expression()?;
+                let right = self.expr()?;
                 OptionalInitilization::Initialized(
-                    self.box_statement(Assignment::new(left, AssignmentOperator::Equal(equal), right), start),
+                    self.new_stmt(Assignment::new(left, AssignmentOperator::Equal(equal), right), start),
                 )
             } else {
                 OptionalInitilization::Uninitialized(left)
@@ -387,18 +382,18 @@ impl Parser {
             }
         }
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(LocalVariableSeries::new(declarations), start))
+        Ok(self.new_stmt(LocalVariableSeries::new(declarations), start))
     }
 
-    fn assignment(&mut self) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn assignment(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.unary()?; // Unaries are the highest possibel assignment expressions
+        let expr = self.unary()?; // Unaries are the highest possibel assignment expressions
 
         // Check for an identifier followed by an assignment operator
         let assignment = if let Some(operator) = self.soft_peek().and_then(|token| token.as_assignment_operator()) {
             self.take()?;
-            Assignment::new(expression, operator, self.expression()?)
-        } else if let Expression::Equality(Equality {
+            Assignment::new(expr, operator, self.expr()?)
+        } else if let Some(Equality {
             left,
             operator:
                 EqualityOperator::Equal(Token {
@@ -406,42 +401,42 @@ impl Parser {
                     span,
                 }),
             right,
-        }) = *expression.expression
+        }) = expr.inner().as_equality()
         {
             Assignment::new(
-                left,
-                AssignmentOperator::Equal(Token::new(TokenType::Equal, span)),
-                right,
+                left.clone(),
+                AssignmentOperator::Equal(Token::new(TokenType::Equal, *span)),
+                right.clone(),
             )
         } else {
             // We can't make an assignment out of this -- create an expression statement instead.
-            return self.expression_statement(expression);
+            return self.expr_stmt(expr);
         };
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(assignment, start))
+        Ok(self.new_stmt(assignment, start))
     }
 
-    fn expression_statement(&mut self, expression: ExpressionBox) -> Result<StatementBox, Diagnostic<FileId>> {
+    fn expr_stmt(&mut self, expr: Expr) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        match expression.expression() {
-            Expression::FunctionDeclaration(..)
-            | Expression::Postfix(..)
-            | Expression::Unary(..)
-            | Expression::Grouping(..)
-            | Expression::Call(..) => {}
+        match expr.inner() {
+            ExprType::FunctionDeclaration(..)
+            | ExprType::Postfix(..)
+            | ExprType::Unary(..)
+            | ExprType::Grouping(..)
+            | ExprType::Call(..) => {}
 
             // Unfortunately, we can't (currently) understand if this is
             // actually a mistake or is a macro.
             // In the future, we may unfold code in an early pass that will
             // help with this.
-            Expression::Identifier(..) => {}
+            ExprType::Identifier(..) => {}
 
             // Anything else is invalid.
             _ => {
                 return Err(Diagnostic::error()
                     .with_message("Incomplete statement")
                     .with_labels(vec![
-                        Label::primary(self.file_id, expression.span())
+                        Label::primary(self.file_id, expr.span())
                             .with_message("this expression does not form a complete statement".to_string()),
                     ])
                     .with_notes(vec![format!(
@@ -451,68 +446,68 @@ impl Parser {
             }
         }
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.box_statement(Statement::Expression(expression), start))
+        Ok(self.new_stmt(StmtType::Expr(expr), start))
     }
 
-    pub(super) fn expression(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    pub(super) fn expr(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         self.null_coalecence()
     }
 
-    fn null_coalecence(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn null_coalecence(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.ternary()?;
+        let expr = self.ternary()?;
         if self.match_take(TokenType::DoubleInterrobang).is_some() {
-            let value = self.expression()?;
+            let value = self.expr()?;
             let end = value.span().end();
-            Ok(self.box_expression(NullCoalecence::new(expression, value), Span::new(start, end)))
+            Ok(self.new_expr(NullCoalecence::new(expr, value), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn ternary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn ternary(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.logical()?;
+        let expr = self.logical()?;
         if self.match_take(TokenType::Interrobang).is_some() {
-            let true_value = self.expression()?;
+            let true_value = self.expr()?;
             self.require(TokenType::Colon)?;
-            let false_value = self.expression()?;
+            let false_value = self.expr()?;
             let end = false_value.span().end();
-            Ok(self.box_expression(Ternary::new(expression, true_value, false_value), Span::new(start, end)))
+            Ok(self.new_expr(Ternary::new(expr, true_value, false_value), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn logical(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn logical(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.equality()?;
+        let expr = self.equality()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_logical_operator()) {
             self.take()?;
             let right = self.logical()?;
             let end = right.span().end();
-            Ok(self.box_expression(Logical::new(expression, operator, right), Span::new(start, end)))
+            Ok(self.new_expr(Logical::new(expr, operator, right), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn equality(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn equality(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.binary()?;
+        let expr = self.binary()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_equality_operator()) {
             self.take()?;
             let right = self.equality()?;
             let end = right.span().end();
-            Ok(self.box_expression(Equality::new(expression, operator, right), Span::new(start, end)))
+            Ok(self.new_expr(Equality::new(expr, operator, right), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn binary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn binary(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.bitshift()?;
+        let expr = self.bitshift()?;
         if let Some(operator) = self
             .soft_peek()
             .map(|token| token.as_evaluation_operator())
@@ -529,15 +524,15 @@ impl Parser {
             self.take()?;
             let right = self.binary()?;
             let end = right.span().end();
-            Ok(self.box_expression(Evaluation::new(expression, operator, right), Span::new(start, end)))
+            Ok(self.new_expr(Evaluation::new(expr, operator, right), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn bitshift(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn bitshift(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.addition()?;
+        let expr = self.addition()?;
         if let Some(operator) = self
             .soft_peek()
             .map(|token| token.as_evaluation_operator())
@@ -552,15 +547,15 @@ impl Parser {
             self.take()?;
             let right = self.bitshift()?;
             let end = right.span().end();
-            Ok(self.box_expression(Evaluation::new(expression, operator, right), Span::new(start, end)))
+            Ok(self.new_expr(Evaluation::new(expr, operator, right), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn addition(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn addition(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.multiplication()?;
+        let expr = self.multiplication()?;
         if let Some(operator) = self
             .soft_peek()
             .map(|token| token.as_evaluation_operator())
@@ -581,15 +576,15 @@ impl Parser {
             self.take()?;
             let right = self.addition()?;
             let end = right.span().end();
-            Ok(self.box_expression(Evaluation::new(expression, operator, right), Span::new(start, end)))
+            Ok(self.new_expr(Evaluation::new(expr, operator, right), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn multiplication(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn multiplication(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.unary()?;
+        let expr = self.unary()?;
         if let Some(operator) = self
             .soft_peek()
             .map(|token| token.as_evaluation_operator())
@@ -607,36 +602,36 @@ impl Parser {
             self.take()?;
             let right = self.multiplication()?;
             let end = right.span().end();
-            Ok(self.box_expression(Evaluation::new(expression, operator, right), Span::new(start, end)))
+            Ok(self.new_expr(Evaluation::new(expr, operator, right), Span::new(start, end)))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn unary(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn unary(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         if let Some(operator) = self.peek()?.as_unary_operator() {
             self.take()?;
-            let right = self.expression()?;
+            let right = self.expr()?;
             let end = right.span().end();
-            Ok(self.box_expression(Unary::new(operator, right), Span::new(start, end)))
+            Ok(self.new_expr(Unary::new(operator, right), Span::new(start, end)))
         } else {
             self.postfix()
         }
     }
 
-    fn postfix(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn postfix(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expression = self.function()?;
+        let expr = self.function()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_operator()) {
             let token = self.take()?;
-            Ok(self.box_expression(Postfix::new(expression, operator), Span::new(start, token.span.end())))
+            Ok(self.new_expr(Postfix::new(expr, operator), Span::new(start, token.span.end())))
         } else {
-            Ok(expression)
+            Ok(expr)
         }
     }
 
-    fn function(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn function(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         // TODO: when we do static-analysis, this will be used
         let _static_token = self.match_take(TokenType::Static);
@@ -653,12 +648,11 @@ impl Parser {
                         let parameter_start = self.next_token_boundary();
                         let name = self.require_identifier()?;
                         let end = name.span.end();
-                        let name = self.box_expression(name, Span::new(parameter_start, end));
+                        let name = self.new_expr(name, Span::new(parameter_start, end));
                         if let Some(token) = self.match_take(TokenType::Equal) {
-                            let assignment =
-                                Assignment::new(name, AssignmentOperator::Equal(token), self.expression()?);
+                            let assignment = Assignment::new(name, AssignmentOperator::Equal(token), self.expr()?);
                             parameters.push(OptionalInitilization::Initialized(
-                                self.box_statement(assignment, parameter_start),
+                                self.new_stmt(assignment, parameter_start),
                             ));
                         } else {
                             parameters.push(OptionalInitilization::Uninitialized(name));
@@ -698,7 +692,7 @@ impl Parser {
             };
             let body = self.block()?;
             let end = body.span().end();
-            Ok(self.box_expression(
+            Ok(self.new_expr(
                 Function {
                     name,
                     parameters,
@@ -712,18 +706,18 @@ impl Parser {
         }
     }
 
-    fn literal(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn literal(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         if let Some(literal) = self.peek()?.to_literal() {
             let token = self.take()?;
-            Ok(self.box_expression(literal, Span::new(start, token.span.end())))
+            Ok(self.new_expr(literal, Span::new(start, token.span.end())))
         } else if self.match_take(TokenType::LeftSquareBracket).is_some() {
             let mut elements = vec![];
             loop {
                 if let Some(token) = self.match_take(TokenType::RightSquareBracket) {
-                    break Ok(self.box_expression(Literal::Array(elements), Span::new(start, token.span.end())));
+                    break Ok(self.new_expr(Literal::Array(elements), Span::new(start, token.span.end())));
                 } else {
-                    elements.push(self.expression()?);
+                    elements.push(self.expr()?);
                     self.match_take(TokenType::Comma);
                 }
             }
@@ -734,11 +728,11 @@ impl Parser {
             let mut elements = vec![];
             loop {
                 if let Some(token) = self.match_take_possibilities(&[TokenType::RightBrace, TokenType::End]) {
-                    break Ok(self.box_expression(Literal::Struct(elements), Span::new(start, token.span.end())));
+                    break Ok(self.new_expr(Literal::Struct(elements), Span::new(start, token.span.end())));
                 } else {
                     let name = self.require_identifier()?;
                     self.require(TokenType::Colon)?;
-                    elements.push((name, self.expression()?));
+                    elements.push((name, self.expr()?));
                     self.match_take(TokenType::Comma);
                 }
             }
@@ -747,29 +741,29 @@ impl Parser {
         }
     }
 
-    fn supreme(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn supreme(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let mut has_new = self.match_take(TokenType::New);
-        let mut expression = Some(self.call(None, has_new.take().is_some())?);
+        let mut expr = Some(self.call(None, has_new.take().is_some())?);
         loop {
-            expression = match self.soft_peek() {
+            expr = match self.soft_peek() {
                 Some(Token {
                     token_type: TokenType::LeftParenthesis,
                     ..
-                }) => Some(self.call(expression, has_new.take().is_some())?),
+                }) => Some(self.call(expr, has_new.take().is_some())?),
                 Some(Token {
                     token_type: TokenType::LeftSquareBracket,
                     ..
-                }) => Some(self.ds_access(expression)?),
+                }) => Some(self.ds_access(expr)?),
                 Some(Token {
                     token_type: TokenType::Dot,
                     ..
-                }) => Some(self.dot_access(expression)?),
-                _ => break Ok(expression.unwrap()),
+                }) => Some(self.dot_access(expr)?),
+                _ => break Ok(expr.unwrap()),
             }
         }
     }
 
-    fn call(&mut self, left: Option<ExpressionBox>, uses_new: bool) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn call(&mut self, left: Option<Expr>, uses_new: bool) -> Result<Expr, Diagnostic<FileId>> {
         // If we've been provided a leftside expression, we *must* parse for a call.
         // Otherwise, the call is merely possible.
         let (start, left) = if let Some(left) = left {
@@ -794,7 +788,7 @@ impl Parser {
             token.span.end()
         } else {
             loop {
-                arguments.push(self.expression()?);
+                arguments.push(self.expr()?);
                 let token = self.take()?;
                 match token.token_type {
                     TokenType::Comma => {
@@ -815,7 +809,7 @@ impl Parser {
                 }
             }
         };
-        Ok(self.box_expression(
+        Ok(self.new_expr(
             Call {
                 left,
                 arguments,
@@ -825,20 +819,14 @@ impl Parser {
         ))
     }
 
-    fn dot_access(&mut self, expression: Option<ExpressionBox>) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn dot_access(&mut self, expr: Option<Expr>) -> Result<Expr, Diagnostic<FileId>> {
         let mut start = self.next_token_boundary();
-        let (access, end) = if let Some(expression) = expression {
+        let (access, end) = if let Some(expr) = expr {
             self.require(TokenType::Dot)?;
-            start = expression.span().0;
+            start = expr.span().0;
             let right = self.grouping()?;
             let end = right.span().end();
-            (
-                Access::Dot {
-                    left: expression,
-                    right,
-                },
-                end,
-            )
+            (Access::Dot { left: expr, right }, end)
         } else {
             match self.peek()?.token_type {
                 TokenType::Global => {
@@ -856,8 +844,9 @@ impl Parser {
                         (Access::Current { right }, end)
                     } else {
                         // Using self as a referencce!
-                        return Ok(self
-                            .box_expression(Identifier::new("self", token.span), Span::new(start, token.span.end())));
+                        return Ok(
+                            self.new_expr(Identifier::new("self", token.span), Span::new(start, token.span.end()))
+                        );
                     }
                 }
                 TokenType::Other => {
@@ -868,8 +857,9 @@ impl Parser {
                         (Access::Other { right }, end)
                     } else {
                         // Using other as a reference!
-                        return Ok(self
-                            .box_expression(Identifier::new("other", token.span), Span::new(start, token.span.end())));
+                        return Ok(
+                            self.new_expr(Identifier::new("other", token.span), Span::new(start, token.span.end()))
+                        );
                     }
                 }
                 _ => {
@@ -884,10 +874,10 @@ impl Parser {
                 }
             }
         };
-        Ok(self.box_expression(access, Span::new(start, end)))
+        Ok(self.new_expr(access, Span::new(start, end)))
     }
 
-    fn ds_access(&mut self, left: Option<ExpressionBox>) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn ds_access(&mut self, left: Option<Expr>) -> Result<Expr, Diagnostic<FileId>> {
         let (start, left) = if let Some(left) = left {
             (left.span().0, left)
         } else {
@@ -909,28 +899,28 @@ impl Parser {
                 self.take()?;
                 Access::Struct {
                     left,
-                    key: self.expression()?,
+                    key: self.expr()?,
                 }
             }
             TokenType::Interrobang => {
                 self.take()?;
                 Access::Map {
                     left,
-                    key: self.expression()?,
+                    key: self.expr()?,
                 }
             }
             TokenType::Pipe => {
                 self.take()?;
                 Access::List {
                     left,
-                    index: self.expression()?,
+                    index: self.expr()?,
                 }
             }
             TokenType::Hash => {
                 self.take()?;
-                let index_one = self.expression()?;
+                let index_one = self.expr()?;
                 self.require(TokenType::Comma)?;
-                let index_two = self.expression()?;
+                let index_two = self.expr()?;
                 Access::Grid {
                     left,
                     index_one,
@@ -939,9 +929,9 @@ impl Parser {
             }
             _ => {
                 let using_accessor = self.match_take(TokenType::AtSign).is_some();
-                let index_one = self.expression()?;
+                let index_one = self.expr()?;
                 let index_two = if self.match_take(TokenType::Comma).is_some() {
-                    Some(self.expression()?)
+                    Some(self.expr()?)
                 } else {
                     None
                 };
@@ -954,16 +944,16 @@ impl Parser {
             }
         };
         let token = self.require(TokenType::RightSquareBracket)?;
-        Ok(self.box_expression(access, Span::new(start, token.span.end())))
+        Ok(self.new_expr(access, Span::new(start, token.span.end())))
     }
 
-    fn grouping(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn grouping(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         if let Some(left_token) = self.match_take(TokenType::LeftParenthesis) {
-            let expression = self.expression()?;
+            let expr = self.expr()?;
             let right_token = self.require(TokenType::RightParenthesis)?;
-            Ok(self.box_expression(
-                Grouping::new(expression, (left_token, right_token)),
+            Ok(self.new_expr(
+                Grouping::new(expr, (left_token, right_token)),
                 Span::new(start, right_token.span.end()),
             ))
         } else {
@@ -971,19 +961,19 @@ impl Parser {
         }
     }
 
-    fn identifier(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn identifier(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         // FIXME: This is our slightly ludicrous and temporary solution to the static keyword -- we just eat
         // it. Until we have static analysis, it means nothing to us!
         self.match_take(TokenType::Static);
         if let Some(identifier) = self.match_take_identifier()? {
             let span = identifier.span;
-            Ok(self.box_expression(identifier, span))
+            Ok(self.new_expr(identifier, span))
         } else {
             self.unexpected_token()
         }
     }
 
-    fn unexpected_token(&mut self) -> Result<ExpressionBox, Diagnostic<FileId>> {
+    fn unexpected_token(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let token = *self.peek()?;
         Err(Diagnostic::error().with_message("Invalid token").with_labels(vec![
             Label::primary(self.file_id, token.span)

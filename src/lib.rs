@@ -106,15 +106,15 @@ pub mod parse {
             pub use while_loop::*;
             pub use with_loop::*;
         }
-        mod expression;
+        mod expr;
         mod optional_initialization;
-        mod statement;
+        mod stmt;
         mod token;
-        pub use expression::*;
+        pub use expr::*;
         pub use expressions::*;
         pub use optional_initialization::*;
-        pub use statement::*;
         pub use statements::*;
+        pub use stmt::*;
         pub use token::*;
     }
     mod ast;

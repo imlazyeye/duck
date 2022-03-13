@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Equality, EqualityOperator, Expression, ExpressionBox, Literal},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Equality, EqualityOperator, Expr, ExprType, Literal},
     Config, FileId,
 };
 
@@ -22,15 +22,15 @@ impl Lint for BoolEquality {
     }
 }
 
-impl EarlyExpressionPass for BoolEquality {
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Equality(Equality {
+impl EarlyExprPass for BoolEquality {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Equality(Equality {
             left,
             operator: EqualityOperator::Equal(token),
             right,
-        }) = expression_box.expression()
+        }) = expr.inner()
         {
-            if let Some(literal) = right.expression().as_literal() {
+            if let Some(literal) = right.inner().as_literal() {
                 reports.push(match literal {
                     Literal::True => Self::diagnostic(config)
                         .with_message("Equality check with `true`")

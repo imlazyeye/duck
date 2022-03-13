@@ -1,6 +1,4 @@
-use crate::parse::{
-    ExpressionBox, Identifier, IntoStatementBox, OptionalInitilization, ParseVisitor, Statement, StatementBox,
-};
+use crate::parse::{Expr, Identifier, IntoStmt, OptionalInitilization, ParseVisitor, Stmt, StmtType};
 
 /// Representation of an enum.
 #[derive(Debug, PartialEq, Clone)]
@@ -30,42 +28,42 @@ impl Enum {
             .map(|v| format!("{}.{}", self.name.lexeme, v.name()))
     }
 }
-impl From<Enum> for Statement {
+impl From<Enum> for StmtType {
     fn from(e: Enum) -> Self {
         Self::EnumDeclaration(e)
     }
 }
-impl IntoStatementBox for Enum {}
+impl IntoStmt for Enum {}
 impl ParseVisitor for Enum {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         for member in self.members.iter() {
             match member {
-                OptionalInitilization::Uninitialized(expression) => visitor(expression),
+                OptionalInitilization::Uninitialized(expr) => visitor(expr),
                 OptionalInitilization::Initialized(_) => {}
             }
         }
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         for member in self.members.iter_mut() {
             match member {
-                OptionalInitilization::Uninitialized(expression) => visitor(expression),
+                OptionalInitilization::Uninitialized(expr) => visitor(expr),
                 OptionalInitilization::Initialized(_) => {}
             }
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
         for member in self.members.iter() {
             match member {
                 OptionalInitilization::Uninitialized(_) => {}
-                OptionalInitilization::Initialized(statement) => visitor(statement),
+                OptionalInitilization::Initialized(stmt) => visitor(stmt),
             }
         }
     }
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, mut visitor: S) {
         for member in self.members.iter_mut() {
             match member {
                 OptionalInitilization::Uninitialized(_) => {}
-                OptionalInitilization::Initialized(statement) => visitor(statement),
+                OptionalInitilization::Initialized(stmt) => visitor(stmt),
             }
         }
     }

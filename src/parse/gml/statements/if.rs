@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
 
 /// Representation of an if statement in gml.
 ///
@@ -6,11 +6,11 @@ use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, Sta
 #[derive(Debug, PartialEq, Clone)]
 pub struct If {
     /// The condition this if statement is checking for.
-    pub condition: ExpressionBox,
+    pub condition: Expr,
     /// The body of the if statement.
-    pub body: StatementBox,
+    pub body: Stmt,
     /// The statement attached to this if statement as an else path.
-    pub else_statement: Option<StatementBox>,
+    pub else_stmt: Option<Stmt>,
     /// Whether or not this if statement uses gml's dreaded `then` keyword.
     ///
     /// For the uninitiated:
@@ -24,62 +24,58 @@ pub struct If {
 }
 impl If {
     /// Creates a new if statement.
-    pub fn new(condition: ExpressionBox, body: StatementBox) -> Self {
+    pub fn new(condition: Expr, body: Stmt) -> Self {
         Self {
             condition,
             body,
-            else_statement: None,
+            else_stmt: None,
             uses_then_keyword: false,
         }
     }
 
     /// Creates a new if statement with an else statement.
-    pub fn new_with_else(condition: ExpressionBox, body: StatementBox, else_statement: StatementBox) -> Self {
+    pub fn new_with_else(condition: Expr, body: Stmt, else_stmt: Stmt) -> Self {
         Self {
             condition,
             body,
-            else_statement: Some(else_statement),
+            else_stmt: Some(else_stmt),
             uses_then_keyword: false,
         }
     }
 
     /// Creates a new if statement that uses a `then` keyword.
-    pub fn new_with_then_keyword(
-        condition: ExpressionBox,
-        body: StatementBox,
-        else_statement: Option<StatementBox>,
-    ) -> Self {
+    pub fn new_with_then_keyword(condition: Expr, body: Stmt, else_stmt: Option<Stmt>) -> Self {
         Self {
             condition,
             body,
-            else_statement,
+            else_stmt,
             uses_then_keyword: true,
         }
     }
 }
-impl From<If> for Statement {
+impl From<If> for StmtType {
     fn from(if_stmt: If) -> Self {
         Self::If(if_stmt)
     }
 }
-impl IntoStatementBox for If {}
+impl IntoStmt for If {}
 impl ParseVisitor for If {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         visitor(&self.condition);
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         visitor(&mut self.condition);
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
         visitor(&self.body);
-        if let Some(else_statement) = &self.else_statement {
-            visitor(else_statement);
+        if let Some(else_stmt) = &self.else_stmt {
+            visitor(else_stmt);
         }
     }
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, mut visitor: S) {
         visitor(&mut self.body);
-        if let Some(else_statement) = &mut self.else_statement {
-            visitor(else_statement);
+        if let Some(else_stmt) = &mut self.else_stmt {
+            visitor(else_stmt);
         }
     }
 }

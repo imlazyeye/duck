@@ -1,10 +1,10 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel},
+    lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
-        Assignment, AssignmentOperator, Equality, EqualityOperator, Evaluation, EvaluationOperator, Expression,
-        ExpressionBox, Literal, Logical, LogicalOperator, Statement, StatementBox,
+        Assignment, AssignmentOperator, Equality, EqualityOperator, Evaluation, EvaluationOperator, Expr, ExprType,
+        Literal, Logical, LogicalOperator, Stmt, StmtType,
     },
     FileId,
 };
@@ -26,43 +26,38 @@ impl Lint for SuspicousConstantUsage {
 }
 
 impl SuspicousConstantUsage {
-    fn report_expr(expression_box: &ExpressionBox, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+    fn report_expr(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         reports.push(
             Self::diagnostic(config)
                 .with_message("Suspicious constant usage")
                 .with_labels(vec![
-                    Label::primary(expression_box.file_id(), expression_box.span())
-                        .with_message("using this operator..."),
-                    Label::primary(expression_box.file_id(), expression_box.span())
+                    Label::primary(expr.file_id(), expr.span()).with_message("using this operator..."),
+                    Label::primary(expr.file_id(), expr.span())
                         .with_message("...with this literal, which is not a coherent operation"),
                 ]),
         );
     }
 }
 
-impl EarlyExpressionPass for SuspicousConstantUsage {
-    fn visit_expression_early(
-        expression_box: &ExpressionBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        match expression_box.expression() {
-            Expression::Evaluation(Evaluation { operator, right, .. }) => {
-                if let Some(literal) = right.expression().as_literal() {
+impl EarlyExprPass for SuspicousConstantUsage {
+    fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        match expr.inner() {
+            ExprType::Evaluation(Evaluation { operator, right, .. }) => {
+                if let Some(literal) = right.inner().as_literal() {
                     if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
                 }
             }
-            Expression::Logical(Logical { operator, right, .. }) => {
-                if let Some(literal) = right.expression().as_literal() {
+            ExprType::Logical(Logical { operator, right, .. }) => {
+                if let Some(literal) = right.inner().as_literal() {
                     if literal_is_suspicous(literal, OperationWrapper::Logical(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
                 }
             }
-            Expression::Equality(Equality { operator, right, .. }) => {
-                if let Some(literal) = right.expression().as_literal() {
+            ExprType::Equality(Equality { operator, right, .. }) => {
+                if let Some(literal) = right.inner().as_literal() {
                     if literal_is_suspicous(literal, OperationWrapper::Equality(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
@@ -72,18 +67,14 @@ impl EarlyExpressionPass for SuspicousConstantUsage {
         }
     }
 }
-impl EarlyStatementPass for SuspicousConstantUsage {
-    fn visit_statement_early(
-        statement_box: &StatementBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        if let Statement::Assignment(Assignment { operator, right, .. }) = statement_box.statement() {
+impl EarlyStmtPass for SuspicousConstantUsage {
+    fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::Assignment(Assignment { operator, right, .. }) = stmt.inner() {
             if !matches!(
                 *operator,
                 AssignmentOperator::Equal(_) | AssignmentOperator::NullCoalecenceEqual(_)
             ) {
-                if let Some(literal) = right.expression().as_literal() {
+                if let Some(literal) = right.inner().as_literal() {
                     if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
                         Self::report_expr(right, config, reports);
                     }

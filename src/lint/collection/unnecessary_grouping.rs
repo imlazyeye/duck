@@ -1,6 +1,6 @@
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel},
-    parse::{Expression, ExpressionBox, ParseVisitor, Statement, StatementBox},
+    lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
+    parse::{Expr, ExprType, ParseVisitor, Stmt, StmtType},
     FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -22,69 +22,59 @@ impl Lint for UnnecessaryGrouping {
 }
 
 impl UnnecessaryGrouping {
-    fn test(expression_box: &ExpressionBox, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Grouping(grouping) = expression_box.expression() {
+    fn test(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Grouping(grouping) = expr.inner() {
             let (left_token, right_token) = grouping.parenthesis();
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Unnecessary grouping")
                     .with_labels(vec![
-                        Label::primary(expression_box.file_id(), left_token.span),
-                        Label::primary(expression_box.file_id(), right_token.span),
+                        Label::primary(expr.file_id(), left_token.span),
+                        Label::primary(expr.file_id(), right_token.span),
                     ]),
             );
         }
     }
 }
 
-impl EarlyExpressionPass for UnnecessaryGrouping {
-    fn visit_expression_early(
-        expression_box: &ExpressionBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        match expression_box.expression() {
+impl EarlyExprPass for UnnecessaryGrouping {
+    fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        match expr.inner() {
             // These are the blessed expressions that utilize groupings in meaningful ways
-            Expression::Logical(_) | Expression::Equality(_) | Expression::Evaluation(_) | Expression::Unary(_) => {}
+            ExprType::Logical(_) | ExprType::Equality(_) | ExprType::Evaluation(_) | ExprType::Unary(_) => {}
 
             // This is style preference, which instead is linted by `condition_wrapper`.
-            Expression::Ternary(_) => {}
+            ExprType::Ternary(_) => {}
 
             // These should not directly own groupings
-            Expression::FunctionDeclaration(_)
-            | Expression::NullCoalecence(_)
-            | Expression::Postfix(_)
-            | Expression::Access(_)
-            | Expression::Call(_)
-            | Expression::Grouping(_)
-            | Expression::Literal(_)
-            | Expression::Identifier(_) => {
-                expression_box.visit_child_expressions(|expr| Self::test(expr, config, reports))
-            }
+            ExprType::FunctionDeclaration(_)
+            | ExprType::NullCoalecence(_)
+            | ExprType::Postfix(_)
+            | ExprType::Access(_)
+            | ExprType::Call(_)
+            | ExprType::Grouping(_)
+            | ExprType::Literal(_)
+            | ExprType::Identifier(_) => expr.visit_child_exprs(|expr| Self::test(expr, config, reports)),
         }
     }
 }
 
-impl EarlyStatementPass for UnnecessaryGrouping {
-    fn visit_statement_early(
-        statement_box: &StatementBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        match statement_box.statement() {
+impl EarlyStmtPass for UnnecessaryGrouping {
+    fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        match stmt.inner() {
             // These are a style preference, which instead is linted by `condition_wrapper`.
-            Statement::TryCatch(_)
-            | Statement::ForLoop(_)
-            | Statement::WithLoop(_)
-            | Statement::RepeatLoop(_)
-            | Statement::DoUntil(_)
-            | Statement::WhileLoop(_)
-            | Statement::If(_)
-            | Statement::Switch(_) => {}
+            StmtType::TryCatch(_)
+            | StmtType::ForLoop(_)
+            | StmtType::WithLoop(_)
+            | StmtType::RepeatLoop(_)
+            | StmtType::DoUntil(_)
+            | StmtType::WhileLoop(_)
+            | StmtType::If(_)
+            | StmtType::Switch(_) => {}
 
             // These should not directly own groupings
-            Statement::Return(_) | Statement::Throw(_) | Statement::Delete(_) | Statement::Assignment(_) => {
-                statement_box.visit_child_expressions(|expr| Self::test(expr, config, reports))
+            StmtType::Return(_) | StmtType::Throw(_) | StmtType::Delete(_) | StmtType::Assignment(_) => {
+                stmt.visit_child_exprs(|expr| Self::test(expr, config, reports))
             }
             _ => {}
         };

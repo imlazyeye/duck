@@ -3,8 +3,8 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use once_cell::sync::Lazy;
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Call, Expression, ExpressionBox},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Call, Expr, ExprType},
     EnglishFlavor, FileId,
 };
 
@@ -24,15 +24,11 @@ impl Lint for EnglishFlavorViolation {
     }
 }
 
-impl EarlyExpressionPass for EnglishFlavorViolation {
-    fn visit_expression_early(
-        expression_box: &ExpressionBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
+impl EarlyExprPass for EnglishFlavorViolation {
+    fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         let english_flavor = &config.english_flavor;
-        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
-            if let Expression::Identifier(identifier) = left.expression() {
+        if let ExprType::Call(Call { left, .. }) = expr.inner() {
+            if let ExprType::Identifier(identifier) = left.inner() {
                 match english_flavor {
                     EnglishFlavor::American => {
                         if let Some(american_spelling) =

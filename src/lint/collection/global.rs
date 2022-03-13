@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel},
-    parse::{Access, Assignment, Expression, Globalvar, Statement, StatementBox},
+    lint::{EarlyStmtPass, Lint, LintLevel},
+    parse::{Access, Assignment, ExprType, Globalvar, Stmt, StmtType},
     FileId,
 };
 
@@ -22,15 +22,11 @@ impl Lint for Global {
     }
 }
 
-impl EarlyStatementPass for Global {
-    fn visit_statement_early(
-        statement_box: &StatementBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        match statement_box.statement() {
-            Statement::Assignment(Assignment { left, .. }) => {
-                if let Expression::Access(Access::Global { .. }) = left.expression() {
+impl EarlyStmtPass for Global {
+    fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        match stmt.inner() {
+            StmtType::Assignment(Assignment { left, .. }) => {
+                if let ExprType::Access(Access::Global { .. }) = left.inner() {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Use of global variable")
@@ -41,12 +37,12 @@ impl EarlyStatementPass for Global {
                     );
                 }
             }
-            Statement::GlobalvarDeclaration(Globalvar { .. }) => {
+            StmtType::GlobalvarDeclaration(Globalvar { .. }) => {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Use of global variable")
                         .with_labels(vec![
-                            Label::primary(statement_box.file_id(), statement_box.span())
+                            Label::primary(stmt.file_id(), stmt.span())
                                 .with_message("scope this variable to an individual object or struct"),
                         ]),
                 );

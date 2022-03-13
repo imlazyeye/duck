@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox, Token};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType, Token};
 
 /// Representation of a block (group of statements) in gml.
 ///
@@ -7,19 +7,19 @@ use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, Sta
 #[derive(Debug, PartialEq, Clone)]
 pub struct Block {
     /// The statements contained in this block.
-    pub body: Vec<StatementBox>,
+    pub body: Vec<Stmt>,
     /// The delimiter style of this block.
     pub delimiters: Option<(Token, Token)>,
 }
 impl Block {
     /// Creates a new block.
-    pub fn new(body: Vec<StatementBox>, delimiters: Option<(Token, Token)>) -> Self {
+    pub fn new(body: Vec<Stmt>, delimiters: Option<(Token, Token)>) -> Self {
         Self { body, delimiters }
     }
 
     /// Creates a new block with lazy, curly brace delimiters.
     #[cfg(test)]
-    pub fn lazy(body: impl Into<Vec<StatementBox>>) -> Self {
+    pub fn lazy(body: impl Into<Vec<Stmt>>) -> Self {
         use crate::parse::TokenType;
         Self::new(
             body.into(),
@@ -27,23 +27,23 @@ impl Block {
         )
     }
 }
-impl From<Block> for Statement {
+impl From<Block> for StmtType {
     fn from(block: Block) -> Self {
         Self::Block(block)
     }
 }
-impl IntoStatementBox for Block {}
+impl IntoStmt for Block {}
 impl ParseVisitor for Block {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut _visitor: E) {}
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, _visitor: E) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
-        for statement in self.body.iter_mut() {
-            visitor(statement);
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut _visitor: E) {}
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, _visitor: E) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, mut visitor: S) {
+        for stmt in self.body.iter_mut() {
+            visitor(stmt);
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
-        for statement in self.body.iter() {
-            visitor(statement);
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
+        for stmt in self.body.iter() {
+            visitor(stmt);
         }
     }
 }

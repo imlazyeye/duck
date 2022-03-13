@@ -21,13 +21,13 @@ pub(super) fn harness_lint<T: Lint>(source: &'static str, expected_number: usize
     let mut ast = Parser::new(source, file_id).into_ast().unwrap();
     let mut reports = vec![];
     let mut scope_builder = GlobalScopeBuilder::new();
-    for statement in ast.statements_mut() {
-        DuckOperation::process_statement_early(statement, &mut scope_builder, &mut reports, &config);
+    for stmt in ast.stmts_mut() {
+        DuckOperation::process_stmt_early(stmt, &mut scope_builder, &mut reports, &config);
     }
     let mut global_scope = GlobalScope::new();
     global_scope.drain(scope_builder);
-    for statement in ast.statements() {
-        DuckOperation::process_statement_late(statement, &global_scope, &mut reports, &config);
+    for stmt in ast.stmts() {
+        DuckOperation::process_stmt_late(stmt, &global_scope, &mut reports, &config);
     }
     let writer = StandardStream::stdout(ColorChoice::Always);
     let config = codespan_reporting::term::Config::default();

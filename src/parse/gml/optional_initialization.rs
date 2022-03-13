@@ -1,43 +1,38 @@
-use super::{ExpressionBox, Identifier, StatementBox};
+use super::{Expr, Identifier, Stmt};
 
 /// Assignment.
 /// Representation of an optional initilization, such as local variables, enum fields, and function
-/// parameters. Will either contain an ExpressionBox with an Identifier, or a StatementBox with an
+/// parameters. Will either contain an Expr with an Identifier, or a Stmt with an
 #[derive(Debug, PartialEq, Clone)]
 pub enum OptionalInitilization {
     /// Uninitialized definition, containing only their name as an identifier as an
     /// expression.
-    Uninitialized(ExpressionBox),
+    Uninitialized(Expr),
     /// Initialized definitions containing their full assignment statement.
-    Initialized(StatementBox),
+    Initialized(Stmt),
 }
 impl OptionalInitilization {
     /// Retrieves the ExpresionBox that contains this definitions name.
-    pub fn name_expression(&self) -> &ExpressionBox {
+    pub fn name_expr(&self) -> &Expr {
         match self {
-            OptionalInitilization::Uninitialized(expression_box) => expression_box,
-            OptionalInitilization::Initialized(statement_box) => {
-                &statement_box
-                    .statement()
-                    .as_assignment()
-                    .unwrap_or_else(|| unreachable!())
-                    .left
+            OptionalInitilization::Uninitialized(expr) => expr,
+            OptionalInitilization::Initialized(stmt) => {
+                &stmt.inner().as_assignment().unwrap_or_else(|| unreachable!()).left
             }
         }
     }
     /// Retrieves the identifier that contains this definitions name.
     pub fn name_identifier(&self) -> &Identifier {
         match self {
-            OptionalInitilization::Uninitialized(expression_box) => expression_box
-                .expression()
-                .as_identifier()
-                .unwrap_or_else(|| unreachable!()),
-            OptionalInitilization::Initialized(statement_box) => statement_box
-                .statement()
+            OptionalInitilization::Uninitialized(expr) => {
+                expr.inner().as_identifier().unwrap_or_else(|| unreachable!())
+            }
+            OptionalInitilization::Initialized(stmt) => stmt
+                .inner()
                 .as_assignment()
                 .unwrap_or_else(|| unreachable!())
                 .left
-                .expression()
+                .inner()
                 .as_identifier()
                 .unwrap_or_else(|| unreachable!()),
         }
@@ -47,16 +42,12 @@ impl OptionalInitilization {
         self.name_identifier().lexeme.as_str()
     }
     /// Retrieves the right-side expression in the assignment, if there is any assignment
-    pub fn assignment_value(&self) -> Option<&ExpressionBox> {
+    pub fn assignment_value(&self) -> Option<&Expr> {
         match self {
             OptionalInitilization::Uninitialized(_) => None,
-            OptionalInitilization::Initialized(statement_box) => Some(
-                &statement_box
-                    .statement()
-                    .as_assignment()
-                    .unwrap_or_else(|| unreachable!())
-                    .right,
-            ),
+            OptionalInitilization::Initialized(stmt) => {
+                Some(&stmt.inner().as_assignment().unwrap_or_else(|| unreachable!()).right)
+            }
         }
     }
 }

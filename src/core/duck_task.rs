@@ -1,7 +1,7 @@
 use crate::{
     analyze::{GlobalScope, GlobalScopeBuilder},
     core::DuckOperation,
-    parse::{Ast, StatementBox},
+    parse::{Ast, Stmt},
     Config, GmlLibrary,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
@@ -133,16 +133,11 @@ impl DuckTask {
                 let config = config.clone();
                 let sender = early_pass_sender.clone();
                 tokio::task::spawn(async move {
-                    for mut statement in ast.unpack() {
+                    for mut stmt in ast.unpack() {
                         let mut scope_builder = GlobalScopeBuilder::new();
                         let mut reports = vec![];
-                        DuckOperation::process_statement_early(
-                            &mut statement,
-                            &mut scope_builder,
-                            &mut reports,
-                            config.as_ref(),
-                        );
-                        sender.send((statement, scope_builder, reports)).await.unwrap();
+                        DuckOperation::process_stmt_early(&mut stmt, &mut scope_builder, &mut reports, config.as_ref());
+                        sender.send((stmt, scope_builder, reports)).await.unwrap();
                     }
                 });
             }
@@ -150,7 +145,7 @@ impl DuckTask {
         (early_pass_receiver, handle)
     }
 
-    /// Creates a Tokio task that will await [StatementIteration]s through
+    /// Creates a Tokio task that will await [StmtIteration]s through
     /// `early_pass_receiever` and construct their [GlobalScopeBuilder]s into one
     /// singular [GlobalScope], returning it once complete, as well as a Vec
     /// of all statements still needing a second pass.
@@ -160,15 +155,15 @@ impl DuckTask {
         tokio::task::spawn(async move {
             let mut pass_two_queue = vec![];
             let mut global_scope = GlobalScope::new();
-            while let Some((statement, scope_builder, reports)) = early_pass_receiever.recv().await {
+            while let Some((stmt, scope_builder, reports)) = early_pass_receiever.recv().await {
                 global_scope.drain(scope_builder);
-                pass_two_queue.push((statement, reports));
+                pass_two_queue.push((stmt, reports));
             }
             (pass_two_queue, global_scope)
         })
     }
 
-    /// Creates Tokio tasks for all of the provided `StatementIteration`s,
+    /// Creates Tokio tasks for all of the provided `StmtIteration`s,
     /// running the late lint pass on them. Returns a handle to another
     /// Tokio task which will collect their finalized [LatePassReport]s.
     ///
@@ -181,13 +176,13 @@ impl DuckTask {
     ) -> JoinHandle<Vec<Diagnostic<FileId>>> {
         let (lint_report_sender, mut lint_report_reciever) = channel::<Vec<Diagnostic<FileId>>>(1000);
         let global_environment = Arc::new(global_environemnt);
-        for (statement, mut lint_reports) in iterations {
+        for (stmt, mut lint_reports) in iterations {
             let sender = lint_report_sender.clone();
-            let global_environment = global_environment.clone();
             let config = config.clone();
+            let global_environment = global_environment.clone();
             tokio::task::spawn(async move {
-                DuckOperation::process_statement_late(
-                    &statement,
+                DuckOperation::process_stmt_late(
+                    &stmt,
                     global_environment.as_ref(),
                     &mut lint_reports,
                     config.as_ref(),
@@ -209,6 +204,6 @@ impl DuckTask {
 /// with readability. The returned data from successful parses.
 pub type FileId = usize;
 /// An individual statement's data to be sent to the early pass.
-pub type EarlyPassEntry = (StatementBox, GlobalScopeBuilder, Vec<Diagnostic<FileId>>);
+pub type EarlyPassEntry = (Stmt, GlobalScopeBuilder, Vec<Diagnostic<FileId>>);
 /// An individual statement's data to be sent to the late pass.
-pub type LatePassEntry = (StatementBox, Vec<Diagnostic<FileId>>);
+pub type LatePassEntry = (Stmt, Vec<Diagnostic<FileId>>);

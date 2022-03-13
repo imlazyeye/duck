@@ -1,34 +1,34 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, ParseVisitor, Statement, StatementBox};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
 
 /// A return statement, with an optional return value.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Return {
     /// The value, if any, that this statement returns.
-    pub value: Option<ExpressionBox>,
+    pub value: Option<Expr>,
 }
 impl Return {
     /// Creates a new return statement with an optional value.
-    pub fn new(value: Option<ExpressionBox>) -> Self {
+    pub fn new(value: Option<Expr>) -> Self {
         Self { value }
     }
 }
-impl From<Return> for Statement {
+impl From<Return> for StmtType {
     fn from(ret: Return) -> Self {
         Self::Return(ret)
     }
 }
-impl IntoStatementBox for Return {}
+impl IntoStmt for Return {}
 impl ParseVisitor for Return {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         if let Some(value) = &self.value {
             visitor(value);
         }
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         if let Some(value) = &mut self.value {
             visitor(value);
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }

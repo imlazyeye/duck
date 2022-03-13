@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel},
-    parse::{Statement, StatementBox, Switch},
+    lint::{EarlyStmtPass, Lint, LintLevel},
+    parse::{Stmt, StmtType, Switch},
     FileId,
 };
 
@@ -22,15 +22,11 @@ impl Lint for SingleSwitchCase {
     }
 }
 
-impl EarlyStatementPass for SingleSwitchCase {
-    fn visit_statement_early(
-        statement_box: &StatementBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        if let Statement::Switch(Switch {
+impl EarlyStmtPass for SingleSwitchCase {
+    fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::Switch(Switch {
             cases, default_case, ..
-        }) = statement_box.statement()
+        }) = stmt.inner()
         {
             if cases.len() == 1 {
                 if default_case.is_some() {
@@ -38,7 +34,7 @@ impl EarlyStatementPass for SingleSwitchCase {
                         Self::diagnostic(config)
                             .with_message("Switch statement with single case")
                             .with_labels(vec![
-                                Label::primary(statement_box.file_id(), statement_box.span())
+                                Label::primary(stmt.file_id(), stmt.span())
                                     .with_message("Use an `if/else` statement instead of a `switch` statement"),
                             ]),
                     );
@@ -47,7 +43,7 @@ impl EarlyStatementPass for SingleSwitchCase {
                         Self::diagnostic(config)
                             .with_message("Switch statement with single case")
                             .with_labels(vec![
-                                Label::primary(statement_box.file_id(), statement_box.span())
+                                Label::primary(stmt.file_id(), stmt.span())
                                     .with_message("Use an `if` statement instead of a `switch` statement"),
                             ]),
                     );

@@ -1,18 +1,18 @@
 use crate::parse::*;
 use pretty_assertions::assert_eq;
 
-fn harness_stmt(source: &'static str, expected: impl Into<Statement>) {
+fn harness_stmt(source: &'static str, expected: impl Into<StmtType>) {
     let expected = expected.into();
     let mut parser = Parser::new(source, 0);
-    let outputed = parser.statement().unwrap();
-    assert_eq!(*outputed.statement(), expected)
+    let outputed = parser.stmt().unwrap();
+    assert_eq!(*outputed.inner(), expected)
 }
 
 #[test]
 fn macro_declaration() {
     harness_stmt(
         "#macro foo 0",
-        Statement::MacroDeclaration(Macro::new(Identifier::lazy("foo"), "0")),
+        StmtType::MacroDeclaration(Macro::new(Identifier::lazy("foo"), "0")),
     )
 }
 
@@ -29,8 +29,8 @@ fn two_macro_declaration() {
     harness_stmt(
         "{ \n#macro foo 0\n#macro bar 0\n }",
         Block::lazy(vec![
-            Macro::new(Identifier::lazy("foo"), "0").into_lazy_box(),
-            Macro::new(Identifier::lazy("bar"), "0").into_lazy_box(),
+            Macro::new(Identifier::lazy("foo"), "0").into_stmt_lazy(),
+            Macro::new(Identifier::lazy("bar"), "0").into_stmt_lazy(),
         ]),
     )
 }
@@ -42,8 +42,8 @@ fn enum_declaration() {
         Enum::new_with_members(
             Identifier::lazy("Foo"),
             vec![
-                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_lazy_box()),
-                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_lazy_box()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
             ],
         ),
     )
@@ -56,8 +56,8 @@ fn enum_declaration_begin_end() {
         Enum::new_with_members(
             Identifier::lazy("Foo"),
             vec![
-                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_lazy_box()),
-                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_lazy_box()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
             ],
         ),
     )
@@ -72,13 +72,13 @@ fn enum_with_values() {
             vec![
                 OptionalInitilization::Initialized(
                     Assignment::new(
-                        Identifier::lazy("Bar").into_lazy_box(),
+                        Identifier::lazy("Bar").into_expr_lazy(),
                         AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-                        Literal::Real(20.0).into_lazy_box(),
+                        Literal::Real(20.0).into_expr_lazy(),
                     )
-                    .into_lazy_box(),
+                    .into_stmt_lazy(),
                 ),
-                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_lazy_box()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
             ],
         ),
     )
@@ -91,18 +91,18 @@ fn enum_with_neighbor_values() {
         Enum::new_with_members(
             Identifier::lazy("Foo"),
             vec![
-                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_lazy_box()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
                 OptionalInitilization::Initialized(
                     Assignment::new(
-                        Identifier::lazy("Baz").into_lazy_box(),
+                        Identifier::lazy("Baz").into_expr_lazy(),
                         AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
                         Access::Dot {
-                            left: Identifier::lazy("Foo").into_lazy_box(),
-                            right: Identifier::lazy("Bar").into_lazy_box(),
+                            left: Identifier::lazy("Foo").into_expr_lazy(),
+                            right: Identifier::lazy("Bar").into_expr_lazy(),
                         }
-                        .into_lazy_box(),
+                        .into_expr_lazy(),
                     )
-                    .into_lazy_box(),
+                    .into_stmt_lazy(),
                 ),
             ],
         ),
@@ -119,7 +119,7 @@ fn local_variable() {
     harness_stmt(
         "var i;",
         LocalVariableSeries::new(vec![OptionalInitilization::Uninitialized(
-            Identifier::lazy("i").into_lazy_box(),
+            Identifier::lazy("i").into_expr_lazy(),
         )]),
     )
 }
@@ -130,11 +130,11 @@ fn local_variable_with_value() {
         "var i = 0;",
         LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
-                Identifier::lazy("i").into_lazy_box(),
+                Identifier::lazy("i").into_expr_lazy(),
                 AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-                Literal::Real(0.0).into_lazy_box(),
+                Literal::Real(0.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_stmt_lazy(),
         )]),
     )
 }
@@ -144,16 +144,16 @@ fn local_variable_series() {
     harness_stmt(
         "var i, j = 0, h;",
         LocalVariableSeries::new(vec![
-            OptionalInitilization::Uninitialized(Identifier::lazy("i").into_lazy_box()),
+            OptionalInitilization::Uninitialized(Identifier::lazy("i").into_expr_lazy()),
             OptionalInitilization::Initialized(
                 Assignment::new(
-                    Identifier::lazy("j").into_lazy_box(),
+                    Identifier::lazy("j").into_expr_lazy(),
                     AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-                    Literal::Real(0.0).into_lazy_box(),
+                    Literal::Real(0.0).into_expr_lazy(),
                 )
-                .into_lazy_box(),
+                .into_stmt_lazy(),
             ),
-            OptionalInitilization::Uninitialized(Identifier::lazy("h").into_lazy_box()),
+            OptionalInitilization::Uninitialized(Identifier::lazy("h").into_expr_lazy()),
         ]),
     )
 }
@@ -164,11 +164,11 @@ fn local_variable_trailling_comma() {
         "var i = 0,",
         LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
-                Identifier::lazy("i").into_lazy_box(),
+                Identifier::lazy("i").into_expr_lazy(),
                 AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-                Literal::Real(0.0).into_lazy_box(),
+                Literal::Real(0.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_stmt_lazy(),
         )]),
     )
 }
@@ -180,19 +180,19 @@ fn local_variable_series_ending_without_marker() {
         Block::lazy(vec![
             LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
                 Assignment::new(
-                    Identifier::lazy("i").into_lazy_box(),
+                    Identifier::lazy("i").into_expr_lazy(),
                     AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-                    Literal::Real(0.0).into_lazy_box(),
+                    Literal::Real(0.0).into_expr_lazy(),
                 )
-                .into_lazy_box(),
+                .into_stmt_lazy(),
             )])
-            .into_lazy_box(),
+            .into_stmt_lazy(),
             Assignment::new(
-                Identifier::lazy("j").into_lazy_box(),
+                Identifier::lazy("j").into_expr_lazy(),
                 AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-                Literal::Real(0.0).into_lazy_box(),
+                Literal::Real(0.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_stmt_lazy(),
         ]),
     )
 }
@@ -202,9 +202,9 @@ fn try_catch() {
     harness_stmt(
         "try {} catch (e) {}",
         TryCatch::new(
-            Block::lazy(vec![]).into_lazy_box(),
-            Grouping::lazy(Identifier::lazy("e").into_lazy_box()).into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
+            Block::lazy(vec![]).into_stmt_lazy(),
+            Grouping::lazy(Identifier::lazy("e").into_expr_lazy()).into_expr_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
         ),
     )
 }
@@ -214,10 +214,10 @@ fn try_catch_finally() {
     harness_stmt(
         "try {} catch (e) {} finally {}",
         TryCatch::new_with_finally(
-            Block::lazy(vec![]).into_lazy_box(),
-            Grouping::lazy(Identifier::lazy("e").into_lazy_box()).into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
+            Block::lazy(vec![]).into_stmt_lazy(),
+            Grouping::lazy(Identifier::lazy("e").into_expr_lazy()).into_expr_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
         ),
     )
 }
@@ -229,28 +229,28 @@ fn for_loop() {
         ForLoop::new(
             LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
                 Assignment::new(
-                    Identifier::lazy("i").into_lazy_box(),
+                    Identifier::lazy("i").into_expr_lazy(),
                     AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-                    Literal::Real(0.0).into_lazy_box(),
+                    Literal::Real(0.0).into_expr_lazy(),
                 )
-                .into_lazy_box(),
+                .into_stmt_lazy(),
             )])
-            .into_lazy_box(),
+            .into_stmt_lazy(),
             Equality::new(
-                Identifier::lazy("i").into_lazy_box(),
+                Identifier::lazy("i").into_expr_lazy(),
                 EqualityOperator::LessThan(Token::lazy(TokenType::LessThan)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
-            Statement::Expression(
+            .into_expr_lazy(),
+            StmtType::Expr(
                 Postfix::new(
-                    Identifier::lazy("i").into_lazy_box(),
+                    Identifier::lazy("i").into_expr_lazy(),
                     PostfixOperator::Increment(Token::lazy(TokenType::DoublePlus)),
                 )
-                .into_lazy_box(),
+                .into_expr_lazy(),
             )
-            .into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
+            .into_stmt_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
         ),
     );
 }
@@ -260,8 +260,8 @@ fn with() {
     harness_stmt(
         "with foo {}",
         WithLoop::new(
-            Identifier::lazy("foo").into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
         ),
     )
 }
@@ -270,7 +270,10 @@ fn with() {
 fn repeat() {
     harness_stmt(
         "repeat 1 {}",
-        RepeatLoop::new(Literal::Real(1.0).into_lazy_box(), Block::lazy(vec![]).into_lazy_box()),
+        RepeatLoop::new(
+            Literal::Real(1.0).into_expr_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
+        ),
     )
 }
 
@@ -281,19 +284,19 @@ fn do_until() {
         DoUntil::new(
             Block::lazy(vec![
                 Assignment::new(
-                    Identifier::lazy("foo").into_lazy_box(),
+                    Identifier::lazy("foo").into_expr_lazy(),
                     AssignmentOperator::PlusEqual(Token::lazy(TokenType::PlusEqual)),
-                    Literal::Real(1.0).into_lazy_box(),
+                    Literal::Real(1.0).into_expr_lazy(),
                 )
-                .into_lazy_box(),
+                .into_stmt_lazy(),
             ])
-            .into_lazy_box(),
+            .into_stmt_lazy(),
             Equality::new(
-                Identifier::lazy("foo").into_lazy_box(),
+                Identifier::lazy("foo").into_expr_lazy(),
                 EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_expr_lazy(),
         ),
     )
 }
@@ -303,36 +306,36 @@ fn while_loop() {
         "while foo == 1 { foo += 1; }",
         If::new(
             Equality::new(
-                Identifier::lazy("foo").into_lazy_box(),
+                Identifier::lazy("foo").into_expr_lazy(),
                 EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_expr_lazy(),
             Block::lazy(vec![
                 Assignment::new(
-                    Identifier::lazy("foo").into_lazy_box(),
+                    Identifier::lazy("foo").into_expr_lazy(),
                     AssignmentOperator::PlusEqual(Token::lazy(TokenType::PlusEqual)),
-                    Literal::Real(1.0).into_lazy_box(),
+                    Literal::Real(1.0).into_expr_lazy(),
                 )
-                .into_lazy_box(),
+                .into_stmt_lazy(),
             ])
-            .into_lazy_box(),
+            .into_stmt_lazy(),
         ),
     )
 }
 
 #[test]
-fn if_statement() {
+fn if_stmt() {
     harness_stmt(
         "if foo == 1 {}",
         If::new(
             Equality::new(
-                Identifier::lazy("foo").into_lazy_box(),
+                Identifier::lazy("foo").into_expr_lazy(),
                 EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
+            .into_expr_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
         ),
     )
 }
@@ -343,12 +346,12 @@ fn if_then() {
         "if foo == 1 then {}",
         If::new_with_then_keyword(
             Equality::new(
-                Identifier::lazy("foo").into_lazy_box(),
+                Identifier::lazy("foo").into_expr_lazy(),
                 EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
+            .into_expr_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
             None,
         ),
     )
@@ -360,13 +363,13 @@ fn if_else() {
         "if foo == 1 {} else {}",
         If::new_with_else(
             Equality::new(
-                Identifier::lazy("foo").into_lazy_box(),
+                Identifier::lazy("foo").into_expr_lazy(),
                 EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
-            Block::lazy(vec![]).into_lazy_box(),
+            .into_expr_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
+            Block::lazy(vec![]).into_stmt_lazy(),
         ),
     )
 }
@@ -375,7 +378,7 @@ fn if_else() {
 fn switch() {
     harness_stmt(
         "switch foo {}",
-        Switch::new(Identifier::lazy("foo").into_lazy_box(), vec![], None),
+        Switch::new(Identifier::lazy("foo").into_expr_lazy(), vec![], None),
     )
 }
 
@@ -384,10 +387,10 @@ fn switch_with_case() {
     harness_stmt(
         "switch foo { case bar: break; }",
         Switch::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             vec![SwitchCase::new(
-                Identifier::lazy("bar").into_lazy_box(),
-                vec![Statement::Break.into_lazy_box()],
+                Identifier::lazy("bar").into_expr_lazy(),
+                vec![StmtType::Break.into_stmt_lazy()],
             )],
             None,
         ),
@@ -399,12 +402,12 @@ fn switch_case_fallthrough() {
     harness_stmt(
         "switch foo { case bar: case baz: break; }",
         Switch::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             vec![
-                SwitchCase::new(Identifier::lazy("bar").into_lazy_box(), vec![]),
+                SwitchCase::new(Identifier::lazy("bar").into_expr_lazy(), vec![]),
                 SwitchCase::new(
-                    Identifier::lazy("baz").into_lazy_box(),
-                    vec![Statement::Break.into_lazy_box()],
+                    Identifier::lazy("baz").into_expr_lazy(),
+                    vec![StmtType::Break.into_stmt_lazy()],
                 ),
             ],
             None,
@@ -417,9 +420,9 @@ fn switch_default() {
     harness_stmt(
         "switch foo { default: break; }",
         Switch::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             vec![],
-            Some(vec![Statement::Break.into_lazy_box()]),
+            Some(vec![StmtType::Break.into_stmt_lazy()]),
         ),
     )
 }
@@ -441,38 +444,38 @@ fn block_begin_end() {
 }
 
 #[test]
-fn return_statement() {
+fn return_stmt() {
     harness_stmt("return;", Return::new(None))
 }
 
 #[test]
 fn return_with_value() {
-    harness_stmt("return 0;", Return::new(Some(Literal::Real(0.0).into_lazy_box())))
+    harness_stmt("return 0;", Return::new(Some(Literal::Real(0.0).into_expr_lazy())))
 }
 
 #[test]
 fn throw() {
-    harness_stmt("throw foo;", Throw::new(Identifier::lazy("foo").into_lazy_box()))
+    harness_stmt("throw foo;", Throw::new(Identifier::lazy("foo").into_expr_lazy()))
 }
 
 #[test]
 fn delete() {
-    harness_stmt("delete foo;", Delete::new(Identifier::lazy("foo").into_lazy_box()))
+    harness_stmt("delete foo;", Delete::new(Identifier::lazy("foo").into_expr_lazy()))
 }
 
 #[test]
-fn break_statement() {
-    harness_stmt("break;", Statement::Break)
+fn break_stmt() {
+    harness_stmt("break;", StmtType::Break)
 }
 
 #[test]
 fn exit() {
-    harness_stmt("exit;", Statement::Exit)
+    harness_stmt("exit;", StmtType::Exit)
 }
 
 #[test]
 fn excess_semicolons() {
-    harness_stmt("exit;;;", Statement::Exit)
+    harness_stmt("exit;;;", StmtType::Exit)
 }
 
 #[test]
@@ -480,9 +483,9 @@ fn assign() {
     harness_stmt(
         "foo = 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -492,14 +495,14 @@ fn single_equals_equality() {
     harness_stmt(
         "foo = bar = 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
             Equality::new(
-                Identifier::lazy("bar").into_lazy_box(),
+                Identifier::lazy("bar").into_expr_lazy(),
                 EqualityOperator::Equal(Token::lazy(TokenType::Equal)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_expr_lazy(),
         ),
     )
 }
@@ -509,9 +512,9 @@ fn function_assignment() {
     harness_stmt(
         "foo = function() {}",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Function::new_anonymous(vec![], Block::lazy(vec![]).into_lazy_box()).into_lazy_box(),
+            Function::new_anonymous(vec![], Block::lazy(vec![]).into_stmt_lazy()).into_expr_lazy(),
         ),
     );
 }
@@ -521,14 +524,14 @@ fn logical_assignment() {
     harness_stmt(
         "foo = 1 && 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
             Logical::new(
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
                 LogicalOperator::And(Token::lazy(TokenType::DoubleAmpersand)),
-                Literal::Real(1.0).into_lazy_box(),
+                Literal::Real(1.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_expr_lazy(),
         ),
     );
 }
@@ -538,14 +541,14 @@ fn ternary_assignment() {
     harness_stmt(
         "foo = bar ? 1 : 2;",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
             Ternary::new(
-                Identifier::lazy("bar").into_lazy_box(),
-                Literal::Real(1.0).into_lazy_box(),
-                Literal::Real(2.0).into_lazy_box(),
+                Identifier::lazy("bar").into_expr_lazy(),
+                Literal::Real(1.0).into_expr_lazy(),
+                Literal::Real(2.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_expr_lazy(),
         ),
     );
 }
@@ -555,13 +558,13 @@ fn null_coalecence_assign() {
     harness_stmt(
         "foo = bar ?? 0;",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
             NullCoalecence::new(
-                Identifier::lazy("bar").into_lazy_box(),
-                Literal::Real(0.0).into_lazy_box(),
+                Identifier::lazy("bar").into_expr_lazy(),
+                Literal::Real(0.0).into_expr_lazy(),
             )
-            .into_lazy_box(),
+            .into_expr_lazy(),
         ),
     );
 }
@@ -572,11 +575,11 @@ fn dot_assign() {
         "self.foo = 1",
         Assignment::new(
             Access::Current {
-                right: Identifier::lazy("foo").into_lazy_box(),
+                right: Identifier::lazy("foo").into_expr_lazy(),
             }
-            .into_lazy_box(),
+            .into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -587,14 +590,14 @@ fn ds_assign() {
         "foo[0] = 1",
         Assignment::new(
             Access::Array {
-                left: Identifier::lazy("foo").into_lazy_box(),
-                index_one: Literal::Real(0.0).into_lazy_box(),
+                left: Identifier::lazy("foo").into_expr_lazy(),
+                index_one: Literal::Real(0.0).into_expr_lazy(),
                 index_two: None,
                 using_accessor: false,
             }
-            .into_lazy_box(),
+            .into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -605,9 +608,9 @@ fn call_assign() {
     harness_stmt(
         "foo() = 1",
         Assignment::new(
-            Call::new(Identifier::lazy("foo").into_lazy_box(), vec![]).into_lazy_box(),
+            Call::new(Identifier::lazy("foo").into_expr_lazy(), vec![]).into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -617,9 +620,9 @@ fn static_assign() {
     harness_stmt(
         "static foo = 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -629,9 +632,9 @@ fn plus_equal() {
     harness_stmt(
         "foo += 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::PlusEqual(Token::lazy(TokenType::PlusEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -641,9 +644,9 @@ fn minus_equal() {
     harness_stmt(
         "foo -= 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::MinusEqual(Token::lazy(TokenType::MinusEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -653,9 +656,9 @@ fn star_equal() {
     harness_stmt(
         "foo *= 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::StarEqual(Token::lazy(TokenType::StarEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -665,9 +668,9 @@ fn slash_equal() {
     harness_stmt(
         "foo /= 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::SlashEqual(Token::lazy(TokenType::SlashEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -677,9 +680,9 @@ fn and_equal() {
     harness_stmt(
         "foo &= 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::AndEqual(Token::lazy(TokenType::AmpersandEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -689,9 +692,9 @@ fn or_equal() {
     harness_stmt(
         "foo |= 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::OrEqual(Token::lazy(TokenType::PipeEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -701,9 +704,9 @@ fn xor_equal() {
     harness_stmt(
         "foo ^= 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::XorEqual(Token::lazy(TokenType::CirumflexEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -713,9 +716,9 @@ fn mod_equal() {
     harness_stmt(
         "foo %= 1",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::ModEqual(Token::lazy(TokenType::PercentEqual)),
-            Literal::Real(1.0).into_lazy_box(),
+            Literal::Real(1.0).into_expr_lazy(),
         ),
     );
 }
@@ -725,9 +728,9 @@ fn general_self_reference() {
     harness_stmt(
         "foo = self",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Identifier::lazy("self").into_lazy_box(),
+            Identifier::lazy("self").into_expr_lazy(),
         ),
     );
 }
@@ -737,9 +740,9 @@ fn general_other_reference() {
     harness_stmt(
         "foo = other",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Identifier::lazy("other").into_lazy_box(),
+            Identifier::lazy("other").into_expr_lazy(),
         ),
     );
 }
@@ -752,9 +755,9 @@ fn comment_above_statement() {
             foo = bar;    
         ",
         Assignment::new(
-            Identifier::lazy("foo").into_lazy_box(),
+            Identifier::lazy("foo").into_expr_lazy(),
             AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
-            Identifier::lazy("bar").into_lazy_box(),
+            Identifier::lazy("bar").into_expr_lazy(),
         ),
     );
 }

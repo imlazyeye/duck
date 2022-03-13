@@ -1,34 +1,34 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox, Token};
+use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of a postfix operation in gml.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Postfix {
     /// The left hand side of the postfix operation.
-    pub left: ExpressionBox,
+    pub left: Expr,
     /// The postfix operator.
     pub operator: PostfixOperator,
 }
 impl Postfix {
     /// Creates a new postfix operation.
-    pub fn new(left: ExpressionBox, operator: PostfixOperator) -> Self {
+    pub fn new(left: Expr, operator: PostfixOperator) -> Self {
         Self { operator, left }
     }
 }
-impl From<Postfix> for Expression {
+impl From<Postfix> for ExprType {
     fn from(postfix: Postfix) -> Self {
         Self::Postfix(postfix)
     }
 }
-impl IntoExpressionBox for Postfix {}
+impl IntoExpr for Postfix {}
 impl ParseVisitor for Postfix {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         visitor(&self.left);
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         visitor(&mut self.left);
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }
 
 /// The various postfix operations supported in gml.

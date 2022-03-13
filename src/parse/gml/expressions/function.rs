@@ -1,4 +1,4 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, OptionalInitilization, ParseVisitor, StatementBox};
+use crate::parse::{Expr, ExprType, IntoExpr, OptionalInitilization, ParseVisitor, Stmt};
 
 use super::Identifier;
 
@@ -12,11 +12,11 @@ pub struct Function {
     /// The constructor behavior of this function, if any.
     pub constructor: Option<Constructor>,
     /// The body of the function declaration.
-    pub body: StatementBox,
+    pub body: Stmt,
 }
 impl Function {
     /// Creates a new function declaration.
-    pub fn new(name: Identifier, parameters: Vec<OptionalInitilization>, body: StatementBox) -> Self {
+    pub fn new(name: Identifier, parameters: Vec<OptionalInitilization>, body: Stmt) -> Self {
         Self {
             name: Some(name),
             parameters,
@@ -26,7 +26,7 @@ impl Function {
     }
 
     /// Creates a new anonymous function declaration.
-    pub fn new_anonymous(parameters: Vec<OptionalInitilization>, body: StatementBox) -> Self {
+    pub fn new_anonymous(parameters: Vec<OptionalInitilization>, body: Stmt) -> Self {
         Self {
             name: None,
             parameters,
@@ -40,7 +40,7 @@ impl Function {
         name: Option<Identifier>,
         parameters: Vec<OptionalInitilization>,
         constructor: Constructor,
-        body: StatementBox,
+        body: Stmt,
     ) -> Self {
         Self {
             name,
@@ -50,14 +50,14 @@ impl Function {
         }
     }
 }
-impl From<Function> for Expression {
+impl From<Function> for ExprType {
     fn from(function: Function) -> Self {
         Self::FunctionDeclaration(function)
     }
 }
-impl IntoExpressionBox for Function {}
+impl IntoExpr for Function {}
 impl ParseVisitor for Function {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         for param in self.parameters.iter() {
             match param {
                 OptionalInitilization::Uninitialized(expr) => visitor(expr),
@@ -68,7 +68,7 @@ impl ParseVisitor for Function {
             visitor(inheritance_call);
         }
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         for param in self.parameters.iter_mut() {
             match param {
                 OptionalInitilization::Uninitialized(expr) => visitor(expr),
@@ -79,7 +79,7 @@ impl ParseVisitor for Function {
             visitor(inheritance_call);
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
         for param in self.parameters.iter() {
             match param {
                 OptionalInitilization::Uninitialized(_) => {}
@@ -88,7 +88,7 @@ impl ParseVisitor for Function {
         }
         visitor(&self.body);
     }
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, mut visitor: S) {
         for param in self.parameters.iter_mut() {
             match param {
                 OptionalInitilization::Uninitialized(_) => {}
@@ -103,7 +103,7 @@ impl ParseVisitor for Function {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Constructor {
     /// A constructor that inherits from the nested call.
-    WithInheritance(ExpressionBox),
+    WithInheritance(Expr),
     /// A constructor that does not inherit from another constructor.
     WithoutInheritance,
 }

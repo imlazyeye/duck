@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel},
-    parse::{Access, Call, Expression, ExpressionBox, Globalvar, Statement, StatementBox},
+    lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
+    parse::{Access, Call, Expr, ExprType, Globalvar, Stmt, StmtType},
     FileId,
 };
 
@@ -22,18 +22,14 @@ impl Lint for Deprecated {
     }
 }
 
-impl EarlyStatementPass for Deprecated {
-    fn visit_statement_early(
-        statement_box: &StatementBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        if let Statement::GlobalvarDeclaration(Globalvar { name }) = statement_box.statement() {
+impl EarlyStmtPass for Deprecated {
+    fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::GlobalvarDeclaration(Globalvar { name }) = stmt.inner() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of `globalvar`")
                     .with_labels(vec![
-                        Label::primary(statement_box.file_id(), statement_box.span())
+                        Label::primary(stmt.file_id(), stmt.span())
                             .with_message(format!("Change this to the `global.{}` syntax", name.lexeme)),
                     ]),
             );
@@ -41,14 +37,10 @@ impl EarlyStatementPass for Deprecated {
     }
 }
 
-impl EarlyExpressionPass for Deprecated {
-    fn visit_expression_early(
-        expression_box: &ExpressionBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
-            if let Expression::Identifier(identifier) = left.expression() {
+impl EarlyExprPass for Deprecated {
+    fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Call(Call { left, .. }) = expr.inner() {
+            if let ExprType::Identifier(identifier) = left.inner() {
                 if gm_deprecated_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)
@@ -59,12 +51,12 @@ impl EarlyExpressionPass for Deprecated {
                     );
                 }
             }
-        } else if let Expression::Access(Access::Array { index_two: Some(_), .. }) = expression_box.expression() {
+        } else if let ExprType::Access(Access::Array { index_two: Some(_), .. }) = expr.inner() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of 2d array")
                     .with_labels(vec![
-                        Label::primary(expression_box.file_id(), expression_box.span())
+                        Label::primary(expr.file_id(), expr.span())
                             .with_message("use chained arrays instead (`foo[0][0]`)"),
                     ]),
             );

@@ -1,6 +1,6 @@
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel},
-    parse::{Assignment, Expression, Statement, StatementBox},
+    lint::{EarlyStmtPass, Lint, LintLevel},
+    parse::{Assignment, ExprType, Stmt, StmtType},
     Config, FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -21,22 +21,22 @@ impl Lint for InvalidAssignment {
     }
 }
 
-impl EarlyStatementPass for InvalidAssignment {
-    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Statement::Assignment(Assignment { left, operator, right }) = statement_box.statement() {
-            let is_valid = match left.expression() {
-                Expression::FunctionDeclaration(_)
-                | Expression::Logical(_)
-                | Expression::Equality(_)
-                | Expression::Evaluation(_)
-                | Expression::NullCoalecence(_)
-                | Expression::Ternary(_)
-                | Expression::Unary(_)
-                | Expression::Postfix(_)
-                | Expression::Grouping(_)
-                | Expression::Call(_)
-                | Expression::Literal(_) => false,
-                Expression::Access(_) | Expression::Identifier(_) => true,
+impl EarlyStmtPass for InvalidAssignment {
+    fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::Assignment(Assignment { left, operator, right }) = stmt.inner() {
+            let is_valid = match left.inner() {
+                ExprType::FunctionDeclaration(_)
+                | ExprType::Logical(_)
+                | ExprType::Equality(_)
+                | ExprType::Evaluation(_)
+                | ExprType::NullCoalecence(_)
+                | ExprType::Ternary(_)
+                | ExprType::Unary(_)
+                | ExprType::Postfix(_)
+                | ExprType::Grouping(_)
+                | ExprType::Call(_)
+                | ExprType::Literal(_) => false,
+                ExprType::Access(_) | ExprType::Identifier(_) => true,
             };
             if !is_valid {
                 reports.push(

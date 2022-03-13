@@ -24,10 +24,10 @@ for root, dirs, files in os.walk('src/lint/collection/'):
             'tag': lint_tag,
             'level': lint_level,
             'explanation': explanation,
-            'visits_expression_early': 'impl EarlyExpressionPass' in lint_file,
-            'visits_statement_early': 'impl EarlyStatementPass' in lint_file,
-            'visits_expression_late': 'impl LateExpressionPass' in lint_file,
-            'visits_statement_late': 'impl LateStatementPass' in lint_file,
+            'visits_expr_early': 'impl EarlyExprPass' in lint_file,
+            'visits_stmt_early': 'impl EarlyStmtPass' in lint_file,
+            'visits_expr_late': 'impl LateExprPass' in lint_file,
+            'visits_stmt_late': 'impl LateStmtPass' in lint_file,
         })
 
 # Sort them alphabetically
@@ -81,28 +81,28 @@ duck_operation = open('src/core/duck_operation.rs', "r").read()
 
 opreations = [
     {
-        'name': 'early expression',
-        'tag': 'visits_expression_early',
-        'function_name': 'run_early_lint_on_expression',
-        'args': 'expression_box, config, reports'
+        'name': 'early expr',
+        'tag': 'visits_expr_early',
+        'function_name': 'run_early_lint_on_expr',
+        'args': 'expr, config, reports'
     },
     {
-        'name': 'early statement',
-        'tag': 'visits_statement_early',
-        'function_name': 'run_early_lint_on_statement',
-        'args': 'statement_box, config, reports'
+        'name': 'early stmt',
+        'tag': 'visits_stmt_early',
+        'function_name': 'run_early_lint_on_stmt',
+        'args': 'stmt, config, reports'
     },
     {
-        'name': 'late expression',
-        'tag': 'visits_expression_late',
-        'function_name': 'run_late_lint_on_expression',
-        'args': 'expression_box, config, reports, global_scope'
+        'name': 'late expr',
+        'tag': 'visits_expr_late',
+        'function_name': 'run_late_lint_on_expr',
+        'args': 'expr, config, reports, global_scope'
     },
     {
-        'name': 'late statement',
-        'tag': 'visits_statement_late',
-        'function_name': 'run_late_lint_on_statement',
-        'args': 'statement_box, config, reports, global_scope'
+        'name': 'late stmt',
+        'tag': 'visits_stmt_late',
+        'function_name': 'run_late_lint_on_stmt',
+        'args': 'stmt, config, reports, global_scope'
     }
 ]
 

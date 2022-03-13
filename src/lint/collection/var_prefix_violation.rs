@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel},
-    parse::{LocalVariableSeries, Statement, StatementBox},
+    lint::{EarlyStmtPass, Lint, LintLevel},
+    parse::{LocalVariableSeries, Stmt, StmtType},
     Config, FileId,
 };
 
@@ -22,9 +22,9 @@ impl Lint for VarPrefixViolation {
     }
 }
 
-impl EarlyStatementPass for VarPrefixViolation {
-    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Statement::LocalVariableSeries(LocalVariableSeries { declarations }) = statement_box.statement() {
+impl EarlyStmtPass for VarPrefixViolation {
+    fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.inner() {
             for local_variable in declarations.iter() {
                 let name = local_variable.name();
                 if config.var_prefixes && name.len() > 1 && !name.starts_with('_') {
@@ -32,11 +32,8 @@ impl EarlyStatementPass for VarPrefixViolation {
                         Self::diagnostic(config)
                             .with_message("Local variable without underscore prefix")
                             .with_labels(vec![
-                                Label::primary(
-                                    local_variable.name_expression().file_id(),
-                                    local_variable.name_expression().span(),
-                                )
-                                .with_message(format!("Change `{name}` to `_{name}`")),
+                                Label::primary(local_variable.name_expr().file_id(), local_variable.name_expr().span())
+                                    .with_message(format!("Change `{name}` to `_{name}`")),
                             ]),
                     );
                 } else if !config.var_prefixes && name.starts_with('_') {
@@ -44,11 +41,8 @@ impl EarlyStatementPass for VarPrefixViolation {
                         Self::diagnostic(config)
                             .with_message("Local variable with underscore prefix")
                             .with_labels(vec![
-                                Label::primary(
-                                    local_variable.name_expression().file_id(),
-                                    local_variable.name_expression().span(),
-                                )
-                                .with_message(format!("Change `{name}` to `{}`", &name[1..])),
+                                Label::primary(local_variable.name_expr().file_id(), local_variable.name_expr().span())
+                                    .with_message(format!("Change `{name}` to `{}`", &name[1..])),
                             ]),
                     );
                 }

@@ -1,11 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel},
-    parse::{
-        DoUntil, Expression, ExpressionBox, If, RepeatLoop, Statement, StatementBox, Switch, Ternary, WhileLoop,
-        WithLoop,
-    },
+    lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
+    parse::{DoUntil, Expr, ExprType, If, RepeatLoop, Stmt, StmtType, Switch, Ternary, WhileLoop, WithLoop},
     Config, FileId,
 };
 
@@ -26,16 +23,16 @@ impl Lint for ConditionWrapper {
 }
 
 impl ConditionWrapper {
-    pub fn test(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Some(grouping) = expression_box.expression().as_grouping() {
+    pub fn test(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let Some(grouping) = expr.inner().as_grouping() {
             let (left_token, right_token) = grouping.parenthesis();
             if !config.statement_parentheticals {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Unneccesary grouping around condition")
                         .with_labels(vec![
-                            Label::primary(expression_box.file_id(), left_token.span),
-                            Label::primary(expression_box.file_id(), right_token.span),
+                            Label::primary(expr.file_id(), left_token.span),
+                            Label::primary(expr.file_id(), right_token.span),
                         ]),
                 );
             }
@@ -44,45 +41,32 @@ impl ConditionWrapper {
                 Self::diagnostic(config)
                     .with_message("Missing outer grouping in statement")
                     .with_labels(vec![
-                        Label::primary(expression_box.file_id(), expression_box.span())
-                            .with_message("wrap this condition in parenthesis"),
+                        Label::primary(expr.file_id(), expr.span()).with_message("wrap this condition in parenthesis"),
                     ]),
             );
         }
     }
 }
 
-impl EarlyExpressionPass for ConditionWrapper {
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Ternary(Ternary { condition, .. }) = expression_box.expression() {
+impl EarlyExprPass for ConditionWrapper {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Ternary(Ternary { condition, .. }) = expr.inner() {
             Self::test(condition, config, reports)
         }
     }
 }
 
-impl EarlyStatementPass for ConditionWrapper {
-    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match statement_box.statement() {
-            Statement::Switch(Switch {
-                matching_value: expression,
-                ..
+impl EarlyStmtPass for ConditionWrapper {
+    fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        match stmt.inner() {
+            StmtType::Switch(Switch {
+                matching_value: expr, ..
             })
-            | Statement::If(If {
-                condition: expression, ..
-            })
-            | Statement::DoUntil(DoUntil {
-                condition: expression, ..
-            })
-            | Statement::WhileLoop(WhileLoop {
-                condition: expression, ..
-            })
-            | Statement::WithLoop(WithLoop {
-                identity: expression, ..
-            })
-            | Statement::RepeatLoop(RepeatLoop {
-                tick_counts: expression,
-                ..
-            }) => Self::test(expression, config, reports),
+            | StmtType::If(If { condition: expr, .. })
+            | StmtType::DoUntil(DoUntil { condition: expr, .. })
+            | StmtType::WhileLoop(WhileLoop { condition: expr, .. })
+            | StmtType::WithLoop(WithLoop { identity: expr, .. })
+            | StmtType::RepeatLoop(RepeatLoop { tick_counts: expr, .. }) => Self::test(expr, config, reports),
             _ => {}
         };
     }

@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Expression, ExpressionBox, TokenType, Unary, UnaryOperator},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Expr, ExprType, TokenType, Unary, UnaryOperator},
     Config, FileId,
 };
 
@@ -21,22 +21,20 @@ impl Lint for NotPreference {
         "not_preference"
     }
 }
-impl EarlyExpressionPass for NotPreference {
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Unary(Unary {
+impl EarlyExprPass for NotPreference {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Unary(Unary {
             operator: UnaryOperator::Not(token),
             ..
-        }) = expression_box.expression()
+        }) = expr.inner()
         {
             if config.prefer_not_keyword() && token.token_type != TokenType::Not {
                 reports.push(Self::diagnostic(config).with_message("Use of `!`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), token.span)
-                        .with_message("use the `not` keyword instead of `!`"),
+                    Label::primary(expr.file_id(), token.span).with_message("use the `not` keyword instead of `!`"),
                 ]));
             } else if token.token_type == TokenType::Not {
                 reports.push(Self::diagnostic(config).with_message("Use of `not`").with_labels(vec![
-                    Label::primary(expression_box.file_id(), token.span)
-                        .with_message("use the `!` operator instead of `not`"),
+                    Label::primary(expr.file_id(), token.span).with_message("use the `!` operator instead of `not`"),
                 ]));
             }
         }

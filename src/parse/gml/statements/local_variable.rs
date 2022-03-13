@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionBox, IntoStatementBox, OptionalInitilization, ParseVisitor, Statement, StatementBox};
+use crate::parse::{Expr, IntoStmt, OptionalInitilization, ParseVisitor, Stmt, StmtType};
 
 /// Representation of a local variable declaration.
 ///
@@ -15,14 +15,14 @@ impl LocalVariableSeries {
         Self { declarations }
     }
 }
-impl From<LocalVariableSeries> for Statement {
+impl From<LocalVariableSeries> for StmtType {
     fn from(series: LocalVariableSeries) -> Self {
         Self::LocalVariableSeries(series)
     }
 }
-impl IntoStatementBox for LocalVariableSeries {}
+impl IntoStmt for LocalVariableSeries {}
 impl ParseVisitor for LocalVariableSeries {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         for declaration in self.declarations.iter() {
             match declaration {
                 OptionalInitilization::Uninitialized(expr) => visitor(expr),
@@ -30,7 +30,7 @@ impl ParseVisitor for LocalVariableSeries {
             }
         }
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         for declaration in self.declarations.iter_mut() {
             match declaration {
                 OptionalInitilization::Uninitialized(expr) => visitor(expr),
@@ -38,7 +38,7 @@ impl ParseVisitor for LocalVariableSeries {
             }
         }
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut visitor: S) {
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
         for declaration in self.declarations.iter() {
             match declaration {
                 OptionalInitilization::Uninitialized(_) => {}
@@ -46,7 +46,7 @@ impl ParseVisitor for LocalVariableSeries {
             }
         }
     }
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, mut visitor: S) {
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, mut visitor: S) {
         for declaration in self.declarations.iter_mut() {
             match declaration {
                 OptionalInitilization::Uninitialized(_) => {}

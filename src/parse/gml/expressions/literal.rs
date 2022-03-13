@@ -1,4 +1,4 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
 
 use super::Identifier;
 
@@ -20,22 +20,22 @@ pub enum Literal {
     /// A hex-format number
     Hex(String),
     /// An array literal ([0, 1, 2])
-    Array(Vec<ExpressionBox>),
+    Array(Vec<Expr>),
     /// A struct literal ({a: 0, b: 0})
-    Struct(Vec<(Identifier, ExpressionBox)>),
+    Struct(Vec<(Identifier, Expr)>),
     /// Any GML constant that we are aware of but do not have specific use for.
     Misc(String),
 }
 
-impl From<Literal> for Expression {
+impl From<Literal> for ExprType {
     fn from(literal: Literal) -> Self {
         Self::Literal(literal)
     }
 }
-impl IntoExpressionBox for Literal {}
+impl IntoExpr for Literal {}
 impl ParseVisitor for Literal {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut _visitor: E) {}
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, _visitor: E) {}
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut _visitor: E) {}
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, _visitor: E) {}
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }

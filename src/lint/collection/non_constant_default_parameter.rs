@@ -2,8 +2,8 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     analyze::GlobalScope,
-    lint::{LateExpressionPass, Lint, LintLevel},
-    parse::{Access, Evaluation, Expression, ExpressionBox, Function, Unary, UnaryOperator},
+    lint::{LateExprPass, Lint, LintLevel},
+    parse::{Access, Evaluation, Expr, ExprType, Function, Unary, UnaryOperator},
     FileId,
 };
 
@@ -24,50 +24,47 @@ impl Lint for NonConstantDefaultParameter {
 }
 
 impl NonConstantDefaultParameter {
-    fn is_constant(expresion_box: &ExpressionBox, global_scope: &GlobalScope) -> bool {
-        match expresion_box.expression() {
-            Expression::Access(Access::Dot { left, .. }) => left
-                .expression()
+    fn is_constant(expresion_box: &Expr, global_scope: &GlobalScope) -> bool {
+        match expresion_box.inner() {
+            ExprType::Access(Access::Dot { left, .. }) => left
+                .inner()
                 .as_identifier()
                 .map_or(false, |iden| global_scope.find_enum(&iden.lexeme).is_some()),
-            Expression::Unary(Unary {
+            ExprType::Unary(Unary {
                 operator: UnaryOperator::Positive(_),
                 right,
             })
-            | Expression::Unary(Unary {
+            | ExprType::Unary(Unary {
                 operator: UnaryOperator::Negative(_),
                 right,
             }) => Self::is_constant(right, global_scope),
-            Expression::Evaluation(Evaluation { left, right, .. }) => {
+            ExprType::Evaluation(Evaluation { left, right, .. }) => {
                 Self::is_constant(left, global_scope) && Self::is_constant(right, global_scope)
             }
-            Expression::Literal(_) | Expression::Identifier(_) => true,
+            ExprType::Literal(_) | ExprType::Identifier(_) => true,
             _ => false,
         }
     }
 }
 
-impl LateExpressionPass for NonConstantDefaultParameter {
-    fn visit_expression_late(
-        expression_box: &ExpressionBox,
+impl LateExprPass for NonConstantDefaultParameter {
+    fn visit_expr_late(
+        expr: &Expr,
         config: &crate::Config,
         reports: &mut Vec<Diagnostic<FileId>>,
         global_scope: &GlobalScope,
     ) {
-        if let Expression::FunctionDeclaration(Function { parameters, .. }) = expression_box.expression() {
+        if let ExprType::FunctionDeclaration(Function { parameters, .. }) = expr.inner() {
             for param in parameters {
-                if let Some(default_value_expression_box) = param.assignment_value() {
-                    let constant = Self::is_constant(default_value_expression_box, global_scope);
+                if let Some(default_expr) = param.assignment_value() {
+                    let constant = Self::is_constant(default_expr, global_scope);
                     if !constant {
                         reports.push(
                             Self::diagnostic(config)
                                 .with_message("Non constant default parameter")
                                 .with_labels(vec![
-                                    Label::primary(
-                                        default_value_expression_box.file_id(),
-                                        default_value_expression_box.span(),
-                                    )
-                                    .with_message("this parameter's default value is not constant"),
+                                    Label::primary(default_expr.file_id(), default_expr.span())
+                                        .with_message("this parameter's default value is not constant"),
                                 ]),
                         );
                     }

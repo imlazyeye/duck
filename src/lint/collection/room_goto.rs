@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Call, Expression, ExpressionBox},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Call, Expr, ExprType},
     FileId,
 };
 
@@ -22,14 +22,10 @@ impl Lint for RoomGoto {
     }
 }
 
-impl EarlyExpressionPass for RoomGoto {
-    fn visit_expression_early(
-        expression_box: &ExpressionBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
-            if let Expression::Identifier(identifier) = left.expression() {
+impl EarlyExprPass for RoomGoto {
+    fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Call(Call { left, .. }) = expr.inner() {
+            if let ExprType::Identifier(identifier) = left.inner() {
                 if gm_room_goto_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)

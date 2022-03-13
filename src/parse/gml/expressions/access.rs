@@ -1,4 +1,4 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox};
+use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of a access in gml, such as an array lookup, or dot-notation.
 #[derive(Debug, PartialEq, Clone)]
@@ -6,25 +6,25 @@ pub enum Access {
     /// Accessing the global scope via `global.`.
     Global {
         /// The value being extracted from the global scope.
-        right: ExpressionBox,
+        right: Expr,
     },
     /// Accessing the current scope via `self`. (This would be called `Self`, but its reserved by
     /// rust.)
     Current {
         /// The value being extracted from the local scope.
-        right: ExpressionBox,
+        right: Expr,
     },
     /// Accessing the scope above the current one via `other`.
     Other {
         /// The value being extracted from the other scope.
-        right: ExpressionBox,
+        right: Expr,
     },
     /// Dot access with any struct or object.
     Dot {
         /// The value being accessed.
-        left: ExpressionBox,
+        left: Expr,
         /// The value being extracted from the leftside value.
-        right: ExpressionBox,
+        right: Expr,
     },
     /// Array access. The bool at the end represents if the `@` accessor is present, which denotes
     /// the access to be direct instead of copy-on-write.
@@ -37,54 +37,54 @@ pub enum Access {
     /// deprecated).
     Array {
         /// The array being accessed.
-        left: ExpressionBox,
+        left: Expr,
         /// The first index supplied to the access.
-        index_one: ExpressionBox,
+        index_one: Expr,
         /// The second index, if using 2d accessing.
-        index_two: Option<ExpressionBox>,
+        index_two: Option<Expr>,
         /// Whether or not the `@` was provided.
         using_accessor: bool,
     },
     /// Ds Map access.
     Map {
         /// The map being accessed.
-        left: ExpressionBox,
+        left: Expr,
         /// The key used to access the map.
-        key: ExpressionBox,
+        key: Expr,
     },
     /// Ds Grid access.
     Grid {
         /// The grid being accessed.
-        left: ExpressionBox,
+        left: Expr,
         /// The `x` value being passed in.
-        index_one: ExpressionBox,
+        index_one: Expr,
         /// The `y` value being passed in.
-        index_two: ExpressionBox,
+        index_two: Expr,
     },
     /// Ds List access.
     List {
         /// The list being accessed.
-        left: ExpressionBox,
+        left: Expr,
         /// The index being accessed out of the list.
-        index: ExpressionBox,
+        index: Expr,
     },
     /// Struct access. This is not dot-notation, this is specifically when the user uses `foo[$
     /// "bar"]`.
     Struct {
         /// The struct being accessed.
-        left: ExpressionBox,
+        left: Expr,
         /// The key being used to access the struct.
-        key: ExpressionBox,
+        key: Expr,
     },
 }
-impl From<Access> for Expression {
+impl From<Access> for ExprType {
     fn from(access: Access) -> Self {
         Self::Access(access)
     }
 }
-impl IntoExpressionBox for Access {}
+impl IntoExpr for Access {}
 impl ParseVisitor for Access {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         match self {
             Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
             Access::Dot { left, right }
@@ -117,7 +117,7 @@ impl ParseVisitor for Access {
             }
         }
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         match self {
             Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
             Access::Dot { left, right }
@@ -151,6 +151,6 @@ impl ParseVisitor for Access {
         }
     }
 
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }

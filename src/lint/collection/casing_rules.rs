@@ -1,8 +1,7 @@
 use crate::{
-    lint::{EarlyExpressionPass, EarlyStatementPass, Lint, LintLevel},
+    lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
-        Access, Expression, ExpressionBox, Function, Globalvar, Identifier, Literal, LocalVariableSeries, Macro,
-        Statement, StatementBox,
+        Access, Expr, ExprType, Function, Globalvar, Identifier, Literal, LocalVariableSeries, Macro, Stmt, StmtType,
     },
     Casing, Config, FileId,
 };
@@ -45,36 +44,26 @@ impl CasingRules {
     }
 }
 
-impl EarlyExpressionPass for CasingRules {
-    fn visit_expression_early(
-        expression_box: &ExpressionBox,
-        config: &Config,
-        reports: &mut Vec<Diagnostic<crate::FileId>>,
-    ) {
-        match expression_box.expression() {
-            Expression::FunctionDeclaration(Function {
+impl EarlyExprPass for CasingRules {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<crate::FileId>>) {
+        match expr.inner() {
+            ExprType::FunctionDeclaration(Function {
                 name: Some(name),
                 constructor: Some(_),
                 ..
             }) => Self::check_for(
                 name,
                 config.casing_rules.constructor_rule,
-                expression_box.file_id(),
+                expr.file_id(),
                 config,
                 reports,
             ),
-            Expression::FunctionDeclaration(Function {
+            ExprType::FunctionDeclaration(Function {
                 name: Some(name),
                 constructor: None,
                 ..
-            }) => Self::check_for(
-                name,
-                config.casing_rules.function_rule,
-                expression_box.file_id(),
-                config,
-                reports,
-            ),
-            Expression::Literal(Literal::Struct(members)) => {
+            }) => Self::check_for(name, config.casing_rules.function_rule, expr.file_id(), config, reports),
+            ExprType::Literal(Literal::Struct(members)) => {
                 for member in members {
                     // an infuriating exception because gm itself is not consistent
                     if member.0.lexeme == "toString" {
@@ -83,17 +72,17 @@ impl EarlyExpressionPass for CasingRules {
                     Self::check_for(
                         &member.0,
                         config.casing_rules.struct_field,
-                        expression_box.file_id(),
+                        expr.file_id(),
                         config,
                         reports,
                     );
                 }
             }
-            Expression::Access(Access::Global { right, .. }) => {
+            ExprType::Access(Access::Global { right, .. }) => {
                 Self::check_for(
-                    right.expression().as_identifier().unwrap(),
+                    right.inner().as_identifier().unwrap(),
                     config.casing_rules.global_rule,
-                    expression_box.file_id(),
+                    expr.file_id(),
                     config,
                     reports,
                 );
@@ -103,21 +92,17 @@ impl EarlyExpressionPass for CasingRules {
     }
 }
 
-impl EarlyStatementPass for CasingRules {
-    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match statement_box.statement() {
-            Statement::MacroDeclaration(Macro { name, .. }) => Self::check_for(
-                name,
-                config.casing_rules.macro_rule,
-                statement_box.file_id(),
-                config,
-                reports,
-            ),
-            Statement::EnumDeclaration(gml_enum) => {
+impl EarlyStmtPass for CasingRules {
+    fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        match stmt.inner() {
+            StmtType::MacroDeclaration(Macro { name, .. }) => {
+                Self::check_for(name, config.casing_rules.macro_rule, stmt.file_id(), config, reports)
+            }
+            StmtType::EnumDeclaration(gml_enum) => {
                 Self::check_for(
                     &gml_enum.name,
                     config.casing_rules.enum_rule,
-                    statement_box.file_id(),
+                    stmt.file_id(),
                     config,
                     reports,
                 );
@@ -125,25 +110,21 @@ impl EarlyStatementPass for CasingRules {
                     Self::check_for(
                         member.name_identifier(),
                         config.casing_rules.enum_member_rule,
-                        statement_box.file_id(),
+                        stmt.file_id(),
                         config,
                         reports,
                     );
                 }
             }
-            Statement::GlobalvarDeclaration(Globalvar { name }) => Self::check_for(
-                name,
-                config.casing_rules.global_rule,
-                statement_box.file_id(),
-                config,
-                reports,
-            ),
-            Statement::LocalVariableSeries(LocalVariableSeries { declarations }) => {
+            StmtType::GlobalvarDeclaration(Globalvar { name }) => {
+                Self::check_for(name, config.casing_rules.global_rule, stmt.file_id(), config, reports)
+            }
+            StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for member in declarations.iter() {
                     Self::check_for(
                         member.name_identifier(),
                         config.casing_rules.local_var_rule,
-                        statement_box.file_id(),
+                        stmt.file_id(),
                         config,
                         reports,
                     );

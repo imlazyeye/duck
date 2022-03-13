@@ -1,28 +1,28 @@
-use super::StatementBox;
+use super::Stmt;
 
 /// A collection of statements.
 #[derive(Debug, Clone)]
 pub struct Ast {
-    statements: Vec<StatementBox>,
+    stmts: Vec<Stmt>,
 }
 impl Ast {
     /// Creates a new Ast with the given statements.
-    pub fn new(statements: Vec<StatementBox>) -> Self {
-        Self { statements }
+    pub fn new(stmts: Vec<Stmt>) -> Self {
+        Self { stmts }
     }
 
     /// Consumes the Ast into its inner collection of statements.
-    pub fn unpack(self) -> Vec<StatementBox> {
-        self.statements
+    pub fn unpack(self) -> Vec<Stmt> {
+        self.stmts
     }
 
     /// Get a reference to the ast's statements.
-    pub fn statements(&self) -> &[StatementBox] {
-        self.statements.as_ref()
+    pub fn stmts(&self) -> &[Stmt] {
+        self.stmts.as_ref()
     }
 
     /// Get a mutable reference to the ast's statements.
-    pub fn statements_mut(&mut self) -> &mut Vec<StatementBox> {
-        &mut self.statements
+    pub fn stmts_mut(&mut self) -> &mut Vec<Stmt> {
+        &mut self.stmts
     }
 }

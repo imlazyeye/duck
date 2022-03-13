@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Equality, Expression, ExpressionBox},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Equality, Expr, ExprType},
     Config, FileId,
 };
 
@@ -23,14 +23,14 @@ impl Lint for InvalidEquality {
 }
 
 impl InvalidEquality {
-    fn test_expr(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        let is_valid = !matches!(expression_box.expression(), Expression::FunctionDeclaration(_));
+    fn test_expr(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        let is_valid = !matches!(expr.inner(), ExprType::FunctionDeclaration(_));
         if !is_valid {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Invalid equality")
                     .with_labels(vec![
-                        Label::primary(expression_box.file_id(), expression_box.span())
+                        Label::primary(expr.file_id(), expr.span())
                             .with_message("cannot check for equality with a function declaration"),
                     ]),
             );
@@ -38,9 +38,9 @@ impl InvalidEquality {
     }
 }
 
-impl EarlyExpressionPass for InvalidEquality {
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Equality(Equality { left, right, .. }) = expression_box.expression() {
+impl EarlyExprPass for InvalidEquality {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Equality(Equality { left, right, .. }) = expr.inner() {
             Self::test_expr(left, config, reports);
             Self::test_expr(right, config, reports);
         }

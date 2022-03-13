@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel},
-    parse::{Statement, StatementBox},
+    lint::{EarlyStmtPass, Lint, LintLevel},
+    parse::{Stmt, StmtType},
     FileId,
 };
 
@@ -22,17 +22,13 @@ impl Lint for TryCatch {
     }
 }
 
-impl EarlyStatementPass for TryCatch {
-    fn visit_statement_early(
-        statement_box: &StatementBox,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-    ) {
-        if let Statement::TryCatch(..) = statement_box.statement() {
+impl EarlyStmtPass for TryCatch {
+    fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::TryCatch(..) = stmt.inner() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of `try` / `catch`")
-                    .with_labels(vec![Label::primary(statement_box.file_id(), statement_box.span())]),
+                    .with_labels(vec![Label::primary(stmt.file_id(), stmt.span())]),
             );
         }
     }

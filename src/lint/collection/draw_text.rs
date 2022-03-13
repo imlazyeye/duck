@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Call, Expression, ExpressionBox},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Call, Expr, ExprType},
     Config, FileId,
 };
 
@@ -22,10 +22,10 @@ impl Lint for DrawText {
     }
 }
 
-impl EarlyExpressionPass for DrawText {
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Call(Call { left, .. }) = expression_box.expression() {
-            if let Expression::Identifier(identifier) = left.expression() {
+impl EarlyExprPass for DrawText {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Call(Call { left, .. }) = expr.inner() {
+            if let ExprType::Identifier(identifier) = left.inner() {
                 if gm_draw_text_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)

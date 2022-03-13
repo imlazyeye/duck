@@ -10,7 +10,7 @@ use crate::{
 fn harness_valid(source: &'static str) {
     let parser = Parser::new(source, 0).into_ast();
     assert!(
-        parser.map_or(false, |v| v.statements().len() == 1),
+        parser.map_or(false, |v| v.stmts().len() == 1),
         "`{}` was invalid!",
         source
     )
@@ -19,7 +19,7 @@ fn harness_valid(source: &'static str) {
 fn harness_valid_but_linted<T: Lint>(source: &'static str) {
     let parser = Parser::new(source, 0).into_ast();
     assert!(
-        parser.map_or(false, |v| v.statements().len() == 1),
+        parser.map_or(false, |v| v.stmts().len() == 1),
         "`{}` was invalid!",
         source
     );
@@ -28,11 +28,7 @@ fn harness_valid_but_linted<T: Lint>(source: &'static str) {
 
 fn harness_invalid(source: &'static str) {
     let parser = Parser::new(source, 0).into_ast();
-    assert!(
-        parser.map_or(true, |v| v.statements().len() != 1),
-        "`{}` was valid!",
-        source
-    )
+    assert!(parser.map_or(true, |v| v.stmts().len() != 1), "`{}` was valid!", source)
 }
 
 /// The following are tests assert the validity of normal assignments. They do *not* assert

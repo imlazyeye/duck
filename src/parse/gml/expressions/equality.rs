@@ -1,38 +1,38 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, StatementBox, Token};
+use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of a equality expression in gml.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Equality {
     /// The left hand side of the equality.
-    pub left: ExpressionBox,
+    pub left: Expr,
     /// The operator used in this equality.
     pub operator: EqualityOperator,
     /// The right hand side of the equality.
-    pub right: ExpressionBox,
+    pub right: Expr,
 }
 impl Equality {
     /// Creates a new equality.
-    pub fn new(left: ExpressionBox, operator: EqualityOperator, right: ExpressionBox) -> Self {
+    pub fn new(left: Expr, operator: EqualityOperator, right: Expr) -> Self {
         Self { left, operator, right }
     }
 }
-impl From<Equality> for Expression {
+impl From<Equality> for ExprType {
     fn from(equality: Equality) -> Self {
         Self::Equality(equality)
     }
 }
-impl IntoExpressionBox for Equality {}
+impl IntoExpr for Equality {}
 impl ParseVisitor for Equality {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut visitor: E) {
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         visitor(&self.left);
         visitor(&self.right);
     }
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, mut visitor: E) {
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         visitor(&mut self.left);
         visitor(&mut self.right);
     }
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }
 
 /// The various equality operations supported in gml.

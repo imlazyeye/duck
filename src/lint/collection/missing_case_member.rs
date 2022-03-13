@@ -1,7 +1,7 @@
 use crate::{
     analyze::GlobalScope,
-    lint::{LateStatementPass, Lint, LintLevel},
-    parse::{OptionalInitilization, Statement, StatementBox},
+    lint::{LateStmtPass, Lint, LintLevel},
+    parse::{OptionalInitilization, Stmt, StmtType},
     FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -23,14 +23,14 @@ impl Lint for MissingCaseMember {
     }
 }
 
-impl LateStatementPass for MissingCaseMember {
-    fn visit_statement_late(
-        statement_box: &StatementBox,
+impl LateStmtPass for MissingCaseMember {
+    fn visit_stmt_late(
+        stmt: &Stmt,
         config: &crate::Config,
         reports: &mut Vec<Diagnostic<FileId>>,
         global_scope: &GlobalScope,
     ) {
-        if let Statement::Switch(switch) = statement_box.statement() {
+        if let StmtType::Switch(switch) = stmt.inner() {
             // Ignore switches that don't pertain to this lint
             // TODO: Check for user supplied crash calls here, and enable the lint if they're in the default
             // body!
@@ -59,7 +59,7 @@ impl LateStatementPass for MissingCaseMember {
             for case in switch.cases().iter() {
                 // Retrieve the dot access (we made sure this `unwrap` is safe with
                 // `all_case_members_dot_access` earlier!)
-                let (left, right) = case.identity().expression().as_dot_access().unwrap();
+                let (left, right) = case.identity().inner().as_dot_access().unwrap();
 
                 // We are not safe to assume that the left and right are identifiers.
                 if let Some(this_identity_enum) = left.as_identifier() {
@@ -90,13 +90,12 @@ impl LateStatementPass for MissingCaseMember {
 
             // If we have any, make a report!
             if !missing_members.is_empty() {
-                let mut labels = vec![
-                    Label::primary(statement_box.file_id(), statement_box.span()).with_message("this switch statement"),
-                ];
+                let mut labels =
+                    vec![Label::primary(stmt.file_id(), stmt.span()).with_message("this switch statement")];
                 let mut notes = vec![];
                 for (i, member) in missing_members.iter().enumerate() {
                     labels.push(
-                        Label::secondary(member.name_expression().file_id(), member.name_expression().span())
+                        Label::secondary(member.name_expr().file_id(), member.name_expr().span())
                             .with_message(format!("missing {}, which is defined here", member.name())),
                     );
                     if i == 2 && missing_members.len() > 3 {

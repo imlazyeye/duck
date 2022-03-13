@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Equality, EqualityOperator, Expression, ExpressionBox, Token, TokenType},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Equality, EqualityOperator, Expr, ExprType, Token, TokenType},
     Config, FileId,
 };
 
@@ -22,22 +22,22 @@ impl Lint for SingleEqualsComparison {
     }
 }
 
-impl EarlyExpressionPass for SingleEqualsComparison {
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Equality(Equality {
+impl EarlyExprPass for SingleEqualsComparison {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Equality(Equality {
             operator:
                 EqualityOperator::Equal(Token {
                     token_type: TokenType::Equal,
                     span,
                 }),
             ..
-        }) = expression_box.expression()
+        }) = expr.inner()
         {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Comparison with `=`")
                     .with_labels(vec![
-                        Label::primary(expression_box.file_id(), *span).with_message("use `==` instead of `=`"),
+                        Label::primary(expr.file_id(), *span).with_message("use `==` instead of `=`"),
                     ]),
             );
         }

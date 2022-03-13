@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel},
-    parse::{If, Statement, StatementBox},
+    lint::{EarlyStmtPass, Lint, LintLevel},
+    parse::{If, Stmt, StmtType},
     Config, FileId,
 };
 
@@ -22,27 +22,24 @@ impl Lint for CollapsableIf {
     }
 }
 
-impl EarlyStatementPass for CollapsableIf {
-    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Statement::If(If {
+impl EarlyStmtPass for CollapsableIf {
+    fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::If(If {
             body: first_body,
-            else_statement: None,
+            else_stmt: None,
             ..
-        }) = statement_box.statement()
+        }) = stmt.inner()
         {
-            if let Some(block) = first_body.statement().as_block().filter(|block| block.body.len() == 1) {
-                let nested_statement = block.body.first().unwrap();
-                if let Statement::If(If {
-                    else_statement: None, ..
-                }) = nested_statement.statement()
-                {
+            if let Some(block) = first_body.inner().as_block().filter(|block| block.body.len() == 1) {
+                let nested_stmt = block.body.first().unwrap();
+                if let StmtType::If(If { else_stmt: None, .. }) = nested_stmt.inner() {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Collapsable if statement")
                             .with_labels(vec![
-                                Label::secondary(nested_statement.file_id(), nested_statement.span())
+                                Label::secondary(nested_stmt.file_id(), nested_stmt.span())
                                     .with_message("nested if statement"),
-                                Label::primary(statement_box.file_id(), statement_box.span())
+                                Label::primary(stmt.file_id(), stmt.span())
                                     .with_message("this can be combined with the nested if statement"),
                             ]),
                     )

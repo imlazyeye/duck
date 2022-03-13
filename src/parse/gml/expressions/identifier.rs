@@ -1,4 +1,4 @@
-use crate::parse::{Expression, ExpressionBox, IntoExpressionBox, ParseVisitor, Span, StatementBox};
+use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Span, Stmt};
 
 /// Representation of an identifier in gml, which could be any variable.
 #[derive(Debug, PartialEq, Clone)]
@@ -23,15 +23,15 @@ impl Identifier {
         Self::new(lexeme, Span::default())
     }
 }
-impl From<Identifier> for Expression {
+impl From<Identifier> for ExprType {
     fn from(iden: Identifier) -> Self {
         Self::Identifier(iden)
     }
 }
-impl IntoExpressionBox for Identifier {}
+impl IntoExpr for Identifier {}
 impl ParseVisitor for Identifier {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut _visitor: E) {}
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, _visitor: E) {}
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut _visitor: E) {}
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, _visitor: E) {}
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }

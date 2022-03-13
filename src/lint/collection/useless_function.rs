@@ -2,8 +2,8 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use colored::Colorize;
 
 use crate::{
-    lint::{EarlyStatementPass, Lint, LintLevel},
-    parse::{Expression, Function, Statement, StatementBox},
+    lint::{EarlyStmtPass, Lint, LintLevel},
+    parse::{ExprType, Function, Stmt, StmtType},
     Config, FileId,
 };
 
@@ -23,15 +23,15 @@ impl Lint for UselessFunction {
     }
 }
 
-impl EarlyStatementPass for UselessFunction {
-    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Statement::Expression(expression_box) = statement_box.statement() {
-            if let Expression::FunctionDeclaration(Function { name: None, .. }) = expression_box.expression() {
+impl EarlyStmtPass for UselessFunction {
+    fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let StmtType::Expr(expr) = stmt.inner() {
+            if let ExprType::FunctionDeclaration(Function { name: None, .. }) = expr.inner() {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Useless function")
                         .with_labels(vec![
-                            Label::primary(expression_box.file_id(), expression_box.span())
+                            Label::primary(expr.file_id(), expr.span())
                                 .with_message("this function can never be referenced"),
                         ])
                         .with_notes(vec![format!(

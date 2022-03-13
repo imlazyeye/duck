@@ -1,6 +1,6 @@
 use crate::{
     analyze::GlobalScope,
-    parse::{ExpressionBox, StatementBox},
+    parse::{Expr, Stmt},
     Config, FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
@@ -45,40 +45,30 @@ pub trait Lint {
 
 /// Lints who run an early pass on statements (before type information has been
 /// collected).
-pub trait EarlyStatementPass {
+pub trait EarlyStmtPass {
     /// Runs on statements in the early pass.
-    fn visit_statement_early(statement_box: &StatementBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>);
+    fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>);
 }
 
 /// Lints who run an early pass on expressions (before type information has been
 /// collected).
-pub trait EarlyExpressionPass {
+pub trait EarlyExprPass {
     /// Runs on expressions in the early pass.
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>);
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>);
 }
 
 /// Lints who run a late pass on statements (after type information has been
 /// collected).
-pub trait LateStatementPass {
+pub trait LateStmtPass {
     /// Runs on statements in the late pass.
-    fn visit_statement_late(
-        statement_box: &StatementBox,
-        config: &Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-        global_scope: &GlobalScope,
-    );
+    fn visit_stmt_late(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>, global_scope: &GlobalScope);
 }
 
 /// Lints who run a late pass on expresions (after type information has been
 /// collected).
-pub trait LateExpressionPass {
+pub trait LateExprPass {
     /// Runs on expressions in the late pass.
-    fn visit_expression_late(
-        expression_box: &ExpressionBox,
-        config: &Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-        global_scope: &GlobalScope,
-    );
+    fn visit_expr_late(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>, global_scope: &GlobalScope);
 }
 
 /// The three different levels a lint can be set to, changing how it will be

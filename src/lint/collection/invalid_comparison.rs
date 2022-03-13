@@ -1,8 +1,8 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
-    lint::{EarlyExpressionPass, Lint, LintLevel},
-    parse::{Expression, ExpressionBox, Logical},
+    lint::{EarlyExprPass, Lint, LintLevel},
+    parse::{Expr, ExprType, Logical},
     Config, FileId,
 };
 
@@ -22,14 +22,14 @@ impl Lint for InvalidComparison {
     }
 }
 impl InvalidComparison {
-    fn test_expr(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        let is_valid = !matches!(expression_box.expression(), Expression::FunctionDeclaration(_));
+    fn test_expr(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        let is_valid = !matches!(expr.inner(), ExprType::FunctionDeclaration(_));
         if !is_valid {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Invalid comparison")
                     .with_labels(vec![
-                        Label::primary(expression_box.file_id(), expression_box.span())
+                        Label::primary(expr.file_id(), expr.span())
                             .with_message("cannot compare a value with a function declaration"),
                     ]),
             );
@@ -37,9 +37,9 @@ impl InvalidComparison {
     }
 }
 
-impl EarlyExpressionPass for InvalidComparison {
-    fn visit_expression_early(expression_box: &ExpressionBox, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Expression::Logical(Logical { left, right, .. }) = expression_box.expression() {
+impl EarlyExprPass for InvalidComparison {
+    fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+        if let ExprType::Logical(Logical { left, right, .. }) = expr.inner() {
             Self::test_expr(left, config, reports);
             Self::test_expr(right, config, reports);
         }

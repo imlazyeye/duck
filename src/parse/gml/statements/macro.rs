@@ -1,4 +1,4 @@
-use crate::parse::{ExpressionBox, Identifier, IntoStatementBox, ParseVisitor, Statement, StatementBox};
+use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtType};
 
 /// Representation of a macro declaration in gml.
 ///
@@ -38,15 +38,15 @@ impl Macro {
         }
     }
 }
-impl From<Macro> for Statement {
+impl From<Macro> for StmtType {
     fn from(mac: Macro) -> Self {
         Self::MacroDeclaration(mac)
     }
 }
-impl IntoStatementBox for Macro {}
+impl IntoStmt for Macro {}
 impl ParseVisitor for Macro {
-    fn visit_child_expressions<E: FnMut(&ExpressionBox)>(&self, mut _visitor: E) {}
-    fn visit_child_expressions_mut<E: FnMut(&mut ExpressionBox)>(&mut self, _visitor: E) {}
-    fn visit_child_statements<S: FnMut(&StatementBox)>(&self, mut _visitor: S) {}
-    fn visit_child_statements_mut<S: FnMut(&mut StatementBox)>(&mut self, _visitor: S) {}
+    fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut _visitor: E) {}
+    fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, _visitor: E) {}
+    fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
+    fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }
