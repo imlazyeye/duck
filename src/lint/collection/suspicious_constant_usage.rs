@@ -3,8 +3,8 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
-        Assignment, AssignmentOperator, Equality, EqualityOperator, Evaluation, EvaluationOperator, Expr, ExprType,
-        Literal, Logical, LogicalOperator, Stmt, StmtType,
+        Assignment, AssignmentOperator, Equality, EqualityOperator, Evaluation, EvaluationOp, Expr, ExprType, Literal,
+        Logical, LogicalOperator, Stmt, StmtType,
     },
     FileId,
 };
@@ -115,11 +115,11 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) 
                         ),
                         OperationWrapper::Evaluation(op) => !matches!(
                             op,
-                            EvaluationOperator::And(_)
-                                | EvaluationOperator::Or(_)
-                                | EvaluationOperator::Xor(_)
-                                | EvaluationOperator::BitShiftLeft(_)
-                                | EvaluationOperator::BitShiftRight(_)
+                            EvaluationOp::And(_)
+                                | EvaluationOp::Or(_)
+                                | EvaluationOp::Xor(_)
+                                | EvaluationOp::BitShiftLeft(_)
+                                | EvaluationOp::BitShiftRight(_)
                         ),
                         OperationWrapper::Logical(_) => true,
                         OperationWrapper::Equality(_) => true,
@@ -136,7 +136,7 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) 
 
 enum OperationWrapper {
     Assignment(AssignmentOperator),
-    Evaluation(EvaluationOperator),
+    Evaluation(EvaluationOp),
     Logical(LogicalOperator),
     Equality(EqualityOperator),
 }

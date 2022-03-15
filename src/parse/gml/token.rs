@@ -3,7 +3,7 @@
 use crate::parse::Span;
 
 use super::{
-    AssignmentOperator, EqualityOperator, EvaluationOperator, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
+    AssignmentOperator, EqualityOperator, EvaluationOp, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
 };
 
 /// A combination of a TokenType and the Span it originates from.
@@ -42,19 +42,19 @@ impl Token {
     }
 
     /// Returns a [EvaluationOperator] corresponding to this Token, if possible.
-    pub fn as_evaluation_operator(&self) -> Option<EvaluationOperator> {
+    pub fn as_evaluation_operator(&self) -> Option<EvaluationOp> {
         match self.token_type {
-            TokenType::Plus => Some(EvaluationOperator::Plus(*self)),
-            TokenType::Minus => Some(EvaluationOperator::Minus(*self)),
-            TokenType::Slash => Some(EvaluationOperator::Slash(*self)),
-            TokenType::Star => Some(EvaluationOperator::Star(*self)),
-            TokenType::Div => Some(EvaluationOperator::Div(*self)),
-            TokenType::Mod | TokenType::Percent => Some(EvaluationOperator::Modulo(*self)),
-            TokenType::Ampersand => Some(EvaluationOperator::And(*self)),
-            TokenType::Pipe => Some(EvaluationOperator::Or(*self)),
-            TokenType::Circumflex => Some(EvaluationOperator::Xor(*self)),
-            TokenType::BitShiftLeft => Some(EvaluationOperator::BitShiftLeft(*self)),
-            TokenType::BitShiftRight => Some(EvaluationOperator::BitShiftRight(*self)),
+            TokenType::Plus => Some(EvaluationOp::Plus(*self)),
+            TokenType::Minus => Some(EvaluationOp::Minus(*self)),
+            TokenType::Slash => Some(EvaluationOp::Slash(*self)),
+            TokenType::Star => Some(EvaluationOp::Star(*self)),
+            TokenType::Div => Some(EvaluationOp::Div(*self)),
+            TokenType::Mod | TokenType::Percent => Some(EvaluationOp::Modulo(*self)),
+            TokenType::Ampersand => Some(EvaluationOp::And(*self)),
+            TokenType::Pipe => Some(EvaluationOp::Or(*self)),
+            TokenType::Circumflex => Some(EvaluationOp::Xor(*self)),
+            TokenType::BitShiftLeft => Some(EvaluationOp::BitShiftLeft(*self)),
+            TokenType::BitShiftRight => Some(EvaluationOp::BitShiftRight(*self)),
             _ => None,
         }
     }

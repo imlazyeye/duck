@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Evaluation, EvaluationOperator, Expr, ExprType, TokenType},
+    parse::{Evaluation, EvaluationOp, Expr, ExprType, TokenType},
     Config, FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for ModPreference {
 impl EarlyExprPass for ModPreference {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let ExprType::Evaluation(Evaluation {
-            operator: EvaluationOperator::Modulo(token),
+            operator: EvaluationOp::Modulo(token),
             ..
         }) = expr.inner()
         {

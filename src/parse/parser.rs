@@ -514,9 +514,7 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::And(_))
-                        | Some(EvaluationOperator::Or(_))
-                        | Some(EvaluationOperator::Xor(_))
+                    Some(EvaluationOp::And(_)) | Some(EvaluationOp::Or(_)) | Some(EvaluationOp::Xor(_))
                 )
             })
             .flatten()
@@ -539,7 +537,7 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::BitShiftLeft(_)) | Some(EvaluationOperator::BitShiftRight(_))
+                    Some(EvaluationOp::BitShiftLeft(_)) | Some(EvaluationOp::BitShiftRight(_))
                 )
             })
             .flatten()
@@ -562,10 +560,10 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::Plus(Token {
+                    Some(EvaluationOp::Plus(Token {
                         token_type: TokenType::Plus,
                         ..
-                    })) | Some(EvaluationOperator::Minus(Token {
+                    })) | Some(EvaluationOp::Minus(Token {
                         token_type: TokenType::Minus,
                         ..
                     }))
@@ -591,10 +589,10 @@ impl Parser {
             .filter(|operator| {
                 matches!(
                     operator,
-                    Some(EvaluationOperator::Star(_))
-                        | Some(EvaluationOperator::Slash(_))
-                        | Some(EvaluationOperator::Div(_))
-                        | Some(EvaluationOperator::Modulo(_))
+                    Some(EvaluationOp::Star(_))
+                        | Some(EvaluationOp::Slash(_))
+                        | Some(EvaluationOp::Div(_))
+                        | Some(EvaluationOp::Modulo(_))
                 )
             })
             .flatten()

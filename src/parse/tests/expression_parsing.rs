@@ -173,7 +173,7 @@ fn addition() {
         "1 + 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Plus(Token::lazy(TokenType::Plus)),
+            EvaluationOp::Plus(Token::lazy(TokenType::Plus)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -185,7 +185,7 @@ fn subtraction() {
         "1 - 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Minus(Token::lazy(TokenType::Minus)),
+            EvaluationOp::Minus(Token::lazy(TokenType::Minus)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -197,7 +197,7 @@ fn multiplication() {
         "1 * 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Star(Token::lazy(TokenType::Star)),
+            EvaluationOp::Star(Token::lazy(TokenType::Star)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -209,7 +209,7 @@ fn division() {
         "1 / 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Slash(Token::lazy(TokenType::Slash)),
+            EvaluationOp::Slash(Token::lazy(TokenType::Slash)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -221,7 +221,7 @@ fn modulo() {
         "1 mod 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Modulo(Token::lazy(TokenType::Mod)),
+            EvaluationOp::Modulo(Token::lazy(TokenType::Mod)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -229,7 +229,7 @@ fn modulo() {
         "1 % 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Modulo(Token::lazy(TokenType::Percent)),
+            EvaluationOp::Modulo(Token::lazy(TokenType::Percent)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -241,7 +241,7 @@ fn div() {
         "1 div 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Div(Token::lazy(TokenType::Div)),
+            EvaluationOp::Div(Token::lazy(TokenType::Div)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -253,7 +253,7 @@ fn bitwise_and() {
         "1 & 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::And(Token::lazy(TokenType::Ampersand)),
+            EvaluationOp::And(Token::lazy(TokenType::Ampersand)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -265,7 +265,7 @@ fn bitwise_or() {
         "1 | 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Or(Token::lazy(TokenType::Pipe)),
+            EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -277,10 +277,10 @@ fn bitwise_chain() {
         "1 | 1 | 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Or(Token::lazy(TokenType::Pipe)),
+            EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
             Evaluation::new(
                 Literal::Real(1.0).into_expr_lazy(),
-                EvaluationOperator::Or(Token::lazy(TokenType::Pipe)),
+                EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -294,7 +294,7 @@ fn bitwise_xor() {
         "1 ^ 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::Xor(Token::lazy(TokenType::Circumflex)),
+            EvaluationOp::Xor(Token::lazy(TokenType::Circumflex)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -310,7 +310,7 @@ fn dot_access_bitwise() {
                 right: Identifier::lazy("bar").into_expr_lazy(),
             }
             .into_expr_lazy(),
-            EvaluationOperator::Or(Token::lazy(TokenType::Pipe)),
+            EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
             Access::Dot {
                 left: Identifier::lazy("foo").into_expr_lazy(),
                 right: Identifier::lazy("bar").into_expr_lazy(),
@@ -326,7 +326,7 @@ fn bit_shift_left() {
         "1 << 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::BitShiftLeft(Token::lazy(TokenType::BitShiftLeft)),
+            EvaluationOp::BitShiftLeft(Token::lazy(TokenType::BitShiftLeft)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -338,7 +338,7 @@ fn bit_shift_right() {
         "1 >> 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOperator::BitShiftRight(Token::lazy(TokenType::BitShiftRight)),
+            EvaluationOp::BitShiftRight(Token::lazy(TokenType::BitShiftRight)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -366,19 +366,19 @@ fn combo_math() {
                     Evaluation::new(
                         Evaluation::new(
                             Literal::Real(1.0).into_expr_lazy(),
-                            EvaluationOperator::Star(Token::lazy(TokenType::Star)),
+                            EvaluationOp::Star(Token::lazy(TokenType::Star)),
                             Literal::Real(1.0).into_expr_lazy(),
                         )
                         .into_expr_lazy(),
-                        EvaluationOperator::Plus(Token::lazy(TokenType::Plus)),
+                        EvaluationOp::Plus(Token::lazy(TokenType::Plus)),
                         Literal::Real(1.0).into_expr_lazy(),
                     )
                     .into_expr_lazy(),
-                    EvaluationOperator::BitShiftRight(Token::lazy(TokenType::BitShiftRight)),
+                    EvaluationOp::BitShiftRight(Token::lazy(TokenType::BitShiftRight)),
                     Literal::Real(1.0).into_expr_lazy(),
                 )
                 .into_expr_lazy(),
-                EvaluationOperator::And(Token::lazy(TokenType::Ampersand)),
+                EvaluationOp::And(Token::lazy(TokenType::Ampersand)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -1044,7 +1044,7 @@ fn nested_grouping() {
         Grouping::lazy(
             Evaluation::new(
                 Grouping::lazy(Literal::Real(0.0).into_expr_lazy()).into_expr_lazy(),
-                EvaluationOperator::Star(Token::lazy(TokenType::Star)),
+                EvaluationOp::Star(Token::lazy(TokenType::Star)),
                 Literal::Real(0.0).into_expr_lazy(),
             )
             .into_expr_lazy(),

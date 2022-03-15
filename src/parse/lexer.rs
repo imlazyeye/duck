@@ -363,7 +363,6 @@ impl Lexer {
                     }
                 }
 
-                // Literally anything else!
                 invalid => {
                     // this is chill, I promise
                     let tmp = Box::leak(Box::new([0u8; 4]));

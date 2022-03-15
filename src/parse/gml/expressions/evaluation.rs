@@ -6,13 +6,13 @@ pub struct Evaluation {
     /// The left hand side of the evaluation.
     pub left: Expr,
     /// The operator used in this evaluation.
-    pub operator: EvaluationOperator,
+    pub operator: EvaluationOp,
     /// The right hand side of the evaluation.
     pub right: Expr,
 }
 impl Evaluation {
     /// Creates a new evaluation.
-    pub fn new(left: Expr, operator: EvaluationOperator, right: Expr) -> Self {
+    pub fn new(left: Expr, operator: EvaluationOp, right: Expr) -> Self {
         Self { left, operator, right }
     }
 }
@@ -37,7 +37,7 @@ impl ParseVisitor for Evaluation {
 
 /// The various evaluation operations supported in gml.
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum EvaluationOperator {
+pub enum EvaluationOp {
     /// +
     Plus(Token),
     /// -
