@@ -7,7 +7,6 @@ use hashbrown::HashMap;
 pub struct TypeWriter {
     pub scope: HashMap<String, Marker>,
     pub constraints: Vec<Constraint>,
-    pub substitutions: HashMap<Marker, Type>,
     pub alias_iter: u64,
 }
 impl TypeWriter {
@@ -25,44 +24,47 @@ impl TypeWriter {
         }
 
         // Sub everything
-        while let Some(Constraint::Eq(marker, tpe)) = self.constraints.pop() {
-            self.substitute(marker, &tpe);
+        let mut subs = self.constraints.clone();
+        while let Some(Constraint::Eq(marker, target)) = subs.pop() {
+            self.substitute(marker, &target);
         }
     }
 
-    fn substitute(&mut self, marker: Marker, new_tpe: &Type) {
-        // We accept this new constraint to be a new rule, and thus apply it to all our substitutions
-        for (_, target) in self.substitutions.iter_mut() {
-            Self::update_type(target, marker, new_tpe);
-        }
-
-        // We additionally must apply this new constraint to all future constraints
+    fn substitute(&mut self, marker: Marker, target: &Symbol) {
+        // Apply this target to all future constraints
         for Constraint::Eq(_, con_tpe) in self.constraints.iter_mut() {
-            Self::update_type(con_tpe, marker, new_tpe);
+            Self::update_type(con_tpe, marker, target);
         }
-
-        // Now having applied this substituion, we add it to the collection for future constraints
-        self.substitutions.insert(marker, new_tpe.clone());
     }
 
-    fn update_type(tpe: &mut Type, marker: Marker, new_tpe: &Type) {
-        match tpe {
-            Type::Marker(_) => {
-                if let Type::Marker(inner_marker) = tpe {
-                    if *inner_marker == marker {
-                        *tpe = new_tpe.clone();
+    fn update_type(symbol: &mut Symbol, marker: Marker, new_target: &Symbol) {
+        match symbol {
+            Symbol::Variable(inner_marker) => {
+                if *inner_marker == marker {
+                    *symbol = new_target.clone();
+                }
+            }
+            Symbol::Constant(inner_tpe) => match inner_tpe {
+                Type::Array(inner_symbol) => Self::update_type(inner_symbol.as_mut(), marker, new_target),
+                Type::Struct(fields) => {
+                    for (_, field_symbol) in fields {
+                        Self::update_type(field_symbol, marker, new_target);
+                    }
+                }
+                _ => {}
+            },
+            Symbol::Deref(inner_marker) => {
+                if *inner_marker == marker {
+                    match new_target {
+                        Symbol::Constant(tpe) => match tpe {
+                            Type::Array(inner_symbol) => *symbol = inner_symbol.as_ref().clone(),
+                            _ => panic!("cannot deref {:?}", tpe),
+                        },
+                        Symbol::Variable(new_marker) => *inner_marker = *new_marker,
+                        Symbol::Deref(_) => unreachable!("i think?"),
                     }
                 }
             }
-            Type::Array(inner_tpe) => {
-                Self::update_type(inner_tpe.as_mut(), marker, new_tpe);
-            }
-            Type::Struct(fields) => {
-                for (_, field_tpe) in fields {
-                    Self::update_type(field_tpe, marker, new_tpe);
-                }
-            }
-            _ => {}
         }
     }
 
@@ -84,7 +86,7 @@ impl TypeWriter {
 
                         // Constrain it to the rhs
                         self.constraints
-                            .push(Constraint::Eq(left.marker, Type::Marker(right.marker)));
+                            .push(Constraint::Eq(left.marker, Symbol::Variable(right.marker)));
                     } else {
                         // validate that the new type is equal to the last type? shadowing is a
                         // problem
@@ -158,24 +160,26 @@ impl TypeWriter {
                         index_two,
                         using_accessor,
                     } => {
-                        // validate indexes are real, left is array. result is inner
-                    }
-                    Access::Map { left, key } => {
-                        // validate key is string, left is a ds_map. result is inner
-                    }
-                    Access::Grid {
-                        left,
-                        index_one,
-                        index_two,
-                    } => {
-                        // validate the indexes are real, left is grid. result is inner
-                    }
-                    Access::List { left, index } => {
-                        // validate the index is real, left is list
+                        // our indexes must be real
+                        self.constraints
+                            .push(Constraint::Eq(index_one.marker, Symbol::Constant(Type::Real)));
+                        if let Some(index_two) = index_two {
+                            self.constraints
+                                .push(Constraint::Eq(index_two.marker, Symbol::Constant(Type::Real)));
+                        }
+
+                        // and our lhs must be an array
+                        // self.constraints
+                        //     .push(Constraint::Eq(left.marker, Type::Array(Box::new(Type::Unknown))));
+
+                        // meanwhile, our type is a deref of the left's type
+                        self.constraints
+                            .push(Constraint::Eq(expr.marker, Symbol::Deref(left.marker)));
                     }
                     Access::Struct { left, key } => {
                         // validate the left is a struct, right is key
                     }
+                    _ => todo!(),
                 }
             }
             ExprType::Call(_) => {
@@ -183,7 +187,7 @@ impl TypeWriter {
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.constraints
-                    .push(Constraint::Eq(expr.marker, Type::Marker(inner.marker)));
+                    .push(Constraint::Eq(expr.marker, Symbol::Variable(inner.marker)));
             }
 
             ExprType::Identifier(iden) => {
@@ -204,9 +208,9 @@ impl TypeWriter {
                     Literal::Array(exprs) => {
                         // Infer the type based on the first member
                         if let Some(marker) = exprs.first().map(|expr| expr.marker) {
-                            Type::Array(Box::new(Type::Marker(marker)))
+                            Type::Array(Box::new(Symbol::Variable(marker)))
                         } else {
-                            Type::Array(Box::new(Type::Unknown))
+                            Type::Array(Box::new(Symbol::Constant(Type::Unknown))) // TODO: this will never be resolved
                         }
                     }
                     Literal::Struct(declarations) => {
@@ -214,14 +218,14 @@ impl TypeWriter {
                         // even if we don't know the type of the fields themselves
                         let mut fields = HashMap::default();
                         for declaration in declarations {
-                            fields.insert(declaration.0.lexeme.clone(), Type::Marker(declaration.1.marker));
+                            fields.insert(declaration.0.lexeme.clone(), Symbol::Variable(declaration.1.marker));
                         }
                         Type::Struct(fields)
                     }
                     Literal::Misc(_) => Type::Unknown,
                 };
-                println!("marking {} as {:?}", expr.marker.0, tpe);
-                self.constraints.push(Constraint::Eq(expr.marker, tpe));
+                self.constraints
+                    .push(Constraint::Eq(expr.marker, Symbol::Constant(tpe)));
             }
         }
     }
@@ -239,9 +243,16 @@ impl TypeWriter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Constraint {
-    Eq(Marker, Type),
+    Eq(Marker, Symbol),
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Symbol {
+    Constant(Type),
+    Variable(Marker),
+    Deref(Marker),
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
@@ -256,8 +267,6 @@ impl Marker {
 pub enum Type {
     /// We do not know the type of this symbol
     Unknown,
-    /// This type defers to the type that corresponds to the inner Marker.
-    Marker(Marker),
     /// The GM constant value of `undefined`
     Undefined,
     /// The GM constant value of `noone`
@@ -269,25 +278,24 @@ pub enum Type {
     /// A string of text
     String,
     /// An array containing values of the nested type
-    Array(Box<Type>),
+    Array(Box<Symbol>),
     /// A struct with the given fields
-    Struct(HashMap<String, Type>),
+    Struct(HashMap<String, Symbol>),
 }
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Unknown => f.pad("<?>"),
-            Type::Marker(n) => f.pad(&format!("<Marker: {}>", n.0)),
             Type::Undefined => f.pad("Undefined"),
             Type::Noone => f.pad("Noone"),
             Type::Bool => f.pad("Bool"),
             Type::Real => f.pad("Real"),
             Type::String => f.pad("String"),
-            Type::Array(inner) => f.pad(&format!("{}[]", *inner)),
+            Type::Array(inner) => f.pad(&format!("{:?}[]", *inner)),
             Type::Struct(fields) => {
                 f.pad("{")?;
-                for (name, value) in fields.iter() {
-                    f.pad(&format!(" {}: {},", name, value))?;
+                for (name, symbol) in fields.iter() {
+                    f.pad(&format!(" {name}: {symbol:?},"))?;
                 }
                 f.pad(" }")
             }

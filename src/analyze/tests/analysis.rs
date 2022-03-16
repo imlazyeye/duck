@@ -1,5 +1,9 @@
-use crate::{analyze::TypeWriter, parse::*};
+use crate::{
+    analyze::{Constraint, Marker, Symbol, TypeWriter},
+    parse::*,
+};
 use colored::Colorize;
+use hashbrown::HashSet;
 use pretty_assertions::assert_eq;
 
 fn harness_type(source: &'static str) {
@@ -7,32 +11,37 @@ fn harness_type(source: &'static str) {
     let mut type_writer = TypeWriter::default();
     let mut ast = parser.into_ast().unwrap();
     type_writer.write_types(&mut ast);
-    fn visit_expr(expr: &Expr, type_writer: &TypeWriter, source: &'static str) {
+
+    let mut reported: HashSet<Marker> = HashSet::new();
+    fn visit_expr(expr: &Expr, reported: &mut HashSet<Marker>, type_writer: &TypeWriter, source: &'static str) {
         let str = format!(
             "{} {}",
             format!("'{}:", expr.marker.0).bright_black(),
             expr.to_string().bright_white(),
         );
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-        println!(
-            "{str}{whitespace}{}\n",
-            type_writer
-                .substitutions
-                .get(&expr.marker)
-                .unwrap()
-                .to_string()
-                .bright_cyan()
-        );
-        expr.visit_child_stmts(|stmt| visit_stmt(stmt, type_writer, source));
-        expr.visit_child_exprs(|expr| visit_expr(expr, type_writer, source));
+        let tpe = type_writer
+            .constraints
+            .iter()
+            .filter_map(|Constraint::Eq(marker, symbol)| if marker == &expr.marker { Some(symbol) } else { None })
+            .flat_map(|symbol| match symbol {
+                Symbol::Constant(t) => Some(t),
+                _ => None,
+            })
+            .next()
+            .unwrap();
+        println!("{str}{whitespace}{:?}\n", tpe,);
+
+        expr.visit_child_stmts(|stmt| visit_stmt(stmt, reported, type_writer, source));
+        expr.visit_child_exprs(|expr| visit_expr(expr, reported, type_writer, source));
     }
-    fn visit_stmt(stmt: &Stmt, type_writer: &TypeWriter, source: &'static str) {
-        stmt.visit_child_stmts(|stmt| visit_stmt(stmt, type_writer, source));
-        stmt.visit_child_exprs(|expr| visit_expr(expr, type_writer, source));
+    fn visit_stmt(stmt: &Stmt, reported: &mut HashSet<Marker>, type_writer: &TypeWriter, source: &'static str) {
+        stmt.visit_child_stmts(|stmt| visit_stmt(stmt, reported, type_writer, source));
+        stmt.visit_child_exprs(|expr| visit_expr(expr, reported, type_writer, source));
     }
     println!("Result for: {source}");
     for stmt in ast.stmts() {
-        visit_stmt(stmt, &type_writer, source);
+        visit_stmt(stmt, &mut reported, &type_writer, source);
     }
     todo!();
 }
@@ -41,10 +50,8 @@ fn harness_type(source: &'static str) {
 fn test() {
     harness_type(
         "
-        var foo = 1;
-        var bar = 2;
-        var fizz = { a: \"hello\", b: [foo, 2], c: bar };
-        var buzz = fizz;
+        var foo = [0, 1, 2];
+        var bar = foo[0];
     ",
     )
 }
