@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use crate::{
     analyze::GlobalScope,
     lint::{LateExprPass, Lint, LintLevel},
-    parse::{Access, Evaluation, Expr, ExprType, Function, Unary, UnaryOperator},
+    parse::{Access, Evaluation, Expr, ExprType, Function, Unary, UnaryOp},
     FileId,
 };
 
@@ -31,11 +31,11 @@ impl NonConstantDefaultParameter {
                 .as_identifier()
                 .map_or(false, |iden| global_scope.find_enum(&iden.lexeme).is_some()),
             ExprType::Unary(Unary {
-                operator: UnaryOperator::Positive(_),
+                op: UnaryOp::Positive(_),
                 right,
             })
             | ExprType::Unary(Unary {
-                operator: UnaryOperator::Negative(_),
+                op: UnaryOp::Negative(_),
                 right,
             }) => Self::is_constant(right, global_scope),
             ExprType::Evaluation(Evaluation { left, right, .. }) => {

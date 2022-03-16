@@ -6,14 +6,14 @@ pub struct Logical {
     /// The left hand side of the logical assessment.
     pub left: Expr,
     /// The operator used in this logical assesment..
-    pub operator: LogicalOperator,
+    pub op: LogicalOp,
     /// The right hand side of the logical assessment.
     pub right: Expr,
 }
 impl Logical {
     /// Creates a new logical assessment.
-    pub fn new(left: Expr, operator: LogicalOperator, right: Expr) -> Self {
-        Self { left, operator, right }
+    pub fn new(left: Expr, op: LogicalOp, right: Expr) -> Self {
+        Self { left, op, right }
     }
 }
 impl From<Logical> for ExprType {
@@ -37,7 +37,7 @@ impl ParseVisitor for Logical {
 
 /// The various logical operations supported in gml.
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum LogicalOperator {
+pub enum LogicalOp {
     /// and, &&
     And(Token),
     /// or, ||

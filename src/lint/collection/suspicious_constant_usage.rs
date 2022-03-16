@@ -3,8 +3,8 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
-        Assignment, AssignmentOperator, Equality, EqualityOperator, Evaluation, EvaluationOp, Expr, ExprType, Literal,
-        Logical, LogicalOperator, Stmt, StmtType,
+        Assignment, AssignmentOp, Equality, EqualityOp, Evaluation, EvaluationOp, Expr, ExprType,
+        Literal, Logical, LogicalOp, Stmt, StmtType,
     },
     FileId,
 };
@@ -42,23 +42,23 @@ impl SuspicousConstantUsage {
 impl EarlyExprPass for SuspicousConstantUsage {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match expr.inner() {
-            ExprType::Evaluation(Evaluation { operator, right, .. }) => {
+            ExprType::Evaluation(Evaluation { op: operator, right, .. }) => {
                 if let Some(literal) = right.inner().as_literal() {
-                    if literal_is_suspicous(literal, OperationWrapper::Evaluation(*operator)) {
+                    if literal_is_suspicous(literal, OpWrapper::Evaluation(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
                 }
             }
-            ExprType::Logical(Logical { operator, right, .. }) => {
+            ExprType::Logical(Logical { op: operator, right, .. }) => {
                 if let Some(literal) = right.inner().as_literal() {
-                    if literal_is_suspicous(literal, OperationWrapper::Logical(*operator)) {
+                    if literal_is_suspicous(literal, OpWrapper::Logical(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
                 }
             }
-            ExprType::Equality(Equality { operator, right, .. }) => {
+            ExprType::Equality(Equality { op: operator, right, .. }) => {
                 if let Some(literal) = right.inner().as_literal() {
-                    if literal_is_suspicous(literal, OperationWrapper::Equality(*operator)) {
+                    if literal_is_suspicous(literal, OpWrapper::Equality(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
                 }
@@ -69,13 +69,13 @@ impl EarlyExprPass for SuspicousConstantUsage {
 }
 impl EarlyStmtPass for SuspicousConstantUsage {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::Assignment(Assignment { operator, right, .. }) = stmt.inner() {
+        if let StmtType::Assignment(Assignment { op: operator, right, .. }) = stmt.inner() {
             if !matches!(
                 *operator,
-                AssignmentOperator::Equal(_) | AssignmentOperator::NullCoalecenceEqual(_)
+                AssignmentOp::Identity(_) | AssignmentOp::NullCoalecenceEqual(_)
             ) {
                 if let Some(literal) = right.inner().as_literal() {
-                    if literal_is_suspicous(literal, OperationWrapper::Assignment(*operator)) {
+                    if literal_is_suspicous(literal, OpWrapper::Assignment(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
                 }
@@ -84,11 +84,11 @@ impl EarlyStmtPass for SuspicousConstantUsage {
     }
 }
 
-fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) -> bool {
+fn literal_is_suspicous(literal: &Literal, operation_wrapper: OpWrapper) -> bool {
     match operation_wrapper {
-        OperationWrapper::Assignment(AssignmentOperator::Equal(_)) => return false,
-        OperationWrapper::Equality(op) => {
-            if matches!(op, EqualityOperator::Equal(_) | EqualityOperator::NotEqual(_)) {
+        OpWrapper::Assignment(AssignmentOp::Identity(_)) => return false,
+        OpWrapper::Equality(op) => {
+            if matches!(op, EqualityOp::Equal(_) | EqualityOp::NotEqual(_)) {
                 return false;
             }
         }
@@ -107,13 +107,13 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) 
                 "tile_index_mask" | "tile_flip" | "tile_mirror" | "tile_rotate" => {
                     // This is intended for bit masking, so only allow it if its an evaluation involving binary...
                     match operation_wrapper {
-                        OperationWrapper::Assignment(op) => !matches!(
+                        OpWrapper::Assignment(op) => !matches!(
                             op,
-                            AssignmentOperator::XorEqual(_)
-                                | AssignmentOperator::OrEqual(_)
-                                | AssignmentOperator::AndEqual(_),
+                            AssignmentOp::XorEqual(_)
+                                | AssignmentOp::OrEqual(_)
+                                | AssignmentOp::AndEqual(_),
                         ),
-                        OperationWrapper::Evaluation(op) => !matches!(
+                        OpWrapper::Evaluation(op) => !matches!(
                             op,
                             EvaluationOp::And(_)
                                 | EvaluationOp::Or(_)
@@ -121,8 +121,8 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) 
                                 | EvaluationOp::BitShiftLeft(_)
                                 | EvaluationOp::BitShiftRight(_)
                         ),
-                        OperationWrapper::Logical(_) => true,
-                        OperationWrapper::Equality(_) => true,
+                        OpWrapper::Logical(_) => true,
+                        OpWrapper::Equality(_) => true,
                     }
                 }
                 _ => {
@@ -134,9 +134,9 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OperationWrapper) 
     }
 }
 
-enum OperationWrapper {
-    Assignment(AssignmentOperator),
+enum OpWrapper {
+    Assignment(AssignmentOp),
     Evaluation(EvaluationOp),
-    Logical(LogicalOperator),
-    Equality(EqualityOperator),
+    Logical(LogicalOp),
+    Equality(EqualityOp),
 }

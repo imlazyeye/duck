@@ -6,14 +6,14 @@ pub struct Assignment {
     /// The left hand side of the assignment, aka the target.
     pub left: Expr,
     /// The operator used in this assignment.
-    pub operator: AssignmentOperator,
+    pub op: AssignmentOp,
     /// The right hand side of the assignment, aka the value.
     pub right: Expr,
 }
 impl Assignment {
     /// Creates a new assignment.
-    pub fn new(left: Expr, operator: AssignmentOperator, right: Expr) -> Self {
-        Self { left, operator, right }
+    pub fn new(left: Expr, op: AssignmentOp, right: Expr) -> Self {
+        Self { left, op, right }
     }
 }
 impl From<Assignment> for StmtType {
@@ -38,9 +38,9 @@ impl ParseVisitor for Assignment {
 /// The various assignment operations supported in gml.
 #[derive(Debug, PartialEq, Copy, Clone)]
 #[allow(clippy::enum_variant_names)]
-pub enum AssignmentOperator {
-    /// =
-    Equal(Token),
+pub enum AssignmentOp {
+    /// =, :=
+    Identity(Token),
     /// +=
     PlusEqual(Token),
     /// -=
@@ -60,20 +60,20 @@ pub enum AssignmentOperator {
     /// %=
     ModEqual(Token),
 }
-impl AssignmentOperator {
+impl AssignmentOp {
     /// Returns the inner token.
     pub fn token(&self) -> &Token {
         match self {
-            AssignmentOperator::Equal(token) => token,
-            AssignmentOperator::PlusEqual(token) => token,
-            AssignmentOperator::MinusEqual(token) => token,
-            AssignmentOperator::StarEqual(token) => token,
-            AssignmentOperator::SlashEqual(token) => token,
-            AssignmentOperator::XorEqual(token) => token,
-            AssignmentOperator::OrEqual(token) => token,
-            AssignmentOperator::AndEqual(token) => token,
-            AssignmentOperator::NullCoalecenceEqual(token) => token,
-            AssignmentOperator::ModEqual(token) => token,
+            AssignmentOp::Identity(token) => token,
+            AssignmentOp::PlusEqual(token) => token,
+            AssignmentOp::MinusEqual(token) => token,
+            AssignmentOp::StarEqual(token) => token,
+            AssignmentOp::SlashEqual(token) => token,
+            AssignmentOp::XorEqual(token) => token,
+            AssignmentOp::OrEqual(token) => token,
+            AssignmentOp::AndEqual(token) => token,
+            AssignmentOp::NullCoalecenceEqual(token) => token,
+            AssignmentOp::ModEqual(token) => token,
         }
     }
 }

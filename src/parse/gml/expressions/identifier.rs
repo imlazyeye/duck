@@ -29,6 +29,7 @@ impl From<Identifier> for ExprType {
     }
 }
 impl IntoExpr for Identifier {}
+
 impl ParseVisitor for Identifier {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut _visitor: E) {}
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, _visitor: E) {}

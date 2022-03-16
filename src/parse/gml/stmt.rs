@@ -1,5 +1,4 @@
 use crate::{
-    analyze::Scope,
     lint::LintTag,
     parse::{
         Block, Delete, DoUntil, Enum, Expr, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro, ParseVisitor,
@@ -199,7 +198,6 @@ impl StmtType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stmt {
     stmt_type: Box<StmtType>,
-    scope: Option<Scope>,
     location: Location,
     lint_tag: Option<LintTag>,
 }
@@ -251,7 +249,6 @@ pub trait IntoStmt: Sized + Into<StmtType> {
     fn into_stmt(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Stmt {
         Stmt {
             stmt_type: Box::new(self.into()),
-            scope: None,
             location: Location(file_id, span),
             lint_tag,
         }

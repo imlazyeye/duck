@@ -24,7 +24,7 @@ impl Lint for ModPreference {
 impl EarlyExprPass for ModPreference {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let ExprType::Evaluation(Evaluation {
-            operator: EvaluationOp::Modulo(token),
+            op: EvaluationOp::Modulo(token),
             ..
         }) = expr.inner()
         {

@@ -2,9 +2,7 @@
 
 use crate::parse::Span;
 
-use super::{
-    AssignmentOperator, EqualityOperator, EvaluationOp, Literal, LogicalOperator, PostfixOperator, UnaryOperator,
-};
+use super::{AssignmentOp, EqualityOp, EvaluationOp, Literal, LogicalOp, PostfixOp, UnaryOp};
 
 /// A combination of a TokenType and the Span it originates from.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -41,8 +39,8 @@ impl Token {
         }
     }
 
-    /// Returns a [EvaluationOperator] corresponding to this Token, if possible.
-    pub fn as_evaluation_operator(&self) -> Option<EvaluationOp> {
+    /// Returns a [EvaluationOp] corresponding to this Token, if possible.
+    pub fn as_evaluation_op(&self) -> Option<EvaluationOp> {
         match self.token_type {
             TokenType::Plus => Some(EvaluationOp::Plus(*self)),
             TokenType::Minus => Some(EvaluationOp::Minus(*self)),
@@ -59,64 +57,64 @@ impl Token {
         }
     }
 
-    /// Returns a [EqualityOperator] corresponding to this Token, if possible.
-    pub fn as_equality_operator(&self) -> Option<EqualityOperator> {
+    /// Returns a [EqualityOp] corresponding to this Token, if possible.
+    pub fn as_equality_op(&self) -> Option<EqualityOp> {
         match self.token_type {
-            TokenType::Equal | TokenType::DoubleEqual | TokenType::ColonEqual => Some(EqualityOperator::Equal(*self)),
-            TokenType::BangEqual | TokenType::GreaterThanLessThan => Some(EqualityOperator::NotEqual(*self)),
-            TokenType::GreaterThan => Some(EqualityOperator::GreaterThan(*self)),
-            TokenType::GreaterThanOrEqual => Some(EqualityOperator::GreaterThanOrEqual(*self)),
-            TokenType::LessThan => Some(EqualityOperator::LessThan(*self)),
-            TokenType::LessThanOrEqual => Some(EqualityOperator::LessThanOrEqual(*self)),
+            TokenType::Equal | TokenType::DoubleEqual | TokenType::ColonEqual => Some(EqualityOp::Equal(*self)),
+            TokenType::BangEqual | TokenType::GreaterThanLessThan => Some(EqualityOp::NotEqual(*self)),
+            TokenType::GreaterThan => Some(EqualityOp::GreaterThan(*self)),
+            TokenType::GreaterThanOrEqual => Some(EqualityOp::GreaterThanOrEqual(*self)),
+            TokenType::LessThan => Some(EqualityOp::LessThan(*self)),
+            TokenType::LessThanOrEqual => Some(EqualityOp::LessThanOrEqual(*self)),
             _ => None,
         }
     }
 
-    /// Returns a [AssignmentOperator] corresponding to this Token, if possible.
-    pub fn as_assignment_operator(&self) -> Option<AssignmentOperator> {
+    /// Returns a [AssignmentOp] corresponding to this Token, if possible.
+    pub fn as_assignment_op(&self) -> Option<AssignmentOp> {
         match self.token_type {
-            TokenType::Equal => Some(AssignmentOperator::Equal(*self)),
-            TokenType::PlusEqual => Some(AssignmentOperator::PlusEqual(*self)),
-            TokenType::MinusEqual => Some(AssignmentOperator::MinusEqual(*self)),
-            TokenType::StarEqual => Some(AssignmentOperator::StarEqual(*self)),
-            TokenType::SlashEqual => Some(AssignmentOperator::SlashEqual(*self)),
-            TokenType::PipeEqual => Some(AssignmentOperator::OrEqual(*self)),
-            TokenType::AmpersandEqual => Some(AssignmentOperator::AndEqual(*self)),
-            TokenType::CirumflexEqual => Some(AssignmentOperator::XorEqual(*self)),
-            TokenType::DoubleInterrobangEquals => Some(AssignmentOperator::NullCoalecenceEqual(*self)),
-            TokenType::PercentEqual => Some(AssignmentOperator::ModEqual(*self)),
+            TokenType::Equal => Some(AssignmentOp::Identity(*self)),
+            TokenType::PlusEqual => Some(AssignmentOp::PlusEqual(*self)),
+            TokenType::MinusEqual => Some(AssignmentOp::MinusEqual(*self)),
+            TokenType::StarEqual => Some(AssignmentOp::StarEqual(*self)),
+            TokenType::SlashEqual => Some(AssignmentOp::SlashEqual(*self)),
+            TokenType::PipeEqual => Some(AssignmentOp::OrEqual(*self)),
+            TokenType::AmpersandEqual => Some(AssignmentOp::AndEqual(*self)),
+            TokenType::CirumflexEqual => Some(AssignmentOp::XorEqual(*self)),
+            TokenType::DoubleInterrobangEquals => Some(AssignmentOp::NullCoalecenceEqual(*self)),
+            TokenType::PercentEqual => Some(AssignmentOp::ModEqual(*self)),
             _ => None,
         }
     }
 
-    /// Returns a [UnaryOperator] corresponding to this Token, if possible.
-    pub fn as_unary_operator(&self) -> Option<UnaryOperator> {
+    /// Returns a [UnaryOp] corresponding to this Token, if possible.
+    pub fn as_unary_op(&self) -> Option<UnaryOp> {
         match self.token_type {
-            TokenType::DoublePlus => Some(UnaryOperator::Increment(*self)),
-            TokenType::DoubleMinus => Some(UnaryOperator::Decrement(*self)),
-            TokenType::Bang | TokenType::Not => Some(UnaryOperator::Not(*self)),
-            TokenType::Plus => Some(UnaryOperator::Positive(*self)),
-            TokenType::Minus => Some(UnaryOperator::Negative(*self)),
-            TokenType::Tilde => Some(UnaryOperator::BitwiseNot(*self)),
+            TokenType::DoublePlus => Some(UnaryOp::Increment(*self)),
+            TokenType::DoubleMinus => Some(UnaryOp::Decrement(*self)),
+            TokenType::Bang | TokenType::Not => Some(UnaryOp::Not(*self)),
+            TokenType::Plus => Some(UnaryOp::Positive(*self)),
+            TokenType::Minus => Some(UnaryOp::Negative(*self)),
+            TokenType::Tilde => Some(UnaryOp::BitwiseNot(*self)),
             _ => None,
         }
     }
 
-    /// Returns a [PostfixOperator] corresponding to this Token, if possible.
-    pub fn as_postfix_operator(&self) -> Option<PostfixOperator> {
+    /// Returns a [PostfixOp] corresponding to this Token, if possible.
+    pub fn as_postfix_op(&self) -> Option<PostfixOp> {
         match self.token_type {
-            TokenType::DoublePlus => Some(PostfixOperator::Increment(*self)),
-            TokenType::DoubleMinus => Some(PostfixOperator::Decrement(*self)),
+            TokenType::DoublePlus => Some(PostfixOp::Increment(*self)),
+            TokenType::DoubleMinus => Some(PostfixOp::Decrement(*self)),
             _ => None,
         }
     }
 
-    /// Returns a [LogicalOperator] corresponding to this Token, if possible.
-    pub fn as_logical_operator(&self) -> Option<LogicalOperator> {
+    /// Returns a [LogicalOp] corresponding to this Token, if possible.
+    pub fn as_logical_op(&self) -> Option<LogicalOp> {
         match self.token_type {
-            TokenType::And | TokenType::DoubleAmpersand => Some(LogicalOperator::And(*self)),
-            TokenType::Or | TokenType::DoublePipe => Some(LogicalOperator::Or(*self)),
-            TokenType::Xor => Some(LogicalOperator::Xor(*self)),
+            TokenType::And | TokenType::DoubleAmpersand => Some(LogicalOp::And(*self)),
+            TokenType::Or | TokenType::DoublePipe => Some(LogicalOp::Or(*self)),
+            TokenType::Xor => Some(LogicalOp::Xor(*self)),
             _ => None,
         }
     }

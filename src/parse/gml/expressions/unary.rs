@@ -4,14 +4,14 @@ use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Unary {
     /// The unary operator.
-    pub operator: UnaryOperator,
+    pub op: UnaryOp,
     /// The right hand side of the unary operation.
     pub right: Expr,
 }
 impl Unary {
     /// Creates a new unary operation.
-    pub fn new(operator: UnaryOperator, right: Expr) -> Self {
-        Self { operator, right }
+    pub fn new(op: UnaryOp, right: Expr) -> Self {
+        Self { op, right }
     }
 }
 impl From<Unary> for ExprType {
@@ -33,7 +33,7 @@ impl ParseVisitor for Unary {
 
 /// The various unary operations supported in gml.
 #[derive(Debug, PartialEq, Clone)]
-pub enum UnaryOperator {
+pub enum UnaryOp {
     /// ++
     Increment(Token),
     /// --

@@ -3,7 +3,6 @@
 #![warn(clippy::print_stdout)]
 #![warn(clippy::map_unwrap_or)] // gabe this was a mistake
 #![warn(clippy::missing_errors_doc)]
-#![warn(clippy::missing_panics_doc)]
 #![warn(clippy::similar_names)]
 #![warn(clippy::todo)]
 #![warn(clippy::unimplemented)]
@@ -136,8 +135,8 @@ pub mod analyze {
     mod global_scope;
     pub use global_scope::*;
     #[allow(missing_docs)]
-    mod scope;
-    pub use scope::*;
+    mod r#type;
+    pub use r#type::*;
     #[cfg(test)]
     mod tests {
         mod analysis;

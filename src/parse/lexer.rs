@@ -1,5 +1,5 @@
 use super::{Span, Token, TokenType};
-use fnv::FnvHashSet;
+use hashbrown::HashSet;
 use once_cell::sync::Lazy;
 use std::iter::Peekable;
 use unicode_segmentation::{GraphemeIndices, UnicodeSegmentation};
@@ -540,9 +540,9 @@ impl Iterator for Lexer {
 }
 
 /// Various constants in gml that are not specificlly tracked in duck.
-pub static MISC_GML_CONSTANTS: Lazy<FnvHashSet<&'static str>> =
+pub static MISC_GML_CONSTANTS: Lazy<HashSet<&'static str>> =
     Lazy::new(|| serde_json::from_str(include_str!("../../assets/misc_gml_constants.json")).unwrap());
 
 /// Various built-in variables in gml that are not specificlly tracked in duck.
-pub static MISC_GML_VARIABLES: Lazy<FnvHashSet<&'static str>> =
+pub static MISC_GML_VARIABLES: Lazy<HashSet<&'static str>> =
     Lazy::new(|| serde_json::from_str(include_str!("../../assets/misc_gml_variables.json")).unwrap());

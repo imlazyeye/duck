@@ -3,6 +3,7 @@ use colored::Colorize;
 use itertools::Itertools;
 
 use crate::{
+    analyze::{Type, Marker},
     lint::{LintLevel, LintTag},
     parse::*,
     FileId,
@@ -17,6 +18,7 @@ pub struct Parser {
     file_id: FileId,
     comments: Vec<Token>,
     lint_tag_slot: Option<LintTag>,
+    use_default_marker: bool,
 }
 
 // Basic features
@@ -29,7 +31,16 @@ impl Parser {
             file_id,
             comments: vec![],
             lint_tag_slot: None,
+            use_default_marker: false,
         }
+    }
+
+    /// Creates a new parser that will use `0` for all markers on expressions. Useful for testing
+    /// when you want to not deal with the random ids.
+    pub fn new_no_markers(source_code: &'static str, file_id: FileId) -> Self {
+        let mut parser = Self::new(source_code, file_id);
+        parser.use_default_marker = true;
+        parser
     }
 
     /// Runs the parser through the entire source, collecting everything into an
@@ -46,13 +57,23 @@ impl Parser {
         Ok(Ast::new(statements))
     }
 
-    /// Wraps an expression in a box.
-    pub fn new_expr(&mut self, expr: impl IntoExpr, span: Span) -> Expr {
-        expr.into_expr(span, self.file_id, self.lint_tag_slot.as_ref().cloned())
+    /// Creates a new expression.
+    fn new_expr(&mut self, expr: impl IntoExpr, span: Span) -> Expr {
+        expr.into_expr(
+            Type::Unknown,
+            if self.use_default_marker {
+                Marker::default()
+            } else {
+                Marker::new()
+            },
+            span,
+            self.file_id,
+            self.lint_tag_slot.as_ref().cloned(),
+        )
     }
 
-    /// Wraps an expression in a box.
-    pub fn new_stmt(&mut self, stmt: impl IntoStmt, start_position: usize) -> Stmt {
+    /// Creates a new statement.
+    fn new_stmt(&mut self, stmt: impl IntoStmt, start_position: usize) -> Stmt {
         stmt.into_stmt(self.span(start_position), self.file_id, self.lint_tag_slot.take())
     }
 
@@ -65,7 +86,12 @@ impl Parser {
 
 // Recursive descent (gml grammar)
 impl Parser {
-    pub(super) fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
+    /// Parses the source gml for a new statement.
+    ///
+    ///  ### Errors
+    ///
+    /// Returns a [ParseError] if any of the source code caused an error.
+    pub fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         match self.peek()?.token_type {
             TokenType::Macro(name, config, body) => self.macro_declaration(name, config, body),
             TokenType::Enum => self.enum_declaration(),
@@ -125,7 +151,7 @@ impl Parser {
                 let enum_member = if let Some(equal) = self.match_take(TokenType::Equal) {
                     let right = self.expr()?;
                     OptionalInitilization::Initialized(self.new_stmt(
-                        Assignment::new(left, AssignmentOperator::Equal(equal), right),
+                        Assignment::new(left, AssignmentOp::Identity(equal), right),
                         member_start,
                     ))
                 } else {
@@ -357,7 +383,7 @@ impl Parser {
             let local_variable = if let Some(equal) = self.match_take(TokenType::Equal) {
                 let right = self.expr()?;
                 OptionalInitilization::Initialized(
-                    self.new_stmt(Assignment::new(left, AssignmentOperator::Equal(equal), right), start),
+                    self.new_stmt(Assignment::new(left, AssignmentOp::Identity(equal), right), start),
                 )
             } else {
                 OptionalInitilization::Uninitialized(left)
@@ -390,13 +416,13 @@ impl Parser {
         let expr = self.unary()?; // Unaries are the highest possibel assignment expressions
 
         // Check for an identifier followed by an assignment operator
-        let assignment = if let Some(operator) = self.soft_peek().and_then(|token| token.as_assignment_operator()) {
+        let assignment = if let Some(operator) = self.soft_peek().and_then(|token| token.as_assignment_op()) {
             self.take()?;
             Assignment::new(expr, operator, self.expr()?)
         } else if let Some(Equality {
             left,
-            operator:
-                EqualityOperator::Equal(Token {
+            op:
+                EqualityOp::Equal(Token {
                     token_type: TokenType::Equal,
                     span,
                 }),
@@ -405,7 +431,7 @@ impl Parser {
         {
             Assignment::new(
                 left.clone(),
-                AssignmentOperator::Equal(Token::new(TokenType::Equal, *span)),
+                AssignmentOp::Identity(Token::new(TokenType::Equal, *span)),
                 right.clone(),
             )
         } else {
@@ -421,7 +447,7 @@ impl Parser {
         match expr.inner() {
             ExprType::FunctionDeclaration(..)
             | ExprType::Postfix(..)
-            | ExprType::Unary(..)
+            | ExprType::Unary(..) // FIXME: only some unary is valid here
             | ExprType::Grouping(..)
             | ExprType::Call(..) => {}
 
@@ -429,6 +455,7 @@ impl Parser {
             // actually a mistake or is a macro.
             // In the future, we may unfold code in an early pass that will
             // help with this.
+            // FIXME: maybe an allow by default lint for this?
             ExprType::Identifier(..) => {}
 
             // Anything else is invalid.
@@ -449,7 +476,12 @@ impl Parser {
         Ok(self.new_stmt(StmtType::Expr(expr), start))
     }
 
-    pub(super) fn expr(&mut self) -> Result<Expr, Diagnostic<FileId>> {
+    /// Parses the source gml for a new expression.
+    ///
+    ///  ### Errors
+    ///
+    /// Returns a [ParseError] if any of the source code caused an error.
+    pub fn expr(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         self.null_coalecence()
     }
 
@@ -482,7 +514,7 @@ impl Parser {
     fn logical(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expr = self.equality()?;
-        if let Some(operator) = self.soft_peek().and_then(|token| token.as_logical_operator()) {
+        if let Some(operator) = self.soft_peek().and_then(|token| token.as_logical_op()) {
             self.take()?;
             let right = self.logical()?;
             let end = right.span().end();
@@ -495,7 +527,7 @@ impl Parser {
     fn equality(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expr = self.binary()?;
-        if let Some(operator) = self.soft_peek().and_then(|token| token.as_equality_operator()) {
+        if let Some(operator) = self.soft_peek().and_then(|token| token.as_equality_op()) {
             self.take()?;
             let right = self.equality()?;
             let end = right.span().end();
@@ -510,7 +542,7 @@ impl Parser {
         let expr = self.bitshift()?;
         if let Some(operator) = self
             .soft_peek()
-            .map(|token| token.as_evaluation_operator())
+            .map(|token| token.as_evaluation_op())
             .filter(|operator| {
                 matches!(
                     operator,
@@ -533,7 +565,7 @@ impl Parser {
         let expr = self.addition()?;
         if let Some(operator) = self
             .soft_peek()
-            .map(|token| token.as_evaluation_operator())
+            .map(|token| token.as_evaluation_op())
             .filter(|operator| {
                 matches!(
                     operator,
@@ -556,7 +588,7 @@ impl Parser {
         let expr = self.multiplication()?;
         if let Some(operator) = self
             .soft_peek()
-            .map(|token| token.as_evaluation_operator())
+            .map(|token| token.as_evaluation_op())
             .filter(|operator| {
                 matches!(
                     operator,
@@ -585,7 +617,7 @@ impl Parser {
         let expr = self.unary()?;
         if let Some(operator) = self
             .soft_peek()
-            .map(|token| token.as_evaluation_operator())
+            .map(|token| token.as_evaluation_op())
             .filter(|operator| {
                 matches!(
                     operator,
@@ -608,7 +640,7 @@ impl Parser {
 
     fn unary(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        if let Some(operator) = self.peek()?.as_unary_operator() {
+        if let Some(operator) = self.peek()?.as_unary_op() {
             self.take()?;
             let right = self.expr()?;
             let end = right.span().end();
@@ -621,7 +653,7 @@ impl Parser {
     fn postfix(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expr = self.function()?;
-        if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_operator()) {
+        if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_op()) {
             let token = self.take()?;
             Ok(self.new_expr(Postfix::new(expr, operator), Span::new(start, token.span.end())))
         } else {
@@ -648,7 +680,7 @@ impl Parser {
                         let end = name.span.end();
                         let name = self.new_expr(name, Span::new(parameter_start, end));
                         if let Some(token) = self.match_take(TokenType::Equal) {
-                            let assignment = Assignment::new(name, AssignmentOperator::Equal(token), self.expr()?);
+                            let assignment = Assignment::new(name, AssignmentOp::Identity(token), self.expr()?);
                             parameters.push(OptionalInitilization::Initialized(
                                 self.new_stmt(assignment, parameter_start),
                             ));
@@ -713,7 +745,8 @@ impl Parser {
             let mut elements = vec![];
             loop {
                 if let Some(token) = self.match_take(TokenType::RightSquareBracket) {
-                    break Ok(self.new_expr(Literal::Array(elements), Span::new(start, token.span.end())));
+                    let literal = Literal::Array(elements);
+                    break Ok(self.new_expr(literal, Span::new(start, token.span.end())));
                 } else {
                     elements.push(self.expr()?);
                     self.match_take(TokenType::Comma);
@@ -726,7 +759,8 @@ impl Parser {
             let mut elements = vec![];
             loop {
                 if let Some(token) = self.match_take_possibilities(&[TokenType::RightBrace, TokenType::End]) {
-                    break Ok(self.new_expr(Literal::Struct(elements), Span::new(start, token.span.end())));
+                    let literal = Literal::Struct(elements);
+                    break Ok(self.new_expr(literal, Span::new(start, token.span.end())));
                 } else {
                     let name = self.require_identifier()?;
                     self.require(TokenType::Colon)?;

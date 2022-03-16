@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 
 fn harness_expr(source: &'static str, expected: impl Into<ExprType>) {
     let expected = expected.into();
-    let mut parser = Parser::new(source, 0);
+    let mut parser = Parser::new_no_markers(source, 0);
     let outputed = parser.expr().unwrap();
     assert_eq!(*outputed.inner(), expected, "`{}` failed!", source)
 }
@@ -49,7 +49,7 @@ fn default_parameters() {
                 OptionalInitilization::Initialized(
                     Assignment::new(
                         Identifier::lazy("bar").into_expr_lazy(),
-                        AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                         Literal::Real(1.0).into_expr_lazy(),
                     )
                     .into_stmt_lazy(),
@@ -113,7 +113,7 @@ fn and() {
         "1 && 1",
         Logical::new(
             Literal::Real(1.0).into_expr_lazy(),
-            LogicalOperator::And(Token::lazy(TokenType::DoubleAmpersand)),
+            LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -125,7 +125,7 @@ fn and_keyword() {
         "1 and 1",
         Logical::new(
             Literal::Real(1.0).into_expr_lazy(),
-            LogicalOperator::And(Token::lazy(TokenType::And)),
+            LogicalOp::And(Token::lazy(TokenType::And)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -137,7 +137,7 @@ fn or() {
         "1 || 1",
         Logical::new(
             Literal::Real(1.0).into_expr_lazy(),
-            LogicalOperator::Or(Token::lazy(TokenType::DoublePipe)),
+            LogicalOp::Or(Token::lazy(TokenType::DoublePipe)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -149,7 +149,7 @@ fn or_keyword() {
         "1 or 1",
         Logical::new(
             Literal::Real(1.0).into_expr_lazy(),
-            LogicalOperator::Or(Token::lazy(TokenType::Or)),
+            LogicalOp::Or(Token::lazy(TokenType::Or)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -161,7 +161,7 @@ fn xor() {
         "1 xor 1",
         Logical::new(
             Literal::Real(1.0).into_expr_lazy(),
-            LogicalOperator::Xor(Token::lazy(TokenType::Xor)),
+            LogicalOp::Xor(Token::lazy(TokenType::Xor)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -350,7 +350,7 @@ fn less_than() {
         "1 < 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::LessThan(Token::lazy(TokenType::LessThan)),
+            EqualityOp::LessThan(Token::lazy(TokenType::LessThan)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -382,7 +382,7 @@ fn combo_math() {
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
-            EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     )
@@ -394,7 +394,7 @@ fn less_than_or_equal() {
         "1 <= 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::LessThanOrEqual(Token::lazy(TokenType::LessThanOrEqual)),
+            EqualityOp::LessThanOrEqual(Token::lazy(TokenType::LessThanOrEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -406,7 +406,7 @@ fn greater_than() {
         "1 > 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::GreaterThan(Token::lazy(TokenType::GreaterThan)),
+            EqualityOp::GreaterThan(Token::lazy(TokenType::GreaterThan)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -418,7 +418,7 @@ fn greater_than_or_equal() {
         "1 >= 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::GreaterThanOrEqual(Token::lazy(TokenType::GreaterThanOrEqual)),
+            EqualityOp::GreaterThanOrEqual(Token::lazy(TokenType::GreaterThanOrEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -430,7 +430,7 @@ fn equal() {
         "1 == 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -442,7 +442,7 @@ fn colon_equal() {
         "1 := 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::Equal(Token::lazy(TokenType::ColonEqual)),
+            EqualityOp::Equal(Token::lazy(TokenType::ColonEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -454,7 +454,7 @@ fn bang_equal() {
         "1 != 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::NotEqual(Token::lazy(TokenType::BangEqual)),
+            EqualityOp::NotEqual(Token::lazy(TokenType::BangEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -466,7 +466,7 @@ fn greater_than_less_than() {
         "1 <> 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOperator::NotEqual(Token::lazy(TokenType::GreaterThanLessThan)),
+            EqualityOp::NotEqual(Token::lazy(TokenType::GreaterThanLessThan)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -502,7 +502,7 @@ fn ternary_order_of_ops() {
         Ternary::new(
             Logical::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                LogicalOperator::And(Token::lazy(TokenType::DoubleAmpersand)),
+                LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
                 Identifier::lazy("bar").into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -517,7 +517,7 @@ fn not() {
     harness_expr(
         "!foo",
         Unary::new(
-            UnaryOperator::Not(Token::lazy(TokenType::Bang)),
+            UnaryOp::Not(Token::lazy(TokenType::Bang)),
             Identifier::lazy("foo").into_expr_lazy(),
         ),
     );
@@ -528,7 +528,7 @@ fn not_keyword() {
     harness_expr(
         "not foo",
         Unary::new(
-            UnaryOperator::Not(Token::lazy(TokenType::Not)),
+            UnaryOp::Not(Token::lazy(TokenType::Not)),
             Identifier::lazy("foo").into_expr_lazy(),
         ),
     );
@@ -539,7 +539,7 @@ fn positive() {
     harness_expr(
         "+1",
         Unary::new(
-            UnaryOperator::Positive(Token::lazy(TokenType::Plus)),
+            UnaryOp::Positive(Token::lazy(TokenType::Plus)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -550,7 +550,7 @@ fn neagtive() {
     harness_expr(
         "-1",
         Unary::new(
-            UnaryOperator::Negative(Token::lazy(TokenType::Minus)),
+            UnaryOp::Negative(Token::lazy(TokenType::Minus)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -561,7 +561,7 @@ fn dot_unary() {
     harness_expr(
         "!self.foo",
         Unary::new(
-            UnaryOperator::Not(Token::lazy(TokenType::Bang)),
+            UnaryOp::Not(Token::lazy(TokenType::Bang)),
             Access::Current {
                 right: Identifier::lazy("foo").into_expr_lazy(),
             }
@@ -575,7 +575,7 @@ fn ds_unary() {
     harness_expr(
         "!foo[bar]",
         Unary::new(
-            UnaryOperator::Not(Token::lazy(TokenType::Bang)),
+            UnaryOp::Not(Token::lazy(TokenType::Bang)),
             Access::Array {
                 left: Identifier::lazy("foo").into_expr_lazy(),
                 index_one: Identifier::lazy("bar").into_expr_lazy(),
@@ -592,7 +592,7 @@ fn prefix_increment() {
     harness_expr(
         "++1",
         Unary::new(
-            UnaryOperator::Increment(Token::lazy(TokenType::DoublePlus)),
+            UnaryOp::Increment(Token::lazy(TokenType::DoublePlus)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -603,7 +603,7 @@ fn prefix_decrement() {
     harness_expr(
         "--1",
         Unary::new(
-            UnaryOperator::Decrement(Token::lazy(TokenType::DoubleMinus)),
+            UnaryOp::Decrement(Token::lazy(TokenType::DoubleMinus)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -614,7 +614,7 @@ fn bitwise_not() {
     harness_expr(
         "~1",
         Unary::new(
-            UnaryOperator::BitwiseNot(Token::lazy(TokenType::Tilde)),
+            UnaryOp::BitwiseNot(Token::lazy(TokenType::Tilde)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -626,7 +626,7 @@ fn postfix_increment() {
         "1++",
         Postfix::new(
             Literal::Real(1.0).into_expr_lazy(),
-            PostfixOperator::Increment(Token::lazy(TokenType::DoublePlus)),
+            PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
         ),
     );
 }
@@ -637,7 +637,7 @@ fn postfix_decrement() {
         "1--",
         Postfix::new(
             Literal::Real(1.0).into_expr_lazy(),
-            PostfixOperator::Decrement(Token::lazy(TokenType::DoubleMinus)),
+            PostfixOp::Decrement(Token::lazy(TokenType::DoubleMinus)),
         ),
     );
 }
@@ -651,7 +651,7 @@ fn dot_postfix() {
                 right: Identifier::lazy("foo").into_expr_lazy(),
             }
             .into_expr_lazy(),
-            PostfixOperator::Increment(Token::lazy(TokenType::DoublePlus)),
+            PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
         ),
     );
 }
@@ -668,7 +668,7 @@ fn ds_postfix() {
                 using_accessor: false,
             }
             .into_expr_lazy(),
-            PostfixOperator::Increment(Token::lazy(TokenType::DoublePlus)),
+            PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
         ),
     );
 }
@@ -1133,22 +1133,22 @@ fn logically_joined_expressions() {
         Logical::new(
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
-            LogicalOperator::And(Token::lazy(TokenType::DoubleAmpersand)),
+            LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
             Logical::new(
                 Equality::new(
                     Identifier::lazy("foo").into_expr_lazy(),
-                    EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                    EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                     Literal::Real(1.0).into_expr_lazy(),
                 )
                 .into_expr_lazy(),
-                LogicalOperator::And(Token::lazy(TokenType::DoubleAmpersand)),
+                LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
                 Equality::new(
                     Identifier::lazy("foo").into_expr_lazy(),
-                    EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                    EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                     Literal::Real(1.0).into_expr_lazy(),
                 )
                 .into_expr_lazy(),

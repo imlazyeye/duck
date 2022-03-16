@@ -1,19 +1,19 @@
 use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
 
-/// Representation of an assignment expression in gml.
+/// A mathmatical evaluation.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Evaluation {
     /// The left hand side of the evaluation.
     pub left: Expr,
     /// The operator used in this evaluation.
-    pub operator: EvaluationOp,
+    pub op: EvaluationOp,
     /// The right hand side of the evaluation.
     pub right: Expr,
 }
 impl Evaluation {
     /// Creates a new evaluation.
-    pub fn new(left: Expr, operator: EvaluationOp, right: Expr) -> Self {
-        Self { left, operator, right }
+    pub fn new(left: Expr, op: EvaluationOp, right: Expr) -> Self {
+        Self { left, op, right }
     }
 }
 impl From<Evaluation> for ExprType {

@@ -6,12 +6,12 @@ pub struct Postfix {
     /// The left hand side of the postfix operation.
     pub left: Expr,
     /// The postfix operator.
-    pub operator: PostfixOperator,
+    pub op: PostfixOp,
 }
 impl Postfix {
     /// Creates a new postfix operation.
-    pub fn new(left: Expr, operator: PostfixOperator) -> Self {
-        Self { operator, left }
+    pub fn new(left: Expr, op: PostfixOp) -> Self {
+        Self { op, left }
     }
 }
 impl From<Postfix> for ExprType {
@@ -33,7 +33,7 @@ impl ParseVisitor for Postfix {
 
 /// The various postfix operations supported in gml.
 #[derive(Debug, PartialEq, Clone)]
-pub enum PostfixOperator {
+pub enum PostfixOp {
     /// ++
     Increment(Token),
     /// --

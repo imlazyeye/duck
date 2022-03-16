@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 
 fn harness_stmt(source: &'static str, expected: impl Into<StmtType>) {
     let expected = expected.into();
-    let mut parser = Parser::new(source, 0);
+    let mut parser = Parser::new_no_markers(source, 0);
     let outputed = parser.stmt().unwrap();
     assert_eq!(*outputed.inner(), expected)
 }
@@ -73,7 +73,7 @@ fn enum_with_values() {
                 OptionalInitilization::Initialized(
                     Assignment::new(
                         Identifier::lazy("Bar").into_expr_lazy(),
-                        AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                         Literal::Real(20.0).into_expr_lazy(),
                     )
                     .into_stmt_lazy(),
@@ -95,7 +95,7 @@ fn enum_with_neighbor_values() {
                 OptionalInitilization::Initialized(
                     Assignment::new(
                         Identifier::lazy("Baz").into_expr_lazy(),
-                        AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                         Access::Dot {
                             left: Identifier::lazy("Foo").into_expr_lazy(),
                             right: Identifier::lazy("Bar").into_expr_lazy(),
@@ -131,7 +131,7 @@ fn local_variable_with_value() {
         LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
-                AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                 Literal::Real(0.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -148,7 +148,7 @@ fn local_variable_series() {
             OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::lazy("j").into_expr_lazy(),
-                    AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                    AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                     Literal::Real(0.0).into_expr_lazy(),
                 )
                 .into_stmt_lazy(),
@@ -165,7 +165,7 @@ fn local_variable_trailling_comma() {
         LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
-                AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                 Literal::Real(0.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -181,7 +181,7 @@ fn local_variable_series_ending_without_marker() {
             LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::lazy("i").into_expr_lazy(),
-                    AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                    AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                     Literal::Real(0.0).into_expr_lazy(),
                 )
                 .into_stmt_lazy(),
@@ -189,7 +189,7 @@ fn local_variable_series_ending_without_marker() {
             .into_stmt_lazy(),
             Assignment::new(
                 Identifier::lazy("j").into_expr_lazy(),
-                AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                 Literal::Real(0.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -230,7 +230,7 @@ fn for_loop() {
             LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::lazy("i").into_expr_lazy(),
-                    AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+                    AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                     Literal::Real(0.0).into_expr_lazy(),
                 )
                 .into_stmt_lazy(),
@@ -238,14 +238,14 @@ fn for_loop() {
             .into_stmt_lazy(),
             Equality::new(
                 Identifier::lazy("i").into_expr_lazy(),
-                EqualityOperator::LessThan(Token::lazy(TokenType::LessThan)),
+                EqualityOp::LessThan(Token::lazy(TokenType::LessThan)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
             StmtType::Expr(
                 Postfix::new(
                     Identifier::lazy("i").into_expr_lazy(),
-                    PostfixOperator::Increment(Token::lazy(TokenType::DoublePlus)),
+                    PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
                 )
                 .into_expr_lazy(),
             )
@@ -285,7 +285,7 @@ fn do_until() {
             Block::lazy(vec![
                 Assignment::new(
                     Identifier::lazy("foo").into_expr_lazy(),
-                    AssignmentOperator::PlusEqual(Token::lazy(TokenType::PlusEqual)),
+                    AssignmentOp::PlusEqual(Token::lazy(TokenType::PlusEqual)),
                     Literal::Real(1.0).into_expr_lazy(),
                 )
                 .into_stmt_lazy(),
@@ -293,7 +293,7 @@ fn do_until() {
             .into_stmt_lazy(),
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -307,14 +307,14 @@ fn while_loop() {
         If::new(
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
             Block::lazy(vec![
                 Assignment::new(
                     Identifier::lazy("foo").into_expr_lazy(),
-                    AssignmentOperator::PlusEqual(Token::lazy(TokenType::PlusEqual)),
+                    AssignmentOp::PlusEqual(Token::lazy(TokenType::PlusEqual)),
                     Literal::Real(1.0).into_expr_lazy(),
                 )
                 .into_stmt_lazy(),
@@ -331,7 +331,7 @@ fn if_stmt() {
         If::new(
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -347,7 +347,7 @@ fn if_then() {
         If::new_with_then_keyword(
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -364,7 +364,7 @@ fn if_else() {
         If::new_with_else(
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOperator::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -484,7 +484,7 @@ fn assign() {
         "foo = 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -496,10 +496,10 @@ fn single_equals_equality() {
         "foo = bar = 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Equality::new(
                 Identifier::lazy("bar").into_expr_lazy(),
-                EqualityOperator::Equal(Token::lazy(TokenType::Equal)),
+                EqualityOp::Equal(Token::lazy(TokenType::Equal)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -513,7 +513,7 @@ fn function_assignment() {
         "foo = function() {}",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Function::new_anonymous(vec![], Block::lazy(vec![]).into_stmt_lazy()).into_expr_lazy(),
         ),
     );
@@ -525,10 +525,10 @@ fn logical_assignment() {
         "foo = 1 && 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Logical::new(
                 Literal::Real(1.0).into_expr_lazy(),
-                LogicalOperator::And(Token::lazy(TokenType::DoubleAmpersand)),
+                LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
@@ -542,7 +542,7 @@ fn ternary_assignment() {
         "foo = bar ? 1 : 2;",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Ternary::new(
                 Identifier::lazy("bar").into_expr_lazy(),
                 Literal::Real(1.0).into_expr_lazy(),
@@ -559,7 +559,7 @@ fn null_coalecence_assign() {
         "foo = bar ?? 0;",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             NullCoalecence::new(
                 Identifier::lazy("bar").into_expr_lazy(),
                 Literal::Real(0.0).into_expr_lazy(),
@@ -578,7 +578,7 @@ fn dot_assign() {
                 right: Identifier::lazy("foo").into_expr_lazy(),
             }
             .into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -596,7 +596,7 @@ fn ds_assign() {
                 using_accessor: false,
             }
             .into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -609,7 +609,7 @@ fn call_assign() {
         "foo() = 1",
         Assignment::new(
             Call::new(Identifier::lazy("foo").into_expr_lazy(), vec![]).into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -621,7 +621,7 @@ fn static_assign() {
         "static foo = 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -633,7 +633,7 @@ fn plus_equal() {
         "foo += 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::PlusEqual(Token::lazy(TokenType::PlusEqual)),
+            AssignmentOp::PlusEqual(Token::lazy(TokenType::PlusEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -645,7 +645,7 @@ fn minus_equal() {
         "foo -= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::MinusEqual(Token::lazy(TokenType::MinusEqual)),
+            AssignmentOp::MinusEqual(Token::lazy(TokenType::MinusEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -657,7 +657,7 @@ fn star_equal() {
         "foo *= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::StarEqual(Token::lazy(TokenType::StarEqual)),
+            AssignmentOp::StarEqual(Token::lazy(TokenType::StarEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -669,7 +669,7 @@ fn slash_equal() {
         "foo /= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::SlashEqual(Token::lazy(TokenType::SlashEqual)),
+            AssignmentOp::SlashEqual(Token::lazy(TokenType::SlashEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -681,7 +681,7 @@ fn and_equal() {
         "foo &= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::AndEqual(Token::lazy(TokenType::AmpersandEqual)),
+            AssignmentOp::AndEqual(Token::lazy(TokenType::AmpersandEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -693,7 +693,7 @@ fn or_equal() {
         "foo |= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::OrEqual(Token::lazy(TokenType::PipeEqual)),
+            AssignmentOp::OrEqual(Token::lazy(TokenType::PipeEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -705,7 +705,7 @@ fn xor_equal() {
         "foo ^= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::XorEqual(Token::lazy(TokenType::CirumflexEqual)),
+            AssignmentOp::XorEqual(Token::lazy(TokenType::CirumflexEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -717,7 +717,7 @@ fn mod_equal() {
         "foo %= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::ModEqual(Token::lazy(TokenType::PercentEqual)),
+            AssignmentOp::ModEqual(Token::lazy(TokenType::PercentEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
@@ -729,7 +729,7 @@ fn general_self_reference() {
         "foo = self",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Identifier::lazy("self").into_expr_lazy(),
         ),
     );
@@ -741,7 +741,7 @@ fn general_other_reference() {
         "foo = other",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Identifier::lazy("other").into_expr_lazy(),
         ),
     );
@@ -756,7 +756,7 @@ fn comment_above_statement() {
         ",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOperator::Equal(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
             Identifier::lazy("bar").into_expr_lazy(),
         ),
     );

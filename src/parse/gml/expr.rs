@@ -1,5 +1,7 @@
+use itertools::Itertools;
+
 use crate::{
-    analyze::Scope,
+    analyze::{Marker, Type},
     lint::LintTag,
     parse::{Span, *},
     FileId,
@@ -10,14 +12,13 @@ use super::{IntoStmt, StmtType};
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprType {
-    /// Declaration of a function. Since gml supports anonymous functions, these are expressions,
-    /// not statements!
+    /// Declaration of a function.
     FunctionDeclaration(Function),
     /// A logical comparision.
     Logical(Logical),
     /// An equality assessment.
     Equality(Equality),
-    /// An evaluation.
+    /// A mathmatical evaluation.
     Evaluation(Evaluation),
     /// A null coalecence operation.
     NullCoalecence(NullCoalecence),
@@ -85,7 +86,8 @@ impl IntoExpr for ExprType {}
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     expr_type: Box<ExprType>,
-    scope: Option<Scope>,
+    pub marker: Marker,
+    pub tpe: Type,
     location: Location,
     lint_tag: Option<LintTag>,
 }
@@ -208,26 +210,77 @@ impl ParseVisitor for Expr {
         }
     }
 }
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.inner() {
+            ExprType::FunctionDeclaration(_) => todo!(),
+            ExprType::Logical(_) => todo!(),
+            ExprType::Equality(_) => todo!(),
+            ExprType::Evaluation(_) => todo!(),
+            ExprType::NullCoalecence(_) => todo!(),
+            ExprType::Ternary(_) => todo!(),
+            ExprType::Unary(_) => todo!(),
+            ExprType::Postfix(_) => todo!(),
+            ExprType::Access(_) => todo!(),
+            ExprType::Call(Call {
+                left,
+                arguments,
+                uses_new,
+            }) => f.pad(&format!(
+                "{}{}({})",
+                if *uses_new { "new " } else { "" },
+                left,
+                arguments.iter().join(", "),
+            )),
+            ExprType::Grouping(Grouping { inner, .. }) => f.pad(&format!("({inner})",)),
+            ExprType::Literal(literal) => match literal {
+                Literal::True => f.pad("true"),
+                Literal::False => f.pad("false"),
+                Literal::Undefined => f.pad("undefined"),
+                Literal::Noone => f.pad("noone"),
+                Literal::String(s) => f.pad(&format!("\"{}\"", s)),
+                Literal::Real(r) => f.pad(&r.to_string()),
+                Literal::Hex(h) => f.pad(&format!("hex<{}>", h)),
+                Literal::Array(members) => {
+                    f.pad("[")?;
+                    for member in members.iter() {
+                        f.pad(&format!(" {},", member))?;
+                    }
+                    f.pad(" ]")
+                }
+                Literal::Struct(members) => {
+                    f.pad("{")?;
+                    for (name, value) in members.iter() {
+                        f.pad(&format!(" {}: {},", name.lexeme, value))?;
+                    }
+                    f.pad(" }")
+                }
+                Literal::Misc(lexeme) => f.pad(lexeme),
+            },
+            ExprType::Identifier(iden) => f.pad(&iden.lexeme),
+        }
+    }
+}
 
 /// Derives two methods to convert the T into an [Expr], supporting both a standard
 /// `into_expr` method, and a `into_expr_lazy` for tests.
 pub trait IntoExpr: Sized + Into<ExprType> {
-    /// Converts self into an expression box.
-    fn into_expr(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
+    /// Converts self into an Expr.
+    fn into_expr(self, tpe: Type, marker: Marker, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
         Expr {
             expr_type: Box::new(self.into()),
+            marker,
+            tpe,
             location: Location(file_id, span),
-            scope: None,
             lint_tag,
         }
     }
 
-    /// Converts self into an expression box with a default span. Used in tests, where all spans are
-    /// expected to be 0, 0.
+    /// Converts self into an expression, using default values for everything else. Used in tests.
     fn into_expr_lazy(self) -> Expr
     where
         Self: Sized,
     {
-        self.into_expr(Default::default(), 0, None)
+        self.into_expr(Type::Unknown, Marker::default(), Default::default(), 0, None)
     }
 }

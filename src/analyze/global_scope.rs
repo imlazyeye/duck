@@ -1,5 +1,5 @@
 use crate::parse::{Enum, Location};
-use fnv::FnvHashMap;
+use hashbrown::HashMap;
 
 /// Tracks globally available symbols in a parsed project.
 ///
@@ -10,7 +10,7 @@ use fnv::FnvHashMap;
 /// This will be removed in a future version of duck!
 #[derive(Debug, Default)]
 pub struct GlobalScope {
-    enums: FnvHashMap<String, (Enum, Location)>,
+    enums: HashMap<String, (Enum, Location)>,
 }
 impl GlobalScope {
     /// Creates a new, empty GlobalScope.
@@ -36,7 +36,7 @@ impl GlobalScope {
 /// information.
 #[derive(Debug, Default)]
 pub struct GlobalScopeBuilder {
-    enums: FnvHashMap<String, (Enum, Location)>,
+    enums: HashMap<String, (Enum, Location)>,
 }
 impl GlobalScopeBuilder {
     /// Creates a new, empty GlobalScope.

@@ -6,14 +6,14 @@ pub struct Equality {
     /// The left hand side of the equality.
     pub left: Expr,
     /// The operator used in this equality.
-    pub operator: EqualityOperator,
+    pub op: EqualityOp,
     /// The right hand side of the equality.
     pub right: Expr,
 }
 impl Equality {
     /// Creates a new equality.
-    pub fn new(left: Expr, operator: EqualityOperator, right: Expr) -> Self {
-        Self { left, operator, right }
+    pub fn new(left: Expr, op: EqualityOp, right: Expr) -> Self {
+        Self { left, op, right }
     }
 }
 impl From<Equality> for ExprType {
@@ -37,7 +37,7 @@ impl ParseVisitor for Equality {
 
 /// The various equality operations supported in gml.
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum EqualityOperator {
+pub enum EqualityOp {
     /// =, ==
     Equal(Token),
     /// !=
