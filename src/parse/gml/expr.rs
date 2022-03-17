@@ -221,7 +221,33 @@ impl std::fmt::Display for Expr {
             ExprType::Ternary(_) => todo!(),
             ExprType::Unary(_) => todo!(),
             ExprType::Postfix(_) => todo!(),
-            ExprType::Access(_) => todo!(),
+            ExprType::Access(access) => match access {
+                Access::Global { right } => f.pad(&format!("global.{right}")),
+                Access::Current { right } => f.pad(&format!("self.{right}")),
+                Access::Other { right } => f.pad(&format!("other.{right}")),
+                Access::Dot { left, right } => f.pad(&format!("{left}.{right}")),
+                Access::Array {
+                    left,
+                    index_one,
+                    index_two,
+                    using_accessor,
+                } => {
+                    let accessor = if *using_accessor { "@ " } else { "" };
+                    if let Some(index_two) = index_two {
+                        f.pad(&format!("{left}[{accessor}{index_one}, {index_two}]"))
+                    } else {
+                        f.pad(&format!("{left}[{accessor}{index_one}]"))
+                    }
+                }
+                Access::Map { left, key } => todo!(),
+                Access::Grid {
+                    left,
+                    index_one,
+                    index_two,
+                } => todo!(),
+                Access::List { left, index } => todo!(),
+                Access::Struct { left, key } => todo!(),
+            },
             ExprType::Call(Call {
                 left,
                 arguments,
