@@ -47,3 +47,15 @@ pub enum UnaryOp {
     /// ~
     BitwiseNot(Token),
 }
+impl std::fmt::Display for UnaryOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UnaryOp::Increment(t)
+            | UnaryOp::Decrement(t)
+            | UnaryOp::Not(t)
+            | UnaryOp::Positive(t)
+            | UnaryOp::Negative(t)
+            | UnaryOp::BitwiseNot(t) => f.pad(&t.to_string()),
+        }
+    }
+}

@@ -466,7 +466,7 @@ fn greater_than_less_than() {
         "1 <> 1",
         Equality::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EqualityOp::NotEqual(Token::lazy(TokenType::GreaterThanLessThan)),
+            EqualityOp::NotEqual(Token::lazy(TokenType::LessThanGreaterThan)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );

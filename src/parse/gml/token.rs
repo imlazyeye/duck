@@ -1,5 +1,7 @@
 #![allow(missing_docs)]
 
+use std::fmt::Display;
+
 use crate::parse::Span;
 
 use super::{AssignmentOp, EqualityOp, EvaluationOp, Literal, LogicalOp, PostfixOp, UnaryOp};
@@ -61,7 +63,7 @@ impl Token {
     pub fn as_equality_op(&self) -> Option<EqualityOp> {
         match self.token_type {
             TokenType::Equal | TokenType::DoubleEqual | TokenType::ColonEqual => Some(EqualityOp::Equal(*self)),
-            TokenType::BangEqual | TokenType::GreaterThanLessThan => Some(EqualityOp::NotEqual(*self)),
+            TokenType::BangEqual | TokenType::LessThanGreaterThan => Some(EqualityOp::NotEqual(*self)),
             TokenType::GreaterThan => Some(EqualityOp::GreaterThan(*self)),
             TokenType::GreaterThanOrEqual => Some(EqualityOp::GreaterThanOrEqual(*self)),
             TokenType::LessThan => Some(EqualityOp::LessThan(*self)),
@@ -117,6 +119,12 @@ impl Token {
             TokenType::Xor => Some(LogicalOp::Xor(*self)),
             _ => None,
         }
+    }
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.pad(&self.token_type.to_string())
     }
 }
 
@@ -214,7 +222,7 @@ pub enum TokenType {
     End,
     Throw,
     ColonEqual,
-    GreaterThanLessThan,
+    LessThanGreaterThan,
     Macro(&'static str, Option<&'static str>, &'static str),
     Comment(&'static str),
     Identifier(&'static str),
@@ -225,4 +233,120 @@ pub enum TokenType {
     MiscConstant(&'static str),
     Invalid(&'static str),
     Eof,
+}
+
+impl Display for TokenType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            TokenType::Switch => "switch",
+            TokenType::Case => "case",
+            TokenType::Break => "break",
+            TokenType::Return => "return",
+            TokenType::Colon => ":",
+            TokenType::Dot => ".",
+            TokenType::Enum => "enum",
+            TokenType::LeftBrace => "{",
+            TokenType::RightBrace => "}",
+            TokenType::LeftParenthesis => "(",
+            TokenType::RightParenthesis => ")",
+            TokenType::LeftSquareBracket => "[",
+            TokenType::RightSquareBracket => "]",
+            TokenType::Default => "default",
+            TokenType::Comma => ",",
+            TokenType::Ampersand => "&",
+            TokenType::And => "and",
+            TokenType::DoubleAmpersand => "&&",
+            TokenType::Or => "or",
+            TokenType::DoublePipe => "||",
+            TokenType::Xor => "xor",
+            TokenType::Circumflex => "^",
+            TokenType::Equal => "=",
+            TokenType::DoubleEqual => "==",
+            TokenType::BangEqual => "!=",
+            TokenType::Function => "function",
+            TokenType::Constructor => "constructor",
+            TokenType::Exit => "exit",
+            TokenType::New => "new",
+            TokenType::Global => "global",
+            TokenType::Globalvar => "globalvar",
+            TokenType::SelfKeyword => "self",
+            TokenType::Mod => "mod",
+            TokenType::Percent => "%",
+            TokenType::PercentEqual => "%=",
+            TokenType::Div => "div",
+            TokenType::Slash => "/",
+            TokenType::Star => "*",
+            TokenType::Try => "try",
+            TokenType::Catch => "catch",
+            TokenType::With => "with",
+            TokenType::True => "true",
+            TokenType::False => "false",
+            TokenType::Plus => "+",
+            TokenType::Minus => "-",
+            TokenType::Bang => "!",
+            TokenType::Interrobang => "?",
+            TokenType::DoubleInterrobang => "??",
+            TokenType::DoubleInterrobangEquals => "??=",
+            TokenType::GreaterThan => ">",
+            TokenType::GreaterThanOrEqual => ">=",
+            TokenType::LessThan => "<",
+            TokenType::LessThanOrEqual => "<=",
+            TokenType::Pipe => "|",
+            TokenType::SemiColon => ";",
+            TokenType::Hash => "#",
+            TokenType::If => "if",
+            TokenType::Else => "else",
+            TokenType::While => "while",
+            TokenType::For => "for",
+            TokenType::Do => "do",
+            TokenType::Until => "until",
+            TokenType::Repeat => "repeat",
+            TokenType::Var => "var",
+            TokenType::PlusEqual => "+=",
+            TokenType::MinusEqual => "-=",
+            TokenType::StarEqual => "*=",
+            TokenType::SlashEqual => "/=",
+            TokenType::DoublePlus => "++",
+            TokenType::DoubleMinus => "--",
+            TokenType::DollarSign => "$",
+            TokenType::PipeEqual => "|=",
+            TokenType::AmpersandEqual => "&=",
+            TokenType::CirumflexEqual => "^=",
+            TokenType::Tilde => "~",
+            TokenType::BitShiftLeft => "<<",
+            TokenType::BitShiftRight => ">>",
+            TokenType::AtSign => "@",
+            TokenType::Continue => "continue",
+            TokenType::Static => "static",
+            TokenType::Then => "then",
+            TokenType::Finally => "finally",
+            TokenType::Undefined => "undefined",
+            TokenType::Noone => "noone",
+            TokenType::Not => "not",
+            TokenType::Other => "other",
+            TokenType::Delete => "delete",
+            TokenType::Begin => "begin",
+            TokenType::End => "end",
+            TokenType::Throw => "throw",
+            TokenType::ColonEqual => ":=",
+            TokenType::LessThanGreaterThan => "<>",
+            TokenType::Macro(name, config, body) => {
+                return if let Some(config) = config {
+                    f.pad(&format!("#macro {config}:{name} {body}"))
+                } else {
+                    f.pad(&format!("#macro {name} {body}"))
+                };
+            }
+            TokenType::Comment(body) => return f.pad(&format!("// {body}")),
+            TokenType::Identifier(iden) => iden,
+            TokenType::Real(r) => return f.pad(&r.to_string()),
+            TokenType::StringLiteral(s) => return f.pad(&format!("\"{s}\"")),
+            TokenType::LintTag(level, tag) => return f.pad(&format!("// #[{level}({tag})]")),
+            TokenType::Hex(hex) => hex,
+            TokenType::MiscConstant(con) => con,
+            TokenType::Invalid(_) => "INVALID_TOKEN",
+            TokenType::Eof => "",
+        };
+        f.pad(s)
+    }
 }

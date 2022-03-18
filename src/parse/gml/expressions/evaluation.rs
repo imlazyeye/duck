@@ -61,3 +61,20 @@ pub enum EvaluationOp {
     /// >>
     BitShiftRight(Token),
 }
+impl std::fmt::Display for EvaluationOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EvaluationOp::Plus(t)
+            | EvaluationOp::Minus(t)
+            | EvaluationOp::Slash(t)
+            | EvaluationOp::Star(t)
+            | EvaluationOp::Div(t)
+            | EvaluationOp::Modulo(t)
+            | EvaluationOp::And(t)
+            | EvaluationOp::Or(t)
+            | EvaluationOp::Xor(t)
+            | EvaluationOp::BitShiftLeft(t)
+            | EvaluationOp::BitShiftRight(t) => f.pad(&t.to_string()),
+        }
+    }
+}

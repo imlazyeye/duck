@@ -51,3 +51,16 @@ pub enum EqualityOp {
     /// <=
     LessThanOrEqual(Token),
 }
+
+impl std::fmt::Display for EqualityOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EqualityOp::Equal(t)
+            | EqualityOp::NotEqual(t)
+            | EqualityOp::GreaterThan(t)
+            | EqualityOp::GreaterThanOrEqual(t)
+            | EqualityOp::LessThan(t)
+            | EqualityOp::LessThanOrEqual(t) => f.pad(&t.to_string()),
+        }
+    }
+}

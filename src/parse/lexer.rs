@@ -89,7 +89,7 @@ impl Lexer {
                     } else if self.match_take('<') {
                         Some(TokenType::BitShiftLeft)
                     } else if self.match_take('>') {
-                        Some(TokenType::GreaterThanLessThan)
+                        Some(TokenType::LessThanGreaterThan)
                     } else {
                         Some(TokenType::LessThan)
                     }

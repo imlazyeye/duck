@@ -213,14 +213,35 @@ impl ParseVisitor for Expr {
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.inner() {
-            ExprType::FunctionDeclaration(_) => todo!(),
-            ExprType::Logical(_) => todo!(),
-            ExprType::Equality(_) => todo!(),
-            ExprType::Evaluation(_) => todo!(),
-            ExprType::NullCoalecence(_) => todo!(),
-            ExprType::Ternary(_) => todo!(),
-            ExprType::Unary(_) => todo!(),
-            ExprType::Postfix(_) => todo!(),
+            ExprType::FunctionDeclaration(Function {
+                name,
+                parameters,
+                constructor,
+                ..
+            }) => {
+                let constructor_str = match constructor {
+                    Some(Constructor::WithInheritance(call)) => format!(": {call} constructor"),
+                    Some(Constructor::WithoutInheritance) => "constructor".into(),
+                    None => "".into(),
+                };
+                let param_str = parameters.iter().join(", ");
+                if let Some(Identifier { lexeme, .. }) = name {
+                    f.pad(&format!("function {lexeme}({param_str}) {constructor_str} {{ ... }}"))
+                } else {
+                    f.pad(&format!("function({param_str}) {constructor_str} {{ ... }}"))
+                }
+            }
+            ExprType::Logical(Logical { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
+            ExprType::Equality(Equality { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
+            ExprType::Evaluation(Evaluation { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
+            ExprType::NullCoalecence(NullCoalecence { left, right }) => f.pad(&format!("{left} ?? {right}")),
+            ExprType::Ternary(Ternary {
+                condition,
+                true_value,
+                false_value,
+            }) => f.pad(&format!("{condition} ? {true_value} : {false_value}")),
+            ExprType::Unary(Unary { op, right }) => f.pad(&format!("{op}{right}")),
+            ExprType::Postfix(Postfix { left, op }) => f.pad(&format!("{left}{op}")),
             ExprType::Access(access) => match access {
                 Access::Global { right } => f.pad(&format!("global.{right}")),
                 Access::Current { right } => f.pad(&format!("self.{right}")),

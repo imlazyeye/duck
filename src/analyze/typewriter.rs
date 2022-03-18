@@ -1,11 +1,12 @@
-use std::fmt::Display;
-
+use super::{Application, Constraint, Deref, Marker, Symbol, Type};
 use crate::parse::{
-    Access, Assignment, AssignmentOp, Ast, Expr, ExprType, Grouping, Identifier, Literal, ParseVisitor, Postfix, Stmt,
-    StmtType, Unary, UnaryOp,
+    Access, Assignment, AssignmentOp, Ast, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
+    LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Stmt, StmtType,
+    Ternary, Unary, UnaryOp,
 };
 use colored::Colorize;
 use hashbrown::HashMap;
+
 #[derive(Debug, Default)]
 pub struct TypeWriter {
     pub scope: HashMap<String, Marker>,
@@ -31,9 +32,13 @@ impl TypeWriter {
         // important to understand this rev is not needed, it just makes things operate the way I do it on
         // paper, which makes it easier to debug
         self.constraints.reverse();
-        while let Some(Constraint(marker, symbol)) = self.constraints.pop() {
+        while let Some(Constraint { marker, symbol }) = self.constraints.pop() {
             self.substitutions.insert(marker, symbol.clone());
-            for Constraint(test_marker, test_symbol) in self.constraints.iter_mut() {
+            for Constraint {
+                marker: test_marker,
+                symbol: test_symbol,
+            } in self.constraints.iter_mut()
+            {
                 let previous = format!("{} => {}", test_marker, test_symbol).bright_black();
                 if Self::update_symbol(test_symbol, marker, &symbol) {
                     self.substitutions.insert(*test_marker, test_symbol.clone());
@@ -123,10 +128,22 @@ impl TypeWriter {
                 if let ExprType::Identifier(iden) = left.inner_mut() {
                     if !self.scope.contains_key(&iden.lexeme) {
                         self.scope.insert(iden.lexeme.clone(), left.marker);
-                        self.register_substitution(left, Symbol::Variable(right.marker));
+                        self.register_constraint(left, Symbol::Variable(right.marker));
                     } else {
                         // validate that the new type is equal to the last type? shadowing is a
                         // problem
+                    }
+                }
+            }
+            StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
+                for initializer in declarations.iter() {
+                    if let OptionalInitilization::Uninitialized(expr) = initializer {
+                        if !self.scope.contains_key(initializer.name()) {
+                            self.scope.insert(initializer.name().into(), expr.marker);
+                        } else {
+                            // validate that the new type is equal to the last type? shadowing is a
+                            // problem
+                        }
                     }
                 }
             }
@@ -148,34 +165,53 @@ impl TypeWriter {
                 // will have to inference the type of the arguments, and create a function type out
                 // of that
             }
-            ExprType::Logical(_) => {
-                // validate lhs and rhs are bool, result is bool
+            ExprType::Logical(Logical { left, right, .. }) => {
+                self.register_constraint(left, Symbol::Constant(Type::Bool));
+                self.register_constraint(right, Symbol::Constant(Type::Bool));
+                self.register_constraint(expr, Symbol::Constant(Type::Bool));
             }
-            ExprType::Equality(_) => {
-                // validate lhs and rhs are equal, result is bool
+            ExprType::Equality(Equality { left, right, .. }) => {
+                self.register_constraint(left, Symbol::Variable(right.marker));
+                self.register_constraint(right, Symbol::Variable(left.marker));
+                self.register_constraint(expr, Symbol::Constant(Type::Bool));
             }
-            ExprType::Evaluation(_) => {
-                // validate lhs and rhs are equal. lhs decides the resulting type
+            ExprType::Evaluation(Evaluation { left, right, .. }) => {
+                self.register_constraint(left, Symbol::Variable(right.marker));
+                self.register_constraint(right, Symbol::Variable(left.marker));
+                self.register_constraint(expr, Symbol::Variable(left.marker));
             }
-            ExprType::NullCoalecence(_) => {
-                // validate lhs and rhs are compatible. their combo is the result
+            ExprType::NullCoalecence(NullCoalecence { left, right }) => {
+                self.register_constraint(left, Symbol::Variable(right.marker));
+                self.register_constraint(right, Symbol::Variable(left.marker));
+                self.register_constraint(expr, Symbol::Variable(left.marker));
             }
-            ExprType::Ternary(_) => {
-                // validate condition is bool and lhs and rhs are compatible, result is their combo
+            ExprType::Ternary(Ternary {
+                condition,
+                true_value,
+                false_value,
+            }) => {
+                self.register_constraint(condition, Symbol::Constant(Type::Bool));
+                self.register_constraint(true_value, Symbol::Variable(false_value.marker));
+                self.register_constraint(false_value, Symbol::Variable(true_value.marker));
+                self.register_constraint(expr, Symbol::Variable(true_value.marker));
             }
-            ExprType::Unary(Unary { op, .. }) => match op {
-                UnaryOp::Increment(_) | UnaryOp::Decrement(_) | UnaryOp::Positive(_) | UnaryOp::Negative(_) => {
-                    // validate expr is real, result is real
+            ExprType::Unary(Unary { op, right }) => match op {
+                UnaryOp::Increment(_)
+                | UnaryOp::Decrement(_)
+                | UnaryOp::Positive(_)
+                | UnaryOp::Negative(_)
+                | UnaryOp::BitwiseNot(_) => {
+                    self.register_constraint(right, Symbol::Constant(Type::Real));
+                    self.register_constraint(expr, Symbol::Constant(Type::Real));
                 }
                 UnaryOp::Not(_) => {
-                    // validate expr is bool, result is bool
-                }
-                UnaryOp::BitwiseNot(_) => {
-                    // validate expr is real, result is real
+                    self.register_constraint(right, Symbol::Constant(Type::Bool));
+                    self.register_constraint(expr, Symbol::Constant(Type::Bool));
                 }
             },
-            ExprType::Postfix(_) => {
-                // validate expr is real, result is real
+            ExprType::Postfix(Postfix { left, .. }) => {
+                self.register_constraint(left, Symbol::Constant(Type::Real));
+                self.register_constraint(expr, Symbol::Constant(Type::Real));
             }
             ExprType::Access(access) => {
                 match access {
@@ -189,14 +225,14 @@ impl TypeWriter {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        self.register_substitution(
+                        self.register_constraint(
                             right,
                             Symbol::Deref(Deref::Object(
                                 left.marker,
                                 right.inner().as_identifier().unwrap().lexeme.clone(),
                             )),
                         );
-                        self.register_substitution(expr, Symbol::Variable(right.marker));
+                        self.register_constraint(expr, Symbol::Variable(right.marker));
                     }
                     Access::Array {
                         left,
@@ -205,13 +241,13 @@ impl TypeWriter {
                         ..
                     } => {
                         // our indexes must be real
-                        self.register_substitution(index_one, Symbol::Constant(Type::Real));
+                        self.register_constraint(index_one, Symbol::Constant(Type::Real));
                         if let Some(index_two) = index_two {
-                            self.register_substitution(index_two, Symbol::Constant(Type::Real));
+                            self.register_constraint(index_two, Symbol::Constant(Type::Real));
                         }
 
                         // meanwhile, our type is a deref of the left's type
-                        self.register_substitution(expr, Symbol::Deref(Deref::Array(left.marker)));
+                        self.register_constraint(expr, Symbol::Deref(Deref::Array(left.marker)));
                     }
                     Access::Struct { left, key } => {}
                     _ => todo!(),
@@ -221,7 +257,7 @@ impl TypeWriter {
                 // access the call's type from scope, validate arg types, then use its return value.
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
-                self.register_substitution(expr, Symbol::Variable(inner.marker));
+                self.register_constraint(expr, Symbol::Variable(inner.marker));
             }
 
             ExprType::Identifier(iden) => {
@@ -258,7 +294,7 @@ impl TypeWriter {
                     }
                     Literal::Misc(_) => Symbol::Constant(Type::Unknown),
                 };
-                self.register_substitution(expr, symbol);
+                self.register_constraint(expr, symbol);
             }
         }
     }
@@ -291,8 +327,11 @@ impl TypeWriter {
         expr.visit_child_exprs_mut(|expr| self.finalize_expr(expr));
     }
 
-    fn register_substitution(&mut self, expr: &Expr, symbol: Symbol) {
-        let substitution = Constraint(expr.marker, symbol);
+    fn register_constraint(&mut self, expr: &Expr, symbol: Symbol) {
+        let substitution = Constraint {
+            marker: expr.marker,
+            symbol,
+        };
         println!("{substitution}");
         self.constraints.push(substitution);
     }
@@ -309,141 +348,5 @@ impl TypeWriter {
             }
         }
         tpe
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Constraint(Marker, Symbol);
-impl Display for Constraint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!(
-            "{} = {}",
-            self.0.to_string().bright_cyan(),
-            format!("{}", self.1).bright_blue()
-        ))
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Symbol {
-    Constant(Type),
-    Variable(Marker),
-    Application(Application),
-    Deref(Deref),
-}
-impl Display for Symbol {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Symbol::Constant(tpe) => f.pad(&tpe.to_string()),
-            Symbol::Variable(marker) => f.pad(&marker.to_string()),
-            Symbol::Application(application) => f.pad(&application.to_string()),
-            Symbol::Deref(deref) => f.pad(&deref.to_string()),
-        }
-    }
-}
-impl From<Symbol> for Type {
-    fn from(symbol: Symbol) -> Self {
-        match symbol {
-            Symbol::Constant(tpe) => tpe,
-            Symbol::Variable(_) => Type::Unknown,
-            Symbol::Application(app) => match app {
-                Application::Array(inner_symbol) => Type::Array(Box::new(Type::from(inner_symbol.as_ref().to_owned()))),
-                Application::Object(fields) => {
-                    let mut tpe_fields = HashMap::new();
-                    for (name, symbol) in fields {
-                        tpe_fields.insert(name, symbol.into());
-                    }
-                    Type::Struct(tpe_fields)
-                }
-            },
-            Symbol::Deref(_) => Type::Unknown,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Application {
-    Array(Box<Symbol>),
-    Object(HashMap<String, Symbol>),
-}
-impl Display for Application {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Application::Array(symbol) => f.pad(&format!("[{symbol}]")),
-            Application::Object(fields) => {
-                f.pad("{")?;
-                for (name, symbol) in fields.iter() {
-                    f.pad(&format!(" {name}: {symbol},"))?;
-                }
-                f.pad(" }")
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Deref {
-    Array(Marker),
-    Object(Marker, String),
-}
-impl Display for Deref {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Deref::Array(marker) => f.pad(&format!("*{marker}")),
-            Deref::Object(marker, field) => f.pad(&format!("{marker}.{}", field)),
-        }
-    }
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
-pub struct Marker(pub u64);
-impl Marker {
-    pub fn new() -> Self {
-        Self(rand::random())
-    }
-}
-impl Display for Marker {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!("t{}", self.0))
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Type {
-    /// We do not know the type of this symbol
-    Unknown,
-    /// The GM constant value of `undefined`
-    Undefined,
-    /// The GM constant value of `noone`
-    Noone,
-    /// True or false
-    Bool,
-    /// A number
-    Real,
-    /// A string of text
-    String,
-    /// An array containing values of the nested type
-    Array(Box<Type>),
-    /// A struct with the given fields
-    Struct(HashMap<String, Type>),
-}
-impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::Unknown => f.pad("<?>"),
-            Type::Undefined => f.pad("Undefined"),
-            Type::Noone => f.pad("Noone"),
-            Type::Bool => f.pad("Bool"),
-            Type::Real => f.pad("Real"),
-            Type::String => f.pad("String"),
-            Type::Array(inner) => f.pad(&format!("[{}]", *inner)),
-            Type::Struct(fields) => {
-                f.pad("{")?;
-                for (name, symbol) in fields.iter() {
-                    f.pad(&format!(" {name}: {symbol},"))?;
-                }
-                f.pad(" }")
-            }
-        }
     }
 }

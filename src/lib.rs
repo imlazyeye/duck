@@ -131,12 +131,14 @@ pub mod parse {
 }
 
 /// The future home of static-analysis features, but currently just home to [GlobalScope].
+#[allow(missing_docs)]
 pub mod analyze {
     mod global_scope;
     pub use global_scope::*;
-    #[allow(missing_docs)]
-    mod r#type;
-    pub use r#type::*;
+    mod type_utils;
+    pub use type_utils::*;
+    mod typewriter;
+    pub use typewriter::*;
     #[cfg(test)]
     mod tests {
         mod analysis;

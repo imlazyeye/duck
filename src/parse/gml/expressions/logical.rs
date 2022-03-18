@@ -45,3 +45,11 @@ pub enum LogicalOp {
     /// xor, ^^
     Xor(Token),
 }
+
+impl std::fmt::Display for LogicalOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LogicalOp::And(t) | LogicalOp::Or(t) | LogicalOp::Xor(t) => f.pad(&t.to_string()),
+        }
+    }
+}
