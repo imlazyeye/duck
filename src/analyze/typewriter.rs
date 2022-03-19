@@ -1,6 +1,6 @@
 use super::{Application, Constraint, Deref, Marker, Symbol, Type};
 use crate::parse::{
-    Access, Assignment, AssignmentOp, Ast, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
+    Access, Assignment, AssignmentOp, Ast, Call, Equality, Evaluation, Expr, ExprType, Function, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Stmt, StmtType,
     Ternary, Unary, UnaryOp,
 };
@@ -9,13 +9,10 @@ use hashbrown::HashMap;
 
 #[derive(Debug, Default)]
 pub struct TypeWriter {
-    pub scope: HashMap<String, Marker>,
-    pub constraints: Vec<Constraint>,
-    pub substitutions: HashMap<Marker, Symbol>,
-    pub alias_iter: u64,
+    alias_iter: u64,
 }
 impl TypeWriter {
-    pub fn write_types(&mut self, ast: &mut Ast) {
+    pub fn write_types(&mut self, ast: &mut Ast) -> Page {
         // If we're testing, we'll alias all the markers, just to make things easier to read
         if cfg!(test) {
             for stmt in ast.stmts_mut() {
@@ -23,39 +20,39 @@ impl TypeWriter {
             }
         }
 
-        // Constrain everything
+        let mut page = Page::default();
+        Self::apply_stmts_to_page(ast.stmts_mut(), &mut page);
+
+        // With the results, update our ast
+        // eventually we won't do this?
         for stmt in ast.stmts_mut() {
-            self.constrain_stmt(stmt);
+            Self::finalize_stmt(stmt, &page);
+        }
+        page
+    }
+
+    fn apply_stmts_to_page(stmts: &mut Vec<Stmt>, page: &mut Page) {
+        // Constrain everything
+        for stmt in stmts.iter_mut() {
+            Self::constrain_stmt(stmt, page);
         }
 
         // Sub everything
-        // important to understand this rev is not needed, it just makes things operate the way I do it on
-        // paper, which makes it easier to debug
-        self.constraints.reverse();
-        while let Some(Constraint { marker, symbol }) = self.constraints.pop() {
-            self.substitutions.insert(marker, symbol.clone());
-            for Constraint {
-                marker: test_marker,
-                symbol: test_symbol,
-            } in self.constraints.iter_mut()
-            {
-                let previous = format!("{} => {}", test_marker, test_symbol).bright_black();
-                if Self::update_symbol(test_symbol, marker, &symbol) {
-                    self.substitutions.insert(*test_marker, test_symbol.clone());
-                    println!(
-                        "[{} = {}]: {previous} => {} => {}",
-                        marker.to_string().bright_cyan(),
-                        format!("{test_marker}").bright_blue(),
-                        test_marker.to_string().bright_cyan(),
-                        format!("{test_symbol}").bright_blue()
-                    )
+        page.constraints.reverse();
+        page.substitutions = page
+            .constraints
+            .iter()
+            .cloned()
+            .map(|Constraint { marker, symbol }| (marker, symbol))
+            .collect::<HashMap<Marker, Symbol>>();
+        while let Some(Constraint { marker, symbol }) = page.constraints.pop() {
+            for test_constraint in page.constraints.iter_mut() {
+                let previous = test_constraint.symbol.clone();
+                if Self::update_symbol(&mut test_constraint.symbol, marker, &symbol) {
+                    println!("{} => {}", previous, test_constraint.symbol);
                 }
             }
-        }
-
-        // With the results, update our ast
-        for stmt in ast.stmts_mut() {
-            self.finalize_stmt(stmt);
+            page.substitutions.insert(marker, symbol);
         }
     }
 
@@ -70,8 +67,8 @@ impl TypeWriter {
                 }
             }
             Symbol::Application(application) => match application {
-                Application::Array(inner_symbol) => Self::update_symbol(inner_symbol, marker, new_target),
-                Application::Object(fields) => {
+                Application::Array { member_type: inner } => Self::update_symbol(inner, marker, new_target),
+                Application::Object { fields } => {
                     let mut any = false;
                     for (_, field_symbol) in fields {
                         if Self::update_symbol(field_symbol, marker, new_target) {
@@ -86,8 +83,8 @@ impl TypeWriter {
                     if *inner_marker == marker {
                         match new_target {
                             Symbol::Variable(new_marker) => *inner_marker = *new_marker,
-                            Symbol::Application(Application::Array(inner_symbol)) => {
-                                *symbol = inner_symbol.as_ref().clone()
+                            Symbol::Application(Application::Array { member_type: inner }) => {
+                                *symbol = inner.as_ref().clone()
                             }
                             _ => panic!("cannot access {inner_marker} with a {new_target}"),
                         }
@@ -100,7 +97,7 @@ impl TypeWriter {
                     if *inner_marker == marker {
                         match new_target {
                             Symbol::Variable(new_marker) => *inner_marker = *new_marker,
-                            Symbol::Application(Application::Object(fields)) => {
+                            Symbol::Application(Application::Object { fields }) => {
                                 *symbol = fields.get(key).expect("couldn't find a field on a struct").clone()
                             }
                             _ => panic!("cannot access {inner_marker} with a {new_target}"),
@@ -111,14 +108,22 @@ impl TypeWriter {
                     }
                 }
             },
+            Symbol::Union(unions) => {
+                let mut any = false;
+                for union in unions {
+                    if Self::update_symbol(union, marker, new_target) {
+                        any = true;
+                    }
+                }
+                any
+            }
             Symbol::Constant(_) => false,
         }
     }
 
-    fn constrain_stmt(&mut self, stmt: &mut Stmt) {
-        stmt.visit_child_stmts_mut(|stmt| self.constrain_stmt(stmt));
-        stmt.visit_child_exprs_mut(|expr| self.constrain_expr(expr));
-
+    fn constrain_stmt(stmt: &mut Stmt, page: &mut Page) {
+        stmt.visit_child_stmts_mut(|stmt| Self::constrain_stmt(stmt, page));
+        stmt.visit_child_exprs_mut(|expr| Self::constrain_expr(expr, page));
         match stmt.inner_mut() {
             StmtType::Assignment(Assignment {
                 left,
@@ -126,9 +131,9 @@ impl TypeWriter {
                 right,
             }) => {
                 if let ExprType::Identifier(iden) = left.inner_mut() {
-                    if !self.scope.contains_key(&iden.lexeme) {
-                        self.scope.insert(iden.lexeme.clone(), left.marker);
-                        self.register_constraint(left, Symbol::Variable(right.marker));
+                    if !page.fields.contains_key(&iden.lexeme) {
+                        page.fields.insert(iden.lexeme.clone(), left.marker);
+                        page.constrain_to_expr(left, right);
                     } else {
                         // validate that the new type is equal to the last type? shadowing is a
                         // problem
@@ -138,8 +143,9 @@ impl TypeWriter {
             StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {
                     if let OptionalInitilization::Uninitialized(expr) = initializer {
-                        if !self.scope.contains_key(initializer.name()) {
-                            self.scope.insert(initializer.name().into(), expr.marker);
+                        if !page.fields.contains_key(initializer.name()) {
+                            page.fields.insert(initializer.name().into(), expr.marker);
+                            page.constrain_to_type(expr, Type::Undefined);
                         } else {
                             // validate that the new type is equal to the last type? shadowing is a
                             // problem
@@ -156,44 +162,53 @@ impl TypeWriter {
         }
     }
 
-    fn constrain_expr(&mut self, expr: &mut Expr) {
-        expr.visit_child_stmts_mut(|stmt| self.constrain_stmt(stmt));
-        expr.visit_child_exprs_mut(|expr| self.constrain_expr(expr));
-
+    fn constrain_expr(expr: &mut Expr, page: &mut Page) {
+        expr.visit_child_stmts_mut(|stmt| Self::constrain_stmt(stmt, page));
+        expr.visit_child_exprs_mut(|expr| Self::constrain_expr(expr, page));
         match expr.inner() {
-            ExprType::FunctionDeclaration(_) => {
-                // will have to inference the type of the arguments, and create a function type out
-                // of that
-            }
+            ExprType::FunctionDeclaration(Function {
+                name,
+                parameters,
+                constructor,
+                body,
+            }) => match constructor {
+                Some(_) => todo!(),
+                None => {
+                    let mut parameter_types = HashMap::new();
+                    for param in parameters {
+                        let symbol = if let Some(value) = param.assignment_value() {
+                            Symbol::Variable(value.marker)
+                        } else {
+                            Symbol::Constant(Type::Unknown)
+                        };
+                        parameter_types.insert(param.name().to_string(), symbol);
+                    }
+                }
+            },
             ExprType::Logical(Logical { left, right, .. }) => {
-                self.register_constraint(left, Symbol::Constant(Type::Bool));
-                self.register_constraint(right, Symbol::Constant(Type::Bool));
-                self.register_constraint(expr, Symbol::Constant(Type::Bool));
+                page.constrain_to_type(right, Type::Bool);
+                page.constrain_to_type(expr, Type::Bool);
             }
             ExprType::Equality(Equality { left, right, .. }) => {
-                self.register_constraint(left, Symbol::Variable(right.marker));
-                self.register_constraint(right, Symbol::Variable(left.marker));
-                self.register_constraint(expr, Symbol::Constant(Type::Bool));
+                page.constrain_to_expr(right, left);
+                page.constrain_to_type(expr, Type::Bool);
             }
             ExprType::Evaluation(Evaluation { left, right, .. }) => {
-                self.register_constraint(left, Symbol::Variable(right.marker));
-                self.register_constraint(right, Symbol::Variable(left.marker));
-                self.register_constraint(expr, Symbol::Variable(left.marker));
+                page.constrain_to_expr(right, left);
+                page.constrain_to_expr(expr, left);
             }
             ExprType::NullCoalecence(NullCoalecence { left, right }) => {
-                self.register_constraint(left, Symbol::Variable(right.marker));
-                self.register_constraint(right, Symbol::Variable(left.marker));
-                self.register_constraint(expr, Symbol::Variable(left.marker));
+                page.constrain_to_expr(right, left);
+                page.constrain_to_expr(expr, left);
             }
             ExprType::Ternary(Ternary {
                 condition,
                 true_value,
                 false_value,
             }) => {
-                self.register_constraint(condition, Symbol::Constant(Type::Bool));
-                self.register_constraint(true_value, Symbol::Variable(false_value.marker));
-                self.register_constraint(false_value, Symbol::Variable(true_value.marker));
-                self.register_constraint(expr, Symbol::Variable(true_value.marker));
+                page.constrain_to_type(condition, Type::Bool);
+                page.constrain_to_expr(false_value, true_value);
+                page.constrain_to_expr(expr, true_value);
             }
             ExprType::Unary(Unary { op, right }) => match op {
                 UnaryOp::Increment(_)
@@ -201,17 +216,17 @@ impl TypeWriter {
                 | UnaryOp::Positive(_)
                 | UnaryOp::Negative(_)
                 | UnaryOp::BitwiseNot(_) => {
-                    self.register_constraint(right, Symbol::Constant(Type::Real));
-                    self.register_constraint(expr, Symbol::Constant(Type::Real));
+                    page.constrain_to_type(right, Type::Real);
+                    page.constrain_to_type(expr, Type::Real);
                 }
                 UnaryOp::Not(_) => {
-                    self.register_constraint(right, Symbol::Constant(Type::Bool));
-                    self.register_constraint(expr, Symbol::Constant(Type::Bool));
+                    page.constrain_to_type(right, Type::Bool);
+                    page.constrain_to_type(expr, Type::Bool);
                 }
             },
             ExprType::Postfix(Postfix { left, .. }) => {
-                self.register_constraint(left, Symbol::Constant(Type::Real));
-                self.register_constraint(expr, Symbol::Constant(Type::Real));
+                page.constrain_to_type(left, Type::Real);
+                page.constrain_to_type(expr, Type::Real);
             }
             ExprType::Access(access) => {
                 match access {
@@ -225,14 +240,7 @@ impl TypeWriter {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        self.register_constraint(
-                            right,
-                            Symbol::Deref(Deref::Object(
-                                left.marker,
-                                right.inner().as_identifier().unwrap().lexeme.clone(),
-                            )),
-                        );
-                        self.register_constraint(expr, Symbol::Variable(right.marker));
+                        page.constrain_to_deref(expr, Deref::Object(left.marker, right.lexeme.clone()));
                     }
                     Access::Array {
                         left,
@@ -241,47 +249,56 @@ impl TypeWriter {
                         ..
                     } => {
                         // our indexes must be real
-                        self.register_constraint(index_one, Symbol::Constant(Type::Real));
+                        page.constrain_to_type(index_one, Type::Real);
                         if let Some(index_two) = index_two {
-                            self.register_constraint(index_two, Symbol::Constant(Type::Real));
+                            page.constrain_to_type(index_two, Type::Real);
                         }
 
                         // meanwhile, our type is a deref of the left's type
-                        self.register_constraint(expr, Symbol::Deref(Deref::Array(left.marker)));
+                        page.constrain_to_deref(expr, Deref::Array(left.marker));
                     }
                     Access::Struct { left, key } => {}
                     _ => todo!(),
                 }
             }
-            ExprType::Call(_) => {
-                // access the call's type from scope, validate arg types, then use its return value.
-            }
+            ExprType::Call(Call {
+                left,
+                arguments,
+                uses_new,
+            }) => {}
             ExprType::Grouping(Grouping { inner, .. }) => {
-                self.register_constraint(expr, Symbol::Variable(inner.marker));
+                page.constrain_to_expr(expr, inner);
             }
 
             ExprType::Identifier(iden) => {
                 // if this identifier is already in scope, then we need to remap this to the previous declaration
-                if let Some(marker) = self.scope.get(&iden.lexeme) {
-                    expr.marker = *marker;
+                if let Some(marker) = page.fields.get(&iden.lexeme).copied() {
+                    expr.marker = marker;
                 } else {
                     // if its not in scope, then we can't constrain it to anything
                 }
             }
             ExprType::Literal(literal) => {
-                let symbol = match literal {
-                    Literal::True | Literal::False => Symbol::Constant(Type::Bool),
-                    Literal::Undefined => Symbol::Constant(Type::Undefined),
-                    Literal::Noone => Symbol::Constant(Type::Noone),
-                    Literal::String(_) => Symbol::Constant(Type::String),
-                    Literal::Real(_) | Literal::Hex(_) => Symbol::Constant(Type::Real),
+                let tpe = match literal {
+                    Literal::True | Literal::False => Type::Bool,
+                    Literal::Undefined => Type::Undefined,
+                    Literal::Noone => Type::Noone,
+                    Literal::String(_) => Type::String,
+                    Literal::Real(_) | Literal::Hex(_) => Type::Real,
+                    Literal::Misc(_) => Type::Unknown,
                     Literal::Array(exprs) => {
                         // Infer the type based on the first member
-                        if let Some(marker) = exprs.first().map(|expr| expr.marker) {
-                            Symbol::Application(Application::Array(Box::new(Symbol::Variable(marker))))
+                        let app = if let Some(marker) = exprs.first().map(|expr| expr.marker) {
+                            Application::Array {
+                                member_type: Box::new(Symbol::Variable(marker)),
+                            }
                         } else {
-                            Symbol::Application(Application::Array(Box::new(Symbol::Constant(Type::Unknown)))) // todo will this resolve?
-                        }
+                            Application::Array {
+                                member_type: Box::new(Symbol::Constant(Type::Unknown)),
+                            } // todo will this resolve?
+                        };
+                        page.constrain_to_application(expr, app);
+                        return;
                     }
                     Literal::Struct(declarations) => {
                         // We can construct a type for this since we'll know the structure of the fields,
@@ -290,11 +307,11 @@ impl TypeWriter {
                         for declaration in declarations {
                             fields.insert(declaration.0.lexeme.clone(), Symbol::Variable(declaration.1.marker));
                         }
-                        Symbol::Application(Application::Object(fields))
+                        page.constrain_to_application(expr, Application::Object { fields });
+                        return;
                     }
-                    Literal::Misc(_) => Symbol::Constant(Type::Unknown),
                 };
-                self.register_constraint(expr, symbol);
+                page.constrain_to_type(expr, tpe);
             }
         }
     }
@@ -316,37 +333,74 @@ impl TypeWriter {
         expr.visit_child_exprs_mut(|expr| self.alias_expr(expr));
     }
 
-    fn finalize_stmt(&mut self, stmt: &mut Stmt) {
-        stmt.visit_child_stmts_mut(|stmt| self.finalize_stmt(stmt));
-        stmt.visit_child_exprs_mut(|expr| self.finalize_expr(expr));
+    fn finalize_stmt(stmt: &mut Stmt, page: &Page) {
+        stmt.visit_child_stmts_mut(|stmt| Self::finalize_stmt(stmt, page));
+        stmt.visit_child_exprs_mut(|expr| Self::finalize_expr(expr, page));
     }
 
-    fn finalize_expr(&mut self, expr: &mut Expr) {
-        expr.tpe = self.resolve_type(expr.marker);
-        expr.visit_child_stmts_mut(|stmt| self.finalize_stmt(stmt));
-        expr.visit_child_exprs_mut(|expr| self.finalize_expr(expr));
+    fn finalize_expr(expr: &mut Expr, page: &Page) {
+        expr.tpe = page.seek_type_for(expr.marker);
+        expr.visit_child_stmts_mut(|stmt| Self::finalize_stmt(stmt, page));
+        expr.visit_child_exprs_mut(|expr| Self::finalize_expr(expr, page));
     }
+}
 
-    fn register_constraint(&mut self, expr: &Expr, symbol: Symbol) {
-        let substitution = Constraint {
-            marker: expr.marker,
-            symbol,
+#[derive(Debug, Default)]
+pub struct Page {
+    pub fields: HashMap<String, Marker>,
+    pub constraints: Vec<Constraint>,
+    pub substitutions: HashMap<Marker, Symbol>,
+    pub yielded_type: Option<Type>,
+}
+impl Page {
+    fn constrain_to_type(&mut self, target: &Expr, tpe: Type) {
+        let constraint = Constraint {
+            marker: target.marker,
+            symbol: Symbol::Constant(tpe),
         };
-        println!("{substitution}");
-        self.constraints.push(substitution);
+        println!("{constraint}");
+        self.constraints.push(constraint);
     }
 
-    pub fn resolve_type(&self, mut marker: Marker) -> Type {
-        let mut tpe = Type::Unknown;
+    fn constrain_to_expr(&mut self, target: &Expr, expr: &Expr) {
+        let constraint = Constraint {
+            marker: target.marker,
+            symbol: self.seek_symbol_for(expr.marker),
+        };
+        println!("{constraint}");
+        self.constraints.push(constraint);
+    }
+
+    fn constrain_to_deref(&mut self, target: &Expr, deref: Deref) {
+        let constraint = Constraint {
+            marker: target.marker,
+            symbol: Symbol::Deref(deref),
+        };
+        println!("{constraint}");
+        self.constraints.push(constraint);
+    }
+
+    fn constrain_to_application(&mut self, target: &Expr, application: Application) {
+        let constraint = Constraint {
+            marker: target.marker,
+            symbol: Symbol::Application(application),
+        };
+        println!("{constraint}");
+        self.constraints.push(constraint);
+    }
+
+    pub fn seek_type_for(&self, marker: Marker) -> Type {
+        self.seek_symbol_for(marker).into()
+    }
+
+    fn seek_symbol_for(&self, mut marker: Marker) -> Symbol {
+        let mut symbol = Symbol::Variable(marker);
         while let Some(symbol) = self.substitutions.get(&marker) {
             match symbol {
                 Symbol::Variable(new_marker) => marker = *new_marker,
-                symbol => {
-                    tpe = Type::from(symbol.clone());
-                    break;
-                }
+                symbol => return symbol.clone(),
             }
         }
-        tpe
+        symbol
     }
 }

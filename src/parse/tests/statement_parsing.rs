@@ -98,7 +98,7 @@ fn enum_with_neighbor_values() {
                         AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
                         Access::Dot {
                             left: Identifier::lazy("Foo").into_expr_lazy(),
-                            right: Identifier::lazy("Bar").into_expr_lazy(),
+                            right: Identifier::lazy("Bar"),
                         }
                         .into_expr_lazy(),
                     )

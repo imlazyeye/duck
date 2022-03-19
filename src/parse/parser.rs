@@ -3,7 +3,7 @@ use colored::Colorize;
 use itertools::Itertools;
 
 use crate::{
-    analyze::{Type, Marker},
+    analyze::{Marker, Type},
     lint::{LintLevel, LintTag},
     parse::*,
     FileId,
@@ -856,8 +856,8 @@ impl Parser {
         let (access, end) = if let Some(expr) = expr {
             self.require(TokenType::Dot)?;
             start = expr.span().0;
-            let right = self.grouping()?;
-            let end = right.span().end();
+            let right = self.require_identifier()?;
+            let end = right.span.end();
             (Access::Dot { left: expr, right }, end)
         } else {
             match self.peek()?.token_type {
@@ -897,8 +897,8 @@ impl Parser {
                 _ => {
                     let left = self.ds_access(None)?;
                     if self.match_take(TokenType::Dot).is_some() {
-                        let right = self.grouping()?;
-                        let end = right.span().end();
+                        let right = self.require_identifier()?;
+                        let end = right.span.end();
                         (Access::Dot { left, right }, end)
                     } else {
                         return Ok(left);

@@ -49,9 +49,9 @@ impl ExprType {
     }
 
     /// Returns the expression a the interior fields of a Access::Dot, or None.
-    pub fn as_dot_access(&self) -> Option<(&Self, &Self)> {
+    pub fn as_dot_access(&self) -> Option<(&Self, &Identifier)> {
         match self {
-            ExprType::Access(Access::Dot { left, right }) => Some((left.inner(), right.inner())),
+            ExprType::Access(Access::Dot { left, right }) => Some((left.inner(), right)),
             _ => None,
         }
     }
@@ -288,20 +288,17 @@ impl std::fmt::Display for Expr {
                 Literal::String(s) => f.pad(&format!("\"{}\"", s)),
                 Literal::Real(r) => f.pad(&r.to_string()),
                 Literal::Hex(h) => f.pad(&format!("hex<{}>", h)),
-                Literal::Array(members) => {
-                    f.pad("[")?;
-                    for member in members.iter() {
-                        f.pad(&format!(" {},", member))?;
-                    }
-                    f.pad(" ]")
-                }
-                Literal::Struct(members) => {
-                    f.pad("{")?;
-                    for (name, value) in members.iter() {
-                        f.pad(&format!(" {}: {},", name.lexeme, value))?;
-                    }
-                    f.pad(" }")
-                }
+                Literal::Array(members) => f.pad(&format!(
+                    "{{ {} }}",
+                    members.iter().map(|member| member.to_string()).join(", ")
+                )),
+                Literal::Struct(fields) => f.pad(&format!(
+                    "{{ {} }}",
+                    fields
+                        .iter()
+                        .map(|(Identifier { lexeme, .. }, symbol)| format!("{lexeme}: {symbol}"))
+                        .join(", ")
+                )),
                 Literal::Misc(lexeme) => f.pad(lexeme),
             },
             ExprType::Identifier(iden) => f.pad(&iden.lexeme),

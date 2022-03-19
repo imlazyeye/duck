@@ -71,11 +71,7 @@ impl LateStmtPass for MissingCaseMember {
                 } else {
                     return; // INVALID_GML: non-constant in case expression
                 }
-                if let Some(member_identifier) = right.as_identifier() {
-                    member_names_discovered.push(member_identifier.lexeme.as_str());
-                } else {
-                    return; // INVALID_GML: non-constant in case expression
-                };
+                member_names_discovered.push(right.lexeme.as_str());
             }
 
             // We have now collected all of members in this switch. Let's gather any missing

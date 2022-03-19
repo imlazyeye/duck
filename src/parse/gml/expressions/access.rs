@@ -1,5 +1,7 @@
 use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
 
+use super::Identifier;
+
 /// Representation of a access in gml, such as an array lookup, or dot-notation.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Access {
@@ -24,7 +26,7 @@ pub enum Access {
         /// The value being accessed.
         left: Expr,
         /// The value being extracted from the leftside value.
-        right: Expr,
+        right: Identifier,
     },
     /// Array access. The bool at the end represents if the `@` accessor is present, which denotes
     /// the access to be direct instead of copy-on-write.
@@ -87,8 +89,8 @@ impl ParseVisitor for Access {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         match self {
             Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
-            Access::Dot { left, right }
-            | Access::Map { left, key: right }
+            Access::Dot { left, .. } => visitor(left),
+            Access::Map { left, key: right }
             | Access::List { left, index: right }
             | Access::Struct { left, key: right } => {
                 visitor(left);
@@ -120,8 +122,8 @@ impl ParseVisitor for Access {
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         match self {
             Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
-            Access::Dot { left, right }
-            | Access::Map { left, key: right }
+            Access::Dot { left, .. } => visitor(left),
+            Access::Map { left, key: right }
             | Access::List { left, index: right }
             | Access::Struct { left, key: right } => {
                 visitor(left);

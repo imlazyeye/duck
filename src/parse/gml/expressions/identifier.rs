@@ -36,3 +36,9 @@ impl ParseVisitor for Identifier {
     fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut _visitor: S) {}
     fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, _visitor: S) {}
 }
+
+impl std::fmt::Display for Identifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.pad(&self.lexeme)
+    }
+}

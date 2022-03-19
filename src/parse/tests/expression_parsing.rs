@@ -307,13 +307,13 @@ fn dot_access_bitwise() {
         Evaluation::new(
             Access::Dot {
                 left: Identifier::lazy("foo").into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
             EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
             Access::Dot {
                 left: Identifier::lazy("foo").into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
         ),
@@ -892,7 +892,7 @@ fn dot_access() {
         "foo.bar",
         Access::Dot {
             left: Identifier::lazy("foo").into_expr_lazy(),
-            right: Identifier::lazy("bar").into_expr_lazy(),
+            right: Identifier::lazy("bar"),
         },
     );
 }
@@ -904,10 +904,10 @@ fn chained_dot_access() {
         Access::Dot {
             left: Access::Dot {
                 left: Identifier::lazy("foo").into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
-            right: Identifier::lazy("buzz").into_expr_lazy(),
+            right: Identifier::lazy("buzz"),
         },
     );
 }
@@ -919,7 +919,7 @@ fn dot_access_to_call() {
         Call::new(
             Access::Dot {
                 left: Identifier::lazy("foo").into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
             vec![],
@@ -934,7 +934,7 @@ fn dot_access_to_ds_access() {
         Access::Array {
             left: Access::Dot {
                 left: Identifier::lazy("foo").into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
             index_one: Literal::Real(0.0).into_expr_lazy(),
@@ -950,7 +950,7 @@ fn dot_access_from_call() {
         "foo().bar",
         Access::Dot {
             left: Call::new(Identifier::lazy("foo").into_expr_lazy(), vec![]).into_expr_lazy(),
-            right: Identifier::lazy("bar").into_expr_lazy(),
+            right: Identifier::lazy("bar"),
         },
     );
 }
@@ -962,7 +962,7 @@ fn chained_calls() {
         Call::new(
             Access::Dot {
                 left: Call::new(Identifier::lazy("foo").into_expr_lazy(), vec![]).into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
             vec![],
@@ -977,7 +977,7 @@ fn chain_calls_with_call_parameter() {
         Call::new(
             Access::Dot {
                 left: Call::new(Identifier::lazy("foo").into_expr_lazy(), vec![]).into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
             vec![Call::new(Identifier::lazy("buzz").into_expr_lazy(), vec![]).into_expr_lazy()],
@@ -1027,7 +1027,7 @@ fn ds_dot_access() {
                 using_accessor: false,
             }
             .into_expr_lazy(),
-            right: Identifier::lazy("bar").into_expr_lazy(),
+            right: Identifier::lazy("bar"),
         },
     );
 }
@@ -1169,7 +1169,7 @@ fn comment_in_builder_chain() {
         Call::new(
             Access::Dot {
                 left: Call::new(Identifier::lazy("foo").into_expr_lazy(), vec![]).into_expr_lazy(),
-                right: Identifier::lazy("bar").into_expr_lazy(),
+                right: Identifier::lazy("bar"),
             }
             .into_expr_lazy(),
             vec![],

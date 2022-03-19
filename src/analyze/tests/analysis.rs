@@ -1,5 +1,5 @@
 use crate::{
-    analyze::{Type, TypeWriter},
+    analyze::{Page, Type, TypeWriter},
     parse::*,
 };
 use colored::Colorize;
@@ -7,48 +7,41 @@ use hashbrown::HashMap;
 use pretty_assertions::assert_eq;
 
 fn harness_type_ast(source: &'static str, name: &'static str, expected_tpe: Type) {
-    let typewriter = harness_typewriter(source);
+    let page = harness_typewriter(source);
     assert_eq!(
-        typewriter
-            .scope
+        page.fields
             .get(name)
-            .map_or(Type::Unknown, |marker| typewriter.resolve_type(*marker)),
+            .map_or(Type::Unknown, |marker| page.seek_type_for(*marker)),
         expected_tpe,
     );
 }
 
 fn harness_type_expr(source: &'static str, expected_tpe: Type) {
     let source = Box::leak(Box::new(format!("var a = {source}")));
-    let typewriter = harness_typewriter(source);
+    let page = harness_typewriter(source);
     assert_eq!(
-        typewriter
-            .scope
+        page.fields
             .get("a")
-            .map_or(Type::Unknown, |marker| typewriter.resolve_type(*marker)),
+            .map_or(Type::Unknown, |marker| page.seek_type_for(*marker)),
         expected_tpe,
     );
 }
 
-fn harness_typewriter(source: &'static str) -> TypeWriter {
+fn harness_typewriter(source: &'static str) -> Page {
     let parser = Parser::new(source, 0);
     let mut typewriter = TypeWriter::default();
     let mut ast = parser.into_ast().unwrap();
-    typewriter.write_types(&mut ast);
+    let page = typewriter.write_types(&mut ast);
 
     println!("Result for: {source}");
-    for (name, marker) in typewriter.scope.iter() {
-        let tpe = typewriter.resolve_type(*marker);
+    for (name, marker) in page.fields.iter() {
+        let tpe = page.seek_type_for(*marker);
         let str = name.bright_black();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
         println!("{str}{whitespace}{tpe}\n");
     }
 
-    typewriter
-}
-
-#[test]
-fn unknown() {
-    harness_type_ast("var a;", "a", Type::Unknown);
+    page
 }
 
 #[test]
@@ -84,32 +77,55 @@ fn grouping() {
 
 #[test]
 fn empty_array() {
-    harness_type_expr("[]", Type::Array(Box::new(Type::Unknown)));
+    harness_type_expr(
+        "[]",
+        Type::Array {
+            member_type: Box::new(Type::Unknown),
+        },
+    );
 }
 
 #[test]
 fn constant_array() {
-    harness_type_expr("[0]", Type::Array(Box::new(Type::Real)));
+    harness_type_expr(
+        "[0]",
+        Type::Array {
+            member_type: Box::new(Type::Real),
+        },
+    );
 }
 
 #[test]
 fn nested_arrays() {
     harness_type_expr(
         "[[[0]]]",
-        Type::Array(Box::new(Type::Array(Box::new(Type::Array(Box::new(Type::Real)))))),
+        Type::Array {
+            member_type: Box::new(Type::Array {
+                member_type: Box::new(Type::Array {
+                    member_type: Box::new(Type::Real),
+                }),
+            }),
+        },
     );
 }
 
 #[test]
 fn empty_struct() {
-    harness_type_expr("{}", Type::Struct(HashMap::default()));
+    harness_type_expr(
+        "{}",
+        Type::Struct {
+            fields: HashMap::default(),
+        },
+    );
 }
 
 #[test]
 fn filled_struct() {
     harness_type_expr(
         "{b: 0, c: undefined}",
-        Type::Struct(HashMap::from([("b".into(), Type::Real), ("c".into(), Type::Undefined)])),
+        Type::Struct {
+            fields: HashMap::from([("b".into(), Type::Real), ("c".into(), Type::Undefined)]),
+        },
     );
 }
 
@@ -155,13 +171,13 @@ fn complex_struct_and_array_nesting() {
 }
 
 #[test]
-fn infer_from_postfix() {
+fn postfix() {
     harness_type_expr("a++", Type::Real);
     harness_type_expr("a--", Type::Real);
 }
 
 #[test]
-fn infer_from_unary() {
+fn unary() {
     harness_type_expr("++a", Type::Real);
     harness_type_expr("--a", Type::Real);
     harness_type_expr("+a", Type::Real);
@@ -171,43 +187,22 @@ fn infer_from_unary() {
 }
 
 #[test]
-fn infer_from_ternary() {
-    let source = "
-        var a;
-        var b;
-        var c = a ? b : 0;
-    ";
-    harness_type_ast(source, "a", Type::Bool);
-    harness_type_ast(source, "b", Type::Real);
-    harness_type_ast(source, "c", Type::Real);
+fn ternary() {
+    harness_type_expr("true ? 0 : 0", Type::Real);
 }
 
 #[test]
-fn infer_from_null_coalecence() {
-    let source = "
-        var a;
-        var b = a ?? 0;
-    ";
-    harness_type_ast(source, "a", todo!());
-    harness_type_ast(source, "b", Type::Real);
+fn null_coalecence() {
+    todo!()
 }
 
 #[test]
-fn infer_from_evaluation() {
-    let source = "
-        var a;
-        var b = a == 0;
-    ";
-    harness_type_ast(source, "a", Type::Real);
-    harness_type_ast(source, "b", Type::Bool);
+fn evaluation() {
+    harness_type_expr("1 + 1", Type::Real);
+    harness_type_expr("\"foo\" + \"foo\"", Type::String);
 }
 
 #[test]
-fn infer_from_logical() {
-    let source = "
-        var a;
-        var b = a && true;
-    ";
-    harness_type_ast(source, "a", Type::Bool);
-    harness_type_ast(source, "b", Type::Bool);
+fn logical() {
+    harness_type_expr("true && false", Type::Bool);
 }
