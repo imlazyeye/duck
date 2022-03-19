@@ -5,6 +5,9 @@ use std::fmt::Display;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
+    Generic {
+        marker: Marker,
+    },
     Unknown,
     Undefined,
     Noone,
@@ -28,6 +31,7 @@ pub enum Type {
 impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Type::Generic { marker } => f.pad(&marker.to_string()),
             Type::Unknown => f.pad("<?>"),
             Type::Undefined => f.pad("undefined"),
             Type::Noone => f.pad("noone"),
@@ -89,7 +93,7 @@ impl From<Symbol> for Type {
     fn from(symbol: Symbol) -> Self {
         match symbol {
             Symbol::Constant(tpe) => tpe,
-            Symbol::Variable(_) => Type::Unknown,
+            Symbol::Variable(marker) => Type::Generic { marker },
             Symbol::Application(app) => match app {
                 Application::Array { member_type } => Type::Array {
                     member_type: Box::new(Type::from(member_type.as_ref().to_owned())),
@@ -147,12 +151,17 @@ impl Display for Deref {
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub struct Marker(pub u64);
 impl Marker {
+    pub const RETURN_VALUE: Self = Marker(u64::MAX);
     pub fn new() -> Self {
         Self(rand::random())
     }
 }
 impl Display for Marker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!("t{}", self.0))
+        if self == &Marker::RETURN_VALUE {
+            f.pad("tR")
+        } else {
+            f.pad(&format!("t{}", self.0))
+        }
     }
 }

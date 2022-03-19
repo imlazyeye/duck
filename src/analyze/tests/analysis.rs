@@ -11,23 +11,36 @@ fn harness_type_ast(source: &'static str, name: &'static str, expected_tpe: Type
     assert_eq!(
         page.fields
             .get(name)
-            .map_or(Type::Unknown, |marker| page.seek_type_for(*marker)),
+            .map_or(Type::Undefined, |marker| page.seek_type_for(*marker)),
         expected_tpe,
     );
 }
 
 fn harness_type_expr(source: &'static str, expected_tpe: Type) {
-    let source = Box::leak(Box::new(format!("var a = {source}")));
-    let page = harness_typewriter(source);
-    assert_eq!(
-        page.fields
-            .get("a")
-            .map_or(Type::Unknown, |marker| page.seek_type_for(*marker)),
-        expected_tpe,
-    );
+    assert_eq!(get_type(source), expected_tpe,);
 }
 
-fn harness_typewriter(source: &'static str) -> Page {
+fn get_type(source: &'static str) -> Type {
+    let source = format!("var a = {source}");
+    let page = harness_typewriter(&source);
+    page.fields
+        .get("a")
+        .map_or(Type::Undefined, |marker| page.seek_type_for(*marker))
+}
+
+fn get_function(source: &'static str) -> (Vec<Type>, Box<Type>) {
+    let tpe = get_type(source);
+    match tpe {
+        Type::Function {
+            parameters,
+            return_type,
+        } => (parameters, return_type),
+        _ => panic!("Expected a function, got {tpe}"),
+    }
+}
+
+fn harness_typewriter(source: &str) -> Page {
+    let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
     let mut typewriter = TypeWriter::default();
     let mut ast = parser.into_ast().unwrap();
@@ -193,7 +206,7 @@ fn ternary() {
 
 #[test]
 fn null_coalecence() {
-    todo!()
+    // TODO!
 }
 
 #[test]
@@ -205,4 +218,55 @@ fn evaluation() {
 #[test]
 fn logical() {
     harness_type_expr("true && false", Type::Bool);
+}
+
+#[test]
+fn function() {
+    harness_type_expr(
+        "function () {}",
+        Type::Function {
+            parameters: vec![],
+            return_type: Box::new(Type::Undefined),
+        },
+    );
+}
+
+#[test]
+fn function_returns_constant() {
+    harness_type_expr(
+        "function () { return 0; }",
+        Type::Function {
+            parameters: vec![],
+            return_type: Box::new(Type::Real),
+        },
+    );
+}
+
+// #[test]
+// fn function_call() {
+//     harness_type_ast(
+//         "
+//         var foo = function() {
+//             return 0;
+//         }
+//         var bar = foo();
+//         ",
+//         "bar",
+//         Type::Real,
+//     )
+// }
+
+#[test]
+fn function_generics() {
+    let function = get_type("function(a) { return a; }");
+    let mut parameters = match &function {
+        Type::Function { parameters, .. } => parameters.clone(),
+        _ => panic!("Expected a function, got {function}"),
+    };
+    let param_one = parameters.pop().unwrap();
+    let expected = Type::Function {
+        parameters: vec![param_one.clone()],
+        return_type: Box::new(param_one),
+    };
+    assert_eq!(function, expected);
 }

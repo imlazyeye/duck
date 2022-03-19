@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, OptionalInitilization, ParseVisitor, Stmt};
+use crate::parse::{Block, Expr, ExprType, IntoExpr, OptionalInitilization, ParseVisitor, Stmt, StmtType};
 
 use super::Identifier;
 

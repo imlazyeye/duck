@@ -1,8 +1,8 @@
 use super::{Application, Constraint, Deref, Marker, Symbol, Type};
 use crate::parse::{
-    Access, Assignment, AssignmentOp, Ast, Call, Equality, Evaluation, Expr, ExprType, Function, Grouping, Literal,
-    LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Stmt, StmtType,
-    Ternary, Unary, UnaryOp,
+    Access, Assignment, AssignmentOp, Ast, Block, Call, Equality, Evaluation, Expr, ExprType, Function, Grouping,
+    Literal, LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt,
+    StmtType, Ternary, Unary, UnaryOp,
 };
 use colored::Colorize;
 use hashbrown::HashMap;
@@ -133,7 +133,7 @@ impl TypeWriter {
                 if let ExprType::Identifier(iden) = left.inner_mut() {
                     if !page.fields.contains_key(&iden.lexeme) {
                         page.fields.insert(iden.lexeme.clone(), left.marker);
-                        page.constrain_to_expr(left, right);
+                        page.constraint_expr_to_expr(left, right);
                     } else {
                         // validate that the new type is equal to the last type? shadowing is a
                         // problem
@@ -145,7 +145,7 @@ impl TypeWriter {
                     if let OptionalInitilization::Uninitialized(expr) = initializer {
                         if !page.fields.contains_key(initializer.name()) {
                             page.fields.insert(initializer.name().into(), expr.marker);
-                            page.constrain_to_type(expr, Type::Undefined);
+                            page.constrain_expr_to_type(expr, Type::Undefined);
                         } else {
                             // validate that the new type is equal to the last type? shadowing is a
                             // problem
@@ -157,58 +157,79 @@ impl TypeWriter {
                 // todo: named functions. this feels wrong?
             }
 
+            StmtType::Return(Return { value }) => {
+                if let Some(value) = value {
+                    page.constrain(Marker::RETURN_VALUE, Symbol::Variable(value.marker));
+                } else {
+                    page.constrain(Marker::RETURN_VALUE, Symbol::Constant(Type::Undefined));
+                }
+            }
+
             // todo: constrain types required for these things
             _ => {}
         }
     }
 
     fn constrain_expr(expr: &mut Expr, page: &mut Page) {
+        if let ExprType::FunctionDeclaration(function) = expr.inner_mut() {
+            match &function.constructor {
+                Some(_) => todo!(),
+                None => {
+                    let mut body_page = Page::default();
+                    for param in function.parameters.iter() {
+                        body_page
+                            .fields
+                            .insert(param.name().to_string(), param.name_expr().marker);
+                    }
+                    let body = match function.body.inner_mut() {
+                        StmtType::Block(Block { body, .. }) => body,
+                        _ => unreachable!(),
+                    };
+                    Self::apply_stmts_to_page(body, &mut body_page);
+                    let mut parameter_types = Vec::new();
+                    for param in function.parameters.iter() {
+                        parameter_types.push(body_page.seek_type_for(param.name_expr().marker));
+                    }
+                    page.constrain_expr_to_type(
+                        expr,
+                        Type::Function {
+                            parameters: parameter_types,
+                            return_type: Box::new(body_page.return_type()),
+                        },
+                    )
+                }
+            }
+            return;
+        }
+
         expr.visit_child_stmts_mut(|stmt| Self::constrain_stmt(stmt, page));
         expr.visit_child_exprs_mut(|expr| Self::constrain_expr(expr, page));
         match expr.inner() {
-            ExprType::FunctionDeclaration(Function {
-                name,
-                parameters,
-                constructor,
-                body,
-            }) => match constructor {
-                Some(_) => todo!(),
-                None => {
-                    let mut parameter_types = HashMap::new();
-                    for param in parameters {
-                        let symbol = if let Some(value) = param.assignment_value() {
-                            Symbol::Variable(value.marker)
-                        } else {
-                            Symbol::Constant(Type::Unknown)
-                        };
-                        parameter_types.insert(param.name().to_string(), symbol);
-                    }
-                }
-            },
+            ExprType::FunctionDeclaration(_) => {}
             ExprType::Logical(Logical { left, right, .. }) => {
-                page.constrain_to_type(right, Type::Bool);
-                page.constrain_to_type(expr, Type::Bool);
+                page.constrain_expr_to_type(right, Type::Bool);
+                page.constrain_expr_to_type(expr, Type::Bool);
             }
             ExprType::Equality(Equality { left, right, .. }) => {
-                page.constrain_to_expr(right, left);
-                page.constrain_to_type(expr, Type::Bool);
+                page.constraint_expr_to_expr(right, left);
+                page.constrain_expr_to_type(expr, Type::Bool);
             }
             ExprType::Evaluation(Evaluation { left, right, .. }) => {
-                page.constrain_to_expr(right, left);
-                page.constrain_to_expr(expr, left);
+                page.constraint_expr_to_expr(right, left);
+                page.constraint_expr_to_expr(expr, left);
             }
             ExprType::NullCoalecence(NullCoalecence { left, right }) => {
-                page.constrain_to_expr(right, left);
-                page.constrain_to_expr(expr, left);
+                page.constraint_expr_to_expr(right, left);
+                page.constraint_expr_to_expr(expr, left);
             }
             ExprType::Ternary(Ternary {
                 condition,
                 true_value,
                 false_value,
             }) => {
-                page.constrain_to_type(condition, Type::Bool);
-                page.constrain_to_expr(false_value, true_value);
-                page.constrain_to_expr(expr, true_value);
+                page.constrain_expr_to_type(condition, Type::Bool);
+                page.constraint_expr_to_expr(false_value, true_value);
+                page.constraint_expr_to_expr(expr, true_value);
             }
             ExprType::Unary(Unary { op, right }) => match op {
                 UnaryOp::Increment(_)
@@ -216,17 +237,17 @@ impl TypeWriter {
                 | UnaryOp::Positive(_)
                 | UnaryOp::Negative(_)
                 | UnaryOp::BitwiseNot(_) => {
-                    page.constrain_to_type(right, Type::Real);
-                    page.constrain_to_type(expr, Type::Real);
+                    page.constrain_expr_to_type(right, Type::Real);
+                    page.constrain_expr_to_type(expr, Type::Real);
                 }
                 UnaryOp::Not(_) => {
-                    page.constrain_to_type(right, Type::Bool);
-                    page.constrain_to_type(expr, Type::Bool);
+                    page.constrain_expr_to_type(right, Type::Bool);
+                    page.constrain_expr_to_type(expr, Type::Bool);
                 }
             },
             ExprType::Postfix(Postfix { left, .. }) => {
-                page.constrain_to_type(left, Type::Real);
-                page.constrain_to_type(expr, Type::Real);
+                page.constrain_expr_to_type(left, Type::Real);
+                page.constrain_expr_to_type(expr, Type::Real);
             }
             ExprType::Access(access) => {
                 match access {
@@ -240,7 +261,7 @@ impl TypeWriter {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        page.constrain_to_deref(expr, Deref::Object(left.marker, right.lexeme.clone()));
+                        page.constraint_expr_to_deref(expr, Deref::Object(left.marker, right.lexeme.clone()));
                     }
                     Access::Array {
                         left,
@@ -249,13 +270,13 @@ impl TypeWriter {
                         ..
                     } => {
                         // our indexes must be real
-                        page.constrain_to_type(index_one, Type::Real);
+                        page.constrain_expr_to_type(index_one, Type::Real);
                         if let Some(index_two) = index_two {
-                            page.constrain_to_type(index_two, Type::Real);
+                            page.constrain_expr_to_type(index_two, Type::Real);
                         }
 
                         // meanwhile, our type is a deref of the left's type
-                        page.constrain_to_deref(expr, Deref::Array(left.marker));
+                        page.constraint_expr_to_deref(expr, Deref::Array(left.marker));
                     }
                     Access::Struct { left, key } => {}
                     _ => todo!(),
@@ -267,7 +288,7 @@ impl TypeWriter {
                 uses_new,
             }) => {}
             ExprType::Grouping(Grouping { inner, .. }) => {
-                page.constrain_to_expr(expr, inner);
+                page.constraint_expr_to_expr(expr, inner);
             }
 
             ExprType::Identifier(iden) => {
@@ -297,7 +318,7 @@ impl TypeWriter {
                                 member_type: Box::new(Symbol::Constant(Type::Unknown)),
                             } // todo will this resolve?
                         };
-                        page.constrain_to_application(expr, app);
+                        page.constraint_expr_to_application(expr, app);
                         return;
                     }
                     Literal::Struct(declarations) => {
@@ -307,11 +328,11 @@ impl TypeWriter {
                         for declaration in declarations {
                             fields.insert(declaration.0.lexeme.clone(), Symbol::Variable(declaration.1.marker));
                         }
-                        page.constrain_to_application(expr, Application::Object { fields });
+                        page.constraint_expr_to_application(expr, Application::Object { fields });
                         return;
                     }
                 };
-                page.constrain_to_type(expr, tpe);
+                page.constrain_expr_to_type(expr, tpe);
             }
         }
     }
@@ -350,43 +371,40 @@ pub struct Page {
     pub fields: HashMap<String, Marker>,
     pub constraints: Vec<Constraint>,
     pub substitutions: HashMap<Marker, Symbol>,
-    pub yielded_type: Option<Type>,
 }
 impl Page {
-    fn constrain_to_type(&mut self, target: &Expr, tpe: Type) {
-        let constraint = Constraint {
-            marker: target.marker,
-            symbol: Symbol::Constant(tpe),
-        };
+    fn constrain_expr_to_type(&mut self, target: &Expr, tpe: Type) {
+        self.constrain(target.marker, Symbol::Constant(tpe));
+    }
+
+    fn constraint_expr_to_expr(&mut self, target: &Expr, expr: &Expr) {
+        self.constrain(target.marker, self.seek_symbol_for(expr.marker));
+    }
+
+    fn constraint_expr_to_deref(&mut self, target: &Expr, deref: Deref) {
+        self.constrain(target.marker, Symbol::Deref(deref));
+    }
+
+    fn constraint_expr_to_application(&mut self, target: &Expr, application: Application) {
+        self.constrain(target.marker, Symbol::Application(application));
+    }
+
+    fn constrain(&mut self, marker: Marker, symbol: Symbol) {
+        let constraint = Constraint { marker, symbol };
         println!("{constraint}");
         self.constraints.push(constraint);
     }
 
-    fn constrain_to_expr(&mut self, target: &Expr, expr: &Expr) {
-        let constraint = Constraint {
-            marker: target.marker,
-            symbol: self.seek_symbol_for(expr.marker),
-        };
-        println!("{constraint}");
-        self.constraints.push(constraint);
-    }
-
-    fn constrain_to_deref(&mut self, target: &Expr, deref: Deref) {
-        let constraint = Constraint {
-            marker: target.marker,
-            symbol: Symbol::Deref(deref),
-        };
-        println!("{constraint}");
-        self.constraints.push(constraint);
-    }
-
-    fn constrain_to_application(&mut self, target: &Expr, application: Application) {
-        let constraint = Constraint {
-            marker: target.marker,
-            symbol: Symbol::Application(application),
-        };
-        println!("{constraint}");
-        self.constraints.push(constraint);
+    pub fn return_type(&self) -> Type {
+        let tpe = self.seek_type_for(Marker::RETURN_VALUE);
+        if let Type::Generic {
+            marker: Marker::RETURN_VALUE,
+        } = tpe
+        {
+            Type::Undefined
+        } else {
+            tpe
+        }
     }
 
     pub fn seek_type_for(&self, marker: Marker) -> Type {
@@ -394,13 +412,12 @@ impl Page {
     }
 
     fn seek_symbol_for(&self, mut marker: Marker) -> Symbol {
-        let mut symbol = Symbol::Variable(marker);
         while let Some(symbol) = self.substitutions.get(&marker) {
             match symbol {
                 Symbol::Variable(new_marker) => marker = *new_marker,
                 symbol => return symbol.clone(),
             }
         }
-        symbol
+        Symbol::Variable(marker)
     }
 }
