@@ -4,13 +4,12 @@ use crate::parse::{
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
     Ternary, Unary, UnaryOp,
 };
-use colored::Colorize;
 use hashbrown::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Constraint {
-    pub marker: Marker,
-    pub symbol: Symbol,
+pub enum Constraint {
+    Eq { marker: Marker, symbol: Symbol },
+    Implements { marker: Marker, application: Application },
 }
 impl std::fmt::Display for Constraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -288,6 +287,10 @@ impl<'s> Constraints<'s> {
     }
 
     pub fn marker_eq_symbol(&mut self, marker: Marker, symbol: Symbol) {
-        self.collection.push(Constraint { marker, symbol });
+        self.collection.push(Constraint::Eq { marker, symbol });
+    }
+
+    pub fn expr_impls_app(&mut self, marker: Marker, application: Application) {
+        self.collection.push(Constraint::Implements { marker, application })
     }
 }

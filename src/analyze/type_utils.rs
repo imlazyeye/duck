@@ -1,15 +1,6 @@
-use codespan_reporting::diagnostic::{Diagnostic, Label};
-use colored::Colorize;
 use hashbrown::HashMap;
 use itertools::Itertools;
 use std::fmt::Display;
-
-use crate::{
-    parse::{Expr, ExprId, Identifier},
-    FileId,
-};
-
-use super::{Page, Scope};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
@@ -62,7 +53,6 @@ impl Display for Type {
         }
     }
 }
-
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Symbol {

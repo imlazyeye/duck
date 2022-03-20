@@ -1,13 +1,11 @@
-use itertools::Itertools;
-
+use super::{IntoStmt, StmtType};
 use crate::{
-    analyze::{Marker, Type},
+    analyze::Type,
     lint::LintTag,
     parse::{Span, *},
     FileId,
 };
-
-use super::{IntoStmt, StmtType};
+use itertools::Itertools;
 
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]

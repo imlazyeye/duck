@@ -1,98 +1,68 @@
-use crate::parse::Location;
+use super::Marker;
+use crate::{
+    parse::{Expr, ExprId, Identifier},
+    FileId,
+};
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use hashbrown::HashMap;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Default)]
 pub struct Scope {
-    fields: HashSet<String>,
-    bound_type: TypeId,
+    pub fields: HashMap<String, Marker>,
+    pub markers: HashMap<ExprId, Marker>,
+    pub marker_iter: u64,
+    pub file_id: FileId,
 }
 impl Scope {
-    pub fn new(bound_type: TypeId) -> Self {
+    pub fn new(file_id: FileId) -> Self {
         Self {
-            fields: Fields::default(),
-            bound_type,
+            file_id,
+            ..Default::default()
         }
     }
 
-    pub fn declare(&mut self, name: impl Into<String>, type_id: TypeId) {
-        self.fields.insert(name.into(), type_id);
+    pub fn has_field(&self, name: &str) -> bool {
+        self.fields.contains_key(name)
     }
 
-    pub fn contains(&self, name: &str, environment: Environment) -> bool {
-        self.fields
-            .get(name)
-            .or_else(move || environment.read_from(&self.bound_type, name))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Declaration {
-    pub location: Location,
-}
-
-pub struct Environment {
-    types: FnvHashMap<TypeId, Type>,
-}
-impl Environment {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    pub fn declare_for(&mut self, type_id: TypeId, name: impl Into<String>, value_type_id: TypeId) {
-        self.types
-            .get_mut(&type_id)
-            .unwrap()
-            .fields_mut()
-            .unwrap()
-            .insert(name, value_type_id);
-    }
-    pub fn read_from(&self, type_id: &TypeId, name: &str) -> Option<TypeId> {
-        self.types
-            .get(type_id)
-            .unwrap()
-            .fields()
-            .and_then(|fields| fields.get(name))
-    }
-}
-impl Default for Environment {
-    fn default() -> Self {
-        let mut types = FnvHashMap::default();
-        types.insert(TypeId::ANY, Type::Any);
-        types.insert(TypeId::GLOBAL_SCOPE, Type::GlobalScope(Fields::default()));
-        types.insert(TypeId::UNDEFINED, Type::Undefined);
-        types.insert(TypeId::REAL, Type::Real);
-        types.insert(TypeId::STRING, Type::String);
-        types.insert(TypeId::ARRAY, Type::Array);
-        Self {
-            types: Default::default(),
+    /// ### Errors
+    /// Returns an error if the field is not in scope.
+    pub fn field_marker(&self, identifier: &Identifier) -> Result<Marker, Diagnostic<FileId>> {
+        match self.fields.get(&identifier.lexeme).copied() {
+            Some(marker) => Ok(marker),
+            None => Err(Diagnostic::error()
+                .with_message(format!("Unrecognized variable: {}", identifier.lexeme))
+                .with_labels(vec![
+                    Label::primary(self.file_id, identifier.span).with_message("not found in current scope"),
+                ])),
         }
     }
-}
 
-pub enum Type {
-    Any,
-    Undefined,
-    Real,
-    String,
-    Array,
-    GlobalScope(Fields),
-    Object(Fields),
-    Struct(Fields),
-    Enum(Fields),
-    Derived(TypeId, String),
-}
-impl Type {
-    pub fn fields(&self) -> Option<&Fields> {
-        match self {
-            Type::Any | Type::Undefined | Type::Real | Type::String | Type::Array | Type::Derived(..) => None,
-            Type::GlobalScope(fields) | Type::Object(fields) | Type::Struct(fields) | Type::Enum(fields) => {
-                Some(fields)
-            }
-        }
+    pub fn new_field(&mut self, name: impl Into<String>, expr: &Expr) {
+        let marker = self.new_marker(expr);
+        self.fields.insert(name.into(), marker);
+        println!("{marker}: {expr}");
     }
-    pub fn fields_mut(&mut self) -> Option<&mut Fields> {
-        match self {
-            Type::Any | Type::Undefined | Type::Real | Type::String | Type::Array | Type::Derived(..) => None,
-            Type::GlobalScope(fields) | Type::Object(fields) | Type::Struct(fields) | Type::Enum(fields) => {
-                Some(fields)
+
+    fn new_marker(&mut self, expr: &Expr) -> Marker {
+        let marker = Marker(self.marker_iter);
+        self.alias_expr_to_marker(expr, marker);
+        self.marker_iter += 1;
+        marker
+    }
+
+    pub fn alias_expr_to_marker(&mut self, expr: &Expr, marker: Marker) {
+        self.markers.insert(expr.id, marker);
+    }
+
+    pub(super) fn get_expr_marker(&mut self, expr: &Expr) -> Marker {
+        match self.markers.get(&expr.id).copied() {
+            Some(marker) => marker,
+            None => {
+                let marker = self.new_marker(expr);
+                self.markers.insert(expr.id, marker);
+                println!("{marker}: {expr}");
+                marker
             }
         }
     }

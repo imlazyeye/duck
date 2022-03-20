@@ -1,5 +1,5 @@
 use crate::{
-    analyze::{Page, Type, TypeWriter},
+    analyze::{Marker, Page, Type, TypeWriter},
     parse::*,
 };
 use colored::Colorize;
@@ -264,24 +264,42 @@ fn function_generics() {
 }
 
 #[test]
+fn function_generic_array() {
+    harness_type_expr(
+        "
+            function(foo) {
+                return foo[0];
+            }
+        ",
+        Type::Function {
+            parameters: vec![Type::Array {
+                member_type: Box::new(Type::Generic { marker: Marker(0) }),
+            }],
+            return_type: Box::new(Type::Generic { marker: Marker(0) }),
+        },
+    );
+}
+
+#[test]
 fn function_infer_arguments() {
     harness_type_expr(
         "
-        function(a, b, c) {
-            var d = 1000;
-            c = d - b;
-            return \"foobar\" + a[c];
+        function(a, b, c, d) {
+            var e = 1000;
+            c = e - b;
+            return a[c] && d;
         }
         ",
         Type::Function {
             parameters: vec![
                 Type::Array {
-                    member_type: Box::new(Type::String),
+                    member_type: Box::new(Type::Bool),
                 },
                 Type::Real,
                 Type::Real,
+                Type::Bool,
             ],
-            return_type: Box::new(Type::String),
+            return_type: Box::new(Type::Bool),
         },
     );
 }
