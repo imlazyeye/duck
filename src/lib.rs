@@ -139,6 +139,8 @@ pub mod analyze {
     pub use type_utils::*;
     mod typewriter;
     pub use typewriter::*;
+    mod constrain;
+    pub use constrain::*;
     #[cfg(test)]
     mod tests {
         mod analysis;

@@ -16,12 +16,12 @@ fn harness_type_expr(source: &'static str, expected_tpe: Type) {
 
 fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
-    let mut page = harness_typewriter(source);
+    let page = harness_typewriter(source);
     page.field_type(&Identifier::lazy("a")).unwrap()
 }
 
 fn get_var_type(source: &'static str, name: &'static str) -> Type {
-    let mut page = harness_typewriter(source);
+    let page = harness_typewriter(source);
     page.field_type(&Identifier::lazy(name)).unwrap()
 }
 
@@ -43,7 +43,7 @@ fn harness_typewriter(source: &str) -> Page {
     let mut ast = parser.into_ast().unwrap();
     let page = typewriter.write_types(&mut ast);
     println!("Result for: {source}");
-    for (name, _) in page.fields.iter() {
+    for (name, _) in page.scope.fields.iter() {
         let tpe = page.field_type(&Identifier::lazy(name)).unwrap();
         let str = name.bright_black();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
@@ -264,19 +264,24 @@ fn function_generics() {
 }
 
 #[test]
-fn function_infer_array() {
+fn function_infer_arguments() {
     harness_type_expr(
         "
-        function(bar) {
-            var foo = bar[0];
-            return foo + 1;
+        function(a, b, c) {
+            var d = 1000;
+            c = d - b;
+            return \"foobar\" + a[c];
         }
         ",
         Type::Function {
-            parameters: vec![Type::Array {
-                member_type: Box::new(Type::Real),
-            }],
-            return_type: Box::new(Type::Real),
+            parameters: vec![
+                Type::Array {
+                    member_type: Box::new(Type::String),
+                },
+                Type::Real,
+                Type::Real,
+            ],
+            return_type: Box::new(Type::String),
         },
     );
 }

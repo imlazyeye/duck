@@ -9,6 +9,8 @@ use crate::{
     FileId,
 };
 
+use super::{Page, Scope};
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     Generic {
@@ -61,20 +63,6 @@ impl Display for Type {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Constraint {
-    pub marker: Marker,
-    pub symbol: Symbol,
-}
-impl Display for Constraint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!(
-            "{} = {}",
-            self.marker.to_string().bright_cyan(),
-            format!("{}", self.symbol).bright_blue()
-        ))
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Symbol {

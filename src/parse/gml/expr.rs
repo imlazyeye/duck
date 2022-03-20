@@ -289,7 +289,7 @@ impl std::fmt::Display for Expr {
                 Literal::Real(r) => f.pad(&r.to_string()),
                 Literal::Hex(h) => f.pad(&format!("hex<{}>", h)),
                 Literal::Array(members) => f.pad(&format!(
-                    "{{ {} }}",
+                    "[{}]",
                     members.iter().map(|member| member.to_string()).join(", ")
                 )),
                 Literal::Struct(fields) => f.pad(&format!(
