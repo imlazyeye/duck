@@ -86,7 +86,7 @@ impl IntoExpr for ExprType {}
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     expr_type: Box<ExprType>,
-    pub marker: Marker,
+    pub id: ExprId,
     pub tpe: Type,
     location: Location,
     lint_tag: Option<LintTag>,
@@ -310,10 +310,10 @@ impl std::fmt::Display for Expr {
 /// `into_expr` method, and a `into_expr_lazy` for tests.
 pub trait IntoExpr: Sized + Into<ExprType> {
     /// Converts self into an Expr.
-    fn into_expr(self, tpe: Type, marker: Marker, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
+    fn into_expr(self, tpe: Type, id: ExprId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
         Expr {
             expr_type: Box::new(self.into()),
-            marker,
+            id,
             tpe,
             location: Location(file_id, span),
             lint_tag,
@@ -325,6 +325,14 @@ pub trait IntoExpr: Sized + Into<ExprType> {
     where
         Self: Sized,
     {
-        self.into_expr(Type::Unknown, Marker::default(), Default::default(), 0, None)
+        self.into_expr(Type::Unknown, ExprId::default(), Default::default(), 0, None)
+    }
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
+pub struct ExprId(u64);
+impl ExprId {
+    pub fn new() -> Self {
+        Self(rand::random())
     }
 }

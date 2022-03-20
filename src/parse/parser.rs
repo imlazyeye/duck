@@ -18,7 +18,7 @@ pub struct Parser {
     file_id: FileId,
     comments: Vec<Token>,
     lint_tag_slot: Option<LintTag>,
-    use_default_marker: bool,
+    use_default_ids: bool,
 }
 
 // Basic features
@@ -31,15 +31,15 @@ impl Parser {
             file_id,
             comments: vec![],
             lint_tag_slot: None,
-            use_default_marker: false,
+            use_default_ids: false,
         }
     }
 
-    /// Creates a new parser that will use `0` for all markers on expressions. Useful for testing
-    /// when you want to not deal with the random ids.
+    /// Creates a new parser that will use `0` for all identifiers on expressions. Useful for
+    /// testing when you want to not deal with the random ids.
     pub fn new_no_markers(source_code: &'static str, file_id: FileId) -> Self {
         let mut parser = Self::new(source_code, file_id);
-        parser.use_default_marker = true;
+        parser.use_default_ids = true;
         parser
     }
 
@@ -61,10 +61,10 @@ impl Parser {
     fn new_expr(&mut self, expr: impl IntoExpr, span: Span) -> Expr {
         expr.into_expr(
             Type::Unknown,
-            if self.use_default_marker {
-                Marker::default()
+            if self.use_default_ids {
+                ExprId::default()
             } else {
-                Marker::new()
+                ExprId::new()
             },
             span,
             self.file_id,

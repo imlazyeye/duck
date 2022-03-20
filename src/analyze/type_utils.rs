@@ -1,7 +1,13 @@
+use codespan_reporting::diagnostic::{Diagnostic, Label};
 use colored::Colorize;
 use hashbrown::HashMap;
 use itertools::Itertools;
 use std::fmt::Display;
+
+use crate::{
+    parse::{Expr, ExprId, Identifier},
+    FileId,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {

@@ -7,13 +7,7 @@ use hashbrown::HashMap;
 use pretty_assertions::assert_eq;
 
 fn harness_type_ast(source: &'static str, name: &'static str, expected_tpe: Type) {
-    let page = harness_typewriter(source);
-    assert_eq!(
-        page.fields
-            .get(name)
-            .map_or(Type::Undefined, |marker| page.seek_type_for(*marker)),
-        expected_tpe,
-    );
+    assert_eq!(get_var_type(source, name), expected_tpe,);
 }
 
 fn harness_type_expr(source: &'static str, expected_tpe: Type) {
@@ -21,20 +15,23 @@ fn harness_type_expr(source: &'static str, expected_tpe: Type) {
 }
 
 fn get_type(source: &'static str) -> Type {
-    let source = format!("var a = {source}");
-    let page = harness_typewriter(&source);
-    page.fields
-        .get("a")
-        .map_or(Type::Undefined, |marker| page.seek_type_for(*marker))
+    let source = Box::leak(Box::new(format!("var a = {source}")));
+    let mut page = harness_typewriter(source);
+    page.field_type(&Identifier::lazy("a")).unwrap()
 }
 
-fn get_function(source: &'static str) -> (Vec<Type>, Box<Type>) {
+fn get_var_type(source: &'static str, name: &'static str) -> Type {
+    let mut page = harness_typewriter(source);
+    page.field_type(&Identifier::lazy(name)).unwrap()
+}
+
+fn get_function(source: &'static str) -> (Type, Vec<Type>, Box<Type>) {
     let tpe = get_type(source);
-    match tpe {
+    match tpe.clone() {
         Type::Function {
             parameters,
             return_type,
-        } => (parameters, return_type),
+        } => (tpe, parameters, return_type),
         _ => panic!("Expected a function, got {tpe}"),
     }
 }
@@ -45,10 +42,9 @@ fn harness_typewriter(source: &str) -> Page {
     let mut typewriter = TypeWriter::default();
     let mut ast = parser.into_ast().unwrap();
     let page = typewriter.write_types(&mut ast);
-
     println!("Result for: {source}");
-    for (name, marker) in page.fields.iter() {
-        let tpe = page.seek_type_for(*marker);
+    for (name, _) in page.fields.iter() {
+        let tpe = page.field_type(&Identifier::lazy(name)).unwrap();
         let str = name.bright_black();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
         println!("{str}{whitespace}{tpe}\n");
@@ -258,15 +254,29 @@ fn function_returns_constant() {
 
 #[test]
 fn function_generics() {
-    let function = get_type("function(a) { return a; }");
-    let mut parameters = match &function {
-        Type::Function { parameters, .. } => parameters.clone(),
-        _ => panic!("Expected a function, got {function}"),
-    };
+    let (function, mut parameters, _) = get_function("function(a) { return a; }");
     let param_one = parameters.pop().unwrap();
     let expected = Type::Function {
         parameters: vec![param_one.clone()],
         return_type: Box::new(param_one),
     };
     assert_eq!(function, expected);
+}
+
+#[test]
+fn function_infer_array() {
+    harness_type_expr(
+        "
+        function(bar) {
+            var foo = bar[0];
+            return foo + 1;
+        }
+        ",
+        Type::Function {
+            parameters: vec![Type::Array {
+                member_type: Box::new(Type::Real),
+            }],
+            return_type: Box::new(Type::Real),
+        },
+    );
 }
