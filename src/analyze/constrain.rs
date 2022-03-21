@@ -1,4 +1,4 @@
-use super::{Application, Inspection, Marker, Page, Scope, Term, Type};
+use super::{App, Inspection, Marker, Page, Scope, Term, Type};
 use crate::parse::{
     Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
@@ -24,7 +24,7 @@ impl std::fmt::Display for Constraint {
 
 #[derive(Debug)]
 pub(super) struct Constraints<'s> {
-    collection: Vec<Constraint>,
+    pub collection: Vec<Constraint>,
     scope: &'s mut Scope,
 }
 
@@ -98,7 +98,7 @@ impl<'s> Constraints<'s> {
                     body_page.apply_stmts(body);
                     let mut parameter_types = Vec::new();
                     for param in function.parameters.iter() {
-                        parameter_types.push(body_page.seek_type_for(self.scope.get_expr_marker(param.name_expr())));
+                        parameter_types.push(body_page.marker_to_type(self.scope.get_expr_marker(param.name_expr())));
                     }
                     self.expr_eq_type(
                         expr,
@@ -197,12 +197,7 @@ impl<'s> Constraints<'s> {
                         }
 
                         // the left must be an array of the member
-                        self.expr_eq_app(
-                            left,
-                            Application::Array {
-                                member_type: Box::new(Term::Marker(member_marker)),
-                            },
-                        );
+                        self.expr_eq_app(left, App::Array(Box::new(Term::Marker(member_marker))));
 
                         // constrain the result of this expression to the member
                         self.expr_eq_marker(expr, member_marker);
@@ -217,13 +212,13 @@ impl<'s> Constraints<'s> {
                 uses_new,
             }) => {
                 let left_marker = self.scope.get_expr_marker(left);
-                let app = Application::Call {
-                    call_target: Box::new(Term::Marker(left_marker)),
-                    arguments: arguments
+                let app = App::Call(
+                    Box::new(Term::Marker(left_marker)),
+                    arguments
                         .iter()
                         .map(|arg| Term::Marker(self.scope.get_expr_marker(arg)))
                         .collect(),
-                };
+                );
                 self.expr_eq_app(expr, app)
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
@@ -246,13 +241,9 @@ impl<'s> Constraints<'s> {
                     Literal::Array(exprs) => {
                         // Infer the type based on the first member
                         let app = if let Some(marker) = exprs.first().map(|expr| self.scope.get_expr_marker(expr)) {
-                            Application::Array {
-                                member_type: Box::new(Term::Marker(marker)),
-                            }
+                            App::Array(Box::new(Term::Marker(marker)))
                         } else {
-                            Application::Array {
-                                member_type: Box::new(Term::Type(Type::Unknown)),
-                            } // todo will this resolve?
+                            App::Array(Box::new(Term::Type(Type::Unknown))) // todo will this resolve?
                         };
                         self.expr_eq_app(expr, app);
                         return;
@@ -267,7 +258,7 @@ impl<'s> Constraints<'s> {
                                 Term::Marker(self.scope.get_expr_marker(&declaration.1)),
                             );
                         }
-                        self.expr_eq_app(expr, Application::Object { fields });
+                        self.expr_eq_app(expr, App::Object(fields));
                         return;
                     }
                 };
@@ -279,7 +270,7 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn create_collection(scope: &'s mut Scope, stmts: &mut Vec<Stmt>) -> Vec<Constraint> {
+    pub fn new(scope: &'s mut Scope, stmts: &mut Vec<Stmt>) -> Self {
         let mut constraints = Self {
             collection: vec![],
             scope,
@@ -289,7 +280,7 @@ impl<'s> Constraints<'s> {
         }
         constraints.collection.dedup();
         constraints.collection.reverse();
-        constraints.collection
+        constraints
     }
 
     pub fn expr_eq_marker(&mut self, target: &Expr, marker: Marker) {
@@ -309,8 +300,8 @@ impl<'s> Constraints<'s> {
         self.expr_eq_symbol(target, Term::Inspection(inspection))
     }
 
-    pub fn expr_eq_app(&mut self, target: &Expr, application: Application) {
-        self.expr_eq_symbol(target, Term::Application(application))
+    pub fn expr_eq_app(&mut self, target: &Expr, application: App) {
+        self.expr_eq_symbol(target, Term::App(application))
     }
 
     pub fn expr_eq_symbol(&mut self, expr: &Expr, term: Term) {

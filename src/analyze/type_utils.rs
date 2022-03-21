@@ -55,7 +55,7 @@ impl Display for Type {
 pub enum Term {
     Type(Type),
     Marker(Marker),
-    Application(Application),
+    App(App),
     Inspection(Inspection),
     Union(Vec<Term>),
 }
@@ -64,7 +64,7 @@ impl Display for Term {
         match self {
             Term::Type(tpe) => f.pad(&tpe.to_string()),
             Term::Marker(marker) => f.pad(&marker.to_string()),
-            Term::Application(application) => f.pad(&application.to_string()),
+            Term::App(application) => f.pad(&application.to_string()),
             Term::Inspection(inspection) => f.pad(&inspection.to_string()),
             Term::Union(unions) => f.pad(&unions.iter().join("| ")),
         }
@@ -75,18 +75,18 @@ impl From<Term> for Type {
         match term {
             Term::Type(tpe) => tpe,
             Term::Marker(marker) => Type::Generic { marker },
-            Term::Application(app) => match app {
-                Application::Array { member_type } => Type::Array {
+            Term::App(app) => match app {
+                App::Array(member_type) => Type::Array {
                     member_type: Box::new(Type::from(member_type.as_ref().to_owned())),
                 },
-                Application::Object { fields } => {
+                App::Object(fields) => {
                     let mut tpe_fields = HashMap::new();
                     for (name, term) in fields {
                         tpe_fields.insert(name, term.into());
                     }
                     Type::Struct { fields: tpe_fields }
                 }
-                Application::Call { call_target, arguments } => {
+                App::Call(call_target, arguments) => {
                     if let Term::Type(Type::Function {
                         parameters,
                         return_type,
@@ -117,27 +117,22 @@ impl From<Term> for Type {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Application {
-    Array {
-        member_type: Box<Term>,
-    },
-    Object {
-        fields: HashMap<String, Term>,
-    },
-    Call {
-        call_target: Box<Term>,
-        arguments: Vec<Term>,
-    },
+pub enum App {
+    Array(Box<Term>),
+    Object(HashMap<String, Term>),
+    Call(Box<Term>, Vec<Term>),
 }
-impl Display for Application {
+impl Display for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Application::Array { member_type: inner } => f.pad(&format!("[{inner}]")),
-            Application::Object { fields } => f.pad(&format!(
+            App::Array(inner) => f.pad(&format!("[{inner}]")),
+            App::Object(fields) => f.pad(&format!(
                 "{{ {} }}",
                 fields.iter().map(|(name, term)| format!("{name}: {term}")).join(", ")
             )),
-            Application::Call { call_target, arguments } => f.pad(&format!(
+
+
+            App::Call(call_target, arguments) => f.pad(&format!(
                 "{call_target}({})",
                 arguments.iter().map(|term| term.to_string()).join(", ")
             )),

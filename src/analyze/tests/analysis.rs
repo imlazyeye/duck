@@ -17,12 +17,12 @@ fn harness_type_expr(source: &'static str, expected_tpe: Type) {
 fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
     let page = harness_typewriter(source);
-    page.field_type(&Identifier::lazy("a")).unwrap()
+    page.read_field(&Identifier::lazy("a")).unwrap()
 }
 
 fn get_var_type(source: &'static str, name: &'static str) -> Type {
     let page = harness_typewriter(source);
-    page.field_type(&Identifier::lazy(name)).unwrap()
+    page.read_field(&Identifier::lazy(name)).unwrap()
 }
 
 fn get_function(source: &'static str) -> (Type, Vec<Type>, Box<Type>) {
@@ -44,7 +44,7 @@ fn harness_typewriter(source: &str) -> Page {
     let page = typewriter.write_types(&mut ast);
     println!("Result for: {source}");
     for (name, _) in page.scope.fields.iter() {
-        let tpe = page.field_type(&Identifier::lazy(name)).unwrap();
+        let tpe = page.read_field(&Identifier::lazy(name)).unwrap();
         let str = name.bright_white();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
         println!("{str}{whitespace}{}\n", tpe.to_string().bright_cyan().bold());

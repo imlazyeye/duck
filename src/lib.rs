@@ -138,11 +138,13 @@ pub mod analyze {
     mod scope;
     mod type_utils;
     mod typewriter;
+    mod unify;
     pub use constrain::*;
     pub use global_scope::*;
     pub use scope::*;
     pub use type_utils::*;
     pub use typewriter::*;
+    pub use unify::*;
     #[cfg(test)]
     mod tests {
         mod analysis;
