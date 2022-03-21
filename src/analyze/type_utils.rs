@@ -40,10 +40,7 @@ impl Display for Type {
             Type::Array { member_type } => f.pad(&format!("[{}]", *member_type)),
             Type::Struct { fields } => f.pad(&format!(
                 "{{ {} }}",
-                fields
-                    .iter()
-                    .map(|(name, symbol)| format!("{name}: {symbol}"))
-                    .join(", ")
+                fields.iter().map(|(name, term)| format!("{name}: {term}")).join(", ")
             )),
             Type::Union { types } => f.pad(&types.iter().join("| ")),
             Type::Function {
@@ -55,43 +52,64 @@ impl Display for Type {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Symbol {
-    Constant(Type),
-    Variable(Marker),
+pub enum Term {
+    Type(Type),
+    Marker(Marker),
     Application(Application),
-    Deref(Deref),
-    Union(Vec<Symbol>),
+    Inspection(Inspection),
+    Union(Vec<Term>),
 }
-impl Display for Symbol {
+impl Display for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Symbol::Constant(tpe) => f.pad(&tpe.to_string()),
-            Symbol::Variable(marker) => f.pad(&marker.to_string()),
-            Symbol::Application(application) => f.pad(&application.to_string()),
-            Symbol::Deref(deref) => f.pad(&deref.to_string()),
-            Symbol::Union(unions) => f.pad(&unions.iter().join("| ")),
+            Term::Type(tpe) => f.pad(&tpe.to_string()),
+            Term::Marker(marker) => f.pad(&marker.to_string()),
+            Term::Application(application) => f.pad(&application.to_string()),
+            Term::Inspection(inspection) => f.pad(&inspection.to_string()),
+            Term::Union(unions) => f.pad(&unions.iter().join("| ")),
         }
     }
 }
-impl From<Symbol> for Type {
-    fn from(symbol: Symbol) -> Self {
-        match symbol {
-            Symbol::Constant(tpe) => tpe,
-            Symbol::Variable(marker) => Type::Generic { marker },
-            Symbol::Application(app) => match app {
+impl From<Term> for Type {
+    fn from(term: Term) -> Self {
+        match term {
+            Term::Type(tpe) => tpe,
+            Term::Marker(marker) => Type::Generic { marker },
+            Term::Application(app) => match app {
                 Application::Array { member_type } => Type::Array {
                     member_type: Box::new(Type::from(member_type.as_ref().to_owned())),
                 },
                 Application::Object { fields } => {
                     let mut tpe_fields = HashMap::new();
-                    for (name, symbol) in fields {
-                        tpe_fields.insert(name, symbol.into());
+                    for (name, term) in fields {
+                        tpe_fields.insert(name, term.into());
                     }
                     Type::Struct { fields: tpe_fields }
                 }
+                Application::Call { call_target, arguments } => {
+                    if let Term::Type(Type::Function {
+                        parameters,
+                        return_type,
+                    }) = call_target.as_ref()
+                    {
+                        match return_type.as_ref() {
+                            Type::Generic { marker } => {
+                                let position = parameters
+                                    .iter()
+                                    .position(|v| v == &Type::Generic { marker: *marker })
+                                    .expect("that ain't right");
+                                let argument = arguments.get(position).expect("missing argument");
+                                argument.clone().into()
+                            }
+                            tpe => tpe.clone(),
+                        }
+                    } else {
+                        Type::Unknown
+                    }
+                }
             },
-            Symbol::Deref(_) => Type::Unknown,
-            Symbol::Union(unions) => Type::Union {
+            Term::Inspection(_) => Type::Unknown,
+            Term::Union(unions) => Type::Union {
                 types: unions.iter().map(|u| u.clone().into()).collect(),
             },
         }
@@ -100,8 +118,16 @@ impl From<Symbol> for Type {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Application {
-    Array { member_type: Box<Symbol> },
-    Object { fields: HashMap<String, Symbol> },
+    Array {
+        member_type: Box<Term>,
+    },
+    Object {
+        fields: HashMap<String, Term>,
+    },
+    Call {
+        call_target: Box<Term>,
+        arguments: Vec<Term>,
+    },
 }
 impl Display for Application {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -109,26 +135,24 @@ impl Display for Application {
             Application::Array { member_type: inner } => f.pad(&format!("[{inner}]")),
             Application::Object { fields } => f.pad(&format!(
                 "{{ {} }}",
-                fields
-                    .iter()
-                    .map(|(name, symbol)| format!("{name}: {symbol}"))
-                    .join(", ")
+                fields.iter().map(|(name, term)| format!("{name}: {term}")).join(", ")
+            )),
+            Application::Call { call_target, arguments } => f.pad(&format!(
+                "{call_target}({})",
+                arguments.iter().map(|term| term.to_string()).join(", ")
             )),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Deref {
-    Array(Marker),
-    Object(Marker, String),
+pub struct Inspection {
+    pub marker: Marker,
+    pub field: String,
 }
-impl Display for Deref {
+impl Display for Inspection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Deref::Array(marker) => f.pad(&format!("*{marker}")),
-            Deref::Object(marker, field) => f.pad(&format!("{marker}.{}", field)),
-        }
+        f.pad(&format!("{}.{}", self.marker, self.field))
     }
 }
 

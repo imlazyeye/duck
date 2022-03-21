@@ -1,7 +1,7 @@
 use hashbrown::HashMap;
 
 use crate::{
-    analyze::{Type, Symbol},
+    analyze::{Type, Term},
     parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt},
 };
 

@@ -45,9 +45,9 @@ fn harness_typewriter(source: &str) -> Page {
     println!("Result for: {source}");
     for (name, _) in page.scope.fields.iter() {
         let tpe = page.field_type(&Identifier::lazy(name)).unwrap();
-        let str = name.bright_black();
+        let str = name.bright_white();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-        println!("{str}{whitespace}{tpe}\n");
+        println!("{str}{whitespace}{}\n", tpe.to_string().bright_cyan().bold());
     }
 
     page
@@ -238,19 +238,44 @@ fn function_returns_constant() {
     );
 }
 
-// #[test]
-// fn function_call() {
-//     harness_type_ast(
-//         "
-//         var foo = function() {
-//             return 0;
-//         }
-//         var bar = foo();
-//         ",
-//         "bar",
-//         Type::Real,
-//     )
-// }
+#[test]
+fn function_call() {
+    harness_type_ast(
+        "
+        var foo = function() {
+            return 0;
+        }
+        var bar = foo();
+        ",
+        "bar",
+        Type::Real,
+    )
+}
+
+#[test]
+fn function_call_generic() {
+    harness_type_ast(
+        "
+         var foo = function(a, b) {
+            return a[b];
+        }
+        foo([0], 1)",
+        "foo",
+        Type::Real,
+    );
+    // harness_type_ast(
+    //     "
+    //     var foo = function(a, b) {
+    //         return a[b];
+    //     }
+    //     var bar = foo([\"hello\"], 0);
+    //     var fizz = foo([1], 0);
+    //     var buzz = foo([ { a: [0] } ], 0);",
+    //     "bar",
+    //     Type::String,
+    // );
+    // todo!();
+}
 
 #[test]
 fn function_generics() {
@@ -273,9 +298,9 @@ fn function_generic_array() {
         ",
         Type::Function {
             parameters: vec![Type::Array {
-                member_type: Box::new(Type::Generic { marker: Marker(0) }),
+                member_type: Box::new(Type::Generic { marker: Marker(2) }),
             }],
-            return_type: Box::new(Type::Generic { marker: Marker(0) }),
+            return_type: Box::new(Type::Generic { marker: Marker(2) }),
         },
     );
 }

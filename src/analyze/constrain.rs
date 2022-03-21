@@ -1,22 +1,23 @@
-use super::{Application, Deref, Marker, Page, Scope, Symbol, Type};
+use super::{Application, Inspection, Marker, Page, Scope, Term, Type};
 use crate::parse::{
     Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
     Ternary, Unary, UnaryOp,
 };
+use colored::Colorize;
 use hashbrown::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Constraint {
-    Eq { marker: Marker, symbol: Symbol },
-    Implements { marker: Marker, application: Application },
+pub struct Constraint {
+    pub marker: Marker,
+    pub term: Term,
 }
 impl std::fmt::Display for Constraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.pad(&format!(
             "{} = {}",
             self.marker.to_string().bright_cyan(),
-            format!("{}", self.symbol).bright_blue()
+            format!("{}", self.term).bright_blue()
         ))
     }
 }
@@ -38,6 +39,7 @@ impl<'s> Constraints<'s> {
                 op: AssignmentOp::Identity(_),
                 right,
             }) => {
+                // Def the lhs
                 if let ExprType::Identifier(iden) = left.inner_mut() {
                     if !self.scope.has_field(&iden.lexeme) {
                         self.scope.new_field(iden.lexeme.clone(), left);
@@ -69,9 +71,9 @@ impl<'s> Constraints<'s> {
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
                     let marker = self.scope.get_expr_marker(value);
-                    self.marker_eq_symbol(Marker::RETURN_VALUE, Symbol::Variable(marker));
+                    self.marker_eq_symbol(Marker::RETURN_VALUE, Term::Marker(marker));
                 } else {
-                    self.marker_eq_symbol(Marker::RETURN_VALUE, Symbol::Constant(Type::Undefined));
+                    self.marker_eq_symbol(Marker::RETURN_VALUE, Term::Type(Type::Undefined));
                 }
             }
 
@@ -172,8 +174,11 @@ impl<'s> Constraints<'s> {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        let deref = Deref::Object(self.scope.get_expr_marker(left), right.lexeme.clone());
-                        self.expr_eq_deref(expr, deref);
+                        let inspection = Inspection {
+                            marker: self.scope.get_expr_marker(left),
+                            field: right.lexeme.clone(),
+                        };
+                        self.expr_eq_inspection(expr, inspection);
                     }
                     Access::Array {
                         left,
@@ -181,15 +186,26 @@ impl<'s> Constraints<'s> {
                         index_two,
                         ..
                     } => {
+                        // create a type for the member
+                        let member_marker = self.scope.new_marker();
+                        println!("creating generic {member_marker}");
+
                         // our indexes must be real
                         self.expr_eq_type(index_one, Type::Real);
                         if let Some(index_two) = index_two {
                             self.expr_eq_type(index_two, Type::Real);
                         }
 
-                        // meanwhile, our type is a deref of the left's type
-                        let deref = Deref::Array(self.scope.get_expr_marker(left));
-                        self.expr_eq_deref(expr, deref);
+                        // the left must be an array of the member
+                        self.expr_eq_app(
+                            left,
+                            Application::Array {
+                                member_type: Box::new(Term::Marker(member_marker)),
+                            },
+                        );
+
+                        // constrain the result of this expression to the member
+                        self.expr_eq_marker(expr, member_marker);
                     }
                     Access::Struct { left, key } => {}
                     _ => todo!(),
@@ -199,7 +215,17 @@ impl<'s> Constraints<'s> {
                 left,
                 arguments,
                 uses_new,
-            }) => {}
+            }) => {
+                let left_marker = self.scope.get_expr_marker(left);
+                let app = Application::Call {
+                    call_target: Box::new(Term::Marker(left_marker)),
+                    arguments: arguments
+                        .iter()
+                        .map(|arg| Term::Marker(self.scope.get_expr_marker(arg)))
+                        .collect(),
+                };
+                self.expr_eq_app(expr, app)
+            }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner);
             }
@@ -221,11 +247,11 @@ impl<'s> Constraints<'s> {
                         // Infer the type based on the first member
                         let app = if let Some(marker) = exprs.first().map(|expr| self.scope.get_expr_marker(expr)) {
                             Application::Array {
-                                member_type: Box::new(Symbol::Variable(marker)),
+                                member_type: Box::new(Term::Marker(marker)),
                             }
                         } else {
                             Application::Array {
-                                member_type: Box::new(Symbol::Constant(Type::Unknown)),
+                                member_type: Box::new(Term::Type(Type::Unknown)),
                             } // todo will this resolve?
                         };
                         self.expr_eq_app(expr, app);
@@ -238,7 +264,7 @@ impl<'s> Constraints<'s> {
                         for declaration in declarations {
                             fields.insert(
                                 declaration.0.lexeme.clone(),
-                                Symbol::Variable(self.scope.get_expr_marker(&declaration.1)),
+                                Term::Marker(self.scope.get_expr_marker(&declaration.1)),
                             );
                         }
                         self.expr_eq_app(expr, Application::Object { fields });
@@ -261,36 +287,38 @@ impl<'s> Constraints<'s> {
         for stmt in stmts.iter_mut() {
             constraints.constrain_stmt(stmt);
         }
+        constraints.collection.dedup();
+        constraints.collection.reverse();
         constraints.collection
     }
 
+    pub fn expr_eq_marker(&mut self, target: &Expr, marker: Marker) {
+        self.expr_eq_symbol(target, Term::Marker(marker))
+    }
+
     pub fn expr_eq_type(&mut self, target: &Expr, tpe: Type) {
-        self.expr_eq_symbol(target, Symbol::Constant(tpe))
+        self.expr_eq_symbol(target, Term::Type(tpe))
     }
 
     pub fn expr_eq_expr(&mut self, target: &Expr, expr: &Expr) {
         let marker = self.scope.get_expr_marker(expr);
-        self.expr_eq_symbol(target, Symbol::Variable(marker))
+        self.expr_eq_symbol(target, Term::Marker(marker))
     }
 
-    pub fn expr_eq_deref(&mut self, target: &Expr, deref: Deref) {
-        self.expr_eq_symbol(target, Symbol::Deref(deref))
+    pub fn expr_eq_inspection(&mut self, target: &Expr, inspection: Inspection) {
+        self.expr_eq_symbol(target, Term::Inspection(inspection))
     }
 
     pub fn expr_eq_app(&mut self, target: &Expr, application: Application) {
-        self.expr_eq_symbol(target, Symbol::Application(application))
+        self.expr_eq_symbol(target, Term::Application(application))
     }
 
-    pub fn expr_eq_symbol(&mut self, expr: &Expr, symbol: Symbol) {
+    pub fn expr_eq_symbol(&mut self, expr: &Expr, term: Term) {
         let marker = self.scope.get_expr_marker(expr);
-        self.marker_eq_symbol(marker, symbol);
+        self.marker_eq_symbol(marker, term);
     }
 
-    pub fn marker_eq_symbol(&mut self, marker: Marker, symbol: Symbol) {
-        self.collection.push(Constraint::Eq { marker, symbol });
-    }
-
-    pub fn expr_impls_app(&mut self, marker: Marker, application: Application) {
-        self.collection.push(Constraint::Implements { marker, application })
+    pub fn marker_eq_symbol(&mut self, marker: Marker, term: Term) {
+        self.collection.push(Constraint { marker, term });
     }
 }

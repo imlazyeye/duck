@@ -39,14 +39,14 @@ impl Scope {
     }
 
     pub fn new_field(&mut self, name: impl Into<String>, expr: &Expr) {
-        let marker = self.new_marker(expr);
+        let marker = self.new_marker();
+        self.alias_expr_to_marker(expr, marker);
         self.fields.insert(name.into(), marker);
         println!("{marker}: {expr}");
     }
 
-    fn new_marker(&mut self, expr: &Expr) -> Marker {
+    pub fn new_marker(&mut self) -> Marker {
         let marker = Marker(self.marker_iter);
-        self.alias_expr_to_marker(expr, marker);
         self.marker_iter += 1;
         marker
     }
@@ -59,7 +59,8 @@ impl Scope {
         match self.markers.get(&expr.id).copied() {
             Some(marker) => marker,
             None => {
-                let marker = self.new_marker(expr);
+                let marker = self.new_marker();
+                self.alias_expr_to_marker(expr, marker);
                 self.markers.insert(expr.id, marker);
                 println!("{marker}: {expr}");
                 marker
