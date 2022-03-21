@@ -1,4 +1,4 @@
-use super::{App, Inspection, Marker, Page, Scope, Term, Type};
+use super::{App, Marker, Page, Scope, Term, Type};
 use crate::parse::{
     Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,

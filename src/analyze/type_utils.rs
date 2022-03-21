@@ -56,8 +56,6 @@ pub enum Term {
     Type(Type),
     Marker(Marker),
     App(App),
-    Inspection(Inspection),
-    Union(Vec<Term>),
 }
 impl Display for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -65,8 +63,6 @@ impl Display for Term {
             Term::Type(tpe) => f.pad(&tpe.to_string()),
             Term::Marker(marker) => f.pad(&marker.to_string()),
             Term::App(application) => f.pad(&application.to_string()),
-            Term::Inspection(inspection) => f.pad(&inspection.to_string()),
-            Term::Union(unions) => f.pad(&unions.iter().join("| ")),
         }
     }
 }
@@ -109,10 +105,6 @@ impl From<Term> for Type {
                 }
                 App::Inspect(_, _) => Type::Unknown,
             },
-            Term::Inspection(_) => Type::Unknown,
-            Term::Union(unions) => Type::Union {
-                types: unions.iter().map(|u| u.clone().into()).collect(),
-            },
         }
     }
 }
@@ -139,17 +131,6 @@ impl Display for App {
             )),
             App::Inspect(name, term) => f.pad(&format!("{term}.{name}")),
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Inspection {
-    pub marker: Marker,
-    pub field: String,
-}
-impl Display for Inspection {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!("{}.{}", self.marker, self.field))
     }
 }
 
