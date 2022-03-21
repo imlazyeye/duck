@@ -25,7 +25,9 @@ pub struct Page {
 impl Page {
     pub fn apply_stmts(&mut self, stmts: &mut Vec<Stmt>) {
         let constraints = Constraints::new(&mut self.scope, stmts);
+        println!("{constraints}");
         self.unifier.apply_constraints(constraints);
+        println!("{}", self.unifier);
     }
 
     /// ### Errors

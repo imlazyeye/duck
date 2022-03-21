@@ -4,8 +4,9 @@ use crate::parse::{
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
     Ternary, Unary, UnaryOp,
 };
-use colored::Colorize;
 use hashbrown::HashMap;
+use itertools::Itertools;
+use std::fmt::Display;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Constraint {
@@ -14,11 +15,7 @@ pub struct Constraint {
 }
 impl std::fmt::Display for Constraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!(
-            "{} = {}",
-            self.marker.to_string().bright_cyan(),
-            format!("{}", self.term).bright_blue()
-        ))
+        f.pad(&format!("{} = {}", self.marker, self.term))
     }
 }
 
@@ -174,11 +171,11 @@ impl<'s> Constraints<'s> {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        let inspection = Inspection {
-                            marker: self.scope.get_expr_marker(left),
-                            field: right.lexeme.clone(),
-                        };
-                        self.expr_eq_inspection(expr, inspection);
+                        let inspection = App::Inspect(
+                            right.lexeme.clone(),
+                            Box::new(Term::Marker(self.scope.get_expr_marker(left))),
+                        );
+                        self.expr_eq_app(expr, inspection);
                     }
                     Access::Array {
                         left,
@@ -296,10 +293,6 @@ impl<'s> Constraints<'s> {
         self.expr_eq_symbol(target, Term::Marker(marker))
     }
 
-    pub fn expr_eq_inspection(&mut self, target: &Expr, inspection: Inspection) {
-        self.expr_eq_symbol(target, Term::Inspection(inspection))
-    }
-
     pub fn expr_eq_app(&mut self, target: &Expr, application: App) {
         self.expr_eq_symbol(target, Term::App(application))
     }
@@ -311,5 +304,11 @@ impl<'s> Constraints<'s> {
 
     pub fn marker_eq_symbol(&mut self, marker: Marker, term: Term) {
         self.collection.push(Constraint { marker, term });
+    }
+}
+
+impl<'s> Display for Constraints<'s> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.pad(&self.collection.iter().rev().join("\n"))
     }
 }

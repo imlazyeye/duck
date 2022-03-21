@@ -107,6 +107,7 @@ impl From<Term> for Type {
                         Type::Unknown
                     }
                 }
+                App::Inspect(_, _) => Type::Unknown,
             },
             Term::Inspection(_) => Type::Unknown,
             Term::Union(unions) => Type::Union {
@@ -121,6 +122,7 @@ pub enum App {
     Array(Box<Term>),
     Object(HashMap<String, Term>),
     Call(Box<Term>, Vec<Term>),
+    Inspect(String, Box<Term>),
 }
 impl Display for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -131,11 +133,11 @@ impl Display for App {
                 fields.iter().map(|(name, term)| format!("{name}: {term}")).join(", ")
             )),
 
-
             App::Call(call_target, arguments) => f.pad(&format!(
                 "{call_target}({})",
                 arguments.iter().map(|term| term.to_string()).join(", ")
             )),
+            App::Inspect(name, term) => f.pad(&format!("{term}.{name}")),
         }
     }
 }

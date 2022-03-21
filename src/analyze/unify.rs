@@ -1,5 +1,6 @@
 use super::{App, Constraints, Marker, Term};
 use hashbrown::HashMap;
+use itertools::Itertools;
 
 #[derive(Debug, Default)]
 pub struct Unifier {
@@ -20,13 +21,13 @@ impl Unifier {
 
         // If the lhs is a marker, unify it to the right
         if let Term::Marker(marker) = lhs {
-            Self::unify_marker(marker, rhs, subs);
+            Self::unify_marker(marker, &mut rhs.clone(), subs);
             return;
         }
 
         // If the rhs is a marker, unify it to the left
         if let Term::Marker(marker) = rhs {
-            Self::unify_marker(marker, lhs, subs);
+            Self::unify_marker(marker, &mut lhs.clone(), subs);
             return;
         }
 
@@ -47,28 +48,70 @@ impl Unifier {
                         _ => panic!("panik"),
                     },
                     App::Call(call_target, arguments) => todo!(),
+                    App::Inspect(name, inspected_term) => match rhs_app {
+                        App::Object(fields) => Self::unify(inspected_term, fields.get(name).expect("ehh"), subs),
+                        _ => panic!(),
+                    },
                 }
             }
         }
     }
 
-    fn unify_marker(marker: &Marker, term: &Term, subs: &mut Self) {
+    fn unify_marker(marker: &Marker, term: &mut Term, subs: &mut Self) {
+        let mut term = term.clone();
         // If a substitution is already available for this marker, we will unify the term with that
         if let Some(sub) = subs.collection.get(marker) {
-            Self::unify(&sub.clone(), term, subs); // todo
+            Self::unify(&sub.clone(), &term, subs); // todo
             return;
         }
 
         // If the term is a marker and we have a subsitution for it, we can use that
         if let Term::Marker(other_marker) = term {
-            if let Some(sub) = subs.collection.get(other_marker) {
+            if let Some(sub) = subs.collection.get(&other_marker) {
                 Self::unify(&Term::Marker(*marker), &sub.clone(), subs); // todo
                 return;
             }
         }
 
+        // If the term is an application, we need to first simplify it
+        if let Term::App(app) = &mut term {
+            match app {
+                App::Array(member_term) => {
+                    if let Term::Marker(marker) = member_term.as_mut() {
+                        if let Some(sub) = subs.collection.get(marker) {
+                            *member_term = Box::new(sub.clone());
+                        }
+                    }
+                }
+                App::Object(fields) => {
+                    for (_, field) in fields {
+                        if let Term::Marker(marker) = field {
+                            if let Some(sub) = subs.collection.get(marker) {
+                                *field = sub.clone();
+                            }
+                        }
+                    }
+                }
+                App::Call(_, _) => todo!(),
+                App::Inspect(name, field) => {
+                    if let Term::Marker(field_marker) = field.as_mut() {
+                        if let Some(sub) = subs.collection.get(field_marker) {
+                            match sub {
+                                Term::App(App::Object(fields)) => {
+                                    // We know the true type!
+                                    Self::unify_marker(marker, &mut fields.get(name).expect("foorah").clone(), subs);
+                                    return;
+                                }
+                                _ => *field = Box::new(sub.clone()),
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Check for occurance -- if there is any, then we get out of here
-        if Self::occurs(marker, term, subs) {
+        if Self::occurs(marker, &term, subs) {
             return;
         }
 
@@ -95,9 +138,22 @@ impl Unifier {
                 App::Array(member_term) => return Self::occurs(marker, member_term, subs),
                 App::Object(fields) => return fields.iter().any(|(_, field)| Self::occurs(marker, field, subs)),
                 App::Call(_, _) => todo!(),
+                App::Inspect(_, inspected_term) => return Self::occurs(marker, inspected_term, subs),
             }
         }
 
         false
+    }
+}
+
+impl std::fmt::Display for Unifier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.pad(
+            &self
+                .collection
+                .iter()
+                .map(|(marker, term)| format!("{marker} => {term}"))
+                .join("\n"),
+        )
     }
 }
