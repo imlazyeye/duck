@@ -38,24 +38,24 @@ impl Page {
             .map(|marker| self.marker_to_type(marker))
     }
 
-    pub fn return_type(&self) -> Type {
-        let tpe = self.marker_to_type(Marker::RETURN_VALUE);
-        if let Type::Generic {
-            marker: Marker::RETURN_VALUE,
-        } = tpe
-        {
-            Type::Undefined
+    pub fn return_term(&self) -> Term {
+        let tpe = self.marker_to_term(Marker::RETURN_VALUE);
+        if let Term::Marker(Marker::RETURN_VALUE) = tpe {
+            Term::Type(Type::Undefined)
         } else {
             tpe
         }
     }
 
     pub fn marker_to_type(&self, marker: Marker) -> Type {
+        self.marker_to_term(marker).into()
+    }
+
+    pub fn marker_to_term(&self, marker: Marker) -> Term {
         self.unifier
             .collection
             .get(&marker)
             .cloned()
             .unwrap_or(Term::Marker(marker))
-            .into()
     }
 }

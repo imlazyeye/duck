@@ -1,4 +1,4 @@
-use super::{App, Constraints, Marker, Term};
+use super::{App, Constraints, Marker, Rule, Term, Type};
 use hashbrown::HashMap;
 use itertools::Itertools;
 
@@ -9,12 +9,12 @@ pub struct Unifier {
 impl Unifier {
     pub(super) fn apply_constraints(&mut self, mut constraints: Constraints) {
         while let Some(mut pattern) = constraints.collection.pop() {
-            Self::simplify_term(&mut pattern.term, self);
             Unifier::unify_marker(&pattern.marker, &mut pattern.term, self);
         }
     }
 
     fn unify(lhs: &Term, rhs: &Term, subs: &mut Self) {
+        println!("unify {lhs} and {rhs}");
         // If these terms are equal, there's nothing to do
         if lhs == rhs {
             return;
@@ -32,10 +32,11 @@ impl Unifier {
             return;
         }
 
-        // If these are both applications, we can unify them together
+        // Handle an app...
         if let Term::App(lhs_app) = lhs {
-            if let Term::App(rhs_app) = rhs {
-                match lhs_app {
+            match rhs {
+                // If the rhs is also an app, we can compare their inner terms
+                Term::App(rhs_app) => match lhs_app {
                     App::Array(lhs_member_type) => match rhs_app {
                         App::Array(rhs_member_type) => Self::unify(lhs_member_type, rhs_member_type, subs),
                         _ => panic!(),
@@ -48,17 +49,28 @@ impl Unifier {
                         }
                         _ => panic!("panik"),
                     },
-                    App::Call(call_target, arguments) => todo!(),
-                    App::Inspect(name, inspected_term) => match rhs_app {
-                        App::Object(fields) => Self::unify(inspected_term, fields.get(name).expect("ehh"), subs),
-                        _ => panic!(),
-                    },
+                    _ => panic!("no"),
+                },
+
+                // If the rhs is a rule, we can apply that rule to us
+                Term::Rule(rule) => {
+                    if let App::Object(lhs_fields) = lhs_app {
+                        match rule {
+                            Rule::Field(name, term) => {
+                                let lhs_field = lhs_fields.get(name).expect("app did not fufill rule");
+                                Self::unify(lhs_field, term, subs);
+                            }
+                        }
+                    }
                 }
+
+                _ => {}
             }
         }
     }
 
     fn unify_marker(marker: &Marker, term: &mut Term, subs: &mut Self) {
+        println!("unify marker {marker} and {term}");
         // If a substitution is already available for this marker, we will unify the term with that
         if let Some(sub) = subs.collection.get(marker) {
             Self::unify(&sub.clone(), term, subs); // todo
@@ -73,17 +85,75 @@ impl Unifier {
             }
         }
 
+        // If the term is an app, see if it can be simplified
+        if let Term::App(app) = term {
+            match app {
+                App::Array(member_term) => {
+                    if let Term::Marker(member_marker) = member_term.as_ref() {
+                        if let Some(sub) = subs.collection.get(member_marker) {
+                            *member_term = Box::new(sub.clone());
+                            Self::unify_marker(marker, term, subs);
+                            return;
+                        }
+                    }
+                }
+                App::Object(fields) => {
+                    let mut any = false;
+                    for (_, field) in fields {
+                        if let Term::Marker(field_marker) = field {
+                            if let Some(sub) = subs.collection.get(field_marker) {
+                                any = true;
+                                *field = sub.clone();
+                            }
+                        }
+                    }
+                    if any {
+                        Self::unify_marker(marker, term, subs);
+                        return;
+                    }
+                }
+                App::Call(call_target, arguments) => {
+                    let mut any = false;
+                    for arg in arguments.iter_mut() {
+                        if let Term::Marker(arg_marker) = arg {
+                            if let Some(sub) = subs.collection.get(arg_marker) {
+                                any = true;
+                                *arg = sub.clone();
+                            }
+                        }
+                    }
+                    if let Term::Marker(call_marker) = call_target.as_ref() {
+                        if let Some(sub) = subs.collection.get(call_marker) {
+                            any = true;
+                            *call_target = Box::new(sub.clone());
+                            if let Term::App(App::Function(parameters, return_type)) = call_target.as_ref() {
+                                for (i, (_, param)) in parameters.iter().enumerate() {
+                                    Self::unify(param, &arguments[i], subs);
+                                }
+                                let mut ret_term = return_type.as_ref().clone();
+                                println!("okay, the call {marker} is {ret_term}");
+                                Self::unify_marker(marker, &mut ret_term, subs);
+                                return;
+                            }
+                        }
+                    }
+                    if any {
+                        Self::unify_marker(marker, term, subs);
+                        return;
+                    }
+                }
+                _ => {}
+            }
+        }
+
         // Check for occurance -- if there is any, then we get out of here
         if Self::occurs(marker, term, subs) {
             return;
         }
 
-        // Time to register a new sub. Let's apply it to all previous subs
+        // Time to register a new sub
+        println!("now marking {} as {}", marker, term);
         subs.collection.insert(*marker, term.clone());
-        let oh_no = subs.clone();
-        for (_, other_term) in subs.collection.iter_mut() {
-            Self::simplify_term(other_term, &oh_no);
-        }
     }
 
     fn occurs(marker: &Marker, term: &Term, subs: &Self) -> bool {
@@ -111,45 +181,11 @@ impl Unifier {
                         arguments.iter().any(|arg| Self::occurs(marker, arg, subs))
                     }
                 }
-                App::Inspect(_, inspected_term) => Self::occurs(marker, inspected_term, subs),
+                App::Function(params, _) => params.iter().any(|(_, param)| Self::occurs(marker, param, subs)),
             };
         }
 
         false
-    }
-
-    fn simplify_term(term: &mut Term, subs: &Self) {
-        match term {
-            Term::Marker(inner_marker) => {
-                if let Some(new_term) = subs.collection.get(inner_marker) {
-                    *term = new_term.clone()
-                }
-            }
-            Term::App(app) => match app {
-                App::Array(member_term) => {
-                    Self::simplify_term(member_term.as_mut(), subs);
-                }
-                App::Object(fields) => {
-                    for (_, field) in fields {
-                        Self::simplify_term(field, subs);
-                    }
-                }
-                App::Call(call_target, arguments) => {
-                    Self::simplify_term(call_target, subs);
-                    for arg in arguments {
-                        Self::simplify_term(arg, subs);
-                    }
-                }
-                App::Inspect(name, field) => {
-                    Self::simplify_term(field.as_mut(), subs);
-                    if let Term::App(App::Object(fields)) = field.as_ref() {
-                        // We know the true type!
-                        *term = fields.get(name).expect("foorah").clone();
-                    }
-                }
-            },
-            _ => {}
-        }
     }
 }
 

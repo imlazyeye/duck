@@ -56,6 +56,7 @@ pub enum Term {
     Type(Type),
     Marker(Marker),
     App(App),
+    Rule(Rule),
 }
 impl Display for Term {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -63,6 +64,7 @@ impl Display for Term {
             Term::Type(tpe) => f.pad(&tpe.to_string()),
             Term::Marker(marker) => f.pad(&marker.to_string()),
             Term::App(application) => f.pad(&application.to_string()),
+            Term::Rule(rule) => f.pad(&rule.to_string()),
         }
     }
 }
@@ -82,7 +84,12 @@ impl From<Term> for Type {
                     }
                     Type::Struct { fields: tpe_fields }
                 }
+                App::Function(params, return_type) => Type::Function {
+                    parameters: params.into_iter().map(|(_, param)| param.into()).collect(),
+                    return_type: Box::new(return_type.as_ref().clone().into()),
+                },
                 App::Call(call_target, arguments) => {
+                    panic!("wait why is this here");
                     if let Term::Type(Type::Function {
                         parameters,
                         return_type,
@@ -103,8 +110,8 @@ impl From<Term> for Type {
                         Type::Unknown
                     }
                 }
-                App::Inspect(_, _) => Type::Unknown,
             },
+            Term::Rule(_) => todo!(),
         }
     }
 }
@@ -113,8 +120,8 @@ impl From<Term> for Type {
 pub enum App {
     Array(Box<Term>),
     Object(HashMap<String, Term>),
-    Call(Box<Term>, Vec<Term>),
-    Inspect(String, Box<Term>),
+    Call(Box<Term>, Vec<Term>), // todo: can i remove this?
+    Function(Vec<(String, Term)>, Box<Term>),
 }
 impl Display for App {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -126,14 +133,28 @@ impl Display for App {
             )),
 
             App::Call(call_target, arguments) => f.pad(&format!(
-                "{call_target}({})",
+                "<{call_target}>({})",
                 arguments.iter().map(|term| term.to_string()).join(", ")
             )),
-            App::Inspect(name, term) => f.pad(&format!("{term}.{name}")),
+            App::Function(arguments, return_type) => f.pad(&format!(
+                "({}) -> {return_type}",
+                arguments.iter().map(|(_, term)| term.to_string()).join(", ")
+            )),
         }
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Rule {
+    Field(String, Box<Term>),
+}
+impl Display for Rule {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Rule::Field(name, term) => f.pad(&format!("T where T::{name} => {term}>")),
+        }
+    }
+}
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub struct Marker(pub u64);

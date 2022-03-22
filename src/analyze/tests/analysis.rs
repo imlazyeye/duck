@@ -154,7 +154,7 @@ fn array_access() {
 fn struct_access() {
     harness_type_ast(
         "
-        var a = {b: 0}
+        var a = {b: 0, c: true}
         var b = a.b;
         ",
         "b",
@@ -254,15 +254,15 @@ fn function_call() {
 
 #[test]
 fn function_call_generic() {
-    // harness_type_ast(
-    //     "
-    //      var foo = function(a, b) {
-    //         return a[b];
-    //     }
-    //     foo([0], 1)",
-    //     "foo",
-    //     Type::Real,
-    // );
+    harness_type_ast(
+        "
+         var foo = function(a, b) {
+            return a[b];
+        }
+        var bar = foo([0], 1)",
+        "bar",
+        Type::Real,
+    );
     // harness_type_ast(
     //     "
     //     var foo = function(a, b) {
@@ -309,10 +309,8 @@ fn function_generic_array() {
 fn function_infer_arguments() {
     harness_type_expr(
         "
-        function(a, b, c, d) {
-            var e = 1000;
-            c = e - b;
-            return a[c] && d;
+        function(a) {
+            return a[0] && true;
         }
         ",
         Type::Function {
@@ -320,9 +318,6 @@ fn function_infer_arguments() {
                 Type::Array {
                     member_type: Box::new(Type::Bool),
                 },
-                Type::Real,
-                Type::Real,
-                Type::Bool,
             ],
             return_type: Box::new(Type::Bool),
         },

@@ -1,4 +1,4 @@
-use super::{App, Marker, Page, Scope, Term, Type};
+use super::{App, Marker, Page, Rule, Scope, Term, Type};
 use crate::parse::{
     Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
@@ -7,17 +7,6 @@ use crate::parse::{
 use hashbrown::HashMap;
 use itertools::Itertools;
 use std::fmt::Display;
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Constraint {
-    pub marker: Marker,
-    pub term: Term,
-}
-impl std::fmt::Display for Constraint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!("{} = {}", self.marker, self.term))
-    }
-}
 
 #[derive(Debug)]
 pub(super) struct Constraints<'s> {
@@ -93,17 +82,17 @@ impl<'s> Constraints<'s> {
                         _ => unreachable!(),
                     };
                     body_page.apply_stmts(body);
-                    let mut parameter_types = Vec::new();
+                    let mut parameters = Vec::new();
                     for param in function.parameters.iter() {
-                        parameter_types.push(body_page.marker_to_type(self.scope.get_expr_marker(param.name_expr())));
+                        let param_term = body_page
+                            .scope
+                            .field_marker(param.name_identifier())
+                            .map(|param_marker| body_page.marker_to_term(param_marker))
+                            .expect("should not be possible");
+                        parameters.push((param.name().to_string(), param_term));
                     }
-                    self.expr_eq_type(
-                        expr,
-                        Type::Function {
-                            parameters: parameter_types,
-                            return_type: Box::new(body_page.return_type()),
-                        },
-                    );
+                    self.scope.marker_iter += body_page.scope.marker_iter; // ehh....
+                    self.expr_eq_app(expr, App::Function(parameters, Box::new(body_page.return_term())));
                 }
             }
 
@@ -171,11 +160,24 @@ impl<'s> Constraints<'s> {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        let inspection = App::Inspect(
-                            right.lexeme.clone(),
-                            Box::new(Term::Marker(self.scope.get_expr_marker(left))),
-                        );
-                        self.expr_eq_app(expr, inspection);
+                        // let inspection = App::Inspect(
+                        //     right.lexeme.clone(),
+                        //     Box::new(Term::Marker(self.scope.get_expr_marker(left))),
+                        // );
+                        // self.expr_eq_app(expr, inspection);
+
+                        // create a type for the field
+                        let field_marker = self.scope.new_marker();
+                        println!("creating generic {field_marker}");
+
+                        // The left must be a struct that implements our field
+                        self.expr_eq_rule(
+                            left,
+                            Rule::Field(right.lexeme.clone(), Box::new(Term::Marker(field_marker))),
+                        ); // todo!
+
+                        // constrain the result of this expression to the field
+                        self.expr_eq_marker(expr, field_marker);
                     }
                     Access::Array {
                         left,
@@ -297,6 +299,10 @@ impl<'s> Constraints<'s> {
         self.expr_eq_symbol(target, Term::App(application))
     }
 
+    pub fn expr_eq_rule(&mut self, target: &Expr, rule: Rule) {
+        self.expr_eq_symbol(target, Term::Rule(rule))
+    }
+
     pub fn expr_eq_symbol(&mut self, expr: &Expr, term: Term) {
         let marker = self.scope.get_expr_marker(expr);
         self.marker_eq_symbol(marker, term);
@@ -310,5 +316,16 @@ impl<'s> Constraints<'s> {
 impl<'s> Display for Constraints<'s> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.pad(&self.collection.iter().rev().join("\n"))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Constraint {
+    pub marker: Marker,
+    pub term: Term,
+}
+impl std::fmt::Display for Constraint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.pad(&format!("{} = {}", self.marker, self.term))
     }
 }
