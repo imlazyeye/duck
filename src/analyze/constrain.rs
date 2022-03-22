@@ -4,6 +4,7 @@ use crate::parse::{
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
     Ternary, Unary, UnaryOp,
 };
+use colored::Colorize;
 use hashbrown::HashMap;
 
 #[derive(Debug)]
@@ -275,10 +276,19 @@ impl<'s> Constraints<'s> {
             constraints.constrain_stmt(stmt);
         }
         constraints.collection.dedup();
-        constraints.collection.reverse();
+        for (marker, name) in constraints.scope.expr_strings.iter() {
+            println!(
+                "{}  {} : {}",
+                "ALIAS".bright_red(),
+                constraints.printer.marker(marker),
+                name
+            );
+            constraints.printer.give_expr_alias(*marker, name.clone());
+        }
         for con in constraints.collection.iter() {
             println!("{}", constraints.printer.constraint(con));
         }
+        constraints.collection.reverse();
         constraints
     }
 

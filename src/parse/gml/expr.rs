@@ -1,6 +1,5 @@
 use super::{IntoStmt, StmtType};
 use crate::{
-    analyze::Type,
     lint::LintTag,
     parse::{Span, *},
     FileId,
@@ -84,8 +83,7 @@ impl IntoExpr for ExprType {}
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
     expr_type: Box<ExprType>,
-    pub id: ExprId,
-    pub tpe: Type,
+    id: ExprId,
     location: Location,
     lint_tag: Option<LintTag>,
 }
@@ -115,6 +113,11 @@ impl Expr {
     /// Returns the lint tag attached to this statement, if any.
     pub fn lint_tag(&self) -> Option<&LintTag> {
         self.lint_tag.as_ref()
+    }
+
+    /// Get the expr's id.
+    pub fn id(&self) -> ExprId {
+        self.id
     }
 }
 impl From<Expr> for StmtType {
@@ -258,14 +261,14 @@ impl std::fmt::Display for Expr {
                         f.pad(&format!("{left}[{accessor}{index_one}]"))
                     }
                 }
-                Access::Map { left, key } => todo!(),
+                Access::Map { left, key } => f.pad(&format!("{left}[? {key}]")),
                 Access::Grid {
                     left,
                     index_one,
                     index_two,
-                } => todo!(),
-                Access::List { left, index } => todo!(),
-                Access::Struct { left, key } => todo!(),
+                } => f.pad(&format!("{left}[# {index_one}, {index_two}]")),
+                Access::List { left, index } => f.pad(&format!("{left}[| {index}]")),
+                Access::Struct { left, key } => f.pad(&format!("{left}[$ {key}]")),
             },
             ExprType::Call(Call {
                 left,
@@ -308,11 +311,10 @@ impl std::fmt::Display for Expr {
 /// `into_expr` method, and a `into_expr_lazy` for tests.
 pub trait IntoExpr: Sized + Into<ExprType> {
     /// Converts self into an Expr.
-    fn into_expr(self, tpe: Type, id: ExprId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
+    fn into_expr(self, id: ExprId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
         Expr {
             expr_type: Box::new(self.into()),
             id,
-            tpe,
             location: Location(file_id, span),
             lint_tag,
         }
@@ -323,13 +325,15 @@ pub trait IntoExpr: Sized + Into<ExprType> {
     where
         Self: Sized,
     {
-        self.into_expr(Type::Unknown, ExprId::default(), Default::default(), 0, None)
+        self.into_expr(ExprId::default(), Default::default(), 0, None)
     }
 }
 
+/// A unique id that each [Expr] has.
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub struct ExprId(u64);
 impl ExprId {
+    /// Creates a new, random ExprId.
     pub fn new() -> Self {
         Self(rand::random())
     }

@@ -1,9 +1,4 @@
-use hashbrown::HashMap;
-
-use crate::{
-    analyze::{Type, Term},
-    parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt},
-};
+use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
 
 use super::Identifier;
 
@@ -47,7 +42,7 @@ impl ParseVisitor for Literal {
                 }
             }
             Literal::Struct(members) => {
-                for (iden, value) in members.iter() {
+                for (_, value) in members.iter() {
                     visitor(value)
                 }
             }
@@ -62,7 +57,7 @@ impl ParseVisitor for Literal {
                 }
             }
             Literal::Struct(members) => {
-                for (iden, value) in members.iter_mut() {
+                for (_, value) in members.iter_mut() {
                     visitor(value)
                 }
             }

@@ -1,5 +1,5 @@
 use crate::{
-    analyze::{Marker, Page, Type, TypeWriter},
+    analyze::{App, Page, Term, Type, TypeWriter},
     parse::*,
 };
 use colored::Colorize;
@@ -44,10 +44,10 @@ fn harness_typewriter(source: &str) -> Page {
     let mut typewriter = TypeWriter::default();
     let mut ast = parser.into_ast().unwrap();
     let page = typewriter.write_types(&mut ast);
-    println!("Result for: {source}");
+    println!("Result for: \n{source}");
     for (name, _) in page.scope.fields.iter() {
         let tpe = page.read_field(&Identifier::lazy(name)).unwrap();
-        let str = name.bright_white();
+        let str = name.bright_black();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
         println!(
             "{str}{whitespace}{}\n",
@@ -146,10 +146,8 @@ fn filled_struct() {
 #[test]
 fn array_access() {
     harness_type_ast(
-        "
-        var a = [0]
-        var b = a[0];
-        ",
+        "var a = [0]
+        var b = a[0];",
         [("b", Type::Real)],
     );
 }
@@ -157,10 +155,8 @@ fn array_access() {
 #[test]
 fn struct_access() {
     harness_type_ast(
-        "
-        var a = {b: 0, c: true}
-        var b = a.b;
-        ",
+        "var a = {b: 0, c: true}
+        var b = a.b;",
         [("b", Type::Real)],
     );
 }
@@ -168,15 +164,13 @@ fn struct_access() {
 #[test]
 fn complex_struct_and_array_nesting() {
     harness_type_ast(
-        "
-        var foo = { a: [ { b: 20, c: \"hi\" } ] };
+        "var foo = { a: [ { b: 20, c: \"hi\" } ] };
         var bar = foo.a;
         var fizz = bar[0].b;
         var buzz = [bar[0].c, \"test\"];
         var bam = buzz[0];
         var boom = { a: foo, b: bar, c: fizz, d: buzz, e: bam };
-        var woo = boom.a.a[0].c;
-        ",
+        var woo = boom.a.a[0].c;",
         [("woo", Type::String)],
     );
 }
@@ -243,21 +237,52 @@ fn function_returns_constant() {
 #[test]
 fn function_call() {
     harness_type_ast(
-        "
-        var foo = function() {
+        "var foo = function() {
             return 0;
         }
-        var bar = foo();
-        ",
+        var bar = foo();",
         [("bar", Type::Real)],
     )
 }
 
 #[test]
+fn generic_call() {
+    let call = get_type("foo(0, true, \"bar\")");
+    if let Type::Generic { term } = call.clone() {
+        if let Term::App(App::Call(target, _)) = term.as_ref() {
+            assert_eq!(
+                call,
+                Type::Generic {
+                    term: Box::new(Term::App(App::Call(
+                        target.clone(),
+                        vec![Term::Type(Type::Real), Term::Type(Type::Bool), Term::Type(Type::String)],
+                    ))),
+                },
+            );
+            return;
+        }
+    }
+    panic!("Result was {:?}!", call);
+}
+
+#[test]
+fn function_infer_generic_call() {
+    harness_type_ast(
+        "var foo = function(a) {
+            return a(0) + \"hello!\";
+        }
+        var bar = function(b) { 
+            return b;
+        }
+        var buzz = foo(bar, bar)",
+        [("buzz", Type::String)],
+    );
+}
+
+#[test]
 fn function_call_generic() {
     harness_type_ast(
-        "
-         var foo = function(a) {
+        "var foo = function(a) {
             return a[0];
         }
         var bar = foo([0])",
@@ -320,11 +345,9 @@ fn function_generic_array() {
 #[test]
 fn function_infer_arguments() {
     harness_type_expr(
-        "
-        function(a) {
+        "function(a) {
             return a[0] && true;
-        }
-        ",
+        }",
         Type::Function {
             parameters: vec![Type::Array {
                 member_type: Box::new(Type::Bool),

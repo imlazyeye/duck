@@ -10,6 +10,7 @@ use hashbrown::HashMap;
 pub struct Scope {
     pub fields: HashMap<String, ExprId>,
     pub markers: HashMap<ExprId, Marker>,
+    pub expr_strings: HashMap<Marker, String>,
     pub generics: Vec<Marker>,
     pub file_id: FileId,
 }
@@ -46,7 +47,7 @@ impl Scope {
     pub fn new_field(&mut self, name: impl Into<String>, expr: &Expr) {
         let marker = Marker::new();
         self.alias_expr_to_marker(expr, marker);
-        self.fields.insert(name.into(), expr.id);
+        self.fields.insert(name.into(), expr.id());
     }
 
     pub fn new_generic(&mut self) -> Marker {
@@ -56,11 +57,12 @@ impl Scope {
     }
 
     pub fn alias_expr_to_marker(&mut self, expr: &Expr, marker: Marker) {
-        self.markers.insert(expr.id, marker);
+        self.markers.insert(expr.id(), marker);
+        self.expr_strings.insert(marker, expr.to_string());
     }
 
     pub(super) fn get_expr_marker(&mut self, expr: &Expr) -> Marker {
-        match self.markers.get(&expr.id).copied() {
+        match self.markers.get(&expr.id()).copied() {
             Some(marker) => marker,
             None => {
                 let marker = Marker::new();

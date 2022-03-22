@@ -4,6 +4,7 @@ use crate::{
     FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
+use colored::Colorize;
 use itertools::Itertools;
 
 #[derive(Debug, Default)]
@@ -27,17 +28,25 @@ pub struct Page {
 
 impl Page {
     pub fn apply_stmts(&mut self, stmts: &mut Vec<Stmt>, printer: &mut Printer) {
+        println!("\n--- Parsing a new page... ---\n");
         let constraints = Constraints::new(&mut self.scope, stmts, printer);
         self.unifier.apply_constraints(constraints.collection, printer);
+        println!("\nFinal substitutions:");
         println!(
             "{}",
             &self
                 .unifier
                 .collection
                 .iter()
-                .map(|(marker, term)| format!("{} => {}", printer.marker(marker), printer.term(term)))
+                .map(|(marker, term)| format!(
+                    "{}    {} => {}",
+                    "SUB".bright_green(),
+                    printer.marker(marker),
+                    printer.term(term)
+                ))
                 .join("\n")
         );
+        println!("\n--- Ending this page... ---\n");
     }
 
     /// ### Errors

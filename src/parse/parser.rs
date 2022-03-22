@@ -3,7 +3,6 @@ use colored::Colorize;
 use itertools::Itertools;
 
 use crate::{
-    analyze::{Marker, Type},
     lint::{LintLevel, LintTag},
     parse::*,
     FileId,
@@ -60,7 +59,6 @@ impl Parser {
     /// Creates a new expression.
     fn new_expr(&mut self, expr: impl IntoExpr, span: Span) -> Expr {
         expr.into_expr(
-            Type::Unknown,
             if self.use_default_ids {
                 ExprId::default()
             } else {

@@ -15,7 +15,7 @@ impl Unifier {
 
     fn unify(lhs: &Term, rhs: &Term, subs: &mut Self, printer: &mut Printer) {
         println!(
-            "{}: {} ? {}",
+            "{}  {} ~ {}",
             "UNIFY".bright_yellow(),
             printer.term(lhs),
             printer.term(rhs)
@@ -39,44 +39,58 @@ impl Unifier {
 
         // Handle an app...
         if let Term::App(lhs_app) = lhs {
-            match rhs {
-                // If the rhs is also an app, we can compare their inner terms
-                Term::App(rhs_app) => match lhs_app {
-                    App::Array(lhs_member_type) => match rhs_app {
-                        App::Array(rhs_member_type) => Self::unify(lhs_member_type, rhs_member_type, subs, printer),
-                        _ => panic!(),
-                    },
-                    App::Object(lhs_fields) => match rhs_app {
-                        App::Object(rhs_fields) => {
-                            for (name, term) in lhs_fields {
-                                Self::unify(term, rhs_fields.get(name).expect("eh"), subs, printer)
-                            }
+            match lhs_app {
+                App::Array(lhs_member_type) => {
+                    if let Term::App(App::Array(rhs_member_type)) = rhs {
+                        Self::unify(lhs_member_type, rhs_member_type, subs, printer)
+                    }
+                }
+                App::Object(lhs_fields) => match rhs {
+                    Term::App(App::Object(rhs_fields)) => {
+                        for (name, field) in lhs_fields {
+                            Self::unify(field, rhs_fields.get(name).expect("eh"), subs, printer)
                         }
-                        _ => panic!("panik"),
-                    },
-                    _ => panic!("no"),
-                },
-
-                // If the rhs is a rule, we can apply that rule to us
-                Term::Rule(rule) => {
-                    if let App::Object(lhs_fields) = lhs_app {
-                        match rule {
-                            Rule::Field(name, term) => {
-                                let lhs_field = lhs_fields.get(name).expect("app did not fufill rule");
-                                Self::unify(lhs_field, term, subs, printer);
+                    }
+                    // If the rhs is a rule, we can apply that rule to us
+                    Term::Rule(rule) => {
+                        if let App::Object(lhs_fields) = lhs_app {
+                            match rule {
+                                Rule::Field(name, term) => {
+                                    let lhs_field = lhs_fields.get(name).expect("app did not fufill rule");
+                                    Self::unify(lhs_field, term, subs, printer);
+                                }
+                                _ => panic!(),
                             }
                         }
                     }
-                }
-
-                _ => {}
+                    _ => {}
+                },
+                App::Call(lhs_target, lhs_args) => match rhs {
+                    Term::App(App::Call(rhs_target, rhs_args)) => {
+                        if lhs_target == rhs_target {
+                            for (i, arg) in lhs_args.iter().enumerate() {
+                                Self::unify(arg, &rhs_args[i], subs, printer)
+                            }
+                        }
+                    }
+                    _ => {
+                        Self::unify(
+                            lhs_target,
+                            &Term::Rule(Rule::Function(Box::new(rhs.clone()), lhs_args.clone())),
+                            subs,
+                            printer,
+                        );
+                        // Self::unify(lhs, &rhs.clone(), subs, printer);
+                    }
+                },
+                App::Function(_, _) => {}
             }
         }
     }
 
     fn unify_marker(marker: &Marker, term: &mut Term, subs: &mut Self, printer: &mut Printer) {
         println!(
-            "{}: {} ? {}",
+            "{}  {} ~ {}",
             "UNIFY".bright_yellow(),
             printer.marker(marker),
             printer.term(term),
@@ -132,21 +146,30 @@ impl Unifier {
                             }
                         }
                     }
-                    if let Term::Marker(call_marker) = call_target.as_ref() {
-                        if let Some(sub) = subs.collection.get(call_marker) {
-                            any = true;
-                            if let Term::App(App::Function(parameters, page)) = sub {
-                                let (parameters, page) = App::checkout_function(parameters, page);
-                                for (i, (_, param)) in parameters.iter().enumerate() {
-                                    Self::unify(param, &arguments[i], subs, printer);
-                                }
-                                Self::unify_marker(marker, &mut page.return_term(), subs, printer);
-                                *call_target = Box::new(Term::App(App::Function(parameters, page)));
-                                return;
-                            } else {
+                    match call_target.as_ref() {
+                        Term::Marker(call_marker) => {
+                            if let Some(sub) = subs.collection.get(call_marker) {
+                                any = true;
                                 *call_target = Box::new(sub.clone());
                             }
                         }
+                        Term::App(App::Function(parameters, page)) => {
+                            let (parameters, page) = App::checkout_function(parameters, page);
+                            for (i, (_, param)) in parameters.iter().enumerate() {
+                                Self::unify(param, &arguments[i], subs, printer);
+                            }
+                            Self::unify_marker(marker, &mut page.return_term(), subs, printer);
+                            *call_target = Box::new(Term::App(App::Function(parameters, page)));
+                            return;
+                        }
+                        Term::Rule(Rule::Function(return_type, parameters)) => {
+                            for (i, param) in parameters.iter().enumerate() {
+                                Self::unify(param, &arguments[i], subs, printer);
+                            }
+                            Self::unify_marker(marker, &mut return_type.as_ref().clone(), subs, printer);
+                            return;
+                        }
+                        _ => {}
                     }
                     if any {
                         Self::unify_marker(marker, term, subs, printer);
@@ -164,8 +187,8 @@ impl Unifier {
 
         // Time to register a new sub
         println!(
-            "{}:   {} => {}",
-            "SUB".bright_blue(),
+            "{}    {} => {}",
+            "SUB".bright_green(),
             printer.marker(marker),
             printer.term(term)
         );
