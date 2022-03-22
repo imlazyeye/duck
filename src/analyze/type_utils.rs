@@ -2,6 +2,8 @@ use hashbrown::HashMap;
 use itertools::Itertools;
 use std::fmt::Display;
 
+use super::{Constraint, Page, Scope, Unifier};
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
     Generic {
@@ -27,29 +29,6 @@ pub enum Type {
         return_type: Box<Type>,
     },
 }
-impl Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Type::Generic { marker } => f.pad(&marker.to_string()),
-            Type::Unknown => f.pad("<?>"),
-            Type::Undefined => f.pad("undefined"),
-            Type::Noone => f.pad("noone"),
-            Type::Bool => f.pad("bool"),
-            Type::Real => f.pad("real"),
-            Type::String => f.pad("string"),
-            Type::Array { member_type } => f.pad(&format!("[{}]", *member_type)),
-            Type::Struct { fields } => f.pad(&format!(
-                "{{ {} }}",
-                fields.iter().map(|(name, term)| format!("{name}: {term}")).join(", ")
-            )),
-            Type::Union { types } => f.pad(&types.iter().join("| ")),
-            Type::Function {
-                parameters,
-                return_type,
-            } => f.pad(&format!("function({}) -> {return_type}", parameters.iter().join(", "))),
-        }
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Term {
@@ -58,16 +37,7 @@ pub enum Term {
     App(App),
     Rule(Rule),
 }
-impl Display for Term {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Term::Type(tpe) => f.pad(&tpe.to_string()),
-            Term::Marker(marker) => f.pad(&marker.to_string()),
-            Term::App(application) => f.pad(&application.to_string()),
-            Term::Rule(rule) => f.pad(&rule.to_string()),
-        }
-    }
-}
+
 impl From<Term> for Type {
     fn from(term: Term) -> Self {
         match term {
@@ -84,31 +54,12 @@ impl From<Term> for Type {
                     }
                     Type::Struct { fields: tpe_fields }
                 }
-                App::Function(params, return_type) => Type::Function {
+                App::Function(params, page) => Type::Function {
                     parameters: params.into_iter().map(|(_, param)| param.into()).collect(),
-                    return_type: Box::new(return_type.as_ref().clone().into()),
+                    return_type: Box::new(page.return_term().into()),
                 },
-                App::Call(call_target, arguments) => {
-                    panic!("wait why is this here");
-                    if let Term::Type(Type::Function {
-                        parameters,
-                        return_type,
-                    }) = call_target.as_ref()
-                    {
-                        match return_type.as_ref() {
-                            Type::Generic { marker } => {
-                                let position = parameters
-                                    .iter()
-                                    .position(|v| v == &Type::Generic { marker: *marker })
-                                    .expect("that ain't right");
-                                let argument = arguments.get(position).expect("missing argument");
-                                argument.clone().into()
-                            }
-                            tpe => tpe.clone(),
-                        }
-                    } else {
-                        Type::Unknown
-                    }
+                App::Call(..) => {
+                    panic!("I'm pretty sure this should never happen");
                 }
             },
             Term::Rule(_) => todo!(),
@@ -121,39 +72,100 @@ pub enum App {
     Array(Box<Term>),
     Object(HashMap<String, Term>),
     Call(Box<Term>, Vec<Term>), // todo: can i remove this?
-    Function(Vec<(String, Term)>, Box<Term>),
+    Function(Vec<(String, Term)>, Page),
 }
-impl Display for App {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            App::Array(inner) => f.pad(&format!("[{inner}]")),
-            App::Object(fields) => f.pad(&format!(
-                "{{ {} }}",
-                fields.iter().map(|(name, term)| format!("{name}: {term}")).join(", ")
-            )),
-
-            App::Call(call_target, arguments) => f.pad(&format!(
-                "<{call_target}>({})",
-                arguments.iter().map(|term| term.to_string()).join(", ")
-            )),
-            App::Function(arguments, return_type) => f.pad(&format!(
-                "({}) -> {return_type}",
-                arguments.iter().map(|(_, term)| term.to_string()).join(", ")
-            )),
+impl App {
+    pub fn checkout_function(parameters: &[(String, Term)], page: &Page) -> (Vec<(String, Term)>, Page) {
+        fn translate_term(term: &mut Term, translator: &HashMap<Marker, Marker>) {
+            match term {
+                Term::Type(tpe) => {
+                    if let Type::Generic { marker } = tpe {
+                        *marker = *translator.get(marker).unwrap();
+                    };
+                }
+                Term::Marker(marker) => *marker = *translator.get(marker).unwrap(),
+                Term::App(app) => match app {
+                    App::Array(inner_term) => translate_term(inner_term, translator),
+                    App::Object(fields) => fields
+                        .iter_mut()
+                        .for_each(|(_, field)| translate_term(field, translator)),
+                    App::Call(target, arguments) => {
+                        translate_term(target, translator);
+                        arguments.iter_mut().for_each(|arg| translate_term(arg, translator))
+                    }
+                    App::Function(parameters, page) => {
+                        (*parameters, *page) = App::checkout_function(parameters, page);
+                    }
+                },
+                Term::Rule(rule) => match rule {
+                    Rule::Field(_, term) => translate_term(term, translator),
+                },
+            }
         }
+
+        let mut translator: HashMap<Marker, Marker> = HashMap::default();
+        translator.insert(Marker::RETURN_VALUE, Marker::RETURN_VALUE);
+        let scope = Scope {
+            fields: page.scope.fields.clone(),
+            generics: page
+                .scope
+                .generics
+                .iter()
+                .map(|generic| {
+                    let new_generic = Marker::new();
+                    translator.insert(*generic, new_generic);
+                    new_generic
+                })
+                .collect(),
+            markers: page
+                .scope
+                .markers
+                .iter()
+                .map(|(expr_id, old_marker)| {
+                    let new_marker = Marker::new();
+                    translator.insert(*old_marker, new_marker);
+                    (*expr_id, new_marker)
+                })
+                .collect(),
+            file_id: page.scope.file_id,
+        };
+
+        let unifier = Unifier {
+            collection: page
+                .unifier
+                .collection
+                .clone()
+                .iter_mut()
+                .map(|(mut marker, term)| {
+                    marker = translator.get(marker).unwrap();
+                    translate_term(term, &translator);
+                    (*marker, term.clone())
+                })
+                .collect(),
+        };
+
+        let parameters = parameters
+            .to_vec()
+            .iter_mut()
+            .map(|(n, param)| {
+                translate_term(param, &translator);
+                (n.clone(), param.clone())
+            })
+            .collect();
+
+        let new_page = Page {
+            scope,
+            unifier,
+            file_id: page.file_id,
+        };
+
+        (parameters, new_page)
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Rule {
     Field(String, Box<Term>),
-}
-impl Display for Rule {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Rule::Field(name, term) => f.pad(&format!("T where T::{name} => {term}>")),
-        }
-    }
 }
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
@@ -164,12 +176,103 @@ impl Marker {
         Self(rand::random())
     }
 }
-impl Display for Marker {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self == &Marker::RETURN_VALUE {
-            f.pad("tR")
+
+#[derive(Debug, Default, Clone)]
+pub struct Printer {
+    aliases: HashMap<Marker, usize>,
+    iter: usize,
+}
+impl Printer {
+    #[must_use]
+    pub fn marker(&mut self, marker: &Marker) -> String {
+        if marker == &Marker::RETURN_VALUE {
+            "tR".into()
         } else {
-            f.pad(&format!("t{}", self.0))
+            format!(
+                "t{}",
+                self.aliases.entry(*marker).or_insert_with(|| {
+                    let v = self.iter;
+                    self.iter += 1;
+                    v
+                })
+            )
         }
+    }
+
+    #[must_use]
+    pub fn term(&mut self, term: &Term) -> String {
+        match term {
+            Term::Type(tpe) => self.tpe(tpe),
+            Term::Marker(marker) => self.marker(marker),
+            Term::App(app) => self.app(app),
+            Term::Rule(rule) => self.rule(rule),
+        }
+    }
+
+    #[must_use]
+    pub fn tpe(&mut self, tpe: &Type) -> String {
+        match tpe {
+            Type::Generic { marker } => self.marker(marker),
+            Type::Unknown => "<?>".into(),
+            Type::Undefined => "undefined".into(),
+            Type::Noone => "noone".into(),
+            Type::Bool => "bool".into(),
+            Type::Real => "real".into(),
+            Type::String => "string".into(),
+            Type::Array { member_type } => format!("[{}]", self.tpe(&member_type)),
+            Type::Struct { fields } => format!(
+                "{{ {} }}",
+                fields
+                    .iter()
+                    .map(|(name, inner_tpe)| format!("{name}: {}", self.tpe(&inner_tpe)))
+                    .join(", ")
+            ),
+            Type::Union { types } => types.iter().map(|u| self.tpe(&u)).join("| "),
+            Type::Function {
+                parameters,
+                return_type,
+            } => format!(
+                "function({}) -> {}",
+                parameters.iter().map(|param| self.tpe(&param)).join(", "),
+                self.tpe(&return_type)
+            ),
+        }
+    }
+
+    #[must_use]
+    pub fn app(&mut self, app: &App) -> String {
+        match app {
+            App::Array(inner) => format!("[{}]", self.term(&inner)),
+            App::Object(fields) => format!(
+                "{{ {} }}",
+                fields
+                    .iter()
+                    .map(|(name, term)| format!("{name}: {}", self.term(term)))
+                    .join(", ")
+            ),
+
+            App::Call(call_target, arguments) => format!(
+                "<{}>({})",
+                self.term(&call_target),
+                arguments.iter().map(|term| self.term(term)).join(", ")
+            ),
+            App::Function(arguments, page) => format!(
+                "({}) -> {}",
+                arguments.iter().map(|(_, term)| self.term(term)).join(", "),
+                self.term(&page.marker_to_term(Marker::RETURN_VALUE)),
+            ),
+        }
+    }
+
+    #[must_use]
+    pub fn rule(&mut self, rule: &Rule) -> String {
+        match rule {
+            Rule::Field(name, term) => format!("T where T::{name} => {}", self.term(&term)),
+        }
+    }
+
+    #[must_use]
+    pub fn constraint(&mut self, constraint: &Constraint) -> String {
+        format!("{} = {}", self.marker(&constraint.marker), self.term(&constraint.term))
     }
 }

@@ -1,21 +1,24 @@
-use super::{Constraints, Marker, Scope, Term, Type, Unifier};
+use super::{Constraints, Marker, Printer, Scope, Term, Type, Unifier};
 use crate::{
     parse::{Ast, Identifier, Stmt},
     FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
+use itertools::Itertools;
 
 #[derive(Debug, Default)]
-pub struct TypeWriter;
+pub struct TypeWriter {
+    pub printer: Printer,
+}
 impl TypeWriter {
     pub fn write_types(&mut self, ast: &mut Ast) -> Page {
         let mut page = Page::default();
-        page.apply_stmts(ast.stmts_mut());
+        page.apply_stmts(ast.stmts_mut(), &mut self.printer);
         page
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct Page {
     pub scope: Scope,
     pub unifier: Unifier,
@@ -23,11 +26,18 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn apply_stmts(&mut self, stmts: &mut Vec<Stmt>) {
-        let constraints = Constraints::new(&mut self.scope, stmts);
-        println!("{constraints}");
-        self.unifier.apply_constraints(constraints);
-        println!("{}", self.unifier);
+    pub fn apply_stmts(&mut self, stmts: &mut Vec<Stmt>, printer: &mut Printer) {
+        let constraints = Constraints::new(&mut self.scope, stmts, printer);
+        self.unifier.apply_constraints(constraints.collection, printer);
+        println!(
+            "{}",
+            &self
+                .unifier
+                .collection
+                .iter()
+                .map(|(marker, term)| format!("{} => {}", printer.marker(marker), printer.term(term)))
+                .join("\n")
+        );
     }
 
     /// ### Errors

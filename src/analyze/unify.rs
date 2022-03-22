@@ -1,20 +1,25 @@
-use super::{App, Constraints, Marker, Rule, Term, Type};
+use super::{App, Constraint, Marker, Printer, Rule, Term};
+use colored::Colorize;
 use hashbrown::HashMap;
-use itertools::Itertools;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct Unifier {
     pub(super) collection: HashMap<Marker, Term>,
 }
 impl Unifier {
-    pub(super) fn apply_constraints(&mut self, mut constraints: Constraints) {
-        while let Some(mut pattern) = constraints.collection.pop() {
-            Unifier::unify_marker(&pattern.marker, &mut pattern.term, self);
+    pub(super) fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, printer: &mut Printer) {
+        while let Some(mut pattern) = constraints.pop() {
+            Unifier::unify_marker(&pattern.marker, &mut pattern.term, self, printer);
         }
     }
 
-    fn unify(lhs: &Term, rhs: &Term, subs: &mut Self) {
-        println!("unify {lhs} and {rhs}");
+    fn unify(lhs: &Term, rhs: &Term, subs: &mut Self, printer: &mut Printer) {
+        println!(
+            "{}: {} ? {}",
+            "UNIFY".bright_yellow(),
+            printer.term(lhs),
+            printer.term(rhs)
+        );
         // If these terms are equal, there's nothing to do
         if lhs == rhs {
             return;
@@ -22,13 +27,13 @@ impl Unifier {
 
         // If the lhs is a marker, unify it to the right
         if let Term::Marker(marker) = lhs {
-            Self::unify_marker(marker, &mut rhs.clone(), subs);
+            Self::unify_marker(marker, &mut rhs.clone(), subs, printer);
             return;
         }
 
         // If the rhs is a marker, unify it to the left
         if let Term::Marker(marker) = rhs {
-            Self::unify_marker(marker, &mut lhs.clone(), subs);
+            Self::unify_marker(marker, &mut lhs.clone(), subs, printer);
             return;
         }
 
@@ -38,13 +43,13 @@ impl Unifier {
                 // If the rhs is also an app, we can compare their inner terms
                 Term::App(rhs_app) => match lhs_app {
                     App::Array(lhs_member_type) => match rhs_app {
-                        App::Array(rhs_member_type) => Self::unify(lhs_member_type, rhs_member_type, subs),
+                        App::Array(rhs_member_type) => Self::unify(lhs_member_type, rhs_member_type, subs, printer),
                         _ => panic!(),
                     },
                     App::Object(lhs_fields) => match rhs_app {
                         App::Object(rhs_fields) => {
                             for (name, term) in lhs_fields {
-                                Self::unify(term, rhs_fields.get(name).expect("eh"), subs)
+                                Self::unify(term, rhs_fields.get(name).expect("eh"), subs, printer)
                             }
                         }
                         _ => panic!("panik"),
@@ -58,7 +63,7 @@ impl Unifier {
                         match rule {
                             Rule::Field(name, term) => {
                                 let lhs_field = lhs_fields.get(name).expect("app did not fufill rule");
-                                Self::unify(lhs_field, term, subs);
+                                Self::unify(lhs_field, term, subs, printer);
                             }
                         }
                     }
@@ -69,18 +74,23 @@ impl Unifier {
         }
     }
 
-    fn unify_marker(marker: &Marker, term: &mut Term, subs: &mut Self) {
-        println!("unify marker {marker} and {term}");
+    fn unify_marker(marker: &Marker, term: &mut Term, subs: &mut Self, printer: &mut Printer) {
+        println!(
+            "{}: {} ? {}",
+            "UNIFY".bright_yellow(),
+            printer.marker(marker),
+            printer.term(term),
+        );
         // If a substitution is already available for this marker, we will unify the term with that
         if let Some(sub) = subs.collection.get(marker) {
-            Self::unify(&sub.clone(), term, subs); // todo
+            Self::unify(&sub.clone(), term, subs, printer); // todo
             return;
         }
 
         // If the term is a marker and we have a subsitution for it, we can use that
         if let Term::Marker(other_marker) = term {
             if let Some(sub) = subs.collection.get(other_marker) {
-                Self::unify(&Term::Marker(*marker), &sub.clone(), subs); // todo
+                Self::unify(&Term::Marker(*marker), &sub.clone(), subs, printer); // todo
                 return;
             }
         }
@@ -92,7 +102,7 @@ impl Unifier {
                     if let Term::Marker(member_marker) = member_term.as_ref() {
                         if let Some(sub) = subs.collection.get(member_marker) {
                             *member_term = Box::new(sub.clone());
-                            Self::unify_marker(marker, term, subs);
+                            Self::unify_marker(marker, term, subs, printer);
                             return;
                         }
                     }
@@ -108,7 +118,7 @@ impl Unifier {
                         }
                     }
                     if any {
-                        Self::unify_marker(marker, term, subs);
+                        Self::unify_marker(marker, term, subs, printer);
                         return;
                     }
                 }
@@ -125,20 +135,21 @@ impl Unifier {
                     if let Term::Marker(call_marker) = call_target.as_ref() {
                         if let Some(sub) = subs.collection.get(call_marker) {
                             any = true;
-                            *call_target = Box::new(sub.clone());
-                            if let Term::App(App::Function(parameters, return_type)) = call_target.as_ref() {
+                            if let Term::App(App::Function(parameters, page)) = sub {
+                                let (parameters, page) = App::checkout_function(parameters, page);
                                 for (i, (_, param)) in parameters.iter().enumerate() {
-                                    Self::unify(param, &arguments[i], subs);
+                                    Self::unify(param, &arguments[i], subs, printer);
                                 }
-                                let mut ret_term = return_type.as_ref().clone();
-                                println!("okay, the call {marker} is {ret_term}");
-                                Self::unify_marker(marker, &mut ret_term, subs);
+                                Self::unify_marker(marker, &mut page.return_term(), subs, printer);
+                                *call_target = Box::new(Term::App(App::Function(parameters, page)));
                                 return;
+                            } else {
+                                *call_target = Box::new(sub.clone());
                             }
                         }
                     }
                     if any {
-                        Self::unify_marker(marker, term, subs);
+                        Self::unify_marker(marker, term, subs, printer);
                         return;
                     }
                 }
@@ -152,7 +163,12 @@ impl Unifier {
         }
 
         // Time to register a new sub
-        println!("now marking {} as {}", marker, term);
+        println!(
+            "{}:   {} => {}",
+            "SUB".bright_blue(),
+            printer.marker(marker),
+            printer.term(term)
+        );
         subs.collection.insert(*marker, term.clone());
     }
 
@@ -186,17 +202,5 @@ impl Unifier {
         }
 
         false
-    }
-}
-
-impl std::fmt::Display for Unifier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(
-            &self
-                .collection
-                .iter()
-                .map(|(marker, term)| format!("{marker} => {term}"))
-                .join("\n"),
-        )
     }
 }

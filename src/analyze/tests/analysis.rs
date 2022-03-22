@@ -6,8 +6,10 @@ use colored::Colorize;
 use hashbrown::HashMap;
 use pretty_assertions::assert_eq;
 
-fn harness_type_ast(source: &'static str, name: &'static str, expected_tpe: Type) {
-    assert_eq!(get_var_type(source, name), expected_tpe,);
+fn harness_type_ast(source: &'static str, pairs: impl Into<Vec<(&'static str, Type)>>) {
+    for (name, expected_type) in pairs.into() {
+        assert_eq!(get_var_type(source, name), expected_type, "{} was wrong value!", name);
+    }
 }
 
 fn harness_type_expr(source: &'static str, expected_tpe: Type) {
@@ -32,7 +34,7 @@ fn get_function(source: &'static str) -> (Type, Vec<Type>, Box<Type>) {
             parameters,
             return_type,
         } => (tpe, parameters, return_type),
-        _ => panic!("Expected a function, got {tpe}"),
+        _ => panic!("Expected a function"),
     }
 }
 
@@ -47,7 +49,10 @@ fn harness_typewriter(source: &str) -> Page {
         let tpe = page.read_field(&Identifier::lazy(name)).unwrap();
         let str = name.bright_white();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-        println!("{str}{whitespace}{}\n", tpe.to_string().bright_cyan().bold());
+        println!(
+            "{str}{whitespace}{}\n",
+            typewriter.printer.tpe(&tpe).bright_cyan().bold()
+        );
     }
 
     page
@@ -145,8 +150,7 @@ fn array_access() {
         var a = [0]
         var b = a[0];
         ",
-        "b",
-        Type::Real,
+        [("b", Type::Real)],
     );
 }
 
@@ -157,8 +161,7 @@ fn struct_access() {
         var a = {b: 0, c: true}
         var b = a.b;
         ",
-        "b",
-        Type::Real,
+        [("b", Type::Real)],
     );
 }
 
@@ -174,8 +177,7 @@ fn complex_struct_and_array_nesting() {
         var boom = { a: foo, b: bar, c: fizz, d: buzz, e: bam };
         var woo = boom.a.a[0].c;
         ",
-        "woo",
-        Type::String,
+        [("woo", Type::String)],
     );
 }
 
@@ -247,8 +249,7 @@ fn function_call() {
         }
         var bar = foo();
         ",
-        "bar",
-        Type::Real,
+        [("bar", Type::Real)],
     )
 }
 
@@ -256,12 +257,11 @@ fn function_call() {
 fn function_call_generic() {
     harness_type_ast(
         "
-         var foo = function(a, b) {
-            return a[b];
+         var foo = function(a) {
+            return a[0];
         }
-        var bar = foo([0], 1)",
-        "bar",
-        Type::Real,
+        var bar = foo([0])",
+        [("bar", Type::Real)],
     );
     // harness_type_ast(
     //     "
@@ -271,10 +271,22 @@ fn function_call_generic() {
     //     var bar = foo([\"hello\"], 0);
     //     var fizz = foo([1], 0);
     //     var buzz = foo([ { a: [0] } ], 0);",
-    //     "bar",
-    //     Type::String,
+    //     [
+    //         ("bar", Type::String),
+    //         ("fizz", Type::Real),
+    //         (
+    //             "buzz",
+    //             Type::Struct {
+    //                 fields: HashMap::from([(
+    //                     "a".to_string(),
+    //                     Type::Array {
+    //                         member_type: Box::new(Type::Real),
+    //                     },
+    //                 )]),
+    //             },
+    //         ),
+    //     ],
     // );
-    // todo!();
 }
 
 #[test]
@@ -290,19 +302,19 @@ fn function_generics() {
 
 #[test]
 fn function_generic_array() {
-    harness_type_expr(
-        "
-            function(foo) {
-                return foo[0];
-            }
-        ",
-        Type::Function {
+    let (function, mut parameters, _) = get_function("function(foo) { return foo[0]; }");
+    let param_one = parameters.pop().unwrap();
+    if let Type::Array { member_type } = param_one {
+        let expected = Type::Function {
             parameters: vec![Type::Array {
-                member_type: Box::new(Type::Generic { marker: Marker(2) }),
+                member_type: member_type.clone(),
             }],
-            return_type: Box::new(Type::Generic { marker: Marker(2) }),
-        },
-    );
+            return_type: member_type,
+        };
+        assert_eq!(function, expected);
+    } else {
+        panic!("Expected a generic array!");
+    }
 }
 
 #[test]
@@ -314,11 +326,9 @@ fn function_infer_arguments() {
         }
         ",
         Type::Function {
-            parameters: vec![
-                Type::Array {
-                    member_type: Box::new(Type::Bool),
-                },
-            ],
+            parameters: vec![Type::Array {
+                member_type: Box::new(Type::Bool),
+            }],
             return_type: Box::new(Type::Bool),
         },
     );

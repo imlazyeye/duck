@@ -1,17 +1,16 @@
-use super::{App, Marker, Page, Rule, Scope, Term, Type};
+use super::{App, Marker, Page, Printer, Rule, Scope, Term, Type};
 use crate::parse::{
     Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
     Ternary, Unary, UnaryOp,
 };
 use hashbrown::HashMap;
-use itertools::Itertools;
-use std::fmt::Display;
 
 #[derive(Debug)]
 pub(super) struct Constraints<'s> {
     pub collection: Vec<Constraint>,
     scope: &'s mut Scope,
+    printer: &'s mut Printer,
 }
 
 // Constraining
@@ -81,7 +80,7 @@ impl<'s> Constraints<'s> {
                         StmtType::Block(Block { body, .. }) => body,
                         _ => unreachable!(),
                     };
-                    body_page.apply_stmts(body);
+                    body_page.apply_stmts(body, self.printer);
                     let mut parameters = Vec::new();
                     for param in function.parameters.iter() {
                         let param_term = body_page
@@ -91,8 +90,7 @@ impl<'s> Constraints<'s> {
                             .expect("should not be possible");
                         parameters.push((param.name().to_string(), param_term));
                     }
-                    self.scope.marker_iter += body_page.scope.marker_iter; // ehh....
-                    self.expr_eq_app(expr, App::Function(parameters, Box::new(body_page.return_term())));
+                    self.expr_eq_app(expr, App::Function(parameters, body_page));
                 }
             }
 
@@ -167,8 +165,7 @@ impl<'s> Constraints<'s> {
                         // self.expr_eq_app(expr, inspection);
 
                         // create a type for the field
-                        let field_marker = self.scope.new_marker();
-                        println!("creating generic {field_marker}");
+                        let field_marker = self.scope.new_generic();
 
                         // The left must be a struct that implements our field
                         self.expr_eq_rule(
@@ -186,8 +183,7 @@ impl<'s> Constraints<'s> {
                         ..
                     } => {
                         // create a type for the member
-                        let member_marker = self.scope.new_marker();
-                        println!("creating generic {member_marker}");
+                        let member_marker = self.scope.new_generic();
 
                         // our indexes must be real
                         self.expr_eq_type(index_one, Type::Real);
@@ -269,16 +265,20 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn new(scope: &'s mut Scope, stmts: &mut Vec<Stmt>) -> Self {
+    pub fn new(scope: &'s mut Scope, stmts: &mut Vec<Stmt>, printer: &'s mut Printer) -> Self {
         let mut constraints = Self {
             collection: vec![],
             scope,
+            printer,
         };
         for stmt in stmts.iter_mut() {
             constraints.constrain_stmt(stmt);
         }
         constraints.collection.dedup();
         constraints.collection.reverse();
+        for con in constraints.collection.iter() {
+            println!("{}", constraints.printer.constraint(con));
+        }
         constraints
     }
 
@@ -313,19 +313,8 @@ impl<'s> Constraints<'s> {
     }
 }
 
-impl<'s> Display for Constraints<'s> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&self.collection.iter().rev().join("\n"))
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Constraint {
     pub marker: Marker,
     pub term: Term,
-}
-impl std::fmt::Display for Constraint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.pad(&format!("{} = {}", self.marker, self.term))
-    }
 }

@@ -6,11 +6,11 @@ use crate::{
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use hashbrown::HashMap;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct Scope {
-    pub fields: HashMap<String, Marker>,
+    pub fields: HashMap<String, ExprId>,
     pub markers: HashMap<ExprId, Marker>,
-    pub marker_iter: u64,
+    pub generics: Vec<Marker>,
     pub file_id: FileId,
 }
 impl Scope {
@@ -28,7 +28,12 @@ impl Scope {
     /// ### Errors
     /// Returns an error if the field is not in scope.
     pub fn field_marker(&self, identifier: &Identifier) -> Result<Marker, Diagnostic<FileId>> {
-        match self.fields.get(&identifier.lexeme).copied() {
+        match self
+            .fields
+            .get(&identifier.lexeme)
+            .and_then(|expr_id| self.markers.get(expr_id))
+            .copied()
+        {
             Some(marker) => Ok(marker),
             None => Err(Diagnostic::error()
                 .with_message(format!("Unrecognized variable: {}", identifier.lexeme))
@@ -39,15 +44,14 @@ impl Scope {
     }
 
     pub fn new_field(&mut self, name: impl Into<String>, expr: &Expr) {
-        let marker = self.new_marker();
+        let marker = Marker::new();
         self.alias_expr_to_marker(expr, marker);
-        self.fields.insert(name.into(), marker);
-        println!("{marker}: {expr}");
+        self.fields.insert(name.into(), expr.id);
     }
 
-    pub fn new_marker(&mut self) -> Marker {
-        let marker = Marker(self.marker_iter);
-        self.marker_iter += 1;
+    pub fn new_generic(&mut self) -> Marker {
+        let marker = Marker::new();
+        self.generics.push(marker);
         marker
     }
 
@@ -59,10 +63,8 @@ impl Scope {
         match self.markers.get(&expr.id).copied() {
             Some(marker) => marker,
             None => {
-                let marker = self.new_marker();
+                let marker = Marker::new();
                 self.alias_expr_to_marker(expr, marker);
-                self.markers.insert(expr.id, marker);
-                println!("{marker}: {expr}");
                 marker
             }
         }
