@@ -1,3 +1,5 @@
+use crate::analyze::Deref;
+
 use super::{App, Constraint, Marker, Printer, Rule, Term};
 use colored::Colorize;
 use hashbrown::HashMap;
@@ -20,6 +22,7 @@ impl Unifier {
             printer.term(lhs),
             printer.term(rhs)
         );
+
         // If these terms are equal, there's nothing to do
         if lhs == rhs {
             return;
@@ -40,50 +43,60 @@ impl Unifier {
         // Handle an app...
         if let Term::App(lhs_app) = lhs {
             match lhs_app {
-                App::Array(lhs_member_type) => {
-                    if let Term::App(App::Array(rhs_member_type)) = rhs {
+                App::Array(lhs_member_type) => match rhs {
+                    Term::App(App::Array(rhs_member_type)) => {
                         Self::unify(lhs_member_type, rhs_member_type, subs, printer)
                     }
-                }
+                    _ => {}
+                },
                 App::Object(lhs_fields) => match rhs {
                     Term::App(App::Object(rhs_fields)) => {
                         for (name, field) in lhs_fields {
                             Self::unify(field, rhs_fields.get(name).expect("eh"), subs, printer)
                         }
                     }
-                    // If the rhs is a rule, we can apply that rule to us
-                    Term::Rule(rule) => {
-                        if let App::Object(lhs_fields) = lhs_app {
-                            match rule {
-                                Rule::Field(name, term) => {
-                                    let lhs_field = lhs_fields.get(name).expect("app did not fufill rule");
-                                    Self::unify(lhs_field, term, subs, printer);
-                                }
-                                _ => panic!(),
-                            }
-                        }
+                    Term::Rule(Rule::Field(name, term)) => {
+                        let lhs_field = lhs_fields.get(name).expect("app did not fufill rule");
+                        Self::unify(lhs_field, term, subs, printer);
                     }
                     _ => {}
                 },
-                App::Call(lhs_target, lhs_args) => match rhs {
-                    Term::App(App::Call(rhs_target, rhs_args)) => {
-                        if lhs_target == rhs_target {
-                            for (i, arg) in lhs_args.iter().enumerate() {
-                                Self::unify(arg, &rhs_args[i], subs, printer)
+                App::Deref(deref) => match deref {
+                    Deref::Call {
+                        target: lhs_target,
+                        arguments: lhs_args,
+                    } => match rhs {
+                        Term::App(App::Deref(Deref::Call {
+                            target: rhs_target,
+                            arguments: rhs_args,
+                        })) => {
+                            if lhs_target == rhs_target {
+                                for (i, arg) in lhs_args.iter().enumerate() {
+                                    Self::unify(arg, &rhs_args[i], subs, printer)
+                                }
                             }
                         }
-                    }
-                    _ => {
-                        Self::unify(
-                            lhs_target,
-                            &Term::Rule(Rule::Function(Box::new(rhs.clone()), lhs_args.clone())),
-                            subs,
-                            printer,
-                        );
-                        // Self::unify(lhs, &rhs.clone(), subs, printer);
-                    }
+                        _ => {
+                            Self::unify(
+                                lhs_target,
+                                &Term::Rule(Rule::Function(Box::new(rhs.clone()), lhs_args.clone())),
+                                subs,
+                                printer,
+                            );
+                        }
+                    },
+                    _ => todo!(),
                 },
-                App::Function(_, _) => {}
+                _ => {}
+            }
+        }
+
+        // Are these clashing types?
+        if let Term::Type(lhs_type) = lhs {
+            if let Term::Type(rhs_type) = rhs {
+                if lhs_type != rhs_type {
+                    panic!("type invalidity")
+                }
             }
         }
     }
@@ -95,6 +108,7 @@ impl Unifier {
             printer.marker(marker),
             printer.term(term),
         );
+
         // If a substitution is already available for this marker, we will unify the term with that
         if let Some(sub) = subs.collection.get(marker) {
             Self::unify(&sub.clone(), term, subs, printer); // todo
@@ -136,46 +150,50 @@ impl Unifier {
                         return;
                     }
                 }
-                App::Call(call_target, arguments) => {
-                    let mut any = false;
-                    for arg in arguments.iter_mut() {
-                        if let Term::Marker(arg_marker) = arg {
-                            if let Some(sub) = subs.collection.get(arg_marker) {
-                                any = true;
-                                *arg = sub.clone();
+                App::Deref(deref) => match deref {
+                    Deref::Call { target, arguments } => {
+                        let mut any = false;
+                        for arg in arguments.iter_mut() {
+                            if let Term::Marker(arg_marker) = arg {
+                                if let Some(sub) = subs.collection.get(arg_marker) {
+                                    any = true;
+                                    *arg = sub.clone();
+                                }
                             }
                         }
-                    }
-                    match call_target.as_ref() {
-                        Term::Marker(call_marker) => {
-                            if let Some(sub) = subs.collection.get(call_marker) {
-                                any = true;
-                                *call_target = Box::new(sub.clone());
+                        match target.as_ref() {
+                            Term::Marker(call_marker) => {
+                                if let Some(sub) = subs.collection.get(call_marker) {
+                                    any = true;
+                                    *target = Box::new(sub.clone());
+                                }
                             }
+                            Term::App(App::Function(parameters, page)) => {
+                                let (parameters, page) = App::checkout_function(parameters, page);
+                                for (i, (_, param)) in parameters.iter().enumerate() {
+                                    Self::unify(param, &arguments[i], subs, printer);
+                                }
+                                Self::unify_marker(marker, &mut page.return_term(), subs, printer);
+                                *target = Box::new(Term::App(App::Function(parameters, page)));
+                                return;
+                            }
+                            Term::Rule(Rule::Function(return_type, parameters)) => {
+                                for (i, param) in parameters.iter().enumerate() {
+                                    Self::unify(param, &arguments[i], subs, printer);
+                                }
+                                Self::unify_marker(marker, &mut return_type.as_ref().clone(), subs, printer);
+                                return;
+                            }
+                            _ => {}
                         }
-                        Term::App(App::Function(parameters, page)) => {
-                            let (parameters, page) = App::checkout_function(parameters, page);
-                            for (i, (_, param)) in parameters.iter().enumerate() {
-                                Self::unify(param, &arguments[i], subs, printer);
-                            }
-                            Self::unify_marker(marker, &mut page.return_term(), subs, printer);
-                            *call_target = Box::new(Term::App(App::Function(parameters, page)));
+                        if any {
+                            Self::unify_marker(marker, term, subs, printer);
                             return;
                         }
-                        Term::Rule(Rule::Function(return_type, parameters)) => {
-                            for (i, param) in parameters.iter().enumerate() {
-                                Self::unify(param, &arguments[i], subs, printer);
-                            }
-                            Self::unify_marker(marker, &mut return_type.as_ref().clone(), subs, printer);
-                            return;
-                        }
-                        _ => {}
                     }
-                    if any {
-                        Self::unify_marker(marker, term, subs, printer);
-                        return;
-                    }
-                }
+                    _ => todo!(),
+                },
+
                 _ => {}
             }
         }
@@ -213,13 +231,16 @@ impl Unifier {
             return match term_app {
                 App::Array(member_term) => Self::occurs(marker, member_term, subs),
                 App::Object(fields) => fields.iter().any(|(_, field)| Self::occurs(marker, field, subs)),
-                App::Call(call_target, arguments) => {
-                    if Self::occurs(marker, call_target, subs) {
-                        true
-                    } else {
-                        arguments.iter().any(|arg| Self::occurs(marker, arg, subs))
+                App::Deref(deref) => match deref {
+                    Deref::Call { target, arguments } => {
+                        if Self::occurs(marker, target, subs) {
+                            true
+                        } else {
+                            arguments.iter().any(|arg| Self::occurs(marker, arg, subs))
+                        }
                     }
-                }
+                    _ => todo!(),
+                },
                 App::Function(params, _) => params.iter().any(|(_, param)| Self::occurs(marker, param, subs)),
             };
         }

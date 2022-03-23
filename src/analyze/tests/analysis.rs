@@ -1,5 +1,5 @@
 use crate::{
-    analyze::{App, Page, Term, Type, TypeWriter},
+    analyze::{App, Deref, Page, Term, Type, TypeWriter},
     parse::*,
 };
 use colored::Colorize;
@@ -249,14 +249,14 @@ fn function_call() {
 fn generic_call() {
     let call = get_type("foo(0, true, \"bar\")");
     if let Type::Generic { term } = call.clone() {
-        if let Term::App(App::Call(target, _)) = term.as_ref() {
+        if let Term::App(App::Deref(Deref::Call { target, .. })) = term.as_ref() {
             assert_eq!(
                 call,
                 Type::Generic {
-                    term: Box::new(Term::App(App::Call(
-                        target.clone(),
-                        vec![Term::Type(Type::Real), Term::Type(Type::Bool), Term::Type(Type::String)],
-                    ))),
+                    term: Box::new(Term::App(App::Deref(Deref::Call {
+                        target: target.clone(),
+                        arguments: vec![Term::Type(Type::Real), Term::Type(Type::Bool), Term::Type(Type::String)],
+                    }))),
                 },
             );
             return;
@@ -268,14 +268,14 @@ fn generic_call() {
 #[test]
 fn function_infer_generic_call() {
     harness_type_ast(
-        "var foo = function(a) {
-            return a(0) + \"hello!\";
+        "var foo = function(a, b) {
+            return a(0) + b(0) * 5;
         }
         var bar = function(b) { 
             return b;
         }
         var buzz = foo(bar, bar)",
-        [("buzz", Type::String)],
+        [("buzz", Type::Real)],
     );
 }
 
@@ -288,30 +288,26 @@ fn function_call_generic() {
         var bar = foo([0])",
         [("bar", Type::Real)],
     );
-    // harness_type_ast(
-    //     "
-    //     var foo = function(a, b) {
-    //         return a[b];
-    //     }
-    //     var bar = foo([\"hello\"], 0);
-    //     var fizz = foo([1], 0);
-    //     var buzz = foo([ { a: [0] } ], 0);",
-    //     [
-    //         ("bar", Type::String),
-    //         ("fizz", Type::Real),
-    //         (
-    //             "buzz",
-    //             Type::Struct {
-    //                 fields: HashMap::from([(
-    //                     "a".to_string(),
-    //                     Type::Array {
-    //                         member_type: Box::new(Type::Real),
-    //                     },
-    //                 )]),
-    //             },
-    //         ),
-    //     ],
-    // );
+    harness_type_ast(
+        "
+        function foo(a, b) {
+            return a[b];
+        }
+        function bar(x, y) { 
+            return x + y * 2; 
+        }
+        var fizz = foo([\"hello\"], 0);
+        var buzz = foo([ { a: true } ], bam(1, 2));",
+        [
+            ("fizz", Type::String),
+            (
+                "buzz",
+                Type::Struct {
+                    fields: HashMap::from([("a".to_string(), Type::Bool)]),
+                },
+            ),
+        ],
+    );
 }
 
 #[test]

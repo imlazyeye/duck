@@ -1,4 +1,4 @@
-use super::{App, Marker, Page, Printer, Rule, Scope, Term, Type};
+use super::{App, Deref, Marker, Page, Printer, Rule, Scope, Term, Type};
 use crate::parse::{
     Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
@@ -16,17 +16,17 @@ pub(super) struct Constraints<'s> {
 
 // Constraining
 impl<'s> Constraints<'s> {
-    fn constrain_stmt(&mut self, stmt: &mut Stmt) {
-        stmt.visit_child_stmts_mut(|stmt| self.constrain_stmt(stmt));
-        stmt.visit_child_exprs_mut(|expr| self.constrain_expr(expr));
-        match stmt.inner_mut() {
+    fn constrain_stmt(&mut self, stmt: &Stmt) {
+        stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
+        stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
+        match stmt.inner() {
             StmtType::Assignment(Assignment {
                 left,
                 op: AssignmentOp::Identity(_),
                 right,
             }) => {
                 // Def the lhs
-                if let ExprType::Identifier(iden) = left.inner_mut() {
+                if let ExprType::Identifier(iden) = left.inner() {
                     if !self.scope.has_field(&iden.lexeme) {
                         self.scope.new_field(iden.lexeme.clone(), left);
                         self.expr_eq_expr(left, right);
@@ -68,8 +68,17 @@ impl<'s> Constraints<'s> {
         }
     }
 
-    fn constrain_expr(&mut self, expr: &mut Expr) {
-        if let ExprType::FunctionDeclaration(function) = expr.inner_mut() {
+    fn constrain_expr(&mut self, expr: &Expr) {
+        if let ExprType::FunctionDeclaration(function) = expr.inner() {
+            if let Some(iden) = &function.name {
+                if !self.scope.has_field(&iden.lexeme) {
+                    self.scope.new_field(iden.lexeme.clone(), expr);
+                } else {
+                    // validate that the new type is equal to the last type? shadowing is a
+                    // problem
+                }
+            }
+
             match &function.constructor {
                 Some(_) => todo!(),
                 None => {
@@ -77,7 +86,7 @@ impl<'s> Constraints<'s> {
                     for param in function.parameters.iter() {
                         body_page.scope.new_field(param.name(), param.name_expr())
                     }
-                    let body = match function.body.inner_mut() {
+                    let body = match function.body.inner() {
                         StmtType::Block(Block { body, .. }) => body,
                         _ => unreachable!(),
                     };
@@ -99,8 +108,8 @@ impl<'s> Constraints<'s> {
             return;
         }
 
-        expr.visit_child_stmts_mut(|stmt| self.constrain_stmt(stmt));
-        expr.visit_child_exprs_mut(|expr| self.constrain_expr(expr));
+        expr.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
+        expr.visit_child_exprs(|expr| self.constrain_expr(expr));
         match expr.inner() {
             ExprType::FunctionDeclaration(_) => {}
             ExprType::Logical(Logical { left, right, .. }) => {
@@ -208,13 +217,13 @@ impl<'s> Constraints<'s> {
                 uses_new,
             }) => {
                 let left_marker = self.scope.get_expr_marker(left);
-                let app = App::Call(
-                    Box::new(Term::Marker(left_marker)),
-                    arguments
+                let app = App::Deref(Deref::Call {
+                    target: Box::new(Term::Marker(left_marker)),
+                    arguments: arguments
                         .iter()
                         .map(|arg| Term::Marker(self.scope.get_expr_marker(arg)))
                         .collect(),
-                );
+                });
                 self.expr_eq_app(expr, app)
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
@@ -266,13 +275,13 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn new(scope: &'s mut Scope, stmts: &mut Vec<Stmt>, printer: &'s mut Printer) -> Self {
+    pub fn new(scope: &'s mut Scope, stmts: &Vec<Stmt>, printer: &'s mut Printer) -> Self {
         let mut constraints = Self {
             collection: vec![],
             scope,
             printer,
         };
-        for stmt in stmts.iter_mut() {
+        for stmt in stmts.iter() {
             constraints.constrain_stmt(stmt);
         }
         constraints.collection.dedup();

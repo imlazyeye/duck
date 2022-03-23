@@ -60,11 +60,14 @@ impl From<Term> for Type {
                     parameters: params.into_iter().map(|(_, param)| param.into()).collect(),
                     return_type: Box::new(page.return_term().into()),
                 },
-                App::Call(target, arguments) => match target.as_ref() {
-                    Term::Rule(Rule::Function(..)) => target.as_ref().clone().into(),
-                    _ => Type::Generic {
-                        term: Box::new(Term::App(App::Call(target, arguments))),
+                App::Deref(deref) => match deref {
+                    Deref::Call { target, arguments } => match target.as_ref() {
+                        Term::Rule(Rule::Function(..)) => target.as_ref().clone().into(),
+                        _ => Type::Generic {
+                            term: Box::new(Term::App(App::Deref(Deref::Call { target, arguments }))),
+                        },
                     },
+                    _ => todo!(),
                 },
             },
             Term::Rule(rule) => match rule {
@@ -82,8 +85,8 @@ impl From<Term> for Type {
 pub enum App {
     Array(Box<Term>),
     Object(HashMap<String, Term>),
-    Call(Box<Term>, Vec<Term>), // todo: can i remove this?
     Function(Vec<(String, Term)>, Page),
+    Deref(Deref),
 }
 impl App {
     pub fn checkout_function(parameters: &[(String, Term)], page: &Page) -> (Vec<(String, Term)>, Page) {
@@ -100,13 +103,16 @@ impl App {
                     App::Object(fields) => fields
                         .iter_mut()
                         .for_each(|(_, field)| translate_term(field, translator)),
-                    App::Call(target, arguments) => {
-                        translate_term(target, translator);
-                        arguments.iter_mut().for_each(|arg| translate_term(arg, translator))
-                    }
                     App::Function(parameters, page) => {
                         (*parameters, *page) = App::checkout_function(parameters, page);
                     }
+                    App::Deref(deref) => match deref {
+                        Deref::Call { target, arguments } => {
+                            translate_term(target, translator);
+                            arguments.iter_mut().for_each(|arg| translate_term(arg, translator))
+                        }
+                        _ => todo!(),
+                    },
                 },
                 Term::Rule(rule) => match rule {
                     Rule::Field(_, term) => translate_term(term, translator),
@@ -188,6 +194,13 @@ pub enum Rule {
     Function(Box<Term>, Vec<Term>),
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum Deref {
+    Field { field_name: String, target: Box<Term> },
+    MemberType { target: Box<Term> },
+    Call { target: Box<Term>, arguments: Vec<Term> },
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub struct Marker(pub u64);
 impl Marker {
@@ -259,7 +272,7 @@ impl Printer {
                 parameters,
                 return_type,
             } => format!(
-                "function({}) -> {}",
+                "fn({}) -> {}",
                 parameters.iter().map(|param| self.tpe(param)).join(", "),
                 self.tpe(return_type)
             ),
@@ -279,11 +292,14 @@ impl Printer {
                     .join(", ")
             ),
 
-            App::Call(call_target, arguments) => format!(
-                "{}({})",
-                self.term(call_target),
-                arguments.iter().map(|term| self.term(term)).join(", ")
-            ),
+            App::Deref(deref) => match deref {
+                Deref::Call { target, arguments } => format!(
+                    "{}({})",
+                    self.term(target),
+                    arguments.iter().map(|term| self.term(term)).join(", ")
+                ),
+                _ => todo!(),
+            },
             App::Function(arguments, page) => format!(
                 "({}) -> {}",
                 arguments.iter().map(|(_, term)| self.term(term)).join(", "),
