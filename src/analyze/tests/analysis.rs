@@ -162,20 +162,6 @@ fn struct_access() {
 }
 
 #[test]
-fn complex_struct_and_array_nesting() {
-    harness_type_ast(
-        "var foo = { a: [ { b: 20, c: \"hi\" } ] };
-        var bar = foo.a;
-        var fizz = bar[0].b;
-        var buzz = [bar[0].c, \"test\"];
-        var bam = buzz[0];
-        var boom = { a: foo, b: bar, c: fizz, d: buzz, e: bam };
-        var woo = boom.a.a[0].c;",
-        [("woo", Type::String)],
-    );
-}
-
-#[test]
 fn postfix() {
     harness_type_expr("a++", Type::Real);
     harness_type_expr("a--", Type::Real);
@@ -245,25 +231,25 @@ fn function_call() {
     )
 }
 
-#[test]
-fn generic_call() {
-    let call = get_type("foo(0, true, \"bar\")");
-    if let Type::Generic { term } = call.clone() {
-        if let Term::App(App::Deref(Deref::Call { target, .. })) = term.as_ref() {
-            assert_eq!(
-                call,
-                Type::Generic {
-                    term: Box::new(Term::App(App::Deref(Deref::Call {
-                        target: target.clone(),
-                        arguments: vec![Term::Type(Type::Real), Term::Type(Type::Bool), Term::Type(Type::String)],
-                    }))),
-                },
-            );
-            return;
-        }
-    }
-    panic!("Result was {:?}!", call);
-}
+// #[test]
+// fn generic_call() {
+//     let call = get_type("foo(0, true, \"bar\")");
+//     if let Type::Generic { term } = call.clone() {
+//         if let Term::App(App::Deref(Deref::Call { target, .. })) = term.as_ref() {
+//             assert_eq!(
+//                 call,
+//                 Type::Generic {
+//                     term: Box::new(Term::App(App::Deref(Deref::Call {
+//                         target: target.clone(),
+//                         arguments: vec![Term::Type(Type::Real), Term::Type(Type::Bool),
+// Term::Type(Type::String)],                     }))),
+//                 },
+//             );
+//             return;
+//         }
+//     }
+//     panic!("Result was {:?}!", call);
+// }
 
 #[test]
 fn function_infer_generic_call() {
@@ -339,6 +325,23 @@ fn function_generic_array() {
 }
 
 #[test]
+fn inferred_function() {
+    let (_, _, ret) = get_function(
+        "function(x) {
+            var y = x() + 1;
+            return x;
+        }",
+    );
+    assert_eq!(
+        *ret,
+        Type::Function {
+            parameters: vec![],
+            return_type: Box::new(Type::Real),
+        },
+    );
+}
+
+#[test]
 fn function_infer_arguments() {
     harness_type_expr(
         "function(a) {
@@ -350,5 +353,35 @@ fn function_infer_arguments() {
             }],
             return_type: Box::new(Type::Bool),
         },
+    );
+}
+
+// #[test]
+// fn default_arguments() {
+//     harness_type_ast(
+//         "function foo(x=0) {
+//             return x;
+//         }
+//         var bar = foo();",
+//         [("bar", Type::Real)],
+//     );
+// }
+
+#[test]
+fn complicated_data() {
+    harness_type_ast(
+        "function build_data(x, y, z) {
+            return {
+                x: x,
+                y: y(0),
+                z: z[0][0].a.b.c,
+            };
+        }
+        function build_x(x) { return x; }
+        function y_fn(n) { return n; }
+        var z = [[{ a: { b: { c: 0 }}}]];
+        var data = build_data(build_x(0), y_fn, z);
+        var output = data.x + data.y + data.z;",
+        [("output", Type::Real)],
     );
 }

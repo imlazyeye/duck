@@ -71,7 +71,9 @@ impl From<Term> for Type {
                 },
             },
             Term::Rule(rule) => match rule {
-                Rule::Field(_, _) => todo!(),
+                Rule::Field(name, term) => Type::Generic {
+                    term: Box::new(Term::App(App::Object(HashMap::from([(name, term.as_ref().clone())])))),
+                },
                 Rule::Function(term, parameters) => Type::Function {
                     parameters: parameters.into_iter().map(|v| v.into()).collect(),
                     return_type: Box::new(term.as_ref().clone().into()),
@@ -156,9 +158,9 @@ impl App {
         };
 
         let unifier = Unifier {
-            collection: page
+            substitutions: page
                 .unifier
-                .collection
+                .substitutions
                 .clone()
                 .iter_mut()
                 .map(|(mut marker, term)| {
@@ -167,6 +169,7 @@ impl App {
                     (*marker, term.clone())
                 })
                 .collect(),
+            unresolved: page.unifier.unresolved.clone(),
         };
 
         let parameters = parameters
@@ -218,7 +221,7 @@ pub struct Printer {
 }
 impl Printer {
     pub fn give_expr_alias(&mut self, marker: Marker, expr_string: String) {
-        // self.expr_strings.insert(marker, expr_string);
+        //self.expr_strings.insert(marker, expr_string);
     }
 
     #[must_use]
@@ -237,6 +240,9 @@ impl Printer {
                 })
             )
         }
+        .bright_black()
+        .bold()
+        .to_string()
     }
 
     #[must_use]

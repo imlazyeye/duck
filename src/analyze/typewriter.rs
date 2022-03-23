@@ -36,7 +36,7 @@ impl Page {
             "{}",
             &self
                 .unifier
-                .collection
+                .substitutions
                 .iter()
                 .map(|(marker, term)| format!(
                     "{}    {} => {}",
@@ -72,7 +72,7 @@ impl Page {
 
     pub fn marker_to_term(&self, marker: Marker) -> Term {
         self.unifier
-            .collection
+            .substitutions
             .get(&marker)
             .cloned()
             .unwrap_or(Term::Marker(marker))

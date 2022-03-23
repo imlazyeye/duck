@@ -216,6 +216,14 @@ impl<'s> Constraints<'s> {
                 arguments,
                 uses_new,
             }) => {
+                let rule = Rule::Function(
+                    Box::new(Term::Marker(self.scope.get_expr_marker(expr))),
+                    arguments
+                        .iter()
+                        .map(|v| Term::Marker(self.scope.get_expr_marker(v)))
+                        .collect(),
+                );
+                self.expr_eq_rule(left, rule);
                 let left_marker = self.scope.get_expr_marker(left);
                 let app = App::Deref(Deref::Call {
                     target: Box::new(Term::Marker(left_marker)),
@@ -224,7 +232,7 @@ impl<'s> Constraints<'s> {
                         .map(|arg| Term::Marker(self.scope.get_expr_marker(arg)))
                         .collect(),
                 });
-                self.expr_eq_app(expr, app)
+                self.expr_eq_app(expr, app);
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner);
