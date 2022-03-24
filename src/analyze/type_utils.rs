@@ -1,9 +1,11 @@
-use super::Constraint;
+use crate::parse::{Block, Expr, Function, StmtType};
+
+use super::{Constraint, Page};
 use colored::Colorize;
 use hashbrown::HashMap;
 use itertools::Itertools;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Type {
     Generic {
         term: Box<Term>,
@@ -29,7 +31,7 @@ pub enum Type {
     },
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Term {
     Type(Type),
     Marker(Marker),
@@ -56,7 +58,7 @@ impl From<Term> for Type {
                     }
                     Type::Struct { fields: tpe_fields }
                 }
-                App::Function(params, return_type) => Type::Function {
+                App::Function(params, return_type, _) => Type::Function {
                     parameters: params.into_iter().map(|param| param.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
@@ -69,76 +71,49 @@ impl From<Term> for Type {
                 Deref::MemberType { target } => todo!(),
             },
             Term::Impl(imp) => match imp {
-                Impl::Fields(fields) => Type::Generic {
-                    term: Box::new(Term::App(App::Object(fields))),
+                Impl::FieldOps(fields) => Type::Generic {
+                    term: Box::new(Term::Impl(Impl::FieldOps(fields))),
                 },
             },
         }
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum App {
     Array(Box<Term>),
     Object(HashMap<String, Term>),
-    Function(Vec<Term>, Box<Term>),
+    Function(Vec<Term>, Box<Term>, Function),
 }
 impl App {
-    pub fn checkout_function(parameters: &[Term], return_type: &Term) -> (Vec<Term>, Box<Term>) {
-        fn translate_term(term: &mut Term, translator: &mut HashMap<Marker, Marker>) {
-            match term {
-                Term::Type(tpe) => {
-                    if let Type::Generic { term: inner_term } = tpe {
-                        translate_term(inner_term, translator)
-                    };
-                }
-                Term::Marker(marker) => *marker = *translator.entry(*marker).or_insert_with(Marker::new),
-                Term::App(app) => match app {
-                    App::Array(inner_term) => translate_term(inner_term, translator),
-                    App::Object(fields) => fields
-                        .iter_mut()
-                        .for_each(|(_, field)| translate_term(field, translator)),
-                    App::Function(parameters, return_type) => {
-                        (*parameters, *return_type) = App::checkout_function(parameters, return_type);
-                    }
-                },
-                Term::Deref(deref) => match deref {
-                    Deref::Call { target, arguments } => {
-                        translate_term(target, translator);
-                        arguments.iter_mut().for_each(|arg| translate_term(arg, translator))
-                    }
-                    _ => todo!(),
-                },
-                Term::Impl(imp) => match imp {
-                    Impl::Fields(fields) => fields
-                        .iter_mut()
-                        .for_each(|(_, field)| translate_term(field, translator)),
-                },
-            }
+    pub fn process_function(function: Function, mut page: Page, printer: &mut Printer) -> (Vec<Term>, Box<Term>) {
+        let body = match function.body.inner() {
+            StmtType::Block(Block { body, .. }) => body,
+            _ => unreachable!(),
+        };
+        page.apply_stmts(body, printer);
+        let mut parameters = Vec::new();
+        for param in function.parameters.iter() {
+            let param_marker = page.scope.get_expr_marker(param.name_expr());
+            let param_term = page.marker_to_term(param_marker);
+            parameters.push(param_term);
         }
-
-        let mut translator: HashMap<Marker, Marker> = HashMap::default();
-        translator.insert(Marker::RETURN_VALUE, Marker::new());
-        let parameters = parameters
-            .to_vec()
-            .iter_mut()
-            .map(|param| {
-                translate_term(param, &mut translator);
-                param.clone()
-            })
-            .collect();
-        let mut return_type = return_type.clone();
-        translate_term(&mut return_type, &mut translator);
-        (parameters, Box::new(return_type))
+        (parameters, Box::new(page.return_term()))
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Impl {
-    Fields(HashMap<String, Term>),
+    FieldOps(HashMap<String, FieldOp>),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
+pub enum FieldOp {
+    Read(Term),
+    Write(Term),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Deref {
     Field { field_name: String, target: Box<Term> },
     MemberType { target: Box<Term> },
@@ -200,7 +175,7 @@ impl Printer {
     #[must_use]
     pub fn tpe(&mut self, tpe: &Type) -> String {
         let s = match tpe {
-            Type::Generic { term } => format!("impl {}", self.term(term)),
+            Type::Generic { term } => format!("T where T {}", self.term(term)),
             Type::Unknown => "<?>".into(),
             Type::Undefined => "undefined".into(),
             Type::Noone => "noone".into(),
@@ -239,7 +214,7 @@ impl Printer {
                     .map(|(name, term)| format!("{name}: {}", self.term(term)))
                     .join(", ")
             ),
-            App::Function(arguments, return_type) => format!(
+            App::Function(arguments, return_type, _) => format!(
                 "({}) -> {}",
                 arguments.iter().map(|term| self.term(term)).join(", "),
                 self.term(return_type),
@@ -265,11 +240,17 @@ impl Printer {
     #[must_use]
     pub fn imp(&mut self, imp: &Impl) -> String {
         match imp {
-            Impl::Fields(fields) => format!(
-                "impl {}",
+            Impl::FieldOps(fields) => format!(
+                "impl {{ {} }}",
                 fields
                     .iter()
-                    .map(|(name, term)| format!("{name}: {}", self.term(term)))
+                    .map(|(name, field_op)| format!(
+                        "{name}: {}",
+                        match field_op {
+                            FieldOp::Read(term) => self.term(term),
+                            FieldOp::Write(term) => format!("{}?", self.term(term)),
+                        }
+                    ))
                     .join(", ")
             ),
         }

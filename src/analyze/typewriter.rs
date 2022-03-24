@@ -19,7 +19,7 @@ impl TypeWriter {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct Page {
     pub scope: Scope,
     pub unifier: Unifier,

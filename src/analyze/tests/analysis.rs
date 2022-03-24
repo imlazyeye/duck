@@ -296,11 +296,11 @@ fn fields_impl() {
             a.b = 0;
             return a;
         }
-        var bar = foo({ a: 0, b: 0 })",
+        var bar = foo({ c: 0 })",
         [(
             "bar",
             Type::Struct {
-                fields: HashMap::from([("a".into(), Type::Real), ("b".into(), Type::Real)]),
+                fields: HashMap::from([("a".into(), Type::Real), ("b".into(), Type::Real), ("c".into(), Type::Real)]),
             },
         )],
     );

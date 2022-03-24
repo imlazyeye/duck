@@ -1,8 +1,11 @@
 use super::{App, Deref, Impl, Marker, Page, Printer, Scope, Term, Type};
-use crate::parse::{
-    Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
-    LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
-    Ternary, Unary, UnaryOp,
+use crate::{
+    analyze::FieldOp,
+    parse::{
+        Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
+        LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt,
+        StmtType, Ternary, Unary, UnaryOp,
+    },
 };
 use colored::Colorize;
 use hashbrown::HashMap;
@@ -12,30 +15,51 @@ pub(super) struct Constraints<'s> {
     pub collection: Vec<Constraint>,
     scope: &'s mut Scope,
     printer: &'s mut Printer,
+    in_write: bool,
 }
 
 // Constraining
 impl<'s> Constraints<'s> {
     fn constrain_stmt(&mut self, stmt: &Stmt) {
+        if let StmtType::Assignment(Assignment { left, op, right }) = stmt.inner() {
+            self.in_write = true;
+            stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
+            stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
+            match left.inner() {
+                ExprType::Identifier(iden) => {
+                    if let AssignmentOp::Identity(_) = op {
+                        if !self.scope.has_field(&iden.lexeme) {
+                            self.scope.new_field(iden.lexeme.clone(), left);
+                            self.expr_eq_expr(left, right);
+                        } else {
+                            // validate that the new type is equal to the last type? shadowing is a
+                            // problem
+                        }
+                    }
+                }
+                ExprType::Access(Access::Dot {
+                    left: obj,
+                    right: field,
+                }) => {
+                    let right_marker = self.scope.get_expr_marker(right);
+                    self.expr_eq_impl(
+                        obj,
+                        Impl::FieldOps(HashMap::from([(
+                            field.lexeme.clone(),
+                            FieldOp::Write(Term::Marker(right_marker)),
+                        )])),
+                    );
+                }
+                _ => {}
+            }
+            self.in_write = false;
+            return;
+        }
+
         stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
         stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
         match stmt.inner() {
-            StmtType::Assignment(Assignment {
-                left,
-                op: AssignmentOp::Identity(_),
-                right,
-            }) => {
-                // Def the lhs
-                if let ExprType::Identifier(iden) = left.inner() {
-                    if !self.scope.has_field(&iden.lexeme) {
-                        self.scope.new_field(iden.lexeme.clone(), left);
-                        self.expr_eq_expr(left, right);
-                    } else {
-                        // validate that the new type is equal to the last type? shadowing is a
-                        // problem
-                    }
-                }
-            }
+            StmtType::Assignment(_) => {}
             StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {
                     if let OptionalInitilization::Uninitialized(expr) = initializer {
@@ -86,21 +110,8 @@ impl<'s> Constraints<'s> {
                     for param in function.parameters.iter() {
                         body_page.scope.new_field(param.name(), param.name_expr())
                     }
-                    let body = match function.body.inner() {
-                        StmtType::Block(Block { body, .. }) => body,
-                        _ => unreachable!(),
-                    };
-                    body_page.apply_stmts(body, self.printer);
-                    let mut parameters = Vec::new();
-                    for param in function.parameters.iter() {
-                        let param_term = body_page
-                            .scope
-                            .field_marker(param.name_identifier())
-                            .map(|param_marker| body_page.marker_to_term(param_marker))
-                            .expect("should not be possible");
-                        parameters.push(param_term);
-                    }
-                    self.expr_eq_app(expr, App::Function(parameters, Box::new(body_page.return_term())));
+                    let (parameters, return_type) = App::process_function(function.clone(), body_page, self.printer);
+                    self.expr_eq_app(expr, App::Function(parameters, return_type, function.clone()));
                 }
             }
 
@@ -169,19 +180,21 @@ impl<'s> Constraints<'s> {
                     }
                     Access::Dot { left, right } => {
                         let this_expr_marker = self.scope.get_expr_marker(expr);
+                        let left_marker = self.scope.get_expr_marker(left);
 
-                        // The left must be a struct that implements our field
-                        self.expr_eq_rule(
-                            left,
-                            Impl::Fields(HashMap::from([(right.lexeme.clone(), Term::Marker(this_expr_marker))])),
-                        );
+                        let field_op = if self.in_write {
+                            FieldOp::Write(Term::Marker(this_expr_marker))
+                        } else {
+                            FieldOp::Read(Term::Marker(this_expr_marker))
+                        };
+                        self.expr_eq_impl(left, Impl::FieldOps(HashMap::from([(right.lexeme.clone(), field_op)])));
 
                         // constrain the result of this expression to the field
                         self.expr_eq_deref(
                             expr,
                             Deref::Field {
                                 field_name: right.lexeme.clone(),
-                                target: Box::new(Term::Marker(this_expr_marker)),
+                                target: Box::new(Term::Marker(left_marker)),
                             },
                         );
                     }
@@ -289,6 +302,7 @@ impl<'s> Constraints<'s> {
             collection: vec![],
             scope,
             printer,
+            in_write: false,
         };
         for stmt in stmts.iter() {
             constraints.constrain_stmt(stmt);
@@ -331,7 +345,7 @@ impl<'s> Constraints<'s> {
         self.expr_eq_term(target, Term::Deref(deref))
     }
 
-    pub fn expr_eq_rule(&mut self, target: &Expr, imp: Impl) {
+    pub fn expr_eq_impl(&mut self, target: &Expr, imp: Impl) {
         self.expr_eq_term(target, Term::Impl(imp))
     }
 
