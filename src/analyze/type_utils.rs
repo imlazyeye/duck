@@ -1,8 +1,7 @@
+use super::Constraint;
 use colored::Colorize;
 use hashbrown::HashMap;
 use itertools::Itertools;
-
-use super::{Constraint, Page, Scope, Unifier};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Type {
@@ -35,7 +34,8 @@ pub enum Term {
     Type(Type),
     Marker(Marker),
     App(App),
-    Rule(Rule),
+    Deref(Deref),
+    Impl(Impl),
 }
 
 impl From<Term> for Type {
@@ -56,27 +56,21 @@ impl From<Term> for Type {
                     }
                     Type::Struct { fields: tpe_fields }
                 }
-                App::Function(params, page) => Type::Function {
-                    parameters: params.into_iter().map(|(_, param)| param.into()).collect(),
-                    return_type: Box::new(page.return_term().into()),
-                },
-                App::Deref(deref) => match deref {
-                    Deref::Call { target, arguments } => match target.as_ref() {
-                        Term::Rule(Rule::Function(..)) => target.as_ref().clone().into(),
-                        _ => Type::Generic {
-                            term: Box::new(Term::App(App::Deref(Deref::Call { target, arguments }))),
-                        },
-                    },
-                    _ => todo!(),
+                App::Function(params, return_type) => Type::Function {
+                    parameters: params.into_iter().map(|param| param.into()).collect(),
+                    return_type: Box::new(return_type.as_ref().clone().into()),
                 },
             },
-            Term::Rule(rule) => match rule {
-                Rule::Field(name, term) => Type::Generic {
-                    term: Box::new(Term::App(App::Object(HashMap::from([(name, term.as_ref().clone())])))),
+            Term::Deref(deref) => match deref {
+                Deref::Call { target, arguments } => Type::Generic {
+                    term: Box::new(Term::Deref(Deref::Call { target, arguments })),
                 },
-                Rule::Function(term, parameters) => Type::Function {
-                    parameters: parameters.into_iter().map(|v| v.into()).collect(),
-                    return_type: Box::new(term.as_ref().clone().into()),
+                Deref::Field { field_name, target } => todo!(),
+                Deref::MemberType { target } => todo!(),
+            },
+            Term::Impl(imp) => match imp {
+                Impl::Fields(fields) => Type::Generic {
+                    term: Box::new(Term::App(App::Object(fields))),
                 },
             },
         }
@@ -87,114 +81,61 @@ impl From<Term> for Type {
 pub enum App {
     Array(Box<Term>),
     Object(HashMap<String, Term>),
-    Function(Vec<(String, Term)>, Page),
-    Deref(Deref),
+    Function(Vec<Term>, Box<Term>),
 }
 impl App {
-    pub fn checkout_function(parameters: &[(String, Term)], page: &Page) -> (Vec<(String, Term)>, Page) {
-        fn translate_term(term: &mut Term, translator: &HashMap<Marker, Marker>) {
+    pub fn checkout_function(parameters: &[Term], return_type: &Term) -> (Vec<Term>, Box<Term>) {
+        fn translate_term(term: &mut Term, translator: &mut HashMap<Marker, Marker>) {
             match term {
                 Term::Type(tpe) => {
                     if let Type::Generic { term: inner_term } = tpe {
                         translate_term(inner_term, translator)
                     };
                 }
-                Term::Marker(marker) => *marker = *translator.get(marker).unwrap(),
+                Term::Marker(marker) => *marker = *translator.entry(*marker).or_insert_with(Marker::new),
                 Term::App(app) => match app {
                     App::Array(inner_term) => translate_term(inner_term, translator),
                     App::Object(fields) => fields
                         .iter_mut()
                         .for_each(|(_, field)| translate_term(field, translator)),
-                    App::Function(parameters, page) => {
-                        (*parameters, *page) = App::checkout_function(parameters, page);
+                    App::Function(parameters, return_type) => {
+                        (*parameters, *return_type) = App::checkout_function(parameters, return_type);
                     }
-                    App::Deref(deref) => match deref {
-                        Deref::Call { target, arguments } => {
-                            translate_term(target, translator);
-                            arguments.iter_mut().for_each(|arg| translate_term(arg, translator))
-                        }
-                        _ => todo!(),
-                    },
                 },
-                Term::Rule(rule) => match rule {
-                    Rule::Field(_, term) => translate_term(term, translator),
-                    Rule::Function(term, parameters) => {
-                        translate_term(term, translator);
-                        parameters
-                            .iter_mut()
-                            .for_each(|param| translate_term(param, translator))
+                Term::Deref(deref) => match deref {
+                    Deref::Call { target, arguments } => {
+                        translate_term(target, translator);
+                        arguments.iter_mut().for_each(|arg| translate_term(arg, translator))
                     }
+                    _ => todo!(),
+                },
+                Term::Impl(imp) => match imp {
+                    Impl::Fields(fields) => fields
+                        .iter_mut()
+                        .for_each(|(_, field)| translate_term(field, translator)),
                 },
             }
         }
 
         let mut translator: HashMap<Marker, Marker> = HashMap::default();
-        translator.insert(Marker::RETURN_VALUE, Marker::RETURN_VALUE);
-        let scope = Scope {
-            fields: page.scope.fields.clone(),
-            generics: page
-                .scope
-                .generics
-                .iter()
-                .map(|generic| {
-                    let new_generic = Marker::new();
-                    translator.insert(*generic, new_generic);
-                    new_generic
-                })
-                .collect(),
-            markers: page
-                .scope
-                .markers
-                .iter()
-                .map(|(expr_id, old_marker)| {
-                    let new_marker = Marker::new();
-                    translator.insert(*old_marker, new_marker);
-                    (*expr_id, new_marker)
-                })
-                .collect(),
-
-            file_id: page.scope.file_id,
-            expr_strings: page.scope.expr_strings.clone(),
-        };
-
-        let unifier = Unifier {
-            substitutions: page
-                .unifier
-                .substitutions
-                .clone()
-                .iter_mut()
-                .map(|(mut marker, term)| {
-                    marker = translator.get(marker).unwrap();
-                    translate_term(term, &translator);
-                    (*marker, term.clone())
-                })
-                .collect(),
-            unresolved: page.unifier.unresolved.clone(),
-        };
-
+        translator.insert(Marker::RETURN_VALUE, Marker::new());
         let parameters = parameters
             .to_vec()
             .iter_mut()
-            .map(|(n, param)| {
-                translate_term(param, &translator);
-                (n.clone(), param.clone())
+            .map(|param| {
+                translate_term(param, &mut translator);
+                param.clone()
             })
             .collect();
-
-        let new_page = Page {
-            scope,
-            unifier,
-            file_id: page.file_id,
-        };
-
-        (parameters, new_page)
+        let mut return_type = return_type.clone();
+        translate_term(&mut return_type, &mut translator);
+        (parameters, Box::new(return_type))
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Rule {
-    Field(String, Box<Term>),
-    Function(Box<Term>, Vec<Term>),
+pub enum Impl {
+    Fields(HashMap<String, Term>),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -220,8 +161,8 @@ pub struct Printer {
     iter: usize,
 }
 impl Printer {
-    pub fn give_expr_alias(&mut self, marker: Marker, expr_string: String) {
-        //self.expr_strings.insert(marker, expr_string);
+    pub fn give_expr_alias(&mut self, _marker: Marker, _expr_string: String) {
+        // self.expr_strings.insert(marker, expr_string);
     }
 
     #[must_use]
@@ -251,14 +192,15 @@ impl Printer {
             Term::Type(tpe) => self.tpe(tpe),
             Term::Marker(marker) => self.marker(marker),
             Term::App(app) => self.app(app),
-            Term::Rule(rule) => self.rule(rule),
+            Term::Deref(deref) => self.deref(deref),
+            Term::Impl(imp) => self.imp(imp),
         }
     }
 
     #[must_use]
     pub fn tpe(&mut self, tpe: &Type) -> String {
         let s = match tpe {
-            Type::Generic { term } => self.term(term),
+            Type::Generic { term } => format!("impl {}", self.term(term)),
             Type::Unknown => "<?>".into(),
             Type::Undefined => "undefined".into(),
             Type::Noone => "noone".into(),
@@ -297,31 +239,38 @@ impl Printer {
                     .map(|(name, term)| format!("{name}: {}", self.term(term)))
                     .join(", ")
             ),
-
-            App::Deref(deref) => match deref {
-                Deref::Call { target, arguments } => format!(
-                    "{}({})",
-                    self.term(target),
-                    arguments.iter().map(|term| self.term(term)).join(", ")
-                ),
-                _ => todo!(),
-            },
-            App::Function(arguments, page) => format!(
+            App::Function(arguments, return_type) => format!(
                 "({}) -> {}",
-                arguments.iter().map(|(_, term)| self.term(term)).join(", "),
-                self.term(&page.marker_to_term(Marker::RETURN_VALUE)),
+                arguments.iter().map(|term| self.term(term)).join(", "),
+                self.term(return_type),
             ),
         }
     }
 
     #[must_use]
-    pub fn rule(&mut self, rule: &Rule) -> String {
-        match rule {
-            Rule::Field(name, term) => format!("?.{name} -> {}", self.term(term)),
-            Rule::Function(term, params) => format!(
-                "?({}) -> {}",
-                params.iter().map(|param| self.term(param)).join(", "),
-                self.term(term)
+    pub fn deref(&mut self, deref: &Deref) -> String {
+        match deref {
+            Deref::Call { target, arguments } => format!(
+                "{}({})",
+                self.term(target),
+                arguments.iter().map(|term| self.term(term)).join(", ")
+            ),
+            Deref::Field { field_name, target } => {
+                format!("{}.{field_name}", self.term(target))
+            }
+            Deref::MemberType { target } => format!("{}[*]", self.term(target)),
+        }
+    }
+
+    #[must_use]
+    pub fn imp(&mut self, imp: &Impl) -> String {
+        match imp {
+            Impl::Fields(fields) => format!(
+                "impl {}",
+                fields
+                    .iter()
+                    .map(|(name, term)| format!("{name}: {}", self.term(term)))
+                    .join(", ")
             ),
         }
     }

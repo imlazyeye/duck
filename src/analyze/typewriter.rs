@@ -27,7 +27,7 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn apply_stmts(&mut self, stmts: &Vec<Stmt>, printer: &mut Printer) {
+    pub fn apply_stmts(&mut self, stmts: &[Stmt], printer: &mut Printer) {
         println!("\n--- Parsing a new page... ---\n");
         let constraints = Constraints::new(&mut self.scope, stmts, printer);
         self.unifier.apply_constraints(constraints.collection, printer);

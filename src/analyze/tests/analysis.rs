@@ -1,5 +1,5 @@
 use crate::{
-    analyze::{App, Deref, Page, Term, Type, TypeWriter},
+    analyze::{Page, Type, TypeWriter},
     parse::*,
 };
 use colored::Colorize;
@@ -266,6 +266,18 @@ fn function_infer_generic_call() {
 }
 
 #[test]
+fn multi_use_generic_function() {
+    harness_type_ast(
+        "var foo = function(a) {
+            return a;
+        }
+        var bar = foo(true)
+        var fizz = foo(0)",
+        [("bar", Type::Bool), ("fizz", Type::Real)],
+    );
+}
+
+#[test]
 fn function_call_generic() {
     harness_type_ast(
         "var foo = function(a) {
@@ -274,6 +286,28 @@ fn function_call_generic() {
         var bar = foo([0])",
         [("bar", Type::Real)],
     );
+}
+
+#[test]
+fn fields_impl() {
+    harness_type_ast(
+        "var foo = function(a) {
+            a.a = 0;
+            a.b = 0;
+            return a;
+        }
+        var bar = foo({ a: 0, b: 0 })",
+        [(
+            "bar",
+            Type::Struct {
+                fields: HashMap::from([("a".into(), Type::Real), ("b".into(), Type::Real)]),
+            },
+        )],
+    );
+}
+
+#[test]
+fn function_call_generic_complex() {
     harness_type_ast(
         "
         function foo(a, b) {
@@ -305,23 +339,6 @@ fn function_generics() {
         return_type: Box::new(param_one),
     };
     assert_eq!(function, expected);
-}
-
-#[test]
-fn function_generic_array() {
-    let (function, mut parameters, _) = get_function("function(foo) { return foo[0]; }");
-    let param_one = parameters.pop().unwrap();
-    if let Type::Array { member_type } = param_one {
-        let expected = Type::Function {
-            parameters: vec![Type::Array {
-                member_type: member_type.clone(),
-            }],
-            return_type: member_type,
-        };
-        assert_eq!(function, expected);
-    } else {
-        panic!("Expected a generic array!");
-    }
 }
 
 #[test]
