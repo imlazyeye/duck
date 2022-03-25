@@ -1,11 +1,8 @@
 use super::{App, Deref, Impl, Marker, Page, Printer, Scope, Term, Type};
-use crate::{
-    analyze::FieldOp,
-    parse::{
-        Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
-        LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt,
-        StmtType, Ternary, Unary, UnaryOp,
-    },
+use crate::parse::{
+    Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
+    LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
+    Ternary, Unary, UnaryOp,
 };
 use colored::Colorize;
 use hashbrown::HashMap;
@@ -44,10 +41,7 @@ impl<'s> Constraints<'s> {
                     let right_marker = self.scope.get_expr_marker(right);
                     self.expr_eq_impl(
                         obj,
-                        Impl::FieldOps(HashMap::from([(
-                            field.lexeme.clone(),
-                            FieldOp::Write(Term::Marker(right_marker)),
-                        )])),
+                        Impl::Fields(HashMap::from([(field.lexeme.clone(), Term::Marker(right_marker))])),
                     );
                 }
                 _ => {}
@@ -110,7 +104,8 @@ impl<'s> Constraints<'s> {
                     for param in function.parameters.iter() {
                         body_page.scope.new_field(param.name(), param.name_expr())
                     }
-                    let (parameters, return_type) = App::process_function(function.clone(), body_page, self.printer);
+                    let (parameters, return_type) =
+                        App::process_function(function.clone(), &mut body_page, self.printer);
                     self.expr_eq_app(expr, App::Function(parameters, return_type, function.clone()));
                 }
             }
@@ -181,13 +176,10 @@ impl<'s> Constraints<'s> {
                     Access::Dot { left, right } => {
                         let this_expr_marker = self.scope.get_expr_marker(expr);
                         let left_marker = self.scope.get_expr_marker(left);
-
-                        let field_op = if self.in_write {
-                            FieldOp::Write(Term::Marker(this_expr_marker))
-                        } else {
-                            FieldOp::Read(Term::Marker(this_expr_marker))
-                        };
-                        self.expr_eq_impl(left, Impl::FieldOps(HashMap::from([(right.lexeme.clone(), field_op)])));
+                        self.expr_eq_impl(
+                            left,
+                            Impl::Fields(HashMap::from([(right.lexeme.clone(), Term::Marker(this_expr_marker))])),
+                        );
 
                         // constrain the result of this expression to the field
                         self.expr_eq_deref(

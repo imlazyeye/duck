@@ -296,7 +296,8 @@ fn fields_impl() {
             a.b = 0;
             return a;
         }
-        var bar = foo({ c: 0 })",
+        var bar = { a: 0, b: 0, c: 0 };
+        foo(bar);",
         [(
             "bar",
             Type::Struct {

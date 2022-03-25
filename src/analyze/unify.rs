@@ -1,4 +1,4 @@
-use crate::analyze::{Deref, FieldOp, Page};
+use crate::analyze::{Deref, Page};
 
 use super::{App, Constraint, Impl, Marker, Printer, Term, Type};
 use colored::Colorize;
@@ -89,14 +89,13 @@ impl Unifier {
                         Self::unify(lhs_member_type, rhs_member_type, unifier, printer)?;
                     }
                 }
-                App::Object(lhs_fields) => match rhs {
-                    Term::App(App::Object(rhs_fields)) => {
+                App::Object(lhs_fields) => {
+                    if let Term::App(App::Object(rhs_fields)) = rhs {
                         for (name, field) in lhs_fields {
                             Self::unify(field, rhs_fields.get_mut(name).expect("eh"), unifier, printer)?;
                         }
                     }
-                    _ => (),
-                },
+                }
                 App::Function(lhs_parameters, lhs_return_type, _) => {
                     if let Term::App(App::Function(rhs_parameters, rhs_return_type, _)) = rhs {
                         for (i, param) in rhs_parameters.iter_mut().enumerate() {
@@ -111,29 +110,16 @@ impl Unifier {
         // Do we have an implementation to check?
         if let Term::Impl(imp) = rhs {
             match imp {
-                Impl::FieldOps(operations) => match lhs {
+                Impl::Fields(operations) => match lhs {
                     Term::App(App::Object(fields)) => {
-                        for (name, field_op) in operations.iter_mut() {
-                            match field_op {
-                                FieldOp::Read(term) => {
-                                    // If we're reading, then we must have a unified term
-                                    Self::unify(
-                                        fields.get_mut(name).expect("missing field being read"),
-                                        term,
-                                        unifier,
-                                        printer,
-                                    )?;
-                                }
-                                FieldOp::Write(term) => {
-                                    if let Some(old_term) = fields.get_mut(name) {
-                                        // This field already exists, so make sure they unify
-                                        Self::unify(old_term, term, unifier, printer)?;
-                                    } else {
-                                        // Otherwise, we can just insert a new field
-                                        fields.insert(name.clone(), term.clone());
-                                    }
-                                }
-                            }
+                        for (name, term) in operations.iter_mut() {
+                            // If we're reading, then we must have a unified term
+                            Self::unify(
+                                fields.get_mut(name).expect("missing field being read"),
+                                term,
+                                unifier,
+                                printer,
+                            )?;
                         }
                     }
                     _ => panic!("le panique"),
@@ -174,44 +160,8 @@ impl Unifier {
         // there, and so i can't properly update a former substitutions
         if let Term::Impl(imp) = term {
             let mut sub = unifier.substitutions.get(marker).cloned();
-            match &mut sub {
-                Some(Term::Impl(sub_imp)) => {
-                    return Self::merge_impl(marker, &mut sub_imp.clone(), imp, unifier, printer);
-                }
-                Some(Term::App(App::Object(fields))) => {
-                    if let Impl::FieldOps(ops) = imp {
-                        let mut any = false;
-                        for (name, field_op) in ops.iter_mut() {
-                            match field_op {
-                                FieldOp::Read(term) => {
-                                    // If we're reading, then we must have a unified term
-                                    Self::unify(
-                                        fields.get_mut(name).expect("missing field being read"),
-                                        term,
-                                        unifier,
-                                        printer,
-                                    )?;
-                                }
-                                FieldOp::Write(term) => {
-                                    if let Some(old_term) = fields.get_mut(name) {
-                                        // This field already exists, so make sure they unify
-                                        Self::unify(old_term, term, unifier, printer)?;
-                                    } else {
-                                        // Otherwise, we can just insert a new field
-                                        fields.insert(name.clone(), term.clone());
-                                        any = true;
-                                    }
-                                }
-                            }
-                            if any {
-                                let term = Term::App(App::Object(fields.clone()));
-                                unifier.substitutions.insert(*marker, term.clone());
-                                return Ok(UnificationResult::Unresolved);
-                            }
-                        }
-                    }
-                }
-                _ => {}
+            if let Some(Term::Impl(sub_imp)) = &mut sub {
+                return Self::merge_impl(marker, &mut sub_imp.clone(), imp, unifier, printer);
             }
         }
 
@@ -232,7 +182,14 @@ impl Unifier {
                             let param_marker = page.scope.get_expr_marker(param.name_expr());
                             Unifier::unify_marker(&param_marker, &mut arg.clone(), &mut page.unifier, printer)?;
                         }
-                        let (_, mut return_type) = App::process_function(function.clone(), page, printer);
+                        let (_, mut return_type) = App::process_function(function.clone(), &mut page, printer);
+                        for (i, arg) in arguments.iter_mut().enumerate() {
+                            let param = &function.parameters[i];
+                            let param_marker = page.scope.get_expr_marker(param.name_expr());
+                            println!("NOW ONTO {}", param.name());
+                            *arg = page.marker_to_term(param_marker);
+                            // BUT HOW DO I FIGURE OUT WHERE THIS ARG CAME FROM SO I CAN SUB IT!?
+                        }
                         return Self::unify_marker(marker, &mut return_type, unifier, printer);
                     }
                 }
@@ -241,10 +198,8 @@ impl Unifier {
                     Term::App(App::Object(fields)) => {
                         return Self::unify_marker(marker, fields.get_mut(field_name).expect("doh"), unifier, printer);
                     }
-                    Term::Impl(Impl::FieldOps(ops)) => {
-                        let term = match ops.get_mut(field_name).expect("rats") {
-                            FieldOp::Read(term) | FieldOp::Write(term) => term,
-                        };
+                    Term::Impl(Impl::Fields(ops)) => {
+                        let term = ops.get_mut(field_name).expect("rats");
                         return Self::unify_marker(marker, term, unifier, printer);
                     }
                     _ => {}
@@ -280,8 +235,8 @@ impl Unifier {
         printer: &mut Printer,
     ) -> Result<UnificationResult, TypeError> {
         match imp {
-            Impl::FieldOps(fields) => {
-                if let Impl::FieldOps(other_fields) = other_imp {
+            Impl::Fields(fields) => {
+                if let Impl::Fields(other_fields) = other_imp {
                     fields.extend(other_fields.clone());
                 }
             }
@@ -386,9 +341,7 @@ impl Unifier {
                 }
             },
             Term::Impl(imp) => match imp {
-                Impl::FieldOps(fields) => fields.iter_mut().for_each(|(_, field_op)| match field_op {
-                    FieldOp::Read(term) | FieldOp::Write(term) => Self::normalize(term, unifier),
-                }),
+                Impl::Fields(fields) => fields.iter_mut().for_each(|(_, term)| Self::normalize(term, unifier)),
             },
         }
     }

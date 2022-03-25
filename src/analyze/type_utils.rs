@@ -71,8 +71,8 @@ impl From<Term> for Type {
                 Deref::MemberType { target } => todo!(),
             },
             Term::Impl(imp) => match imp {
-                Impl::FieldOps(fields) => Type::Generic {
-                    term: Box::new(Term::Impl(Impl::FieldOps(fields))),
+                Impl::Fields(fields) => Type::Generic {
+                    term: Box::new(Term::Impl(Impl::Fields(fields))),
                 },
             },
         }
@@ -86,7 +86,7 @@ pub enum App {
     Function(Vec<Term>, Box<Term>, Function),
 }
 impl App {
-    pub fn process_function(function: Function, mut page: Page, printer: &mut Printer) -> (Vec<Term>, Box<Term>) {
+    pub fn process_function(function: Function, page: &mut Page, printer: &mut Printer) -> (Vec<Term>, Box<Term>) {
         let body = match function.body.inner() {
             StmtType::Block(Block { body, .. }) => body,
             _ => unreachable!(),
@@ -104,13 +104,7 @@ impl App {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Impl {
-    FieldOps(HashMap<String, FieldOp>),
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum FieldOp {
-    Read(Term),
-    Write(Term),
+    Fields(HashMap<String, Term>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -240,17 +234,11 @@ impl Printer {
     #[must_use]
     pub fn imp(&mut self, imp: &Impl) -> String {
         match imp {
-            Impl::FieldOps(fields) => format!(
+            Impl::Fields(fields) => format!(
                 "impl {{ {} }}",
                 fields
                     .iter()
-                    .map(|(name, field_op)| format!(
-                        "{name}: {}",
-                        match field_op {
-                            FieldOp::Read(term) => self.term(term),
-                            FieldOp::Write(term) => format!("{}?", self.term(term)),
-                        }
-                    ))
+                    .map(|(name, term)| format!("{name}: {}", self.term(term)))
                     .join(", ")
             ),
         }
