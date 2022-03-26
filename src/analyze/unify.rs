@@ -8,17 +8,17 @@ pub struct Unifier {
     pub(super) unresolved: HashSet<Marker>,
 }
 impl Unifier {
-    pub(super) fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, printer: &mut Printer) {
+    pub(super) fn apply_constraints(&mut self, mut constraints: Vec<Constraint>) {
         while let Some(mut pattern) = constraints.pop() {
             let result = match &mut pattern {
-                Constraint::Eq(marker, term) => Unifier::unify_marker(marker, term, self, printer),
-                Constraint::Impl(marker, imp) => Unifier::apply_impl(marker, imp, self, printer),
+                Constraint::Eq(marker, term) => Unifier::unify_marker(marker, term, self),
+                Constraint::Impl(marker, imp) => Unifier::apply_impl(marker, imp, self),
             };
             if let Err(TypeError(lhs, rhs)) = result {
                 panic!(
                     "hit a type error: lhs: {} rhs: {}",
-                    printer.tpe(&lhs),
-                    printer.tpe(&rhs)
+                    Printer::tpe(&lhs),
+                    Printer::tpe(&rhs)
                 );
             }
         }
@@ -30,7 +30,7 @@ impl Unifier {
             let mut term = self.substitutions.remove(&marker).unwrap();
             Self::normalize(&mut term, self);
             self.substitutions.insert(marker, term);
-            // match Unifier::unify(&Term::Marker(marker), &term, self, printer) {
+            // match Unifier::unify(&Term::Marker(marker), &term, self, 1 {
             //     Ok(result) => {
             //         self.substitutions.insert(marker, term);
             //         match result {
@@ -51,17 +51,12 @@ impl Unifier {
         }
     }
 
-    fn unify(
-        lhs: &mut Term,
-        rhs: &mut Term,
-        unifier: &mut Self,
-        printer: &mut Printer,
-    ) -> Result<UnificationResult, TypeError> {
+    fn unify(lhs: &mut Term, rhs: &mut Term, unifier: &mut Self) -> Result<UnificationResult, TypeError> {
         println!(
             "{}  {} ~ {}",
             "UNIFY".bright_yellow(),
-            printer.term(lhs),
-            printer.term(rhs)
+            Printer::term(lhs),
+            Printer::term(rhs)
         );
 
         // If these terms are equal, there's nothing to do
@@ -75,12 +70,12 @@ impl Unifier {
 
         // If the lhs is a marker, unify it to the right
         if let Term::Marker(marker) = lhs {
-            return Self::unify_marker(marker, rhs, unifier, printer);
+            return Self::unify_marker(marker, rhs, unifier);
         }
 
         // If the rhs is a marker, unify it to the left
         if let Term::Marker(marker) = rhs {
-            return Self::unify_marker(marker, lhs, unifier, printer);
+            return Self::unify_marker(marker, lhs, unifier);
         }
 
         // Are these equivelent apps?
@@ -88,22 +83,22 @@ impl Unifier {
             match lhs_app {
                 App::Array(lhs_member_type) => {
                     if let Term::App(App::Array(rhs_member_type)) = rhs {
-                        Self::unify(lhs_member_type, rhs_member_type, unifier, printer)?;
+                        Self::unify(lhs_member_type, rhs_member_type, unifier)?;
                     }
                 }
                 App::Object(lhs_fields) => {
                     if let Term::App(App::Object(rhs_fields)) = rhs {
                         for (name, field) in lhs_fields {
-                            Self::unify(field, rhs_fields.get_mut(name).expect("eh"), unifier, printer)?;
+                            Self::unify(field, rhs_fields.get_mut(name).expect("eh"), unifier)?;
                         }
                     }
                 }
                 App::Function(lhs_parameters, lhs_return_type, _) => {
                     if let Term::App(App::Function(rhs_parameters, rhs_return_type, _)) = rhs {
                         for (i, param) in rhs_parameters.iter_mut().enumerate() {
-                            Self::unify(&mut lhs_parameters[i], param, unifier, printer)?;
+                            Self::unify(&mut lhs_parameters[i], param, unifier)?;
                         }
-                        Self::unify(lhs_return_type, rhs_return_type, unifier, printer)?;
+                        Self::unify(lhs_return_type, rhs_return_type, unifier)?;
                     }
                 }
             }
@@ -121,17 +116,12 @@ impl Unifier {
         Ok(UnificationResult::NoChange)
     }
 
-    fn unify_marker(
-        marker: &Marker,
-        term: &mut Term,
-        unifier: &mut Self,
-        printer: &mut Printer,
-    ) -> Result<UnificationResult, TypeError> {
+    fn unify_marker(marker: &Marker, term: &mut Term, unifier: &mut Self) -> Result<UnificationResult, TypeError> {
         println!(
             "{}  {} ~ {}",
             "UNIFY".bright_yellow(),
-            printer.marker(marker),
-            printer.term(term),
+            Printer::marker(marker),
+            Printer::term(term),
         );
 
         // Ensure our term is as simple as possible
@@ -139,12 +129,12 @@ impl Unifier {
 
         // If there is an impl, we should apply it
         if let Term::Impl(imp) = term {
-            return Self::apply_impl(marker, imp, unifier, printer);
+            return Self::apply_impl(marker, imp, unifier);
         }
 
         // If a substitution is already available for this marker, we will unify the term with that
         if let Some(sub) = unifier.substitutions.get(marker) {
-            return Self::unify(&mut sub.clone(), term, unifier, printer);
+            return Self::unify(&mut sub.clone(), term, unifier);
         }
 
         // If the term is a deref, we might be able to translate it
@@ -152,25 +142,25 @@ impl Unifier {
             match deref {
                 Deref::Call { target, arguments } => {
                     if let Term::App(App::Function(_, _, function)) = target.as_mut() {
-                        let mut page = Page::default();
+                        let mut typewriter = TypeWriter::default();
                         for (i, arg) in arguments.iter().enumerate() {
                             let param = &function.parameters[i];
-                            page.scope.new_field(param.name(), param.name_expr());
-                            let param_marker = page.scope.get_expr_marker(param.name_expr());
-                            Unifier::unify_marker(&param_marker, &mut arg.clone(), &mut page.unifier, printer)?;
+                            typewriter.scope.new_field(param.name(), param.name_expr());
+                            let param_marker = typewriter.scope.get_expr_marker(param.name_expr());
+                            Unifier::unify_marker(&param_marker, &mut arg.clone(), &mut typewriter.unifier)?;
                         }
-                        let (_, mut return_type) = App::process_function(function.clone(), &mut page, printer);
-                        return Self::unify_marker(marker, &mut return_type, unifier, printer);
+                        let (_, mut return_type) = App::process_function(function.clone(), &mut typewriter);
+                        return Self::unify_marker(marker, &mut return_type, unifier);
                     }
                 }
-                Deref::MemberType { target } => return Self::unify_marker(marker, target, unifier, printer),
+                Deref::MemberType { target } => return Self::unify_marker(marker, target, unifier),
                 Deref::Field { target, field_name } => match target.as_mut() {
                     Term::App(App::Object(fields)) => {
-                        return Self::unify_marker(marker, fields.get_mut(field_name).expect("doh"), unifier, printer);
+                        return Self::unify_marker(marker, fields.get_mut(field_name).expect("doh"), unifier);
                     }
                     Term::Impl(Impl::Fields(ops)) => {
                         let term = ops.get_mut(field_name).expect("rats");
-                        return Self::unify_marker(marker, term, unifier, printer);
+                        return Self::unify_marker(marker, term, unifier);
                     }
                     _ => {}
                 },
@@ -182,36 +172,26 @@ impl Unifier {
             return Ok(UnificationResult::NoChange);
         }
 
-        unifier.new_substitution(*marker, term.clone(), printer)
+        unifier.new_substitution(*marker, term.clone())
     }
 
-    fn apply_impl(
-        marker: &Marker,
-        imp: &mut Impl,
-        unifier: &mut Self,
-        printer: &mut Printer,
-    ) -> Result<UnificationResult, TypeError> {
+    fn apply_impl(marker: &Marker, imp: &mut Impl, unifier: &mut Self) -> Result<UnificationResult, TypeError> {
         if let Some(sub) = &mut unifier.substitutions.get_mut(marker).cloned() {
             match imp {
                 Impl::Fields(imp_fields) => match sub {
                     Term::Impl(Impl::Fields(fields)) => {
                         for (name, imp_field) in imp_fields {
                             if let Some(field) = fields.get_mut(name) {
-                                Self::unify(field, imp_field, unifier, printer)?;
+                                Self::unify(field, imp_field, unifier)?;
                             } else {
                                 fields.insert(name.into(), imp_field.clone());
                             }
                         }
-                        unifier.new_substitution(*marker, Term::Impl(imp.clone()), printer)
+                        unifier.new_substitution(*marker, Term::Impl(imp.clone()))
                     }
                     Term::App(App::Object(fields)) => {
                         for (name, term) in imp_fields.iter_mut() {
-                            Self::unify(
-                                fields.get_mut(name).expect("missing field being read"),
-                                term,
-                                unifier,
-                                printer,
-                            )?;
+                            Self::unify(fields.get_mut(name).expect("missing field being read"), term, unifier)?;
                         }
                         Ok(UnificationResult::NoChange)
                     }
@@ -220,7 +200,7 @@ impl Unifier {
                 },
             }
         } else {
-            unifier.new_substitution(*marker, Term::Impl(imp.clone()), printer)
+            unifier.new_substitution(*marker, Term::Impl(imp.clone()))
         }
     }
 
@@ -312,17 +292,12 @@ impl Unifier {
         }
     }
 
-    fn new_substitution(
-        &mut self,
-        marker: Marker,
-        term: Term,
-        printer: &mut Printer,
-    ) -> Result<UnificationResult, TypeError> {
+    fn new_substitution(&mut self, marker: Marker, term: Term) -> Result<UnificationResult, TypeError> {
         println!(
             "{}    {} => {}",
             "SUB".bright_green(),
-            printer.marker(&marker),
-            printer.term(&term),
+            Printer::marker(&marker),
+            Printer::term(&term),
         );
 
         let result = if Self::resolved(&term) {

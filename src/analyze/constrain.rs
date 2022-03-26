@@ -7,7 +7,6 @@ use hashbrown::HashMap;
 pub(super) struct Constraints<'s> {
     pub collection: Vec<Constraint>,
     scope: &'s mut Scope,
-    printer: &'s mut Printer,
     in_write: bool,
 }
 
@@ -96,12 +95,11 @@ impl<'s> Constraints<'s> {
             match &function.constructor {
                 Some(_) => todo!(),
                 None => {
-                    let mut body_page = Page::default();
+                    let mut body_page = TypeWriter::default();
                     for param in function.parameters.iter() {
                         body_page.scope.new_field(param.name(), param.name_expr())
                     }
-                    let (parameters, return_type) =
-                        App::process_function(function.clone(), &mut body_page, self.printer);
+                    let (parameters, return_type) = App::process_function(function.clone(), &mut body_page);
                     self.expr_eq_app(expr, App::Function(parameters, return_type, function.clone()));
                 }
             }
@@ -279,11 +277,10 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn new(scope: &'s mut Scope, stmts: &[Stmt], printer: &'s mut Printer) -> Self {
+    pub fn new(scope: &'s mut Scope, stmts: &[Stmt]) -> Self {
         let mut constraints = Self {
             collection: vec![],
             scope,
-            printer,
             in_write: false,
         };
         for stmt in stmts.iter() {
@@ -291,16 +288,11 @@ impl<'s> Constraints<'s> {
         }
         constraints.collection.dedup();
         for (marker, name) in constraints.scope.expr_strings.iter() {
-            println!(
-                "{}  {} : {}",
-                "ALIAS".bright_red(),
-                constraints.printer.marker(marker),
-                name
-            );
-            constraints.printer.give_expr_alias(*marker, name.clone());
+            println!("{}  {} : {}", "ALIAS".bright_red(), Printer::marker(marker), name);
+            Printer::give_expr_alias(*marker, name.clone());
         }
         for con in constraints.collection.iter() {
-            println!("{}", constraints.printer.constraint(con));
+            println!("{}", Printer::constraint(con));
         }
         constraints.collection.reverse();
         constraints

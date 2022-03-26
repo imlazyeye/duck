@@ -9,12 +9,12 @@ pub enum App {
     Function(Vec<Term>, Box<Term>, Function),
 }
 impl App {
-    pub fn process_function(function: Function, page: &mut Page, printer: &mut Printer) -> (Vec<Term>, Box<Term>) {
+    pub fn process_function(function: Function, page: &mut TypeWriter) -> (Vec<Term>, Box<Term>) {
         let body = match function.body.inner() {
             StmtType::Block(Block { body, .. }) => body,
             _ => unreachable!(),
         };
-        page.apply_stmts(body, printer);
+        page.write(body);
         let mut parameters = Vec::new();
         for param in function.parameters.iter() {
             let param_marker = page.scope.get_expr_marker(param.name_expr());

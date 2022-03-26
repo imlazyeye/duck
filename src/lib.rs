@@ -10,6 +10,9 @@
 
 //! Utilities for parsing and linting Gml.
 
+#[macro_use]
+extern crate lazy_static;
+
 mod core {
     mod duck;
     mod duck_operation;
@@ -157,6 +160,6 @@ pub mod analyze {
     pub use utils::*;
     #[cfg(test)]
     mod tests {
-        mod analysis;
+        mod type_tests;
     }
 }

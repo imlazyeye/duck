@@ -8,16 +8,24 @@ use hashbrown::HashMap;
 
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct Scope {
+    pub self_scope: Option<Box<Scope>>,
     pub fields: HashMap<String, ExprId>,
     pub markers: HashMap<ExprId, Marker>,
     pub expr_strings: HashMap<Marker, String>,
-    pub generics: Vec<Marker>,
     pub file_id: FileId,
 }
 impl Scope {
-    pub fn new(file_id: FileId) -> Self {
+    pub fn new_persistent_scope(file_id: FileId) -> Self {
         Self {
             file_id,
+            ..Default::default()
+        }
+    }
+
+    pub fn new_local_scope(self_scope: Scope, file_id: FileId) -> Self {
+        Self {
+            file_id,
+            self_scope: Some(Box::new(self_scope)),
             ..Default::default()
         }
     }

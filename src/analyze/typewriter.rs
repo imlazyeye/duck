@@ -1,36 +1,24 @@
 use super::*;
 use crate::{
-    parse::{Ast, Identifier, Stmt},
+    parse::{Identifier, Stmt},
     FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
 use colored::Colorize;
 use itertools::Itertools;
 
-#[derive(Debug, Default)]
-pub struct TypeWriter {
-    pub printer: Printer,
-}
-impl TypeWriter {
-    pub fn write_types(&mut self, ast: &mut Ast) -> Page {
-        let mut page = Page::default();
-        page.apply_stmts(ast.stmts_mut(), &mut self.printer);
-        page
-    }
-}
-
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct Page {
+pub struct TypeWriter {
     pub scope: Scope,
     pub unifier: Unifier,
     pub file_id: FileId,
 }
 
-impl Page {
-    pub fn apply_stmts(&mut self, stmts: &[Stmt], printer: &mut Printer) {
-        println!("\n--- Parsing a new page... ---\n");
-        let constraints = Constraints::new(&mut self.scope, stmts, printer);
-        self.unifier.apply_constraints(constraints.collection, printer);
+impl TypeWriter {
+    pub fn write(&mut self, stmts: &[Stmt]) {
+        println!("\n--- Start TypeWriter::write... ---\n");
+        let constraints = Constraints::new(&mut self.scope, stmts);
+        self.unifier.apply_constraints(constraints.collection);
         println!("\nFinal substitutions:");
         println!(
             "{}",
@@ -41,12 +29,12 @@ impl Page {
                 .map(|(marker, term)| format!(
                     "{}    {} => {}",
                     "SUB".bright_green(),
-                    printer.marker(marker),
-                    printer.term(term)
+                    Printer::marker(marker),
+                    Printer::term(term)
                 ))
                 .join("\n")
         );
-        println!("\n--- Ending this page... ---\n");
+        println!("\n--- Ending TypeWriter::write... ---\n");
     }
 
     /// ### Errors

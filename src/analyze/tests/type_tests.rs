@@ -1,7 +1,4 @@
-use crate::{
-    analyze::{Page, Type, TypeWriter},
-    parse::*,
-};
+use crate::{analyze::*, parse::*};
 use colored::Colorize;
 use hashbrown::HashMap;
 use pretty_assertions::assert_eq;
@@ -18,33 +15,30 @@ fn harness_type_expr(source: &'static str, expected_tpe: Type) {
 
 fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
-    let page = harness_typewriter(source);
-    page.read_field(&Identifier::lazy("a")).unwrap()
+    let typewriter = harness_typewriter(source);
+    typewriter.read_field(&Identifier::lazy("a")).unwrap()
 }
 
 fn get_var_type(source: &'static str, name: &'static str) -> Type {
-    let page = harness_typewriter(source);
-    page.read_field(&Identifier::lazy(name)).unwrap()
+    let typewriter = harness_typewriter(source);
+    typewriter.read_field(&Identifier::lazy(name)).unwrap()
 }
 
-fn harness_typewriter(source: &str) -> Page {
+fn harness_typewriter(source: &str) -> TypeWriter {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
     let mut typewriter = TypeWriter::default();
     let mut ast = parser.into_ast().unwrap();
-    let page = typewriter.write_types(&mut ast);
+    typewriter.write(ast.stmts_mut());
     println!("Result for: \n{source}");
-    for (name, _) in page.scope.fields.iter() {
-        let tpe = page.read_field(&Identifier::lazy(name)).unwrap();
+    for (name, _) in typewriter.scope.fields.iter() {
+        let tpe = typewriter.read_field(&Identifier::lazy(name)).unwrap();
         let str = name.bright_black();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-        println!(
-            "{str}{whitespace}{}\n",
-            typewriter.printer.tpe(&tpe).bright_cyan().bold()
-        );
+        println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
     }
 
-    page
+    typewriter
 }
 
 #[test]
@@ -122,7 +116,6 @@ fn non_addition_evaluations() {
 fn logical() {
     harness_type_expr("true && false", Type::Bool);
 }
-
 
 #[test]
 fn empty_array() {
@@ -236,7 +229,6 @@ fn complicated_data() {
         [("output", Type::Real)],
     );
 }
-
 
 #[test]
 fn call() {
