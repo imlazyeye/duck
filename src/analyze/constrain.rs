@@ -1,6 +1,6 @@
 use super::{App, Deref, Impl, Marker, Page, Printer, Scope, Term, Type};
 use crate::parse::{
-    Access, Assignment, AssignmentOp, Block, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
+    Access, Assignment, AssignmentOp, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
     LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
     Ternary, Unary, UnaryOp,
 };
@@ -39,7 +39,7 @@ impl<'s> Constraints<'s> {
                     right: field,
                 }) => {
                     let right_marker = self.scope.get_expr_marker(right);
-                    self.expr_eq_impl(
+                    self.expr_impl(
                         obj,
                         Impl::Fields(HashMap::from([(field.lexeme.clone(), Term::Marker(right_marker))])),
                     );
@@ -176,7 +176,7 @@ impl<'s> Constraints<'s> {
                     Access::Dot { left, right } => {
                         let this_expr_marker = self.scope.get_expr_marker(expr);
                         let left_marker = self.scope.get_expr_marker(left);
-                        self.expr_eq_impl(
+                        self.expr_impl(
                             left,
                             Impl::Fields(HashMap::from([(right.lexeme.clone(), Term::Marker(this_expr_marker))])),
                         );
@@ -222,14 +222,8 @@ impl<'s> Constraints<'s> {
                 }
             }
             ExprType::Call(Call { left, arguments, .. }) => {
-                // let imp = Rule::Function(
-                //     arguments
-                //         .iter()
-                //         .map(|v| Term::Marker(self.scope.get_expr_marker(v)))
-                //         .collect(),
-                //     Box::new(Term::Marker(self.scope.get_expr_marker(expr))),
-                // );
-                // self.expr_eq_rule(left, imp);
+                // let imp = Impl::ReturnType(Box::new(Term::Marker(self.scope.get_expr_marker(expr))));
+                // self.expr_impl(left, imp);
                 let left_marker = self.scope.get_expr_marker(left);
                 let deref = Deref::Call {
                     target: Box::new(Term::Marker(left_marker)),
@@ -316,10 +310,6 @@ impl<'s> Constraints<'s> {
         constraints
     }
 
-    pub fn expr_eq_marker(&mut self, target: &Expr, marker: Marker) {
-        self.expr_eq_term(target, Term::Marker(marker))
-    }
-
     pub fn expr_eq_type(&mut self, target: &Expr, tpe: Type) {
         self.expr_eq_term(target, Term::Type(tpe))
     }
@@ -337,8 +327,9 @@ impl<'s> Constraints<'s> {
         self.expr_eq_term(target, Term::Deref(deref))
     }
 
-    pub fn expr_eq_impl(&mut self, target: &Expr, imp: Impl) {
-        self.expr_eq_term(target, Term::Impl(imp))
+    pub fn expr_impl(&mut self, target: &Expr, imp: Impl) {
+        let marker = self.scope.get_expr_marker(target);
+        self.marker_impl(marker, imp);
     }
 
     pub fn expr_eq_term(&mut self, expr: &Expr, term: Term) {
@@ -346,13 +337,17 @@ impl<'s> Constraints<'s> {
         self.marker_eq_symbol(marker, term);
     }
 
+    pub fn marker_impl(&mut self, marker: Marker, imp: Impl) {
+        self.collection.push(Constraint::Impl(marker, imp));
+    }
+
     pub fn marker_eq_symbol(&mut self, marker: Marker, term: Term) {
-        self.collection.push(Constraint { marker, term });
+        self.collection.push(Constraint::Eq(marker, term));
     }
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct Constraint {
-    pub marker: Marker,
-    pub term: Term,
+pub enum Constraint {
+    Eq(Marker, Term),
+    Impl(Marker, Impl),
 }

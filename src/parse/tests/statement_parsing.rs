@@ -705,7 +705,7 @@ fn xor_equal() {
         "foo ^= 1",
         Assignment::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            AssignmentOp::XorEqual(Token::lazy(TokenType::CirumflexEqual)),
+            AssignmentOp::XorEqual(Token::lazy(TokenType::CaretEquals)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );

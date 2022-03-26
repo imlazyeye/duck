@@ -1,6 +1,5 @@
-use crate::parse::{Block, Expr, Function, StmtType};
-
 use super::{Constraint, Page};
+use crate::parse::{Block, Function, StmtType};
 use colored::Colorize;
 use hashbrown::HashMap;
 use itertools::Itertools;
@@ -67,8 +66,7 @@ impl From<Term> for Type {
                 Deref::Call { target, arguments } => Type::Generic {
                     term: Box::new(Term::Deref(Deref::Call { target, arguments })),
                 },
-                Deref::Field { field_name, target } => todo!(),
-                Deref::MemberType { target } => todo!(),
+                _ => unreachable!(),
             },
             Term::Impl(imp) => match imp {
                 Impl::Fields(fields) => Type::Generic {
@@ -246,11 +244,19 @@ impl Printer {
 
     #[must_use]
     pub fn constraint(&mut self, constraint: &Constraint) -> String {
-        format!(
-            "{}     {} = {}",
-            "EQ".bright_magenta(),
-            self.marker(&constraint.marker),
-            self.term(&constraint.term)
-        )
+        match constraint {
+            Constraint::Eq(marker, term) => format!(
+                "{}    {} = {}",
+                "CON".bright_magenta(),
+                self.marker(marker),
+                self.term(term)
+            ),
+            Constraint::Impl(marker, imp) => format!(
+                "{}    {} ~> {}",
+                "CON".bright_magenta(),
+                self.marker(marker),
+                self.imp(imp)
+            ),
+        }
     }
 }

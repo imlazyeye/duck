@@ -177,19 +177,19 @@ impl Lexer {
                 '?' => {
                     if self.match_take('?') {
                         if self.match_take('=') {
-                            Some(TokenType::DoubleInterrobangEquals)
+                            Some(TokenType::DoubleHookEquals)
                         } else {
-                            Some(TokenType::DoubleInterrobang)
+                            Some(TokenType::DoubleHook)
                         }
                     } else {
-                        Some(TokenType::Interrobang)
+                        Some(TokenType::Hook)
                     }
                 }
                 '^' => {
                     if self.match_take('=') {
-                        Some(TokenType::CirumflexEqual)
+                        Some(TokenType::CaretEquals)
                     } else {
-                        Some(TokenType::Circumflex)
+                        Some(TokenType::Caret)
                     }
                 }
                 '!' => {

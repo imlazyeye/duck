@@ -12,7 +12,11 @@ pub struct Unifier {
 impl Unifier {
     pub(super) fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, printer: &mut Printer) {
         while let Some(mut pattern) = constraints.pop() {
-            if let Err(TypeError(lhs, rhs)) = Unifier::unify_marker(&pattern.marker, &mut pattern.term, self, printer) {
+            let result = match &mut pattern {
+                Constraint::Eq(marker, term) => Unifier::unify_marker(marker, term, self, printer),
+                Constraint::Impl(marker, imp) => Unifier::apply_impl(marker, imp, self, printer),
+            };
+            if let Err(TypeError(lhs, rhs)) = result {
                 panic!(
                     "hit a type error: lhs: {} rhs: {}",
                     printer.tpe(&lhs),
@@ -107,26 +111,6 @@ impl Unifier {
             }
         }
 
-        // Do we have an implementation to check?
-        if let Term::Impl(imp) = rhs {
-            match imp {
-                Impl::Fields(operations) => match lhs {
-                    Term::App(App::Object(fields)) => {
-                        for (name, term) in operations.iter_mut() {
-                            // If we're reading, then we must have a unified term
-                            Self::unify(
-                                fields.get_mut(name).expect("missing field being read"),
-                                term,
-                                unifier,
-                                printer,
-                            )?;
-                        }
-                    }
-                    _ => panic!("le panique"),
-                },
-            }
-        }
-
         // Are these clashing types?
         if let Term::Type(lhs_type) = lhs {
             if let Term::Type(rhs_type) = rhs {
@@ -156,13 +140,8 @@ impl Unifier {
         Self::normalize(term, unifier);
 
         // If there is an impl, we should apply it
-        // FIXME: this is here because, while it belongs in unify, I don't have access to the marker in
-        // there, and so i can't properly update a former substitutions
         if let Term::Impl(imp) = term {
-            let mut sub = unifier.substitutions.get(marker).cloned();
-            if let Some(Term::Impl(sub_imp)) = &mut sub {
-                return Self::merge_impl(marker, &mut sub_imp.clone(), imp, unifier, printer);
-            }
+            return Self::apply_impl(marker, imp, unifier, printer);
         }
 
         // If a substitution is already available for this marker, we will unify the term with that
@@ -183,13 +162,6 @@ impl Unifier {
                             Unifier::unify_marker(&param_marker, &mut arg.clone(), &mut page.unifier, printer)?;
                         }
                         let (_, mut return_type) = App::process_function(function.clone(), &mut page, printer);
-                        for (i, arg) in arguments.iter_mut().enumerate() {
-                            let param = &function.parameters[i];
-                            let param_marker = page.scope.get_expr_marker(param.name_expr());
-                            println!("NOW ONTO {}", param.name());
-                            *arg = page.marker_to_term(param_marker);
-                            // BUT HOW DO I FIGURE OUT WHERE THIS ARG CAME FROM SO I CAN SUB IT!?
-                        }
                         return Self::unify_marker(marker, &mut return_type, unifier, printer);
                     }
                 }
@@ -212,49 +184,45 @@ impl Unifier {
             return Ok(UnificationResult::NoChange);
         }
 
-        println!(
-            "{}    {} => {}",
-            "SUB".bright_green(),
-            printer.marker(marker),
-            printer.term(term)
-        );
-        unifier.substitutions.insert(*marker, term.clone());
-        if Self::resolved(term) {
-            Ok(UnificationResult::Resolved)
-        } else {
-            unifier.unresolved.insert(*marker);
-            Ok(UnificationResult::Unresolved)
-        }
+        unifier.new_substitution(*marker, term.clone(), printer)
     }
 
-    fn merge_impl(
+    fn apply_impl(
         marker: &Marker,
         imp: &mut Impl,
-        other_imp: &Impl,
         unifier: &mut Self,
         printer: &mut Printer,
     ) -> Result<UnificationResult, TypeError> {
-        match imp {
-            Impl::Fields(fields) => {
-                if let Impl::Fields(other_fields) = other_imp {
-                    fields.extend(other_fields.clone());
-                }
+        if let Some(sub) = &mut unifier.substitutions.get_mut(marker).cloned() {
+            match imp {
+                Impl::Fields(imp_fields) => match sub {
+                    Term::Impl(Impl::Fields(fields)) => {
+                        for (name, imp_field) in imp_fields {
+                            if let Some(field) = fields.get_mut(name) {
+                                Self::unify(field, imp_field, unifier, printer)?;
+                            } else {
+                                fields.insert(name.into(), imp_field.clone());
+                            }
+                        }
+                        unifier.new_substitution(*marker, Term::Impl(imp.clone()), printer)
+                    }
+                    Term::App(App::Object(fields)) => {
+                        for (name, term) in imp_fields.iter_mut() {
+                            Self::unify(
+                                fields.get_mut(name).expect("missing field being read"),
+                                term,
+                                unifier,
+                                printer,
+                            )?;
+                        }
+                        Ok(UnificationResult::NoChange)
+                    }
+                    // maybe deref?
+                    _ => Ok(UnificationResult::NoChange),
+                },
             }
-        };
-
-        println!(
-            "{}    {} => {}",
-            "SUB".bright_green(),
-            printer.marker(marker),
-            printer.imp(imp)
-        );
-
-        unifier.substitutions.insert(*marker, Term::Impl(imp.clone()));
-        if Self::resolved(&Term::Impl(imp.clone())) {
-            Ok(UnificationResult::Resolved)
         } else {
-            unifier.unresolved.insert(*marker);
-            Ok(UnificationResult::Unresolved)
+            unifier.new_substitution(*marker, Term::Impl(imp.clone()), printer)
         }
     }
 
@@ -308,7 +276,7 @@ impl Unifier {
                 App::Array(member_term) => Self::resolved(member_term),
                 App::Object(fields) => fields.iter().all(|(_, field)| Self::resolved(field)),
                 App::Function(parameters, return_type, _) => {
-                    parameters.iter().all(Self::resolved) && Self::resolved(&return_type)
+                    parameters.iter().all(Self::resolved) && Self::resolved(return_type)
                 }
             },
             Term::Deref(_) => false,
@@ -344,6 +312,29 @@ impl Unifier {
                 Impl::Fields(fields) => fields.iter_mut().for_each(|(_, term)| Self::normalize(term, unifier)),
             },
         }
+    }
+
+    fn new_substitution(
+        &mut self,
+        marker: Marker,
+        term: Term,
+        printer: &mut Printer,
+    ) -> Result<UnificationResult, TypeError> {
+        println!(
+            "{}    {} => {}",
+            "SUB".bright_green(),
+            printer.marker(&marker),
+            printer.term(&term),
+        );
+
+        let result = if Self::resolved(&term) {
+            Ok(UnificationResult::Resolved)
+        } else {
+            self.unresolved.insert(marker);
+            Ok(UnificationResult::Unresolved)
+        };
+        self.substitutions.insert(marker, term);
+        result
     }
 }
 

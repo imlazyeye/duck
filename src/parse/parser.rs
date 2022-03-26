@@ -486,7 +486,7 @@ impl Parser {
     fn null_coalecence(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expr = self.ternary()?;
-        if self.match_take(TokenType::DoubleInterrobang).is_some() {
+        if self.match_take(TokenType::DoubleHook).is_some() {
             let value = self.expr()?;
             let end = value.span().end();
             Ok(self.new_expr(NullCoalecence::new(expr, value), Span::new(start, end)))
@@ -498,7 +498,7 @@ impl Parser {
     fn ternary(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expr = self.logical()?;
-        if self.match_take(TokenType::Interrobang).is_some() {
+        if self.match_take(TokenType::Hook).is_some() {
             let true_value = self.expr()?;
             self.require(TokenType::Colon)?;
             let false_value = self.expr()?;
@@ -932,7 +932,7 @@ impl Parser {
                     key: self.expr()?,
                 }
             }
-            TokenType::Interrobang => {
+            TokenType::Hook => {
                 self.take()?;
                 Access::Map {
                     left,

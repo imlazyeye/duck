@@ -294,7 +294,7 @@ fn bitwise_xor() {
         "1 ^ 1",
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOp::Xor(Token::lazy(TokenType::Circumflex)),
+            EvaluationOp::Xor(Token::lazy(TokenType::Caret)),
             Literal::Real(1.0).into_expr_lazy(),
         ),
     );
