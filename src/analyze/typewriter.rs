@@ -4,36 +4,34 @@ use crate::{
     FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
-use colored::Colorize;
-use itertools::Itertools;
+use hashbrown::{HashMap, HashSet};
 
-#[derive(Debug, Default, PartialEq, Clone)]
-pub struct TypeWriter {
+#[derive(Debug, PartialEq, Clone)]
+pub struct Typewriter {
     pub scope: Scope,
-    pub unifier: Unifier,
-    pub file_id: FileId,
+    pub substitutions: HashMap<Marker, Term>,
+    pub unresolved: HashSet<Marker>,
+    pub collection: Vec<Constraint>,
 }
 
-impl TypeWriter {
+impl Typewriter {
+    pub fn new(scope: Scope) -> Self {
+        Self {
+            scope,
+            substitutions: HashMap::default(),
+            unresolved: HashSet::default(),
+            collection: Vec::default(),
+        }
+    }
+
     pub fn write(&mut self, stmts: &[Stmt]) {
         println!("\n--- Start TypeWriter::write... ---\n");
         let constraints = Constraints::new(&mut self.scope, stmts);
-        self.unifier.apply_constraints(constraints.collection);
+        Unification::apply_constraints(constraints.collection, self);
         println!("\nFinal substitutions:");
-        println!(
-            "{}",
-            &self
-                .unifier
-                .substitutions
-                .iter()
-                .map(|(marker, term)| format!(
-                    "{}    {} => {}",
-                    "SUB".bright_green(),
-                    Printer::marker(marker),
-                    Printer::term(term)
-                ))
-                .join("\n")
-        );
+        self.substitutions
+            .iter()
+            .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term)));
         println!("\n--- Ending TypeWriter::write... ---\n");
     }
 
@@ -59,10 +57,6 @@ impl TypeWriter {
     }
 
     pub fn marker_to_term(&self, marker: Marker) -> Term {
-        self.unifier
-            .substitutions
-            .get(&marker)
-            .cloned()
-            .unwrap_or(Term::Marker(marker))
+        self.substitutions.get(&marker).cloned().unwrap_or(Term::Marker(marker))
     }
 }

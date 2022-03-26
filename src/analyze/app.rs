@@ -9,18 +9,18 @@ pub enum App {
     Function(Vec<Term>, Box<Term>, Function),
 }
 impl App {
-    pub fn process_function(function: Function, page: &mut TypeWriter) -> (Vec<Term>, Box<Term>) {
+    pub fn process_function(function: Function, typewriter: &mut Typewriter) -> (Vec<Term>, Box<Term>) {
         let body = match function.body.inner() {
             StmtType::Block(Block { body, .. }) => body,
             _ => unreachable!(),
         };
-        page.write(body);
+        typewriter.write(body);
         let mut parameters = Vec::new();
         for param in function.parameters.iter() {
-            let param_marker = page.scope.get_expr_marker(param.name_expr());
-            let param_term = page.marker_to_term(param_marker);
+            let param_marker = typewriter.scope.get_expr_marker(param.name_expr());
+            let param_term = typewriter.marker_to_term(param_marker);
             parameters.push(param_term);
         }
-        (parameters, Box::new(page.return_term()))
+        (parameters, Box::new(typewriter.return_term()))
     }
 }

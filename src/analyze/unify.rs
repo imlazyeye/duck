@@ -1,18 +1,12 @@
 use super::*;
-use colored::Colorize;
-use hashbrown::{HashMap, HashSet};
 
-#[derive(Debug, Default, PartialEq, Clone)]
-pub struct Unifier {
-    pub(super) substitutions: HashMap<Marker, Term>,
-    pub(super) unresolved: HashSet<Marker>,
-}
-impl Unifier {
-    pub(super) fn apply_constraints(&mut self, mut constraints: Vec<Constraint>) {
+pub(super) struct Unification;
+impl Unification {
+    pub fn apply_constraints(mut constraints: Vec<Constraint>, typewriter: &mut Typewriter) {
         while let Some(mut pattern) = constraints.pop() {
             let result = match &mut pattern {
-                Constraint::Eq(marker, term) => Unifier::unify_marker(marker, term, self),
-                Constraint::Impl(marker, imp) => Unifier::apply_impl(marker, imp, self),
+                Constraint::Eq(marker, term) => Unification::unify_marker(marker, term, typewriter),
+                Constraint::Impl(marker, imp) => Unification::apply_impl(marker, imp, typewriter),
             };
             if let Err(TypeError(lhs, rhs)) = result {
                 panic!(
@@ -22,60 +16,92 @@ impl Unifier {
                 );
             }
         }
-
-        // Revist those who are not resolved
-        let unresolved = self.unresolved.clone();
-        for marker in unresolved.iter().copied() {
-            // Take this substitution out and reprocess it
-            let mut term = self.substitutions.remove(&marker).unwrap();
-            Self::normalize(&mut term, self);
-            self.substitutions.insert(marker, term);
-            // match Unifier::unify(&Term::Marker(marker), &term, self, 1 {
-            //     Ok(result) => {
-            //         self.substitutions.insert(marker, term);
-            //         match result {
-            //             UnificationResult::Resolved => {
-            //                 // We are resolved, so we are good to go
-            //             }
-            //             UnificationResult::Unresolved => {
-            //                 // We got a result, but its still not resolved. Maybe in the future
-            // we                 // resolve more
-            //             }
-            //             UnificationResult::NoChange => {
-            //                 // There was nothing we can do here. Maybe in the future we resolve
-            // more             }
-            //         }
-            //     }
-            //     Err(_) => panic!(),
-            // }
-        }
     }
 
-    fn unify(lhs: &mut Term, rhs: &mut Term, unifier: &mut Self) -> Result<UnificationResult, TypeError> {
-        println!(
-            "{}  {} ~ {}",
-            "UNIFY".bright_yellow(),
-            Printer::term(lhs),
-            Printer::term(rhs)
-        );
+    fn unify_marker(marker: &Marker, term: &mut Term, typewriter: &mut Typewriter) -> Result<(), TypeError> {
+        // Ensure our term is as simple as possible
+        Self::normalize(term, typewriter);
 
+        println!("{}", Printer::marker_unification(marker, term));
+
+        // If there is an impl, we should apply it
+        if let Term::Impl(imp) = term {
+            return Self::apply_impl(marker, imp, typewriter);
+        }
+
+        // If a substitution is already available for this marker, we will unify the term with that
+        if let Some(sub) = typewriter.substitutions.get(marker) {
+            return Self::unify_terms(&mut sub.clone(), term, typewriter);
+        }
+
+        // If the term is a deref, we might be able to translate it
+        if let Term::Deref(deref) = term {
+            match deref {
+                Deref::Call { target, arguments } => {
+                    if let Term::App(App::Function(_, _, function)) = target.as_mut() {
+                        let mut new_writer = Typewriter::new(typewriter.scope.clone());
+                        for (i, arg) in arguments.iter().enumerate() {
+                            let param = &function.parameters[i];
+                            new_writer.scope.new_field(param.name(), param.name_expr());
+                            let param_marker = new_writer.scope.get_expr_marker(param.name_expr());
+                            Unification::unify_marker(&param_marker, &mut arg.clone(), &mut new_writer)?;
+                        }
+                        let (_, mut return_type) = App::process_function(function.clone(), &mut new_writer);
+                        return Self::unify_marker(marker, &mut return_type, typewriter);
+                    }
+                }
+                Deref::MemberType { target } => match target.as_mut() {
+                    Term::App(App::Array(member_type)) => {
+                        return Self::unify_marker(marker, member_type.as_mut(), typewriter);
+                    }
+                    Term::Type(Type::Array { member_type }) => {
+                        return Self::unify_marker(marker, &mut Term::Type(member_type.as_ref().clone()), typewriter);
+                    }
+                    Term::Marker(_) => {}
+                    _ => panic!("invalid array deref target"),
+                },
+                Deref::Field { target, field_name } => match target.as_mut() {
+                    Term::App(App::Object(fields)) => {
+                        return Self::unify_marker(marker, fields.get_mut(field_name).expect("doh"), typewriter);
+                    }
+                    Term::Impl(Impl::Fields(ops)) => {
+                        let term = ops.get_mut(field_name).expect("rats");
+                        return Self::unify_marker(marker, term, typewriter);
+                    }
+                    Term::Marker(_) => {}
+                    _ => panic!("invalid obj deref target"),
+                },
+            }
+        }
+
+        // Check for occurance -- if there is any, then we get out of here
+        if Self::occurs(marker, term, typewriter) {
+            return Ok(());
+        }
+
+        Self::new_substitution(*marker, term.clone(), typewriter)
+    }
+
+    fn unify_terms(lhs: &mut Term, rhs: &mut Term, typewriter: &mut Typewriter) -> Result<(), TypeError> {
         // If these terms are equal, there's nothing to do
         if lhs == rhs {
-            return Ok(UnificationResult::NoChange);
+            return Ok(());
         }
 
         // Normalize all inputs
-        Self::normalize(lhs, unifier);
-        Self::normalize(rhs, unifier);
+        Self::normalize(lhs, typewriter);
+        Self::normalize(rhs, typewriter);
+
+        println!("{}", Printer::term_unification(lhs, rhs));
 
         // If the lhs is a marker, unify it to the right
         if let Term::Marker(marker) = lhs {
-            return Self::unify_marker(marker, rhs, unifier);
+            return Self::unify_marker(marker, rhs, typewriter);
         }
 
         // If the rhs is a marker, unify it to the left
         if let Term::Marker(marker) = rhs {
-            return Self::unify_marker(marker, lhs, unifier);
+            return Self::unify_marker(marker, lhs, typewriter);
         }
 
         // Are these equivelent apps?
@@ -83,22 +109,22 @@ impl Unifier {
             match lhs_app {
                 App::Array(lhs_member_type) => {
                     if let Term::App(App::Array(rhs_member_type)) = rhs {
-                        Self::unify(lhs_member_type, rhs_member_type, unifier)?;
+                        Self::unify_terms(lhs_member_type, rhs_member_type, typewriter)?;
                     }
                 }
                 App::Object(lhs_fields) => {
                     if let Term::App(App::Object(rhs_fields)) = rhs {
                         for (name, field) in lhs_fields {
-                            Self::unify(field, rhs_fields.get_mut(name).expect("eh"), unifier)?;
+                            Self::unify_terms(field, rhs_fields.get_mut(name).expect("eh"), typewriter)?;
                         }
                     }
                 }
                 App::Function(lhs_parameters, lhs_return_type, _) => {
                     if let Term::App(App::Function(rhs_parameters, rhs_return_type, _)) = rhs {
                         for (i, param) in rhs_parameters.iter_mut().enumerate() {
-                            Self::unify(&mut lhs_parameters[i], param, unifier)?;
+                            Self::unify_terms(&mut lhs_parameters[i], param, typewriter)?;
                         }
-                        Self::unify(lhs_return_type, rhs_return_type, unifier)?;
+                        Self::unify_terms(lhs_return_type, rhs_return_type, typewriter)?;
                     }
                 }
             }
@@ -113,98 +139,43 @@ impl Unifier {
             }
         }
 
-        Ok(UnificationResult::NoChange)
+        Ok(())
     }
 
-    fn unify_marker(marker: &Marker, term: &mut Term, unifier: &mut Self) -> Result<UnificationResult, TypeError> {
-        println!(
-            "{}  {} ~ {}",
-            "UNIFY".bright_yellow(),
-            Printer::marker(marker),
-            Printer::term(term),
-        );
-
-        // Ensure our term is as simple as possible
-        Self::normalize(term, unifier);
-
-        // If there is an impl, we should apply it
-        if let Term::Impl(imp) = term {
-            return Self::apply_impl(marker, imp, unifier);
-        }
-
-        // If a substitution is already available for this marker, we will unify the term with that
-        if let Some(sub) = unifier.substitutions.get(marker) {
-            return Self::unify(&mut sub.clone(), term, unifier);
-        }
-
-        // If the term is a deref, we might be able to translate it
-        if let Term::Deref(deref) = term {
-            match deref {
-                Deref::Call { target, arguments } => {
-                    if let Term::App(App::Function(_, _, function)) = target.as_mut() {
-                        let mut typewriter = TypeWriter::default();
-                        for (i, arg) in arguments.iter().enumerate() {
-                            let param = &function.parameters[i];
-                            typewriter.scope.new_field(param.name(), param.name_expr());
-                            let param_marker = typewriter.scope.get_expr_marker(param.name_expr());
-                            Unifier::unify_marker(&param_marker, &mut arg.clone(), &mut typewriter.unifier)?;
-                        }
-                        let (_, mut return_type) = App::process_function(function.clone(), &mut typewriter);
-                        return Self::unify_marker(marker, &mut return_type, unifier);
-                    }
-                }
-                Deref::MemberType { target } => return Self::unify_marker(marker, target, unifier),
-                Deref::Field { target, field_name } => match target.as_mut() {
-                    Term::App(App::Object(fields)) => {
-                        return Self::unify_marker(marker, fields.get_mut(field_name).expect("doh"), unifier);
-                    }
-                    Term::Impl(Impl::Fields(ops)) => {
-                        let term = ops.get_mut(field_name).expect("rats");
-                        return Self::unify_marker(marker, term, unifier);
-                    }
-                    _ => {}
-                },
-            }
-        }
-
-        // Check for occurance -- if there is any, then we get out of here
-        if Self::occurs(marker, term, unifier) {
-            return Ok(UnificationResult::NoChange);
-        }
-
-        unifier.new_substitution(*marker, term.clone())
-    }
-
-    fn apply_impl(marker: &Marker, imp: &mut Impl, unifier: &mut Self) -> Result<UnificationResult, TypeError> {
-        if let Some(sub) = &mut unifier.substitutions.get_mut(marker).cloned() {
+    fn apply_impl(marker: &Marker, imp: &mut Impl, typewriter: &mut Typewriter) -> Result<(), TypeError> {
+        if let Some(sub) = &mut typewriter.substitutions.get_mut(marker).cloned() {
             match imp {
                 Impl::Fields(imp_fields) => match sub {
                     Term::Impl(Impl::Fields(fields)) => {
                         for (name, imp_field) in imp_fields {
                             if let Some(field) = fields.get_mut(name) {
-                                Self::unify(field, imp_field, unifier)?;
+                                Self::unify_terms(field, imp_field, typewriter)?;
                             } else {
                                 fields.insert(name.into(), imp_field.clone());
                             }
                         }
-                        unifier.new_substitution(*marker, Term::Impl(imp.clone()))
+                        Self::new_substitution(*marker, Term::Impl(imp.clone()), typewriter)
                     }
                     Term::App(App::Object(fields)) => {
                         for (name, term) in imp_fields.iter_mut() {
-                            Self::unify(fields.get_mut(name).expect("missing field being read"), term, unifier)?;
+                            Self::unify_terms(
+                                fields.get_mut(name).expect("missing field being read"),
+                                term,
+                                typewriter,
+                            )?;
                         }
-                        Ok(UnificationResult::NoChange)
+                        Ok(())
                     }
                     // maybe deref?
-                    _ => Ok(UnificationResult::NoChange),
+                    _ => Ok(()),
                 },
             }
         } else {
-            unifier.new_substitution(*marker, Term::Impl(imp.clone()))
+            Self::new_substitution(*marker, Term::Impl(imp.clone()), typewriter)
         }
     }
 
-    fn occurs(marker: &Marker, term: &Term, unifier: &Self) -> bool {
+    fn occurs(marker: &Marker, term: &Term, typewriter: &Typewriter) -> bool {
         if let Term::Marker(term_marker) = term {
             // If the term just points to our marker, then its an occurance
             if term_marker == marker {
@@ -212,19 +183,19 @@ impl Unifier {
             }
 
             // If the term exists in our substitutions, check if the sub occurs with our marker
-            if let Some(sub) = unifier.substitutions.get(term_marker) {
-                return Self::occurs(marker, sub, unifier);
+            if let Some(sub) = typewriter.substitutions.get(term_marker) {
+                return Self::occurs(marker, sub, typewriter);
             }
         }
 
         // If the term is an app, it may have our marker within it
         if let Term::App(term_app) = term {
             return match term_app {
-                App::Array(member_term) => Self::occurs(marker, member_term, unifier),
-                App::Object(fields) => fields.iter().any(|(_, field)| Self::occurs(marker, field, unifier)),
+                App::Array(member_term) => Self::occurs(marker, member_term, typewriter),
+                App::Object(fields) => fields.iter().any(|(_, field)| Self::occurs(marker, field, typewriter)),
                 App::Function(params, return_type, _) => {
-                    Self::occurs(marker, return_type, unifier)
-                        || params.iter().any(|param| Self::occurs(marker, param, unifier))
+                    Self::occurs(marker, return_type, typewriter)
+                        || params.iter().any(|param| Self::occurs(marker, param, typewriter))
                 }
             };
         }
@@ -233,88 +204,67 @@ impl Unifier {
         if let Term::Deref(deref) = term {
             return match deref {
                 Deref::Call { target, arguments } => {
-                    if Self::occurs(marker, target, unifier) {
+                    if Self::occurs(marker, target, typewriter) {
                         true
                     } else {
-                        arguments.iter().any(|arg| Self::occurs(marker, arg, unifier))
+                        arguments.iter().any(|arg| Self::occurs(marker, arg, typewriter))
                     }
                 }
-                Deref::Field { target, .. } | Deref::MemberType { target } => Self::occurs(marker, target, unifier),
+                Deref::Field { target, .. } | Deref::MemberType { target } => Self::occurs(marker, target, typewriter),
             };
         }
 
         false
     }
 
-    fn resolved(term: &Term) -> bool {
-        match term {
-            Term::Type(_) => true,
-            Term::Marker(_) => false,
-            Term::App(app) => match app {
-                App::Array(member_term) => Self::resolved(member_term),
-                App::Object(fields) => fields.iter().all(|(_, field)| Self::resolved(field)),
-                App::Function(parameters, return_type, _) => {
-                    parameters.iter().all(Self::resolved) && Self::resolved(return_type)
-                }
-            },
-            Term::Deref(_) => false,
-            Term::Impl(_) => false,
-        }
-    }
-
-    fn normalize(term: &mut Term, unifier: &mut Self) {
+    fn normalize(term: &mut Term, typewriter: &Typewriter) {
         match term {
             Term::Type(_) => {}
             Term::Marker(marker) => {
-                if let Some(sub) = unifier.substitutions.get(marker) {
+                if let Some(sub) = typewriter.substitutions.get(marker) {
                     *term = sub.clone();
                 }
             }
             Term::App(app) => match app {
-                App::Array(member_term) => Self::normalize(member_term, unifier),
-                App::Object(fields) => fields.iter_mut().for_each(|(_, f)| Self::normalize(f, unifier)),
+                App::Array(member_term) => Self::normalize(member_term, typewriter),
+                App::Object(fields) => fields.iter_mut().for_each(|(_, f)| Self::normalize(f, typewriter)),
                 App::Function(arguments, return_type, _) => {
-                    Self::normalize(return_type, unifier);
-                    arguments.iter_mut().for_each(|arg| Self::normalize(arg, unifier));
+                    Self::normalize(return_type, typewriter);
+                    arguments.iter_mut().for_each(|arg| Self::normalize(arg, typewriter));
                 }
             },
             Term::Deref(deref) => match deref {
-                Deref::Field { target, .. } => Self::normalize(target, unifier),
-                Deref::MemberType { target } => Self::normalize(target, unifier),
+                Deref::Field { target, .. } => Self::normalize(target, typewriter),
+                Deref::MemberType { target } => Self::normalize(target, typewriter),
                 Deref::Call { target, arguments } => {
-                    Self::normalize(target, unifier);
-                    arguments.iter_mut().for_each(|arg| Self::normalize(arg, unifier));
+                    Self::normalize(target, typewriter);
+                    arguments.iter_mut().for_each(|arg| Self::normalize(arg, typewriter));
                 }
             },
             Term::Impl(imp) => match imp {
-                Impl::Fields(fields) => fields.iter_mut().for_each(|(_, term)| Self::normalize(term, unifier)),
+                Impl::Fields(fields) => fields
+                    .iter_mut()
+                    .for_each(|(_, term)| Self::normalize(term, typewriter)),
             },
         }
     }
 
-    fn new_substitution(&mut self, marker: Marker, term: Term) -> Result<UnificationResult, TypeError> {
-        println!(
-            "{}    {} => {}",
-            "SUB".bright_green(),
-            Printer::marker(&marker),
-            Printer::term(&term),
-        );
-
-        let result = if Self::resolved(&term) {
-            Ok(UnificationResult::Resolved)
-        } else {
-            self.unresolved.insert(marker);
-            Ok(UnificationResult::Unresolved)
-        };
-        self.substitutions.insert(marker, term);
-        result
+    fn new_substitution(marker: Marker, term: Term, typewriter: &mut Typewriter) -> Result<(), TypeError> {
+        println!("{}", Printer::substitution(&marker, &term));
+        typewriter.substitutions.insert(marker, term);
+        let markers_needing_updates: Vec<Marker> = typewriter
+            .substitutions
+            .iter()
+            .filter(|(_, sub_term)| Unification::occurs(&marker, sub_term, typewriter))
+            .map(|(marker, _)| *marker)
+            .collect();
+        for marker in markers_needing_updates {
+            let mut term = typewriter.substitutions.remove(&marker).unwrap();
+            Self::normalize(&mut term, typewriter);
+            typewriter.substitutions.insert(marker, term);
+        }
+        Ok(())
     }
 }
 
-pub(super) enum UnificationResult {
-    Resolved,
-    Unresolved,
-    NoChange,
-}
-
-pub(super) struct TypeError(Type, Type);
+pub struct TypeError(Type, Type);

@@ -6,7 +6,7 @@ use crate::{
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use hashbrown::HashMap;
 
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Scope {
     pub self_scope: Option<Box<Scope>>,
     pub fields: HashMap<String, ExprId>,
@@ -18,7 +18,10 @@ impl Scope {
     pub fn new_persistent_scope(file_id: FileId) -> Self {
         Self {
             file_id,
-            ..Default::default()
+            self_scope: None,
+            fields: HashMap::default(),
+            markers: HashMap::default(),
+            expr_strings: HashMap::default(),
         }
     }
 
@@ -26,7 +29,9 @@ impl Scope {
         Self {
             file_id,
             self_scope: Some(Box::new(self_scope)),
-            ..Default::default()
+            fields: HashMap::default(),
+            markers: HashMap::default(),
+            expr_strings: HashMap::default(),
         }
     }
 

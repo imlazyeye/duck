@@ -1,6 +1,5 @@
 use super::*;
 use crate::parse::*;
-use colored::Colorize;
 use hashbrown::HashMap;
 
 #[derive(Debug)]
@@ -95,7 +94,7 @@ impl<'s> Constraints<'s> {
             match &function.constructor {
                 Some(_) => todo!(),
                 None => {
-                    let mut body_page = TypeWriter::default();
+                    let mut body_page = Typewriter::new(self.scope.clone());
                     for param in function.parameters.iter() {
                         body_page.scope.new_field(param.name(), param.name_expr())
                     }
@@ -191,6 +190,7 @@ impl<'s> Constraints<'s> {
                         ..
                     } => {
                         let this_expr_marker = self.scope.get_expr_marker(expr);
+                        let left_marker = self.scope.get_expr_marker(left);
 
                         // our indexes must be real
                         self.expr_eq_type(index_one, Type::Real);
@@ -205,7 +205,7 @@ impl<'s> Constraints<'s> {
                         self.expr_eq_deref(
                             expr,
                             Deref::MemberType {
-                                target: Box::new(Term::Marker(this_expr_marker)),
+                                target: Box::new(Term::Marker(left_marker)),
                             },
                         );
                     }
@@ -288,7 +288,6 @@ impl<'s> Constraints<'s> {
         }
         constraints.collection.dedup();
         for (marker, name) in constraints.scope.expr_strings.iter() {
-            println!("{}  {} : {}", "ALIAS".bright_red(), Printer::marker(marker), name);
             Printer::give_expr_alias(*marker, name.clone());
         }
         for con in constraints.collection.iter() {

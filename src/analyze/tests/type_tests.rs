@@ -3,6 +3,19 @@ use colored::Colorize;
 use hashbrown::HashMap;
 use pretty_assertions::assert_eq;
 
+struct TestTypeWriter(Typewriter);
+impl std::ops::Deref for TestTypeWriter {
+    type Target = Typewriter;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl Drop for TestTypeWriter {
+    fn drop(&mut self) {
+        Printer::flush()
+    }
+}
+
 fn harness_type_ast(source: &'static str, pairs: impl Into<Vec<(&'static str, Type)>>) {
     for (name, expected_type) in pairs.into() {
         assert_eq!(get_var_type(source, name), expected_type, "{} was wrong value!", name);
@@ -24,10 +37,11 @@ fn get_var_type(source: &'static str, name: &'static str) -> Type {
     typewriter.read_field(&Identifier::lazy(name)).unwrap()
 }
 
-fn harness_typewriter(source: &str) -> TypeWriter {
+fn harness_typewriter(source: &str) -> TestTypeWriter {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
-    let mut typewriter = TypeWriter::default();
+    let scope = Scope::new_persistent_scope(0);
+    let mut typewriter = Typewriter::new(scope);
     let mut ast = parser.into_ast().unwrap();
     typewriter.write(ast.stmts_mut());
     println!("Result for: \n{source}");
@@ -37,8 +51,7 @@ fn harness_typewriter(source: &str) -> TypeWriter {
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
         println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
     }
-
-    typewriter
+    TestTypeWriter(typewriter)
 }
 
 #[test]
@@ -321,7 +334,7 @@ fn multi_use_generic_function() {
 // }
 
 #[test]
-fn function_infer_arguments() {
+fn function_infer_array_type() {
     harness_type_expr(
         "function(a) {
             return a[0] && true;

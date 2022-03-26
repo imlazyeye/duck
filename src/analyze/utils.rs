@@ -28,8 +28,21 @@ pub struct Printer {
     iter: usize,
 }
 impl Printer {
-    pub fn give_expr_alias(_marker: Marker, _expr_string: String) {
-        // self.expr_strings.insert(marker, expr_string);
+    pub fn flush() {
+        let mut printer = PRINTER.lock().unwrap();
+        printer.aliases.clear();
+        printer.expr_strings.clear();
+        printer.iter = 0;
+    }
+
+    pub fn give_expr_alias(marker: Marker, name: String) {
+        println!(
+            "{}        {}   :   {}",
+            "ALIAS".bright_red(),
+            Printer::marker(&marker),
+            name
+        );
+        // self.expr_strings.insert(marker, name);
     }
 
     #[must_use]
@@ -45,6 +58,7 @@ impl Printer {
             } else {
                 let v = printer.iter;
                 printer.iter += 1;
+                printer.aliases.insert(*marker, v);
                 v
             };
             format!("t{}", entry)
@@ -144,20 +158,45 @@ impl Printer {
     }
 
     #[must_use]
+    pub fn term_unification(a: &Term, b: &Term) -> String {
+        format!(
+            "{}      {}   ≐   {}",
+            "UNIFY T".bright_yellow(),
+            Printer::term(a),
+            Printer::term(b),
+        )
+    }
+
+    #[must_use]
+    pub fn marker_unification(marker: &Marker, term: &Term) -> String {
+        format!(
+            "{}      {}   ≐   {}",
+            "UNIFY M".bright_yellow(),
+            Printer::marker(marker),
+            Printer::term(term),
+        )
+    }
+
+    #[must_use]
+    pub fn substitution(marker: &Marker, term: &Term) -> String {
+        format!(
+            "{}          {}   →   {}",
+            "SUB".bright_green(),
+            Printer::marker(marker),
+            Printer::term(term),
+        )
+    }
+
+    #[must_use]
     pub fn constraint(constraint: &Constraint) -> String {
-        match constraint {
-            Constraint::Eq(marker, term) => format!(
-                "{}    {} = {}",
-                "CON".bright_magenta(),
-                Self::marker(marker),
-                Self::term(term)
-            ),
-            Constraint::Impl(marker, imp) => format!(
-                "{}    {} ~> {}",
-                "CON".bright_magenta(),
-                Self::marker(marker),
-                Self::imp(imp)
-            ),
-        }
+        let (marker, term_s) = match constraint {
+            Constraint::Eq(marker, term) => (marker, Self::term(term)),
+            Constraint::Impl(marker, imp) => (marker, Self::imp(imp)),
+        };
+        format!(
+            "{}          {}   ⊆   {term_s}",
+            "CON".bright_magenta(),
+            Self::marker(marker)
+        )
     }
 }
