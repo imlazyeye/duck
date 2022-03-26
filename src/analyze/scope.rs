@@ -1,4 +1,4 @@
-use super::Marker;
+use super::*;
 use crate::{
     parse::{Expr, ExprId, Identifier},
     FileId,
@@ -50,18 +50,12 @@ impl Scope {
         self.fields.insert(name.into(), expr.id());
     }
 
-    pub fn new_generic(&mut self) -> Marker {
-        let marker = Marker::new();
-        self.generics.push(marker);
-        marker
-    }
-
     pub fn alias_expr_to_marker(&mut self, expr: &Expr, marker: Marker) {
         self.markers.insert(expr.id(), marker);
         self.expr_strings.insert(marker, expr.to_string());
     }
 
-    pub(super) fn get_expr_marker(&mut self, expr: &Expr) -> Marker {
+    pub fn get_expr_marker(&mut self, expr: &Expr) -> Marker {
         match self.markers.get(&expr.id()).copied() {
             Some(marker) => marker,
             None => {

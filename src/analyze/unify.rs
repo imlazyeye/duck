@@ -1,6 +1,4 @@
-use crate::analyze::{Deref, Page};
-
-use super::{App, Constraint, Impl, Marker, Printer, Term, Type};
+use super::*;
 use colored::Colorize;
 use hashbrown::{HashMap, HashSet};
 

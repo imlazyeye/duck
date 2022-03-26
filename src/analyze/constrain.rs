@@ -1,9 +1,5 @@
-use super::{App, Deref, Impl, Marker, Page, Printer, Scope, Term, Type};
-use crate::parse::{
-    Access, Assignment, AssignmentOp, Call, Equality, Evaluation, Expr, ExprType, Grouping, Literal,
-    LocalVariableSeries, Logical, NullCoalecence, OptionalInitilization, ParseVisitor, Postfix, Return, Stmt, StmtType,
-    Ternary, Unary, UnaryOp,
-};
+use super::*;
+use crate::parse::*;
 use colored::Colorize;
 use hashbrown::HashMap;
 

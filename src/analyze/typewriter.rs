@@ -1,4 +1,4 @@
-use super::{Constraints, Marker, Printer, Scope, Term, Type, Unifier};
+use super::*;
 use crate::{
     parse::{Ast, Identifier, Stmt},
     FileId,
