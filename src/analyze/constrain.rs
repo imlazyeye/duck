@@ -277,7 +277,7 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn new(scope: &'s mut Scope, stmts: &[Stmt]) -> Self {
+    pub fn build(scope: &'s mut Scope, stmts: &[Stmt]) -> Vec<Constraint> {
         let mut constraints = Self {
             collection: vec![],
             scope,
@@ -294,7 +294,7 @@ impl<'s> Constraints<'s> {
             println!("{}", Printer::constraint(con));
         }
         constraints.collection.reverse();
-        constraints
+        constraints.collection
     }
 
     pub fn expr_eq_type(&mut self, target: &Expr, tpe: Type) {

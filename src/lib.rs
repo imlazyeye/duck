@@ -145,7 +145,6 @@ pub mod analyze {
     mod r#trait;
     mod r#type;
     mod typewriter;
-    mod unify;
     mod utils;
     pub use app::*;
     pub use constrain::*;
@@ -156,7 +155,6 @@ pub mod analyze {
     pub use scope::*;
     pub use term::*;
     pub use typewriter::*;
-    pub use unify::*;
     pub use utils::*;
     #[cfg(test)]
     mod tests {
