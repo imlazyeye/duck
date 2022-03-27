@@ -2,6 +2,6 @@ use super::*;
 use hashbrown::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Impl {
-    Fields(HashMap<String, Term>),
+pub enum Trait {
+    Contains(HashMap<String, Term>),
 }

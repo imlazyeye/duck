@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, OptionalInitilization, ParseVisitor, Stmt};
+use crate::parse::{Expr, ExprType, IntoExpr, OptionalInitilization, ParseVisitor, Stmt, StmtType};
 
 use super::Identifier;
 
@@ -47,6 +47,14 @@ impl Function {
             parameters,
             constructor: Some(constructor),
             body,
+        }
+    }
+
+    /// Returns the list of statements in this function's body
+    pub fn body_stmts(&self) -> Vec<Stmt> {
+        match self.body.inner() {
+            StmtType::Block(body) => body.body.clone(),
+            _ => unreachable!(),
         }
     }
 }

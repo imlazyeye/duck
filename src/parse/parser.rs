@@ -862,15 +862,15 @@ impl Parser {
                 TokenType::Global => {
                     self.take()?;
                     self.require(TokenType::Dot)?;
-                    let right = self.grouping()?;
-                    let end = right.span().end();
+                    let right = self.require_identifier()?;
+                    let end = right.span.end();
                     (Access::Global { right }, end)
                 }
                 TokenType::SelfKeyword => {
                     let token = self.take()?;
                     if self.match_take(TokenType::Dot).is_some() {
-                        let right = self.grouping()?;
-                        let end = right.span().end();
+                        let right = self.require_identifier()?;
+                        let end = right.span.end();
                         (Access::Current { right }, end)
                     } else {
                         // Using self as a referencce!
@@ -882,8 +882,8 @@ impl Parser {
                 TokenType::Other => {
                     let token = self.take()?;
                     if self.match_take(TokenType::Dot).is_some() {
-                        let right = self.grouping()?;
-                        let end = right.span().end();
+                        let right = self.require_identifier()?;
+                        let end = right.span.end();
                         (Access::Other { right }, end)
                     } else {
                         // Using other as a reference!

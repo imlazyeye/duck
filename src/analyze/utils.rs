@@ -8,7 +8,8 @@ use itertools::Itertools;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub struct Marker(pub u64);
 impl Marker {
-    pub const RETURN_VALUE: Self = Marker(u64::MAX);
+    pub const RETURN: Self = Marker(u64::MAX);
+    pub const SELF: Self = Marker(u64::MAX - 1);
     pub fn new() -> Self {
         Self(rand::random())
     }
@@ -48,20 +49,24 @@ impl Printer {
     #[must_use]
     pub fn marker(marker: &Marker) -> String {
         let mut printer = PRINTER.lock().unwrap();
-        if marker == &Marker::RETURN_VALUE {
-            "tR".into()
-        } else if let Some(expr_string) = printer.expr_strings.get(marker) {
-            expr_string.clone()
-        } else {
-            let entry = if let Some(entry) = printer.aliases.get(marker) {
-                *entry
-            } else {
-                let v = printer.iter;
-                printer.iter += 1;
-                printer.aliases.insert(*marker, v);
-                v
-            };
-            format!("t{}", entry)
+        match *marker {
+            Marker::RETURN => "tR".into(),
+            Marker::SELF => "tS".into(),
+            marker => {
+                if let Some(expr_string) = printer.expr_strings.get(&marker) {
+                    expr_string.clone()
+                } else {
+                    let entry = if let Some(entry) = printer.aliases.get(&marker) {
+                        *entry
+                    } else {
+                        let v = printer.iter;
+                        printer.iter += 1;
+                        printer.aliases.insert(marker, v);
+                        v
+                    };
+                    format!("t{}", entry)
+                }
+            }
         }
         .bright_black()
         .bold()
@@ -75,7 +80,7 @@ impl Printer {
             Term::Marker(marker) => Self::marker(marker),
             Term::App(app) => Self::app(app),
             Term::Deref(deref) => Self::deref(deref),
-            Term::Impl(imp) => Self::imp(imp),
+            Term::Trait(trt) => Self::trt(trt),
         }
     }
 
@@ -121,9 +126,19 @@ impl Printer {
                     .map(|(name, term)| format!("{name}: {}", Self::term(term)))
                     .join(", ")
             ),
-            App::Function(arguments, return_type, _) => format!(
-                "({}) -> {}",
-                arguments.iter().map(Self::term).join(", "),
+            App::Function {
+                self_parameter,
+                parameters,
+                return_type,
+                ..
+            } => format!(
+                "({}{}) -> {}",
+                if let Some(param) = self_parameter {
+                    format!("self: {}", Self::term(param))
+                } else {
+                    "".into()
+                },
+                parameters.iter().map(|(_, param)| Self::term(param)).join(", "),
                 Self::term(return_type),
             ),
         }
@@ -132,8 +147,13 @@ impl Printer {
     #[must_use]
     pub fn deref(deref: &Deref) -> String {
         match deref {
-            Deref::Call { target, arguments } => format!(
-                "{}({})",
+            Deref::Call {
+                target,
+                arguments,
+                uses_new,
+            } => format!(
+                "{}{}({})",
+                if *uses_new { "new " } else { "" },
                 Self::term(target),
                 arguments.iter().map(Self::term).join(", ")
             ),
@@ -145,9 +165,9 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn imp(imp: &Impl) -> String {
-        match imp {
-            Impl::Fields(fields) => format!(
+    pub fn trt(trt: &Trait) -> String {
+        match trt {
+            Trait::Contains(fields) => format!(
                 "impl {{ {} }}",
                 fields
                     .iter()
@@ -191,7 +211,7 @@ impl Printer {
     pub fn constraint(constraint: &Constraint) -> String {
         let (marker, term_s) = match constraint {
             Constraint::Eq(marker, term) => (marker, Self::term(term)),
-            Constraint::Impl(marker, imp) => (marker, Self::imp(imp)),
+            Constraint::Trait(marker, trt) => (marker, Self::trt(trt)),
         };
         format!(
             "{}          {}   ⊆   {term_s}",

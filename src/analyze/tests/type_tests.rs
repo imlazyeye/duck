@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use crate::{analyze::*, parse::*};
 use colored::Colorize;
 use hashbrown::HashMap;
+use parking_lot::Mutex;
 use pretty_assertions::assert_eq;
 
 struct TestTypeWriter(Typewriter);
@@ -28,30 +31,30 @@ fn harness_type_expr(source: &'static str, expected_tpe: Type) {
 
 fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
-    let typewriter = harness_typewriter(source);
-    typewriter.read_field(&Identifier::lazy("a")).unwrap()
+    let (typewriter, scope) = harness_typewriter(source);
+    scope.lookup_type(&Identifier::lazy("a"), &typewriter).unwrap()
 }
 
 fn get_var_type(source: &'static str, name: &'static str) -> Type {
-    let typewriter = harness_typewriter(source);
-    typewriter.read_field(&Identifier::lazy(name)).unwrap()
+    let (typewriter, scope) = harness_typewriter(source);
+    scope.lookup_type(&Identifier::lazy(name), &typewriter).unwrap()
 }
 
-fn harness_typewriter(source: &str) -> TestTypeWriter {
+fn harness_typewriter(source: &str) -> (TestTypeWriter, Scope) {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
-    let scope = Scope::new_persistent_scope(0);
-    let mut typewriter = Typewriter::new(scope);
+    let mut scope = Scope::new();
+    let mut typewriter = Typewriter::new();
     let mut ast = parser.into_ast().unwrap();
-    typewriter.write(ast.stmts_mut());
+    typewriter.write(&mut scope, ast.stmts_mut());
     println!("Result for: \n{source}");
-    for (name, _) in typewriter.scope.fields.iter() {
-        let tpe = typewriter.read_field(&Identifier::lazy(name)).unwrap();
+    for name in scope.local_fields().iter() {
         let str = name.bright_black();
+        let tpe = scope.lookup_type(&Identifier::lazy(name), &typewriter).unwrap();
         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
         println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
     }
-    TestTypeWriter(typewriter)
+    (TestTypeWriter(typewriter), scope)
 }
 
 #[test]
@@ -244,9 +247,18 @@ fn complicated_data() {
 }
 
 #[test]
-fn call() {
+fn default_return_value() {
     harness_type_ast(
-        "var foo = function() {
+        "function foo() {}
+        var bar = foo();",
+        [("bar", Type::Undefined)],
+    )
+}
+
+#[test]
+fn constant_return_value() {
+    harness_type_ast(
+        "function foo() {
             return 0;
         }
         var bar = foo();",
@@ -257,21 +269,18 @@ fn call() {
 #[test]
 fn simple_generic_function() {
     harness_type_ast(
-        "var foo = function(a, b) {
-            return a(0) + b(0) * 5;
+        "function foo(a) {
+            return a;
         }
-        var bar = function(b) { 
-            return b;
-        }
-        var buzz = foo(bar, bar)",
-        [("buzz", Type::Real)],
+        var bar = foo(0)",
+        [("bar", Type::Real)],
     );
 }
 
 #[test]
 fn generic_function() {
     harness_type_ast(
-        "var foo = function(a) {
+        "function foo(a) {
             return a[0];
         }
         var bar = foo([0])",
@@ -377,6 +386,103 @@ fn field_trait() {
                     ("b".into(), Type::Real),
                     ("c".into(), Type::Real),
                 ]),
+            },
+        )],
+    );
+}
+
+#[test]
+fn self_assignment() {
+    harness_type_ast("foo = 0", [("foo", Type::Real)]);
+}
+
+#[test]
+fn self_assignment_with_keyword() {
+    harness_type_ast("self.foo = 0", [("foo", Type::Real)]);
+}
+
+// foo = 0;
+// var bar = 0;
+//
+// local = {};
+// self = {};
+// self.foo = 0;
+// local.bar = 0;
+//
+
+#[test]
+fn mutate_self_via_function() {
+    harness_type_ast(
+        "function foo() {
+            self.a = 0;
+        }
+        foo();",
+        [("a", Type::Real)],
+    );
+}
+
+#[test]
+fn mutate_self_via_nested_function() {
+    harness_type_ast(
+        "function foo() {
+            self.a = 0;
+        }
+        function bar(foo) {
+            foo();
+        }
+        bar(foo);",
+        [("a", Type::Real)],
+    );
+}
+
+#[test]
+fn constructor() {
+    harness_type_ast(
+        "function Foo() constructor {
+            self.a = 0;
+        }
+        var foo = new Foo();",
+        [(
+            "foo",
+            Type::Struct {
+                fields: HashMap::from([("a".into(), Type::Real)]),
+            },
+        )],
+    );
+}
+
+#[test]
+fn manual_inheritance() {
+    harness_type_ast(
+        "function Foo() {
+            self.a = 0;
+        }
+        function Bar(foo) constructor {
+            foo();
+        }
+        var bar = new Bar(Foo);",
+        [(
+            "bar",
+            Type::Struct {
+                fields: HashMap::from([("a".into(), Type::Real)]),
+            },
+        )],
+    );
+}
+
+#[test]
+fn inheritance() {
+    harness_type_ast(
+        "function Foo() constructor {
+            self.a = 0;
+        }
+        function Bar() : Foo() constructor {
+        }
+        var bar = new Bar();",
+        [(
+            "bar",
+            Type::Struct {
+                fields: HashMap::from([("a".into(), Type::Real)]),
             },
         )],
     );

@@ -76,6 +76,14 @@ impl ExprType {
             _ => None,
         }
     }
+
+    /// Returns the expression as a Call or None.
+    pub fn as_call(&self) -> Option<&Call> {
+        match self {
+            ExprType::Call(inner) => Some(inner),
+            _ => None,
+        }
+    }
 }
 impl IntoExpr for ExprType {}
 

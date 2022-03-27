@@ -18,7 +18,6 @@ impl Identifier {
     }
 
     /// Creates a new identifier with a default span.
-    #[cfg(test)]
     pub fn lazy(lexeme: impl Into<String>) -> Self {
         Self::new(lexeme, Span::default())
     }

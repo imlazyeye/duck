@@ -8,18 +8,18 @@ pub enum Access {
     /// Accessing the global scope via `global.`.
     Global {
         /// The value being extracted from the global scope.
-        right: Expr,
+        right: Identifier,
     },
     /// Accessing the current scope via `self`. (This would be called `Self`, but its reserved by
     /// rust.)
     Current {
         /// The value being extracted from the local scope.
-        right: Expr,
+        right: Identifier,
     },
     /// Accessing the scope above the current one via `other`.
     Other {
         /// The value being extracted from the other scope.
-        right: Expr,
+        right: Identifier,
     },
     /// Dot access with any struct or object.
     Dot {
@@ -88,7 +88,7 @@ impl IntoExpr for Access {}
 impl ParseVisitor for Access {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         match self {
-            Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
+            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {},
             Access::Dot { left, .. } => visitor(left),
             Access::Map { left, key: right }
             | Access::List { left, index: right }
@@ -121,7 +121,7 @@ impl ParseVisitor for Access {
     }
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         match self {
-            Access::Global { right } | Access::Current { right } | Access::Other { right } => visitor(right),
+            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {},
             Access::Dot { left, .. } => visitor(left),
             Access::Map { left, key: right }
             | Access::List { left, index: right }

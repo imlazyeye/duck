@@ -79,13 +79,7 @@ impl EarlyExprPass for CasingRules {
                 }
             }
             ExprType::Access(Access::Global { right, .. }) => {
-                Self::check_for(
-                    right.inner().as_identifier().unwrap(),
-                    config.casing_rules.global_rule,
-                    expr.file_id(),
-                    config,
-                    reports,
-                );
+                Self::check_for(right, config.casing_rules.global_rule, expr.file_id(), config, reports);
             }
             _ => {}
         }

@@ -575,7 +575,7 @@ fn dot_assign() {
         "self.foo = 1",
         Assignment::new(
             Access::Current {
-                right: Identifier::lazy("foo").into_expr_lazy(),
+                right: Identifier::lazy("foo"),
             }
             .into_expr_lazy(),
             AssignmentOp::Identity(Token::lazy(TokenType::Equal)),

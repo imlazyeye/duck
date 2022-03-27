@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::{
     parse::{Identifier, Stmt},
@@ -5,68 +7,54 @@ use crate::{
 };
 use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;
+use parking_lot::Mutex;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Typewriter {
-    pub scope: Scope,
     pub substitutions: HashMap<Marker, Term>,
     pub collection: Vec<Constraint>,
 }
 
 // General
 impl Typewriter {
-    pub fn new(scope: Scope) -> Self {
+    pub fn new() -> Self {
         Self {
-            scope,
             substitutions: HashMap::default(),
             collection: Vec::default(),
         }
     }
 
-    pub fn write(&mut self, stmts: &[Stmt]) {
-        println!("\n--- Start TypeWriter::write... ---\n");
-        let constraints = Constraints::build(&mut self.scope, stmts);
-        self.apply_constraints(constraints);
+    pub fn write(&mut self, scope: &mut Scope, stmts: &[Stmt]) {
+        let constraints = Constraints::build(scope, self, stmts);
+        self.apply_constraints(constraints, scope);
         println!("\nFinal substitutions:");
         self.substitutions
             .iter()
             .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term)));
-        println!("\n--- Ending TypeWriter::write... ---\n");
+        println!("Local fields in scope: {:?}", scope.local_fields());
+        println!("Fields in self: {:?}\n", scope.namespace_fields());
     }
 
-    /// ### Errors
-    /// Returns an error if the field is not in scope.
-    pub fn read_field(&self, identifier: &Identifier) -> Result<Type, Diagnostic<FileId>> {
-        self.scope
-            .field_marker(identifier)
-            .map(|marker| self.marker_to_type(marker))
-    }
-
-    pub fn return_term(&self) -> Term {
-        let tpe = self.marker_to_term(Marker::RETURN_VALUE);
-        if let Term::Marker(Marker::RETURN_VALUE) = tpe {
-            Term::Type(Type::Undefined)
+    pub fn return_term(&mut self) -> Term {
+        if let Some(term) = self.substitutions.get(&Marker::RETURN) {
+            term.clone()
         } else {
-            tpe
+            Term::Type(Type::Undefined)
         }
     }
 
-    pub fn marker_to_type(&self, marker: Marker) -> Type {
-        self.marker_to_term(marker).into()
-    }
-
-    pub fn marker_to_term(&self, marker: Marker) -> Term {
+    pub fn find_term(&self, marker: Marker) -> Term {
         self.substitutions.get(&marker).cloned().unwrap_or(Term::Marker(marker))
     }
 }
 
 // Unification
 impl Typewriter {
-    pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>) {
+    pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, scope: &mut Scope) {
         while let Some(mut pattern) = constraints.pop() {
             let result = match &mut pattern {
-                Constraint::Eq(marker, term) => self.unify_marker(marker, term),
-                Constraint::Impl(marker, imp) => self.apply_impl(marker, imp),
+                Constraint::Eq(marker, term) => self.unify_marker(marker, term, scope),
+                Constraint::Trait(marker, trt) => self.apply_impl(marker, trt, scope),
             };
             if let Err(TypeError(lhs, rhs)) = result {
                 panic!(
@@ -78,57 +66,128 @@ impl Typewriter {
         }
     }
 
-    fn unify_marker(&mut self, marker: &Marker, term: &mut Term) -> Result<(), TypeError> {
+    pub(super) fn unify_marker(
+        &mut self,
+        marker: &Marker,
+        term: &mut Term,
+        scope: &mut Scope,
+    ) -> Result<(), TypeError> {
         // Ensure our term is as simple as possible
         self.normalize(term);
 
         println!("{}", Printer::marker_unification(marker, term));
 
         // If there is an impl, we should apply it
-        if let Term::Impl(imp) = term {
-            return self.apply_impl(marker, imp);
+        if let Term::Trait(trt) = term {
+            return self.apply_impl(marker, trt, scope);
         }
 
         // If a substitution is already available for this marker, we will unify the term with that
         if let Some(sub) = &mut self.substitutions.get_mut(marker).cloned() {
-            return self.unify_terms(sub, term);
+            return self.unify_terms(sub, term, scope);
         }
 
         // If the term is a deref, we might be able to translate it
         if let Term::Deref(deref) = term {
             match deref {
-                Deref::Call { target, arguments } => {
-                    if let Term::App(App::Function(_, _, function)) = target.as_mut() {
-                        let mut new_writer = Typewriter::new(self.scope.clone());
-                        for (i, arg) in arguments.iter().enumerate() {
-                            let param = &function.parameters[i];
-                            new_writer.scope.new_field(param.name(), param.name_expr());
-                            let param_marker = new_writer.scope.get_expr_marker(param.name_expr());
-                            new_writer.unify_marker(&param_marker, &mut arg.clone())?;
+                Deref::Call {
+                    target,
+                    arguments,
+                    uses_new,
+                } => {
+                    if let Term::App(App::Function {
+                        self_parameter,
+                        parameters,
+                        return_type,
+                        body,
+                    }) = target.as_mut()
+                    {
+                        println!("\n--- Calling function... ---\n");
+                        // Create a temporary scope and typewriter to execute our work in
+                        let mut call_scope = Scope::new();
+                        let mut call_writer = Typewriter::new();
+
+                        // Unify the parameters with our arguments
+                        for (i, arg) in arguments.iter_mut().enumerate() {
+                            let (name, param) = &mut parameters[i];
+                            let inject_marker = call_scope.inject_to_local(name.clone(), arg.clone());
+                            call_writer.new_substitution(inject_marker, arg.clone())?;
                         }
-                        let (_, mut return_type) = App::process_function(function.clone(), &mut new_writer);
-                        return self.unify_marker(marker, &mut return_type);
+
+                        // Run the function
+                        call_writer.write(&mut call_scope, body);
+                        println!("\n--- Ending call... ---\n");
+
+                        // If we used new, we override the return type to be the self parameter
+                        if *uses_new {
+                            *return_type = Box::new(Term::App(App::Object(
+                                call_scope
+                                    .namespace_fields()
+                                    .into_iter()
+                                    .map(|name| {
+                                        (
+                                            name.clone(),
+                                            call_scope
+                                                .lookup_term(&Identifier::lazy(name), &call_writer)
+                                                .expect("uhdsfase"),
+                                        )
+                                    })
+                                    .collect(),
+                            )));
+                        } else {
+                            // Otherwise, it's whatever the function actually returned.
+                            *return_type = Box::new(call_writer.return_term());
+                        }
+
+                        // Apply the rules of this function to us
+                        for name in call_scope.namespace_fields() {
+                            if !scope.has_field(&name) {
+                                let field = call_scope
+                                    .lookup_term(&Identifier::lazy(name.clone()), &call_writer)
+                                    .expect("uhdsfase");
+                                let marker = scope.inject_to_namespace(name.clone(), field.clone());
+                                self.new_substitution(marker, field.clone())?;
+                            }
+                        }
+                        match self_parameter {
+                            Some(self_term) => match self_term.as_ref() {
+                                Term::Trait(Trait::Contains(fields)) => {
+                                    for (name, field) in fields {
+                                        if !scope.has_field(name) {
+                                            let marker = scope.inject_to_namespace(name.clone(), field.clone());
+                                            self.new_substitution(marker, field.clone())?;
+                                        }
+                                    }
+                                }
+                                _ => panic!(),
+                            },
+                            None => {}
+                        }
+
+                        // Now unify us with the result
+                        return self.unify_marker(marker, return_type, scope);
                     }
                 }
                 Deref::MemberType { target } => match target.as_mut() {
                     Term::App(App::Array(member_type)) => {
-                        return self.unify_marker(marker, member_type.as_mut());
+                        return self.unify_marker(marker, member_type.as_mut(), scope);
                     }
                     Term::Type(Type::Array { member_type }) => {
-                        return self.unify_marker(marker, &mut Term::Type(member_type.as_ref().clone()));
+                        return self.unify_marker(marker, &mut Term::Type(member_type.as_ref().clone()), scope);
                     }
                     Term::Marker(_) => {}
                     _ => panic!("invalid array deref target"),
                 },
                 Deref::Field { target, field_name } => match target.as_mut() {
                     Term::App(App::Object(fields)) => {
-                        return self.unify_marker(marker, fields.get_mut(field_name).expect("doh"));
+                        return self.unify_marker(marker, fields.get_mut(field_name).expect("doh"), scope);
                     }
-                    Term::Impl(Impl::Fields(ops)) => {
+                    Term::Trait(Trait::Contains(ops)) => {
                         let term = ops.get_mut(field_name).expect("rats");
-                        return self.unify_marker(marker, term);
+                        return self.unify_marker(marker, term, scope);
                     }
                     Term::Marker(_) => {}
+                    Term::Deref(Deref::Call { .. }) => {}
                     _ => panic!("invalid obj deref target"),
                 },
             }
@@ -142,7 +201,7 @@ impl Typewriter {
         Ok(())
     }
 
-    fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term) -> Result<(), TypeError> {
+    fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term, scope: &mut Scope) -> Result<(), TypeError> {
         // If these terms are equal, there's nothing to do
         if lhs == rhs {
             return Ok(());
@@ -156,12 +215,12 @@ impl Typewriter {
 
         // If the lhs is a marker, unify it to the right
         if let Term::Marker(marker) = lhs {
-            return self.unify_marker(marker, rhs);
+            return self.unify_marker(marker, rhs, scope);
         }
 
         // If the rhs is a marker, unify it to the left
         if let Term::Marker(marker) = rhs {
-            return self.unify_marker(marker, lhs);
+            return self.unify_marker(marker, lhs, scope);
         }
 
         // Are these equivelent apps?
@@ -169,22 +228,33 @@ impl Typewriter {
             match lhs_app {
                 App::Array(lhs_member_type) => {
                     if let Term::App(App::Array(rhs_member_type)) = rhs {
-                        self.unify_terms(lhs_member_type, rhs_member_type)?;
+                        self.unify_terms(lhs_member_type, rhs_member_type, scope)?;
                     }
                 }
                 App::Object(lhs_fields) => {
                     if let Term::App(App::Object(rhs_fields)) = rhs {
                         for (name, field) in lhs_fields {
-                            self.unify_terms(field, rhs_fields.get_mut(name).expect("eh"))?;
+                            self.unify_terms(field, rhs_fields.get_mut(name).expect("eh"), scope)?;
                         }
                     }
                 }
-                App::Function(lhs_parameters, lhs_return_type, _) => {
-                    if let Term::App(App::Function(rhs_parameters, rhs_return_type, _)) = rhs {
-                        for (i, param) in rhs_parameters.iter_mut().enumerate() {
-                            self.unify_terms(&mut lhs_parameters[i], param)?;
+                App::Function {
+                    self_parameter: lhs_self,
+                    parameters: lhs_params,
+                    return_type: lhs_return,
+                    ..
+                } => {
+                    if let Term::App(App::Function {
+                        self_parameter: rhs_self,
+                        parameters: rhs_params,
+                        return_type: rhs_return,
+                        ..
+                    }) = rhs
+                    {
+                        for (i, (_, param)) in rhs_params.iter_mut().enumerate() {
+                            self.unify_terms(&mut lhs_params[i].1, param, scope)?;
                         }
-                        self.unify_terms(lhs_return_type, rhs_return_type)?;
+                        self.unify_terms(lhs_return, rhs_return, scope)?;
                     }
                 }
             }
@@ -202,23 +272,23 @@ impl Typewriter {
         Ok(())
     }
 
-    fn apply_impl(&mut self, marker: &Marker, imp: &mut Impl) -> Result<(), TypeError> {
+    fn apply_impl(&mut self, marker: &Marker, trt: &mut Trait, scope: &mut Scope) -> Result<(), TypeError> {
         if let Some(sub) = &mut self.substitutions.get_mut(marker).cloned() {
-            match imp {
-                Impl::Fields(imp_fields) => match sub {
-                    Term::Impl(Impl::Fields(fields)) => {
+            match trt {
+                Trait::Contains(imp_fields) => match sub {
+                    Term::Trait(Trait::Contains(fields)) => {
                         for (name, imp_field) in imp_fields {
                             if let Some(field) = fields.get_mut(name) {
-                                self.unify_terms(field, imp_field)?;
+                                self.unify_terms(field, imp_field, scope)?;
                             } else {
                                 fields.insert(name.into(), imp_field.clone());
                             }
                         }
-                        self.new_substitution(*marker, Term::Impl(imp.clone()))
+                        self.new_substitution(*marker, Term::Trait(trt.clone()))
                     }
                     Term::App(App::Object(fields)) => {
                         for (name, term) in imp_fields.iter_mut() {
-                            self.unify_terms(fields.get_mut(name).expect("missing field being read"), term)?;
+                            self.unify_terms(fields.get_mut(name).expect("missing field being read"), term, scope)?;
                         }
                         Ok(())
                     }
@@ -227,7 +297,7 @@ impl Typewriter {
                 },
             }
         } else {
-            self.new_substitution(*marker, Term::Impl(imp.clone()))
+            self.new_substitution(*marker, Term::Trait(trt.clone()))
         }
     }
 
@@ -249,8 +319,17 @@ impl Typewriter {
             return match term_app {
                 App::Array(member_term) => self.occurs(marker, member_term),
                 App::Object(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
-                App::Function(params, return_type, _) => {
-                    self.occurs(marker, return_type) || params.iter().any(|param| self.occurs(marker, param))
+                App::Function {
+                    self_parameter,
+                    parameters,
+                    return_type,
+                    ..
+                } => {
+                    self_parameter
+                        .as_ref()
+                        .map_or(false, |param| self.occurs(marker, param))
+                        || self.occurs(marker, return_type)
+                        || parameters.iter().any(|(_, param)| self.occurs(marker, param))
                 }
             };
         }
@@ -258,7 +337,7 @@ impl Typewriter {
         // If the term is a deref, it might be dereffing our marker
         if let Term::Deref(deref) = term {
             return match deref {
-                Deref::Call { target, arguments } => {
+                Deref::Call { target, arguments, .. } => {
                     if self.occurs(marker, target) {
                         true
                     } else {
@@ -283,21 +362,29 @@ impl Typewriter {
             Term::App(app) => match app {
                 App::Array(member_term) => self.normalize(member_term),
                 App::Object(fields) => fields.iter_mut().for_each(|(_, f)| self.normalize(f)),
-                App::Function(arguments, return_type, _) => {
+                App::Function {
+                    self_parameter,
+                    parameters,
+                    return_type,
+                    ..
+                } => {
+                    if let Some(self_parameter) = self_parameter {
+                        self.normalize(self_parameter);
+                    }
                     self.normalize(return_type);
-                    arguments.iter_mut().for_each(|arg| self.normalize(arg));
+                    parameters.iter_mut().for_each(|(_, param)| self.normalize(param));
                 }
             },
             Term::Deref(deref) => match deref {
                 Deref::Field { target, .. } => self.normalize(target),
                 Deref::MemberType { target } => self.normalize(target),
-                Deref::Call { target, arguments } => {
+                Deref::Call { target, arguments, .. } => {
                     self.normalize(target);
                     arguments.iter_mut().for_each(|arg| self.normalize(arg));
                 }
             },
-            Term::Impl(imp) => match imp {
-                Impl::Fields(fields) => fields.iter_mut().for_each(|(_, term)| self.normalize(term)),
+            Term::Trait(trt) => match trt {
+                Trait::Contains(fields) => fields.iter_mut().for_each(|(_, term)| self.normalize(term)),
             },
         }
     }

@@ -563,7 +563,7 @@ fn dot_unary() {
         Unary::new(
             UnaryOp::Not(Token::lazy(TokenType::Bang)),
             Access::Current {
-                right: Identifier::lazy("foo").into_expr_lazy(),
+                right: Identifier::lazy("foo"),
             }
             .into_expr_lazy(),
         ),
@@ -648,7 +648,7 @@ fn dot_postfix() {
         "self.foo++",
         Postfix::new(
             Access::Current {
-                right: Identifier::lazy("foo").into_expr_lazy(),
+                right: Identifier::lazy("foo"),
             }
             .into_expr_lazy(),
             PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
@@ -990,7 +990,7 @@ fn global_dot_access() {
     harness_expr(
         "global.bar",
         Access::Global {
-            right: Identifier::lazy("bar").into_expr_lazy(),
+            right: Identifier::lazy("bar"),
         },
     );
 }
@@ -1000,7 +1000,7 @@ fn self_dot_access() {
     harness_expr(
         "self.bar",
         Access::Current {
-            right: Identifier::lazy("bar").into_expr_lazy(),
+            right: Identifier::lazy("bar"),
         },
     );
 }
@@ -1010,7 +1010,7 @@ fn other_dot_access() {
     harness_expr(
         "other.bar",
         Access::Other {
-            right: Identifier::lazy("bar").into_expr_lazy(),
+            right: Identifier::lazy("bar"),
         },
     );
 }

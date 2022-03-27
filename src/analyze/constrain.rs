@@ -1,63 +1,66 @@
+use std::sync::Arc;
+
 use super::*;
 use crate::parse::*;
 use hashbrown::HashMap;
+use parking_lot::Mutex;
 
 #[derive(Debug)]
 pub(super) struct Constraints<'s> {
     pub collection: Vec<Constraint>,
     scope: &'s mut Scope,
-    in_write: bool,
+    typewriter: &'s mut Typewriter,
 }
 
 // Constraining
 impl<'s> Constraints<'s> {
     fn constrain_stmt(&mut self, stmt: &Stmt) {
-        if let StmtType::Assignment(Assignment { left, op, right }) = stmt.inner() {
-            self.in_write = true;
-            stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
-            stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
-            match left.inner() {
-                ExprType::Identifier(iden) => {
-                    if let AssignmentOp::Identity(_) = op {
-                        if !self.scope.has_field(&iden.lexeme) {
-                            self.scope.new_field(iden.lexeme.clone(), left);
-                            self.expr_eq_expr(left, right);
-                        } else {
-                            // validate that the new type is equal to the last type? shadowing is a
-                            // problem
-                        }
-                    }
-                }
-                ExprType::Access(Access::Dot {
-                    left: obj,
-                    right: field,
-                }) => {
-                    let right_marker = self.scope.get_expr_marker(right);
-                    self.expr_impl(
-                        obj,
-                        Impl::Fields(HashMap::from([(field.lexeme.clone(), Term::Marker(right_marker))])),
-                    );
-                }
-                _ => {}
-            }
-            self.in_write = false;
-            return;
-        }
-
         stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
         stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
         match stmt.inner() {
-            StmtType::Assignment(_) => {}
+            StmtType::Assignment(Assignment { left, op, right }) => {
+                match left.inner() {
+                    ExprType::Identifier(iden) => {
+                        if let AssignmentOp::Identity(_) = op {
+                            // Check if a local variable for this already exists
+                            if self.scope.has_local_field(&iden.lexeme) {
+                                // do nothing for now
+                            } else if !self.scope.has_namespace_field(&iden.lexeme) {
+                                self.scope.declare_to_namespace(iden.lexeme.clone(), left);
+                            }
+                            self.expr_eq_expr(left, right);
+                        }
+                    }
+                    ExprType::Access(Access::Current { right: self_right }) => {
+                        if !self.scope.has_namespace_field(&self_right.lexeme) {
+                            self.scope.declare_to_namespace(self_right.lexeme.clone(), left);
+                        }
+                        self.expr_eq_expr(left, right);
+                    }
+                    ExprType::Access(Access::Dot {
+                        left: obj,
+                        right: field,
+                    }) => {
+                        self.expr_impl(
+                            obj,
+                            Trait::Contains(HashMap::from([(field.lexeme.clone(), Term::Marker(Marker::new()))])), // this feels wrong
+                        );
+                    }
+                    _ => {}
+                }
+            }
             StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {
-                    if let OptionalInitilization::Uninitialized(expr) = initializer {
-                        let iden = initializer.name_identifier();
-                        if !self.scope.has_field(&iden.lexeme) {
-                            self.scope.new_field(iden.lexeme.clone(), expr);
-                            self.expr_eq_type(expr, Type::Undefined);
-                        } else {
-                            // validate that the new type is equal to the last type? shadowing is a
-                            // problem
+                    let expr = initializer.name_expr();
+                    let iden = initializer.name_identifier();
+                    if !self.scope.has_local_field(&iden.lexeme) {
+                        self.scope.declare_local(iden.lexeme.clone(), expr);
+                    }
+                    match initializer {
+                        OptionalInitilization::Uninitialized(_) => self.expr_eq_type(expr, Type::Undefined),
+                        OptionalInitilization::Initialized(_) => {
+                            let assign = initializer.assignment_value().unwrap();
+                            self.expr_eq_expr(expr, assign);
                         }
                     }
                 }
@@ -68,10 +71,10 @@ impl<'s> Constraints<'s> {
 
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
-                    let marker = self.scope.get_expr_marker(value);
-                    self.marker_eq_symbol(Marker::RETURN_VALUE, Term::Marker(marker));
+                    let marker = self.scope.ensure_alias(value);
+                    self.marker_eq_symbol(Marker::RETURN, Term::Marker(marker));
                 } else {
-                    self.marker_eq_symbol(Marker::RETURN_VALUE, Term::Type(Type::Undefined));
+                    self.marker_eq_symbol(Marker::RETURN, Term::Type(Type::Undefined));
                 }
             }
 
@@ -84,24 +87,70 @@ impl<'s> Constraints<'s> {
         if let ExprType::FunctionDeclaration(function) = expr.inner() {
             if let Some(iden) = &function.name {
                 if !self.scope.has_field(&iden.lexeme) {
-                    self.scope.new_field(iden.lexeme.clone(), expr);
+                    self.scope.declare_to_namespace(iden.lexeme.clone(), expr);
                 } else {
                     // validate that the new type is equal to the last type? shadowing is a
                     // problem
                 }
             }
 
-            match &function.constructor {
-                Some(_) => todo!(),
-                None => {
-                    let mut body_page = Typewriter::new(self.scope.clone());
-                    for param in function.parameters.iter() {
-                        body_page.scope.new_field(param.name(), param.name_expr())
-                    }
-                    let (parameters, return_type) = App::process_function(function.clone(), &mut body_page);
-                    self.expr_eq_app(expr, App::Function(parameters, return_type, function.clone()));
-                }
+            let mut func_scope = Scope::new();
+
+            for param in function.parameters.iter() {
+                func_scope.declare_local(param.name().into(), param.name_expr());
             }
+
+            let mut body = match function.body.inner() {
+                StmtType::Block(Block { body, .. }) => body.clone(),
+                _ => unreachable!(),
+            };
+
+            if let Some(Constructor::WithInheritance(parent)) = &function.constructor {
+                self.constrain_expr(parent);
+                body.insert(0, parent.clone().into_stmt_lazy());
+            };
+
+            let mut func_writer = self.typewriter.clone();
+            println!("\n--- Processing function... ---\n");
+            func_writer.write(&mut func_scope, &body);
+            println!("\n--- Ending process... ---\n");
+
+            let mut parameters = Vec::new();
+            for param in function.parameters.iter() {
+                let param_marker = func_scope.ensure_alias(param.name_expr());
+                let param_term = func_writer.find_term(param_marker);
+                parameters.push((param.name().into(), param_term));
+            }
+
+            // If the function has any fields in its namespace, then it is generic over some self
+            let namespace_fields = func_scope.namespace_fields();
+            let self_parameter = if !namespace_fields.is_empty() {
+                let fields = func_scope
+                    .namespace_fields()
+                    .into_iter()
+                    .map(|name| {
+                        (
+                            name.clone(),
+                            func_scope
+                                .lookup_term(&Identifier::lazy(name), &func_writer)
+                                .expect("not possible"),
+                        )
+                    })
+                    .collect();
+                Some(Box::new(Term::Trait(Trait::Contains(fields))))
+            } else {
+                None
+            };
+
+            self.expr_eq_app(
+                expr,
+                App::Function {
+                    self_parameter,
+                    parameters,
+                    return_type: Box::new(func_writer.return_term()),
+                    body: function.body_stmts(),
+                },
+            );
 
             // We return, as *we* handeled visiting the children.
             return;
@@ -167,11 +216,11 @@ impl<'s> Constraints<'s> {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        let this_expr_marker = self.scope.get_expr_marker(expr);
-                        let left_marker = self.scope.get_expr_marker(left);
+                        let this_expr_marker = self.scope.ensure_alias(expr);
+                        let left_marker = self.scope.ensure_alias(left);
                         self.expr_impl(
                             left,
-                            Impl::Fields(HashMap::from([(right.lexeme.clone(), Term::Marker(this_expr_marker))])),
+                            Trait::Contains(HashMap::from([(right.lexeme.clone(), Term::Marker(this_expr_marker))])),
                         );
 
                         // constrain the result of this expression to the field
@@ -189,8 +238,8 @@ impl<'s> Constraints<'s> {
                         index_two,
                         ..
                     } => {
-                        let this_expr_marker = self.scope.get_expr_marker(expr);
-                        let left_marker = self.scope.get_expr_marker(left);
+                        let this_expr_marker = self.scope.ensure_alias(expr);
+                        let left_marker = self.scope.ensure_alias(left);
 
                         // our indexes must be real
                         self.expr_eq_type(index_one, Type::Real);
@@ -215,16 +264,21 @@ impl<'s> Constraints<'s> {
                     Access::List { .. } => {}
                 }
             }
-            ExprType::Call(Call { left, arguments, .. }) => {
-                // let imp = Impl::ReturnType(Box::new(Term::Marker(self.scope.get_expr_marker(expr))));
-                // self.expr_impl(left, imp);
-                let left_marker = self.scope.get_expr_marker(left);
+            ExprType::Call(Call {
+                left,
+                arguments,
+                uses_new,
+            }) => {
+                // let trt = Trait::ReturnType(Box::new(Term::Marker(self.scope.ensure_alias(expr))));
+                // self.expr_impl(left, trt);
+                let left_marker = self.scope.ensure_alias(left);
                 let deref = Deref::Call {
                     target: Box::new(Term::Marker(left_marker)),
                     arguments: arguments
                         .iter()
-                        .map(|arg| Term::Marker(self.scope.get_expr_marker(arg)))
+                        .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
                         .collect(),
+                    uses_new: *uses_new,
                 };
                 self.expr_eq_deref(expr, deref);
             }
@@ -233,8 +287,8 @@ impl<'s> Constraints<'s> {
             }
 
             ExprType::Identifier(iden) => {
-                if let Ok(marker) = self.scope.field_marker(iden) {
-                    self.scope.alias_expr_to_marker(expr, marker);
+                if let Ok(marker) = self.scope.lookup_marker(iden) {
+                    self.scope.alias_expr_to(expr, marker);
                 }
             }
             ExprType::Literal(literal) => {
@@ -247,7 +301,7 @@ impl<'s> Constraints<'s> {
                     Literal::Misc(_) => Type::Unknown,
                     Literal::Array(exprs) => {
                         // Infer the type based on the first member
-                        let app = if let Some(marker) = exprs.first().map(|expr| self.scope.get_expr_marker(expr)) {
+                        let app = if let Some(marker) = exprs.first().map(|expr| self.scope.ensure_alias(expr)) {
                             App::Array(Box::new(Term::Marker(marker)))
                         } else {
                             App::Array(Box::new(Term::Type(Type::Unknown))) // todo will this resolve?
@@ -262,7 +316,7 @@ impl<'s> Constraints<'s> {
                         for declaration in declarations {
                             fields.insert(
                                 declaration.0.lexeme.clone(),
-                                Term::Marker(self.scope.get_expr_marker(&declaration.1)),
+                                Term::Marker(self.scope.ensure_alias(&declaration.1)),
                             );
                         }
                         self.expr_eq_app(expr, App::Object(fields));
@@ -277,19 +331,19 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn build(scope: &'s mut Scope, stmts: &[Stmt]) -> Vec<Constraint> {
+    pub fn build(scope: &'s mut Scope, typewriter: &'s mut Typewriter, stmts: &[Stmt]) -> Vec<Constraint> {
         let mut constraints = Self {
             collection: vec![],
+            typewriter,
             scope,
-            in_write: false,
         };
         for stmt in stmts.iter() {
             constraints.constrain_stmt(stmt);
         }
         constraints.collection.dedup();
-        for (marker, name) in constraints.scope.expr_strings.iter() {
-            Printer::give_expr_alias(*marker, name.clone());
-        }
+        // for (marker, name) in constraints.scope.expr_strings.iter() {
+        //     Printer::give_expr_alias(*marker, name.clone());
+        // }
         for con in constraints.collection.iter() {
             println!("{}", Printer::constraint(con));
         }
@@ -302,7 +356,7 @@ impl<'s> Constraints<'s> {
     }
 
     pub fn expr_eq_expr(&mut self, target: &Expr, expr: &Expr) {
-        let marker = self.scope.get_expr_marker(expr);
+        let marker = self.scope.ensure_alias(expr);
         self.expr_eq_term(target, Term::Marker(marker))
     }
 
@@ -314,18 +368,18 @@ impl<'s> Constraints<'s> {
         self.expr_eq_term(target, Term::Deref(deref))
     }
 
-    pub fn expr_impl(&mut self, target: &Expr, imp: Impl) {
-        let marker = self.scope.get_expr_marker(target);
-        self.marker_impl(marker, imp);
+    pub fn expr_impl(&mut self, target: &Expr, trt: Trait) {
+        let marker = self.scope.ensure_alias(target);
+        self.marker_impl(marker, trt);
     }
 
     pub fn expr_eq_term(&mut self, expr: &Expr, term: Term) {
-        let marker = self.scope.get_expr_marker(expr);
+        let marker = self.scope.ensure_alias(expr);
         self.marker_eq_symbol(marker, term);
     }
 
-    pub fn marker_impl(&mut self, marker: Marker, imp: Impl) {
-        self.collection.push(Constraint::Impl(marker, imp));
+    pub fn marker_impl(&mut self, marker: Marker, trt: Trait) {
+        self.collection.push(Constraint::Trait(marker, trt));
     }
 
     pub fn marker_eq_symbol(&mut self, marker: Marker, term: Term) {
@@ -336,5 +390,5 @@ impl<'s> Constraints<'s> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Constraint {
     Eq(Marker, Term),
-    Impl(Marker, Impl),
+    Trait(Marker, Trait),
 }
