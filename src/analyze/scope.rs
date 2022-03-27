@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use super::*;
 use crate::{
     parse::{Expr, ExprId, Identifier, Location},
@@ -7,7 +5,6 @@ use crate::{
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use hashbrown::HashMap;
-use parking_lot::Mutex;
 
 #[derive(Debug, Clone, Default)]
 pub struct Fields(HashMap<String, (ExprId, Location)>);
@@ -90,7 +87,7 @@ impl Scope {
         marker
     }
 
-    pub fn inject_to_local(&mut self, name: String, term: Term) -> Marker {
+    pub fn inject_to_local(&mut self, name: String) -> Marker {
         assert!(!self.local.contains_key(&name));
         let fake_expr_id = ExprId::new();
         let marker = Marker::new();
@@ -106,7 +103,7 @@ impl Scope {
         marker
     }
 
-    pub fn inject_to_namespace(&mut self, name: String, term: Term) -> Marker {
+    pub fn inject_to_namespace(&mut self, name: String) -> Marker {
         assert!(!self.namespace.contains_key(&name));
         let fake_expr_id = ExprId::new();
         let marker = Marker::new();
@@ -137,5 +134,11 @@ impl Scope {
                 marker
             }
         }
+    }
+}
+
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
     }
 }

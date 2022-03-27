@@ -80,7 +80,9 @@ impl Printer {
             Term::Marker(marker) => Self::marker(marker),
             Term::App(app) => Self::app(app),
             Term::Deref(deref) => Self::deref(deref),
-            Term::Trait(trt) => Self::trt(trt),
+            Term::Generic(traits) => {
+                format!("T: {}", traits.iter().map(Self::trt).join(", "))
+            }
         }
     }
 
@@ -167,13 +169,10 @@ impl Printer {
     #[must_use]
     pub fn trt(trt: &Trait) -> String {
         match trt {
-            Trait::Contains(fields) => format!(
-                "impl {{ {} }}",
-                fields
-                    .iter()
-                    .map(|(name, term)| format!("{name}: {}", Self::term(term)))
-                    .join(", ")
-            ),
+            Trait::FieldOp(op) => match op {
+                FieldOp::Read(name, term) => format!("{name}: {}", Self::term(term)),
+                FieldOp::Write(name, term) => format!("{name}: {}?", Self::term(term)),
+            },
         }
     }
 

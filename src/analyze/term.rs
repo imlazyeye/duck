@@ -7,7 +7,7 @@ pub enum Term {
     Marker(Marker),
     App(App),
     Deref(Deref),
-    Trait(Trait),
+    Generic(Vec<Trait>),
 }
 
 impl From<Term> for Type {
@@ -29,7 +29,6 @@ impl From<Term> for Type {
                     Type::Struct { fields: tpe_fields }
                 }
                 App::Function {
-                    self_parameter,
                     parameters,
                     return_type,
                     ..
@@ -38,24 +37,9 @@ impl From<Term> for Type {
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
             },
-            Term::Deref(deref) => match deref {
-                Deref::Call {
-                    target,
-                    arguments,
-                    uses_new,
-                } => Type::Generic {
-                    term: Box::new(Term::Deref(Deref::Call {
-                        target,
-                        arguments,
-                        uses_new,
-                    })),
-                },
-                _ => unreachable!(),
-            },
-            Term::Trait(trt) => match trt {
-                Trait::Contains(fields) => Type::Generic {
-                    term: Box::new(Term::Trait(Trait::Contains(fields))),
-                },
+            Term::Deref(_) => unreachable!(),
+            Term::Generic(traits) => Type::Generic {
+                term: Box::new(Term::Generic(traits)),
             },
         }
     }

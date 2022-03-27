@@ -1,13 +1,6 @@
-use std::sync::Arc;
-
 use super::*;
-use crate::{
-    parse::{Identifier, Stmt},
-    FileId,
-};
-use codespan_reporting::diagnostic::Diagnostic;
+use crate::parse::{Identifier, Stmt};
 use hashbrown::HashMap;
-use parking_lot::Mutex;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Typewriter {
@@ -48,13 +41,19 @@ impl Typewriter {
     }
 }
 
+impl Default for Typewriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // Unification
 impl Typewriter {
     pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, scope: &mut Scope) {
         while let Some(mut pattern) = constraints.pop() {
             let result = match &mut pattern {
                 Constraint::Eq(marker, term) => self.unify_marker(marker, term, scope),
-                Constraint::Trait(marker, trt) => self.apply_impl(marker, trt, scope),
+                Constraint::Trait(marker, trt) => self.apply_trait(marker, trt, scope),
             };
             if let Err(TypeError(lhs, rhs)) = result {
                 panic!(
@@ -78,8 +77,11 @@ impl Typewriter {
         println!("{}", Printer::marker_unification(marker, term));
 
         // If there is an impl, we should apply it
-        if let Term::Trait(trt) = term {
-            return self.apply_impl(marker, trt, scope);
+        if let Term::Generic(traits) = term {
+            for trt in traits {
+                self.apply_trait(marker, trt, scope)?;
+            }
+            return Ok(());
         }
 
         // If a substitution is already available for this marker, we will unify the term with that
@@ -96,10 +98,10 @@ impl Typewriter {
                     uses_new,
                 } => {
                     if let Term::App(App::Function {
-                        self_parameter,
                         parameters,
                         return_type,
                         body,
+                        ..
                     }) = target.as_mut()
                     {
                         println!("\n--- Calling function... ---\n");
@@ -109,8 +111,8 @@ impl Typewriter {
 
                         // Unify the parameters with our arguments
                         for (i, arg) in arguments.iter_mut().enumerate() {
-                            let (name, param) = &mut parameters[i];
-                            let inject_marker = call_scope.inject_to_local(name.clone(), arg.clone());
+                            let (name, _) = &mut parameters[i];
+                            let inject_marker = call_scope.inject_to_local(name.clone());
                             call_writer.new_substitution(inject_marker, arg.clone())?;
                         }
 
@@ -145,24 +147,24 @@ impl Typewriter {
                                 let field = call_scope
                                     .lookup_term(&Identifier::lazy(name.clone()), &call_writer)
                                     .expect("uhdsfase");
-                                let marker = scope.inject_to_namespace(name.clone(), field.clone());
+                                let marker = scope.inject_to_namespace(name.clone());
                                 self.new_substitution(marker, field.clone())?;
                             }
                         }
-                        match self_parameter {
-                            Some(self_term) => match self_term.as_ref() {
-                                Term::Trait(Trait::Contains(fields)) => {
-                                    for (name, field) in fields {
-                                        if !scope.has_field(name) {
-                                            let marker = scope.inject_to_namespace(name.clone(), field.clone());
-                                            self.new_substitution(marker, field.clone())?;
-                                        }
-                                    }
-                                }
-                                _ => panic!(),
-                            },
-                            None => {}
-                        }
+                        // match self_parameter {
+                        //     Some(self_term) => match self_term.as_ref() {
+                        //         Term::Generic(Trait::Contains(fields)) => {
+                        //             for (name, field) in fields {
+                        //                 if !scope.has_field(name) {
+                        //                     let marker = scope.inject_to_namespace(name.clone(), field.clone());
+                        //                     self.new_substitution(marker, field.clone())?;
+                        //                 }
+                        //             }
+                        //         }
+                        //         _ => panic!(),
+                        //     },
+                        //     None => {}
+                        // }
 
                         // Now unify us with the result
                         return self.unify_marker(marker, return_type, scope);
@@ -182,9 +184,15 @@ impl Typewriter {
                     Term::App(App::Object(fields)) => {
                         return self.unify_marker(marker, fields.get_mut(field_name).expect("doh"), scope);
                     }
-                    Term::Trait(Trait::Contains(ops)) => {
-                        let term = ops.get_mut(field_name).expect("rats");
-                        return self.unify_marker(marker, term, scope);
+                    Term::Generic(traits) => {
+                        for trt in traits {
+                            match trt {
+                                Trait::FieldOp(FieldOp::Read(_, field)) | Trait::FieldOp(FieldOp::Write(_, field)) => {
+                                    self.unify_marker(marker, field, scope)?;
+                                }
+                            }
+                        }
+                        return Ok(());
                     }
                     Term::Marker(_) => {}
                     Term::Deref(Deref::Call { .. }) => {}
@@ -239,13 +247,11 @@ impl Typewriter {
                     }
                 }
                 App::Function {
-                    self_parameter: lhs_self,
                     parameters: lhs_params,
                     return_type: lhs_return,
                     ..
                 } => {
                     if let Term::App(App::Function {
-                        self_parameter: rhs_self,
                         parameters: rhs_params,
                         return_type: rhs_return,
                         ..
@@ -272,32 +278,48 @@ impl Typewriter {
         Ok(())
     }
 
-    fn apply_impl(&mut self, marker: &Marker, trt: &mut Trait, scope: &mut Scope) -> Result<(), TypeError> {
+    fn apply_trait(&mut self, marker: &Marker, trt: &mut Trait, scope: &mut Scope) -> Result<(), TypeError> {
         if let Some(sub) = &mut self.substitutions.get_mut(marker).cloned() {
             match trt {
-                Trait::Contains(imp_fields) => match sub {
-                    Term::Trait(Trait::Contains(fields)) => {
-                        for (name, imp_field) in imp_fields {
+                Trait::FieldOp(field_op) => match sub {
+                    Term::App(App::Object(fields)) => match field_op {
+                        FieldOp::Read(name, term) => {
+                            self.unify_terms(fields.get_mut(name).expect("missing field being read"), term, scope)
+                        }
+                        FieldOp::Write(name, term) => {
                             if let Some(field) = fields.get_mut(name) {
-                                self.unify_terms(field, imp_field, scope)?;
+                                self.unify_terms(field, term, scope)
                             } else {
-                                fields.insert(name.into(), imp_field.clone());
+                                // add in the field then
+                                fields.insert(name.clone(), term.as_ref().clone());
+                                self.new_substitution(*marker, sub.clone())
                             }
                         }
-                        self.new_substitution(*marker, Term::Trait(trt.clone()))
-                    }
-                    Term::App(App::Object(fields)) => {
-                        for (name, term) in imp_fields.iter_mut() {
-                            self.unify_terms(fields.get_mut(name).expect("missing field being read"), term, scope)?;
+                    },
+                    Term::Generic(sub_traits) => {
+                        for sub_op in sub_traits.iter_mut().map(|sub_trait| match sub_trait {
+                            Trait::FieldOp(sub_op) => sub_op,
+                        }) {
+                            let matches = sub_op.name() == field_op.name();
+                            if matches {
+                                // Unify the terms
+                                self.unify_terms(field_op.term_mut(), sub_op.term_mut(), scope)?;
+
+                                // If our sub is currently a read, and the pattern is a write, we will upgarde
+                                if let FieldOp::Read(_, _) = sub_op {
+                                    if let FieldOp::Write(_, _) = field_op {
+                                        *sub_op = field_op.clone();
+                                    }
+                                }
+                            }
                         }
-                        Ok(())
+                        self.new_substitution(*marker, Term::Generic(sub_traits.clone()))
                     }
-                    // maybe deref?
                     _ => Ok(()),
                 },
             }
         } else {
-            self.new_substitution(*marker, Term::Trait(trt.clone()))
+            self.new_substitution(*marker, Term::Generic(vec![trt.clone()]))
         }
     }
 
@@ -383,9 +405,9 @@ impl Typewriter {
                     arguments.iter_mut().for_each(|arg| self.normalize(arg));
                 }
             },
-            Term::Trait(trt) => match trt {
-                Trait::Contains(fields) => fields.iter_mut().for_each(|(_, term)| self.normalize(term)),
-            },
+            Term::Generic(traits) => traits.iter_mut().for_each(|trt| match trt {
+                Trait::FieldOp(op) => self.normalize(op.term_mut()),
+            }),
         }
     }
 

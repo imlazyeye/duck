@@ -1,53 +1,31 @@
-use std::sync::Arc;
-
 use super::*;
 use crate::parse::*;
 use hashbrown::HashMap;
-use parking_lot::Mutex;
 
 #[derive(Debug)]
 pub(super) struct Constraints<'s> {
     pub collection: Vec<Constraint>,
     scope: &'s mut Scope,
     typewriter: &'s mut Typewriter,
+    context: Context,
 }
 
 // Constraining
 impl<'s> Constraints<'s> {
     fn constrain_stmt(&mut self, stmt: &Stmt) {
+        self.context = match stmt.inner() {
+            StmtType::Assignment(Assignment { op, .. }) => match op {
+                AssignmentOp::Identity(_) => Context::Declare,
+                _ => Context::Write,
+            },
+            _ => Context::Read,
+        };
         stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
         stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
+
         match stmt.inner() {
-            StmtType::Assignment(Assignment { left, op, right }) => {
-                match left.inner() {
-                    ExprType::Identifier(iden) => {
-                        if let AssignmentOp::Identity(_) = op {
-                            // Check if a local variable for this already exists
-                            if self.scope.has_local_field(&iden.lexeme) {
-                                // do nothing for now
-                            } else if !self.scope.has_namespace_field(&iden.lexeme) {
-                                self.scope.declare_to_namespace(iden.lexeme.clone(), left);
-                            }
-                            self.expr_eq_expr(left, right);
-                        }
-                    }
-                    ExprType::Access(Access::Current { right: self_right }) => {
-                        if !self.scope.has_namespace_field(&self_right.lexeme) {
-                            self.scope.declare_to_namespace(self_right.lexeme.clone(), left);
-                        }
-                        self.expr_eq_expr(left, right);
-                    }
-                    ExprType::Access(Access::Dot {
-                        left: obj,
-                        right: field,
-                    }) => {
-                        self.expr_impl(
-                            obj,
-                            Trait::Contains(HashMap::from([(field.lexeme.clone(), Term::Marker(Marker::new()))])), // this feels wrong
-                        );
-                    }
-                    _ => {}
-                }
+            StmtType::Assignment(Assignment { left, right, .. }) => {
+                self.expr_eq_expr(left, right);
             }
             StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {
@@ -125,19 +103,7 @@ impl<'s> Constraints<'s> {
             // If the function has any fields in its namespace, then it is generic over some self
             let namespace_fields = func_scope.namespace_fields();
             let self_parameter = if !namespace_fields.is_empty() {
-                let fields = func_scope
-                    .namespace_fields()
-                    .into_iter()
-                    .map(|name| {
-                        (
-                            name.clone(),
-                            func_scope
-                                .lookup_term(&Identifier::lazy(name), &func_writer)
-                                .expect("not possible"),
-                        )
-                    })
-                    .collect();
-                Some(Box::new(Term::Trait(Trait::Contains(fields))))
+                Some(Box::new(Term::Generic(vec![]))) // todo
             } else {
                 None
             };
@@ -209,8 +175,13 @@ impl<'s> Constraints<'s> {
                     Access::Global { .. } => {
                         // read the global scope for the type?
                     }
-                    Access::Current { .. } => {
-                        // read the current scope for the type?
+                    Access::Current { right } => {
+                        if self.context == Context::Declare && !self.scope.has_namespace_field(&right.lexeme) {
+                            self.scope.declare_to_namespace(right.lexeme.clone(), expr);
+                            // write trait
+                        } else {
+                            // read trait
+                        }
                     }
                     Access::Other { .. } => {
                         // read the above scope for the type?
@@ -220,7 +191,11 @@ impl<'s> Constraints<'s> {
                         let left_marker = self.scope.ensure_alias(left);
                         self.expr_impl(
                             left,
-                            Trait::Contains(HashMap::from([(right.lexeme.clone(), Term::Marker(this_expr_marker))])),
+                            Trait::FieldOp(if self.context != Context::Read {
+                                FieldOp::Write(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
+                            } else {
+                                FieldOp::Read(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
+                            }),
                         );
 
                         // constrain the result of this expression to the field
@@ -289,6 +264,13 @@ impl<'s> Constraints<'s> {
             ExprType::Identifier(iden) => {
                 if let Ok(marker) = self.scope.lookup_marker(iden) {
                     self.scope.alias_expr_to(expr, marker);
+                } else if self.context == Context::Declare {
+                    // Check if a local variable for this already exists
+                    if self.scope.has_local_field(&iden.lexeme) {
+                        // do nothing for now
+                    } else if !self.scope.has_namespace_field(&iden.lexeme) {
+                        self.scope.declare_to_namespace(iden.lexeme.clone(), expr);
+                    }
                 }
             }
             ExprType::Literal(literal) => {
@@ -336,6 +318,7 @@ impl<'s> Constraints<'s> {
             collection: vec![],
             typewriter,
             scope,
+            context: Context::Read,
         };
         for stmt in stmts.iter() {
             constraints.constrain_stmt(stmt);
@@ -391,4 +374,11 @@ impl<'s> Constraints<'s> {
 pub enum Constraint {
     Eq(Marker, Term),
     Trait(Marker, Trait),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Context {
+    Read,
+    Write,
+    Declare,
 }

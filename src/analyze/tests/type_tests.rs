@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use crate::{analyze::*, parse::*};
 use colored::Colorize;
 use hashbrown::HashMap;
-use parking_lot::Mutex;
 use pretty_assertions::assert_eq;
 
 struct TestTypeWriter(Typewriter);
@@ -400,15 +397,6 @@ fn self_assignment() {
 fn self_assignment_with_keyword() {
     harness_type_ast("self.foo = 0", [("foo", Type::Real)]);
 }
-
-// foo = 0;
-// var bar = 0;
-//
-// local = {};
-// self = {};
-// self.foo = 0;
-// local.bar = 0;
-//
 
 #[test]
 fn mutate_self_via_function() {
