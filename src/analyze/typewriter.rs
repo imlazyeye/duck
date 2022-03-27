@@ -1,5 +1,5 @@
 use super::*;
-use crate::parse::{Identifier, Stmt};
+use crate::parse::{Function, Identifier, Stmt};
 use hashbrown::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -28,9 +28,9 @@ impl Typewriter {
         println!("Fields in self: {:?}\n", scope.namespace_fields());
     }
 
-    pub fn return_term(&mut self) -> Term {
-        if let Some(term) = self.substitutions.get(&Marker::RETURN) {
-            term.clone()
+    pub fn take_return_term(&mut self) -> Term {
+        if let Some(term) = self.substitutions.remove(&Marker::RETURN) {
+            term
         } else {
             Term::Type(Type::Undefined)
         }
@@ -90,86 +90,14 @@ impl Typewriter {
         }
 
         // If the term is a deref, we might be able to translate it
+        // Todo: move all of these to normalize
         if let Term::Deref(deref) = term {
             match deref {
                 Deref::Call {
                     target,
                     arguments,
                     uses_new,
-                } => {
-                    if let Term::App(App::Function {
-                        parameters,
-                        return_type,
-                        body,
-                        ..
-                    }) = target.as_mut()
-                    {
-                        println!("\n--- Calling function... ---\n");
-                        // Create a temporary scope and typewriter to execute our work in
-                        let mut call_scope = Scope::new();
-                        let mut call_writer = Typewriter::new();
-
-                        // Unify the parameters with our arguments
-                        for (i, arg) in arguments.iter_mut().enumerate() {
-                            let (name, _) = &mut parameters[i];
-                            let inject_marker = call_scope.inject_to_local(name.clone());
-                            call_writer.new_substitution(inject_marker, arg.clone())?;
-                        }
-
-                        // Run the function
-                        call_writer.write(&mut call_scope, body);
-                        println!("\n--- Ending call... ---\n");
-
-                        // If we used new, we override the return type to be the self parameter
-                        if *uses_new {
-                            *return_type = Box::new(Term::App(App::Object(
-                                call_scope
-                                    .namespace_fields()
-                                    .into_iter()
-                                    .map(|name| {
-                                        (
-                                            name.clone(),
-                                            call_scope
-                                                .lookup_term(&Identifier::lazy(name), &call_writer)
-                                                .expect("uhdsfase"),
-                                        )
-                                    })
-                                    .collect(),
-                            )));
-                        } else {
-                            // Otherwise, it's whatever the function actually returned.
-                            *return_type = Box::new(call_writer.return_term());
-                        }
-
-                        // Apply the rules of this function to us
-                        for name in call_scope.namespace_fields() {
-                            if !scope.has_field(&name) {
-                                let field = call_scope
-                                    .lookup_term(&Identifier::lazy(name.clone()), &call_writer)
-                                    .expect("uhdsfase");
-                                let marker = scope.inject_to_namespace(name.clone());
-                                self.new_substitution(marker, field.clone())?;
-                            }
-                        }
-                        // match self_parameter {
-                        //     Some(self_term) => match self_term.as_ref() {
-                        //         Term::Generic(Trait::Contains(fields)) => {
-                        //             for (name, field) in fields {
-                        //                 if !scope.has_field(name) {
-                        //                     let marker = scope.inject_to_namespace(name.clone(), field.clone());
-                        //                     self.new_substitution(marker, field.clone())?;
-                        //                 }
-                        //             }
-                        //         }
-                        //         _ => panic!(),
-                        //     },
-                        //     None => {}
-                        // }
-
-                        // Now unify us with the result
-                        return self.unify_marker(marker, return_type, scope);
-                    }
-                }
+                } => {}
                 Deref::MemberType { target } => match target.as_mut() {
                     Term::App(App::Array(member_type)) => {
                         return self.unify_marker(marker, member_type.as_mut(), scope);
@@ -403,6 +331,26 @@ impl Typewriter {
                 Deref::Call { target, arguments, .. } => {
                     self.normalize(target);
                     arguments.iter_mut().for_each(|arg| self.normalize(arg));
+                    if let Term::App(App::Function {
+                        parameters,
+                        return_type,
+                        ..
+                    }) = target.as_mut()
+                    {
+                        // Create a temporary typewriter that will be used to evaluate this call
+                        let mut call_writer = self.clone();
+                        let mut call_scope = Scope::new();
+
+                        // Unify the parameters with our arguments
+                        for (i, arg) in arguments.iter_mut().enumerate() {
+                            let (name, param) = &mut parameters[i];
+                            call_writer.unify_terms(param, arg, &mut call_scope).unwrap(); // TODO THIS MUST BE THROWN
+                        }
+
+                        // Normalize the return type
+                        call_writer.normalize(return_type);
+                        *term = return_type.as_ref().clone();
+                    }
                 }
             },
             Term::Generic(traits) => traits.iter_mut().for_each(|trt| match trt {
@@ -421,12 +369,15 @@ impl Typewriter {
             .map(|(marker, _)| *marker)
             .collect();
         for marker in markers_needing_updates {
+            println!("updating {}...", Printer::marker(&marker));
             let mut term = self.substitutions.remove(&marker).unwrap();
             self.normalize(&mut term);
+            println!("it is {} now", Printer::term(&term));
             self.substitutions.insert(marker, term);
         }
         Ok(())
     }
 }
 
+#[derive(Debug)]
 pub struct TypeError(Type, Type);

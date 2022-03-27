@@ -225,6 +225,23 @@ fn return_constant() {
 }
 
 #[test]
+fn wrapped_lambda_in_struct_field() {
+    harness_type_ast(
+        "function wrapper(lambda) {
+            return { y: lambda(0) };
+        }
+        function inner(n) { return n; }
+        var data = wrapper(inner);",
+        [(
+            "data",
+            Type::Struct {
+                fields: HashMap::from([("y".into(), Type::Real)]),
+            },
+        )],
+    );
+}
+
+#[test]
 fn complicated_data() {
     harness_type_ast(
         "function build_data(x, y, z) {

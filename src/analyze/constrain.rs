@@ -43,9 +43,6 @@ impl<'s> Constraints<'s> {
                     }
                 }
             }
-            StmtType::Expr(_) => {
-                // todo: named functions. this feels wrong?
-            }
 
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
@@ -63,6 +60,7 @@ impl<'s> Constraints<'s> {
 
     fn constrain_expr(&mut self, expr: &Expr) {
         if let ExprType::FunctionDeclaration(function) = expr.inner() {
+            // If this is a named function, declare it to the local scope
             if let Some(iden) = &function.name {
                 if !self.scope.has_field(&iden.lexeme) {
                     self.scope.declare_to_namespace(iden.lexeme.clone(), expr);
@@ -72,33 +70,35 @@ impl<'s> Constraints<'s> {
                 }
             }
 
+            // Create a new scope for this function
             let mut func_scope = Scope::new();
 
-            for param in function.parameters.iter() {
-                func_scope.declare_local(param.name().into(), param.name_expr());
-            }
+            // Declare the parameters into the scope, collecting their markers
+            #[allow(clippy::needless_collect)]
+            let param_registrations: Vec<(String, Marker)> = function
+                .parameters
+                .iter()
+                .map(|param| {
+                    (
+                        param.name().into(),
+                        func_scope.declare_local(param.name().into(), param.name_expr()),
+                    )
+                })
+                .collect();
 
-            let mut body = match function.body.inner() {
-                StmtType::Block(Block { body, .. }) => body.clone(),
-                _ => unreachable!(),
-            };
+            // Access the body
+            let body = function.body_stmts();
 
-            if let Some(Constructor::WithInheritance(parent)) = &function.constructor {
-                self.constrain_expr(parent);
-                body.insert(0, parent.clone().into_stmt_lazy());
-            };
-
-            let mut func_writer = self.typewriter.clone();
+            // Typewrite the function
             println!("\n--- Processing function... ---\n");
-            func_writer.write(&mut func_scope, &body);
+            self.typewriter.write(&mut func_scope, &body);
             println!("\n--- Ending process... ---\n");
 
-            let mut parameters = Vec::new();
-            for param in function.parameters.iter() {
-                let param_marker = func_scope.ensure_alias(param.name_expr());
-                let param_term = func_writer.find_term(param_marker);
-                parameters.push((param.name().into(), param_term));
-            }
+            // Re-collect the parameters
+            let parameters: Vec<(String, Term)> = param_registrations
+                .into_iter()
+                .map(|(name, marker)| (name, self.typewriter.find_term(marker)))
+                .collect();
 
             // If the function has any fields in its namespace, then it is generic over some self
             let namespace_fields = func_scope.namespace_fields();
@@ -108,12 +108,13 @@ impl<'s> Constraints<'s> {
                 None
             };
 
+            let return_type = self.typewriter.take_return_term();
             self.expr_eq_app(
                 expr,
                 App::Function {
                     self_parameter,
                     parameters,
-                    return_type: Box::new(func_writer.return_term()),
+                    return_type: Box::new(return_type),
                     body: function.body_stmts(),
                 },
             );
