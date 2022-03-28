@@ -74,6 +74,7 @@ impl Scope {
                                 None
                             }
                         }
+                        _ => None,
                     })
                     .ok_or(e)
             }

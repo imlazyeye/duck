@@ -120,6 +120,7 @@ impl Typewriter {
                                 Trait::FieldOp(FieldOp::Read(_, field)) | Trait::FieldOp(FieldOp::Write(_, field)) => {
                                     self.unify_marker(marker, field, scope)?;
                                 }
+                                Trait::Derive(target) => self.unify_marker(marker, target, scope)?,
                             }
                         }
                         return Ok(());
@@ -253,6 +254,7 @@ impl Typewriter {
                     }
                     _ => Ok(()),
                 },
+                Trait::Derive(_) => self.new_substitution(*marker, Term::Generic(vec![trt.clone()]), scope),
             }
         } else {
             self.new_substitution(*marker, Term::Generic(vec![trt.clone()]), scope)
@@ -305,6 +307,7 @@ impl Typewriter {
                                 return true;
                             }
                         }
+                        Trait::Derive(target) => return self.occurs(marker, target),
                     }
                 }
                 false
@@ -357,7 +360,14 @@ impl Typewriter {
                         let mut call_writer = self.clone();
                         let mut call_scope = Scope::new(&mut call_writer);
 
+                        // Unify the parameters with our arguments
+                        for (i, arg) in arguments.iter_mut().enumerate() {
+                            let (name, param) = &mut parameters[i];
+                            call_writer.unify_terms(param, arg, &mut call_scope).unwrap(); // TODO THIS MUST BE THROWN
+                        }
+
                         // Apply the traits on the functions self to our current scope
+                        call_writer.normalize_term(self_parameter, &mut call_scope);
                         match self_parameter.as_mut() {
                             Term::Generic(traits) => {
                                 for trt in traits {
@@ -368,19 +378,30 @@ impl Typewriter {
                             _ => unreachable!(),
                         }
 
-                        // Unify the parameters with our arguments
-                        for (i, arg) in arguments.iter_mut().enumerate() {
-                            let (name, param) = &mut parameters[i];
-                            call_writer.unify_terms(param, arg, &mut call_scope).unwrap(); // TODO THIS MUST BE THROWN
-                        }
-
                         // Normalize the return type
                         call_writer.normalize_term(return_type, scope);
                         *term = return_type.as_ref().clone();
                     }
                 }
             },
-            Term::Generic(traits) => traits.iter_mut().for_each(|trt| self.normalize_trait(trt, scope)),
+            Term::Generic(traits) => {
+                let iter_traits = traits.clone();
+                traits.clear();
+                for mut trt in iter_traits {
+                    self.normalize_trait(&mut trt, scope);
+                    if let Trait::Derive(target) = &mut trt {
+                        if let Term::App(App::Function { self_parameter, .. }) = target.as_ref() {
+                            if let Term::Generic(new_traits) = self_parameter.as_ref() {
+                                for new_trt in new_traits {
+                                    traits.push(new_trt.clone());
+                                }
+                                return;
+                            }
+                        }
+                    }
+                    traits.push(trt);
+                }
+            }
         }
     }
 
@@ -388,6 +409,9 @@ impl Typewriter {
         match trt {
             Trait::FieldOp(op) => {
                 self.normalize_term(op.term_mut(), scope);
+            }
+            Trait::Derive(target) => {
+                self.normalize_term(target, scope);
             }
         }
     }

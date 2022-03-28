@@ -256,6 +256,10 @@ impl<'s> Constraints<'s> {
                 // let trt = Trait::ReturnType(Box::new(Term::Marker(self.scope.ensure_alias(expr))));
                 // self.expr_impl(left, trt);
                 let left_marker = self.scope.ensure_alias(left);
+                self.marker_impl(
+                    self.scope.self_marker,
+                    Trait::Derive(Box::new(Term::Marker(left_marker))),
+                );
                 let deref = Deref::Call {
                     target: Box::new(Term::Marker(left_marker)),
                     arguments: arguments

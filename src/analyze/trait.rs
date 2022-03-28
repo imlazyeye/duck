@@ -3,6 +3,7 @@ use super::*;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Trait {
     FieldOp(FieldOp),
+    Derive(Box<Term>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -172,6 +172,7 @@ impl Printer {
             Trait::FieldOp(op) => match op {
                 FieldOp::Read(name, term) | FieldOp::Write(name, term) => format!("∋ {name}: {}", Self::term(term)),
             },
+            Trait::Derive(term) => format!("⊇ {}", Self::term(term)),
         }
     }
 
@@ -198,7 +199,7 @@ impl Printer {
     #[must_use]
     pub fn marker_impl(marker: &Marker, trt: &Trait) -> String {
         format!(
-            "{}         {}   ⊃   {}",
+            "{}         {}   ⊇   {}",
             "IMPL".bright_cyan(),
             Printer::marker(marker),
             Printer::trt(trt),
@@ -225,7 +226,7 @@ impl Printer {
                 Self::term(term),
             ),
             Constraint::Trait(marker, trt) => format!(
-                "{}          {}   ⊃   {}",
+                "{}          {}   ⊇   {}",
                 "CON".bright_magenta(),
                 Self::marker(marker),
                 Self::trt(trt)
