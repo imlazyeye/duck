@@ -7,7 +7,7 @@ pub enum App {
     Array(Box<Term>),
     Object(HashMap<String, Term>),
     Function {
-        self_parameter: Option<Box<Term>>,
+        self_parameter: Box<Term>,
         parameters: Vec<(String, Term)>,
         return_type: Box<Term>,
         body: Vec<Stmt>,

@@ -9,7 +9,6 @@ use itertools::Itertools;
 pub struct Marker(pub u64);
 impl Marker {
     pub const RETURN: Self = Marker(u64::MAX);
-    pub const SELF: Self = Marker(u64::MAX - 1);
     pub fn new() -> Self {
         Self(rand::random())
     }
@@ -51,7 +50,6 @@ impl Printer {
         let mut printer = PRINTER.lock().unwrap();
         match *marker {
             Marker::RETURN => "tR".into(),
-            Marker::SELF => "tS".into(),
             marker => {
                 if let Some(expr_string) = printer.expr_strings.get(&marker) {
                     expr_string.clone()
@@ -81,7 +79,11 @@ impl Printer {
             Term::App(app) => Self::app(app),
             Term::Deref(deref) => Self::deref(deref),
             Term::Generic(traits) => {
-                format!("T: {}", traits.iter().map(Self::trt).join(", "))
+                if traits.is_empty() {
+                    "*".into()
+                } else {
+                    traits.iter().map(Self::trt).join(", ")
+                }
             }
         }
     }
@@ -109,7 +111,7 @@ impl Printer {
                 parameters,
                 return_type,
             } => format!(
-                "fn({}) -> {}",
+                "fn ({}) -> {}",
                 parameters.iter().map(Self::tpe).join(", "),
                 Self::tpe(return_type)
             ),
@@ -134,13 +136,11 @@ impl Printer {
                 return_type,
                 ..
             } => format!(
-                "({}{}) -> {}",
-                if let Some(param) = self_parameter {
-                    format!("self: {}", Self::term(param))
-                } else {
-                    "".into()
-                },
-                parameters.iter().map(|(_, param)| Self::term(param)).join(", "),
+                "({}) → {}",
+                [format!("self<{}>", Printer::term(self_parameter))]
+                    .into_iter()
+                    .chain(parameters.iter().map(|(_, param)| Self::term(param)))
+                    .join(", "),
                 Self::term(return_type),
             ),
         }
@@ -170,8 +170,7 @@ impl Printer {
     pub fn trt(trt: &Trait) -> String {
         match trt {
             Trait::FieldOp(op) => match op {
-                FieldOp::Read(name, term) => format!("{name}: {}", Self::term(term)),
-                FieldOp::Write(name, term) => format!("{name}: {}?", Self::term(term)),
+                FieldOp::Read(name, term) | FieldOp::Write(name, term) => format!("∋ {name}: {}", Self::term(term)),
             },
         }
     }
@@ -179,7 +178,7 @@ impl Printer {
     #[must_use]
     pub fn term_unification(a: &Term, b: &Term) -> String {
         format!(
-            "{}      {}   ≐   {}",
+            "{}      {}   ≟   {}",
             "UNIFY T".bright_yellow(),
             Printer::term(a),
             Printer::term(b),
@@ -189,10 +188,20 @@ impl Printer {
     #[must_use]
     pub fn marker_unification(marker: &Marker, term: &Term) -> String {
         format!(
-            "{}      {}   ≐   {}",
+            "{}      {}   ≟   {}",
             "UNIFY M".bright_yellow(),
             Printer::marker(marker),
             Printer::term(term),
+        )
+    }
+
+    #[must_use]
+    pub fn marker_impl(marker: &Marker, trt: &Trait) -> String {
+        format!(
+            "{}         {}   ⊃   {}",
+            "IMPL".bright_cyan(),
+            Printer::marker(marker),
+            Printer::trt(trt),
         )
     }
 
@@ -208,14 +217,19 @@ impl Printer {
 
     #[must_use]
     pub fn constraint(constraint: &Constraint) -> String {
-        let (marker, term_s) = match constraint {
-            Constraint::Eq(marker, term) => (marker, Self::term(term)),
-            Constraint::Trait(marker, trt) => (marker, Self::trt(trt)),
-        };
-        format!(
-            "{}          {}   ⊆   {term_s}",
-            "CON".bright_magenta(),
-            Self::marker(marker)
-        )
+        match constraint {
+            Constraint::Eq(marker, term) => format!(
+                "{}          {}   =   {}",
+                "CON".bright_magenta(),
+                Self::marker(marker),
+                Self::term(term),
+            ),
+            Constraint::Trait(marker, trt) => format!(
+                "{}          {}   ⊃   {}",
+                "CON".bright_magenta(),
+                Self::marker(marker),
+                Self::trt(trt)
+            ),
+        }
     }
 }

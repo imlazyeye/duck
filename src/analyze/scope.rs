@@ -22,29 +22,30 @@ impl std::ops::DerefMut for Fields {
 
 #[derive(Debug, Clone)]
 pub struct Scope {
-    namespace: Fields,
+    pub self_marker: Marker,
     local: Fields,
     markers: HashMap<ExprId, Marker>,
 }
 impl Scope {
-    pub fn new() -> Self {
-        Self {
-            namespace: Fields::default(),
+    pub fn new(typewriter: &mut Typewriter) -> Self {
+        let self_marker = Marker::new();
+        let mut scope = Self {
+            self_marker,
             local: Fields::default(),
             markers: HashMap::default(),
-        }
+        };
+        typewriter
+            .new_substitution(self_marker, Term::Generic(vec![]), &mut scope)
+            .expect("No type error can arrise from declaraing a new self");
+        scope
     }
 
     pub fn has_field(&self, name: &str) -> bool {
-        self.has_local_field(name) || self.has_namespace_field(name)
+        self.has_local_field(name)
     }
 
     pub fn has_local_field(&self, name: &str) -> bool {
         self.local.contains_key(name)
-    }
-
-    pub fn has_namespace_field(&self, name: &str) -> bool {
-        self.namespace.contains_key(name)
     }
 
     /// ### Errors
@@ -56,8 +57,27 @@ impl Scope {
     /// ### Errors
     /// Returns an error if the field is not in scope.
     pub fn lookup_term(&self, identifier: &Identifier, typewriter: &Typewriter) -> Result<Term, Diagnostic<FileId>> {
-        self.lookup_marker(identifier)
+        match self
+            .lookup_marker(identifier)
             .map(|marker| typewriter.find_term(marker))
+        {
+            Ok(term) => Ok(term),
+            Err(e) => {
+                let fields = typewriter.scope_self_traits(self);
+                fields
+                    .iter()
+                    .find_map(|trt| match trt {
+                        Trait::FieldOp(field_op) => {
+                            if identifier.lexeme == field_op.name() {
+                                Some(field_op.term().clone())
+                            } else {
+                                None
+                            }
+                        }
+                    })
+                    .ok_or(e)
+            }
+        }
     }
 
     /// ### Errors
@@ -66,9 +86,7 @@ impl Scope {
         match self
             .local
             .get(&identifier.lexeme)
-            .copied()
-            .or_else(|| self.namespace.get(&identifier.lexeme).copied())
-            .and_then(|(expr_id, _)| self.markers.get(&expr_id))
+            .and_then(|(expr_id, _)| self.markers.get(expr_id))
             .copied()
         {
             Some(marker) => Ok(marker),
@@ -87,37 +105,8 @@ impl Scope {
         marker
     }
 
-    pub fn inject_to_local(&mut self, name: String) -> Marker {
-        assert!(!self.local.contains_key(&name));
-        let fake_expr_id = ExprId::new();
-        let marker = Marker::new();
-        self.markers.insert(fake_expr_id, marker);
-        self.local.insert(name, (fake_expr_id, Location::default()));
-        marker
-    }
-
-    pub fn declare_to_namespace(&mut self, name: String, expr: &Expr) -> Marker {
-        assert!(!self.namespace.contains_key(&name));
-        let marker = self.ensure_alias(expr);
-        self.namespace.insert(name, (expr.id(), expr.location()));
-        marker
-    }
-
-    pub fn inject_to_namespace(&mut self, name: String) -> Marker {
-        assert!(!self.namespace.contains_key(&name));
-        let fake_expr_id = ExprId::new();
-        let marker = Marker::new();
-        self.markers.insert(fake_expr_id, marker);
-        self.namespace.insert(name, (fake_expr_id, Location::default()));
-        marker
-    }
-
     pub fn local_fields(&self) -> Vec<String> {
         self.local.iter().map(|(name, _)| name).cloned().collect()
-    }
-
-    pub fn namespace_fields(&self) -> Vec<String> {
-        self.namespace.iter().map(|(name, _)| name).cloned().collect()
     }
 
     pub fn alias_expr_to(&mut self, expr: &Expr, marker: Marker) {
@@ -125,6 +114,12 @@ impl Scope {
     }
 
     pub fn ensure_alias(&mut self, expr: &Expr) -> Marker {
+        if let Some(iden) = expr.inner().as_identifier() {
+            if let Ok(marker) = self.lookup_marker(iden) {
+                self.alias_expr_to(expr, marker);
+                return marker;
+            }
+        }
         match self.markers.get(&expr.id()).copied() {
             Some(marker) => marker,
             None => {
@@ -134,11 +129,5 @@ impl Scope {
                 marker
             }
         }
-    }
-}
-
-impl Default for Scope {
-    fn default() -> Self {
-        Self::new()
     }
 }

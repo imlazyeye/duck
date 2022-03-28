@@ -20,8 +20,6 @@ impl<'s> Constraints<'s> {
             },
             _ => Context::Read,
         };
-        stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
-        stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
 
         match stmt.inner() {
             StmtType::Assignment(Assignment { left, right, .. }) => {
@@ -56,6 +54,9 @@ impl<'s> Constraints<'s> {
             // todo: constrain types required for these things
             _ => {}
         }
+
+        stmt.visit_child_stmts(|stmt| self.constrain_stmt(stmt));
+        stmt.visit_child_exprs(|expr| self.constrain_expr(expr));
     }
 
     fn constrain_expr(&mut self, expr: &Expr) {
@@ -63,15 +64,21 @@ impl<'s> Constraints<'s> {
             // If this is a named function, declare it to the local scope
             if let Some(iden) = &function.name {
                 if !self.scope.has_field(&iden.lexeme) {
-                    self.scope.declare_to_namespace(iden.lexeme.clone(), expr);
+                    let marker = self.scope.ensure_alias(expr);
+                    self.marker_impl(
+                        self.scope.self_marker,
+                        Trait::FieldOp(FieldOp::Write(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                    )
                 } else {
                     // validate that the new type is equal to the last type? shadowing is a
                     // problem
                 }
             }
 
+            println!("\n--- Processing function... ---\n");
+
             // Create a new scope for this function
-            let mut func_scope = Scope::new();
+            let mut func_scope = Scope::new(self.typewriter);
 
             // Declare the parameters into the scope, collecting their markers
             #[allow(clippy::needless_collect)]
@@ -90,29 +97,24 @@ impl<'s> Constraints<'s> {
             let body = function.body_stmts();
 
             // Typewrite the function
-            println!("\n--- Processing function... ---\n");
-            self.typewriter.write(&mut func_scope, &body);
+            let mut writer = self.typewriter.clone();
+            writer.write(&mut func_scope, &body);
             println!("\n--- Ending process... ---\n");
 
             // Re-collect the parameters
             let parameters: Vec<(String, Term)> = param_registrations
                 .into_iter()
-                .map(|(name, marker)| (name, self.typewriter.find_term(marker)))
+                .map(|(name, marker)| (name, writer.find_term(marker)))
                 .collect();
 
             // If the function has any fields in its namespace, then it is generic over some self
-            let namespace_fields = func_scope.namespace_fields();
-            let self_parameter = if !namespace_fields.is_empty() {
-                Some(Box::new(Term::Generic(vec![]))) // todo
-            } else {
-                None
-            };
+            let fields = writer.scope_self_traits(&func_scope);
 
-            let return_type = self.typewriter.take_return_term();
+            let return_type = writer.take_return_term();
             self.expr_eq_app(
                 expr,
                 App::Function {
-                    self_parameter,
+                    self_parameter: Box::new(Term::Generic(fields)),
                     parameters,
                     return_type: Box::new(return_type),
                     body: function.body_stmts(),
@@ -177,11 +179,17 @@ impl<'s> Constraints<'s> {
                         // read the global scope for the type?
                     }
                     Access::Current { right } => {
-                        if self.context == Context::Declare && !self.scope.has_namespace_field(&right.lexeme) {
-                            self.scope.declare_to_namespace(right.lexeme.clone(), expr);
-                            // write trait
+                        let marker = self.scope.ensure_alias(expr);
+                        if self.context == Context::Declare {
+                            self.marker_impl(
+                                self.scope.self_marker,
+                                Trait::FieldOp(FieldOp::Write(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                            )
                         } else {
-                            // read trait
+                            self.marker_impl(
+                                self.scope.self_marker,
+                                Trait::FieldOp(FieldOp::Read(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                            )
                         }
                     }
                     Access::Other { .. } => {
@@ -265,13 +273,23 @@ impl<'s> Constraints<'s> {
             ExprType::Identifier(iden) => {
                 if let Ok(marker) = self.scope.lookup_marker(iden) {
                     self.scope.alias_expr_to(expr, marker);
-                } else if self.context == Context::Declare {
+                } else if self.context != Context::Read {
                     // Check if a local variable for this already exists
                     if self.scope.has_local_field(&iden.lexeme) {
                         // do nothing for now
-                    } else if !self.scope.has_namespace_field(&iden.lexeme) {
-                        self.scope.declare_to_namespace(iden.lexeme.clone(), expr);
+                    } else {
+                        let marker = self.scope.ensure_alias(expr);
+                        self.marker_impl(
+                            self.scope.self_marker,
+                            Trait::FieldOp(FieldOp::Write(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                        )
                     }
+                } else {
+                    let marker = self.scope.ensure_alias(expr);
+                    self.marker_impl(
+                        self.scope.self_marker,
+                        Trait::FieldOp(FieldOp::Read(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                    )
                 }
             }
             ExprType::Literal(literal) => {

@@ -40,8 +40,8 @@ fn get_var_type(source: &'static str, name: &'static str) -> Type {
 fn harness_typewriter(source: &str) -> (TestTypeWriter, Scope) {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
-    let mut scope = Scope::new();
     let mut typewriter = Typewriter::new();
+    let mut scope = Scope::new(&mut typewriter);
     let mut ast = parser.into_ast().unwrap();
     typewriter.write(&mut scope, ast.stmts_mut());
     println!("Result for: \n{source}");
@@ -205,7 +205,7 @@ fn struct_access() {
 #[test]
 fn function() {
     harness_type_expr(
-        "function () {}",
+        "function() {}",
         Type::Function {
             parameters: vec![],
             return_type: Box::new(Type::Undefined),
@@ -418,7 +418,7 @@ fn self_assignment_with_keyword() {
 #[test]
 fn mutate_self_via_function() {
     harness_type_ast(
-        "function foo() {
+        "var foo = function() {
             self.a = 0;
         }
         foo();",
@@ -429,10 +429,10 @@ fn mutate_self_via_function() {
 #[test]
 fn mutate_self_via_nested_function() {
     harness_type_ast(
-        "function foo() {
+        "var foo = function() {
             self.a = 0;
         }
-        function bar(foo) {
+        var bar = function(foo) {
             foo();
         }
         bar(foo);",

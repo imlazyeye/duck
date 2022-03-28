@@ -37,7 +37,7 @@ impl From<Term> for Type {
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
             },
-            Term::Deref(foo) => unreachable!("{}", Printer::deref(&foo)),
+            Term::Deref(_) => unreachable!(),
             Term::Generic(traits) => Type::Generic {
                 term: Box::new(Term::Generic(traits)),
             },

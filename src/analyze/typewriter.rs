@@ -1,5 +1,5 @@
 use super::*;
-use crate::parse::{Function, Identifier, Stmt};
+use crate::parse::{Identifier, Stmt};
 use hashbrown::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -20,12 +20,11 @@ impl Typewriter {
     pub fn write(&mut self, scope: &mut Scope, stmts: &[Stmt]) {
         let constraints = Constraints::build(scope, self, stmts);
         self.apply_constraints(constraints, scope);
-        println!("\nFinal substitutions:");
+        println!("\nCurrent substitutions:");
         self.substitutions
             .iter()
             .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term)));
         println!("Local fields in scope: {:?}", scope.local_fields());
-        println!("Fields in self: {:?}\n", scope.namespace_fields());
     }
 
     pub fn take_return_term(&mut self) -> Term {
@@ -33,6 +32,13 @@ impl Typewriter {
             term
         } else {
             Term::Type(Type::Undefined)
+        }
+    }
+
+    pub fn scope_self_traits(&self, scope: &Scope) -> Vec<Trait> {
+        match self.find_term(scope.self_marker) {
+            Term::Generic(fields) => fields,
+            _ => unreachable!(),
         }
     }
 
@@ -72,7 +78,7 @@ impl Typewriter {
         scope: &mut Scope,
     ) -> Result<(), TypeError> {
         // Ensure our term is as simple as possible
-        self.normalize(term);
+        self.normalize_term(term, scope);
 
         println!("{}", Printer::marker_unification(marker, term));
 
@@ -93,11 +99,7 @@ impl Typewriter {
         // Todo: move all of these to normalize
         if let Term::Deref(deref) = term {
             match deref {
-                Deref::Call {
-                    target,
-                    arguments,
-                    uses_new,
-                } => {}
+                Deref::Call { .. } => {}
                 Deref::MemberType { target } => match target.as_mut() {
                     Term::App(App::Array(member_type)) => {
                         return self.unify_marker(marker, member_type.as_mut(), scope);
@@ -131,7 +133,7 @@ impl Typewriter {
 
         // Check for occurance -- if there is any, then we won't register this
         if !self.occurs(marker, term) {
-            self.new_substitution(*marker, term.clone())?;
+            self.new_substitution(*marker, term.clone(), scope)?;
         }
 
         Ok(())
@@ -144,8 +146,8 @@ impl Typewriter {
         }
 
         // Normalize all inputs
-        self.normalize(lhs);
-        self.normalize(rhs);
+        self.normalize_term(lhs, scope);
+        self.normalize_term(rhs, scope);
 
         println!("{}", Printer::term_unification(lhs, rhs));
 
@@ -207,6 +209,8 @@ impl Typewriter {
     }
 
     fn apply_trait(&mut self, marker: &Marker, trt: &mut Trait, scope: &mut Scope) -> Result<(), TypeError> {
+        self.normalize_trait(trt, scope);
+        println!("{}", Printer::marker_impl(marker, trt));
         if let Some(sub) = &mut self.substitutions.get_mut(marker).cloned() {
             match trt {
                 Trait::FieldOp(field_op) => match sub {
@@ -220,53 +224,56 @@ impl Typewriter {
                             } else {
                                 // add in the field then
                                 fields.insert(name.clone(), term.as_ref().clone());
-                                self.new_substitution(*marker, sub.clone())
+                                self.new_substitution(*marker, sub.clone(), scope)
                             }
                         }
                     },
                     Term::Generic(sub_traits) => {
-                        for sub_op in sub_traits.iter_mut().map(|sub_trait| match sub_trait {
-                            Trait::FieldOp(sub_op) => sub_op,
-                        }) {
-                            let matches = sub_op.name() == field_op.name();
-                            if matches {
-                                // Unify the terms
-                                self.unify_terms(field_op.term_mut(), sub_op.term_mut(), scope)?;
+                        if let Some(sub_op) = sub_traits
+                            .iter_mut()
+                            .filter_map(|sub_trait| match sub_trait {
+                                Trait::FieldOp(sub_op) if sub_op.name() == field_op.name() => Some(sub_op),
+                                _ => None,
+                            })
+                            .next()
+                        {
+                            // Unify the terms
+                            self.unify_terms(field_op.term_mut(), sub_op.term_mut(), scope)?;
 
-                                // If our sub is currently a read, and the pattern is a write, we will upgarde
-                                if let FieldOp::Read(_, _) = sub_op {
-                                    if let FieldOp::Write(_, _) = field_op {
-                                        *sub_op = field_op.clone();
-                                    }
+                            // If our sub is currently a read, and the pattern is a write, we will upgarde
+                            if let FieldOp::Read(_, _) = sub_op {
+                                if let FieldOp::Write(_, _) = field_op {
+                                    *sub_op = field_op.clone();
                                 }
                             }
+                        } else {
+                            sub_traits.push(trt.clone());
                         }
-                        self.new_substitution(*marker, Term::Generic(sub_traits.clone()))
+                        self.new_substitution(*marker, Term::Generic(sub_traits.clone()), scope)
                     }
                     _ => Ok(()),
                 },
             }
         } else {
-            self.new_substitution(*marker, Term::Generic(vec![trt.clone()]))
+            self.new_substitution(*marker, Term::Generic(vec![trt.clone()]), scope)
         }
     }
 
     fn occurs(&self, marker: &Marker, term: &Term) -> bool {
-        if let Term::Marker(term_marker) = term {
-            // If the term just points to our marker, then its an occurance
-            if term_marker == marker {
-                return true;
+        match term {
+            Term::Type(_) => false,
+            Term::Marker(term_marker) => {
+                // If the term just points to our marker, then its an occurance
+                if term_marker == marker {
+                    true
+                } else if let Some(sub) = self.substitutions.get(term_marker) {
+                    // If the term exists in our substitutions, check if the sub occurs with our marker
+                    self.occurs(marker, sub)
+                } else {
+                    false
+                }
             }
-
-            // If the term exists in our substitutions, check if the sub occurs with our marker
-            if let Some(sub) = self.substitutions.get(term_marker) {
-                return self.occurs(marker, sub);
-            }
-        }
-
-        // If the term is an app, it may have our marker within it
-        if let Term::App(term_app) = term {
-            return match term_app {
+            Term::App(term_app) => match term_app {
                 App::Array(member_term) => self.occurs(marker, member_term),
                 App::Object(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
                 App::Function {
@@ -275,18 +282,12 @@ impl Typewriter {
                     return_type,
                     ..
                 } => {
-                    self_parameter
-                        .as_ref()
-                        .map_or(false, |param| self.occurs(marker, param))
+                    self.occurs(marker, self_parameter)
                         || self.occurs(marker, return_type)
                         || parameters.iter().any(|(_, param)| self.occurs(marker, param))
                 }
-            };
-        }
-
-        // If the term is a deref, it might be dereffing our marker
-        if let Term::Deref(deref) = term {
-            return match deref {
+            },
+            Term::Deref(deref) => match deref {
                 Deref::Call { target, arguments, .. } => {
                     if self.occurs(marker, target) {
                         true
@@ -295,13 +296,23 @@ impl Typewriter {
                     }
                 }
                 Deref::Field { target, .. } | Deref::MemberType { target } => self.occurs(marker, target),
-            };
+            },
+            Term::Generic(traits) => {
+                for trt in traits {
+                    match trt {
+                        Trait::FieldOp(field_op) => {
+                            if self.occurs(marker, field_op.term()) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                false
+            }
         }
-
-        false
     }
 
-    fn normalize(&self, term: &mut Term) {
+    fn normalize_term(&mut self, term: &mut Term, scope: &mut Scope) {
         match term {
             Term::Type(_) => {}
             Term::Marker(marker) => {
@@ -310,36 +321,52 @@ impl Typewriter {
                 }
             }
             Term::App(app) => match app {
-                App::Array(member_term) => self.normalize(member_term),
-                App::Object(fields) => fields.iter_mut().for_each(|(_, f)| self.normalize(f)),
+                App::Array(member_term) => self.normalize_term(member_term, scope),
+                App::Object(fields) => fields.iter_mut().for_each(|(_, f)| self.normalize_term(f, scope)),
                 App::Function {
                     self_parameter,
                     parameters,
                     return_type,
                     ..
                 } => {
-                    if let Some(self_parameter) = self_parameter {
-                        self.normalize(self_parameter);
-                    }
-                    self.normalize(return_type);
-                    parameters.iter_mut().for_each(|(_, param)| self.normalize(param));
+                    self.normalize_term(self_parameter, scope);
+                    self.normalize_term(return_type, scope);
+                    parameters
+                        .iter_mut()
+                        .for_each(|(_, param)| self.normalize_term(param, scope));
                 }
             },
             Term::Deref(deref) => match deref {
-                Deref::Field { target, .. } => self.normalize(target),
-                Deref::MemberType { target } => self.normalize(target),
-                Deref::Call { target, arguments, .. } => {
-                    self.normalize(target);
-                    arguments.iter_mut().for_each(|arg| self.normalize(arg));
+                Deref::Field { target, .. } => self.normalize_term(target, scope),
+                Deref::MemberType { target } => self.normalize_term(target, scope),
+                Deref::Call {
+                    target,
+                    arguments,
+                    uses_new,
+                } => {
+                    self.normalize_term(target, scope);
+                    arguments.iter_mut().for_each(|arg| self.normalize_term(arg, scope));
                     if let Term::App(App::Function {
                         parameters,
                         return_type,
+                        self_parameter,
                         ..
                     }) = target.as_mut()
                     {
                         // Create a temporary typewriter that will be used to evaluate this call
                         let mut call_writer = self.clone();
-                        let mut call_scope = Scope::new();
+                        let mut call_scope = Scope::new(&mut call_writer);
+
+                        // Apply the traits on the functions self to our current scope
+                        match self_parameter.as_mut() {
+                            Term::Generic(traits) => {
+                                for trt in traits {
+                                    let self_marker = scope.self_marker;
+                                    self.apply_trait(&self_marker, trt, scope).unwrap()
+                                }
+                            }
+                            _ => unreachable!(),
+                        }
 
                         // Unify the parameters with our arguments
                         for (i, arg) in arguments.iter_mut().enumerate() {
@@ -348,31 +375,37 @@ impl Typewriter {
                         }
 
                         // Normalize the return type
-                        call_writer.normalize(return_type);
+                        call_writer.normalize_term(return_type, scope);
                         *term = return_type.as_ref().clone();
                     }
                 }
             },
-            Term::Generic(traits) => traits.iter_mut().for_each(|trt| match trt {
-                Trait::FieldOp(op) => self.normalize(op.term_mut()),
-            }),
+            Term::Generic(traits) => traits.iter_mut().for_each(|trt| self.normalize_trait(trt, scope)),
         }
     }
 
-    fn new_substitution(&mut self, marker: Marker, term: Term) -> Result<(), TypeError> {
+    fn normalize_trait(&mut self, trt: &mut Trait, scope: &mut Scope) {
+        match trt {
+            Trait::FieldOp(op) => {
+                self.normalize_term(op.term_mut(), scope);
+            }
+        }
+    }
+
+    /// ### Errors
+    /// shut up
+    pub fn new_substitution(&mut self, marker: Marker, term: Term, scope: &mut Scope) -> Result<(), TypeError> {
         println!("{}", Printer::substitution(&marker, &term));
         self.substitutions.insert(marker, term);
-        let markers_needing_updates: Vec<Marker> = self
+        let markers_needing_updates: Vec<Marker> = self // todo why didn't i retain
             .substitutions
             .iter()
             .filter(|(_, sub_term)| self.occurs(&marker, sub_term))
             .map(|(marker, _)| *marker)
             .collect();
         for marker in markers_needing_updates {
-            println!("updating {}...", Printer::marker(&marker));
             let mut term = self.substitutions.remove(&marker).unwrap();
-            self.normalize(&mut term);
-            println!("it is {} now", Printer::term(&term));
+            self.normalize_term(&mut term, scope);
             self.substitutions.insert(marker, term);
         }
         Ok(())
