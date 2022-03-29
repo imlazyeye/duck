@@ -131,4 +131,11 @@ impl Scope {
             }
         }
     }
+
+    pub fn create_ghost_marker(&mut self, expr: &Expr) -> Marker {
+        let marker = Marker::new();
+        self.markers.insert(ExprId::new(), marker);
+        Printer::give_expr_alias(marker, expr.to_string());
+        marker
+    }
 }

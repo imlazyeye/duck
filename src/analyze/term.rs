@@ -33,14 +33,17 @@ impl From<Term> for Type {
                     return_type,
                     ..
                 } => Type::Function {
-                    parameters: parameters.into_iter().map(|(_, param)| param.into()).collect(),
+                    parameters: parameters.into_iter().map(|param| param.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
+                App::Call { .. } => unreachable!(),
             },
-            Term::Deref(_) => unreachable!(),
-            Term::Generic(traits) => Type::Generic {
+            Term::Deref(deref) => unreachable!("tried to convert deref to type: {}", Printer::deref(&deref)),
+            Term::Generic(traits) => {
+                Type::Generic {
                 term: Box::new(Term::Generic(traits)),
-            },
+            }
+        },
         }
     }
 }

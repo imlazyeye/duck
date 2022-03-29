@@ -1,9 +1,8 @@
-use std::sync::Mutex;
-
 use super::*;
 use colored::Colorize;
 use hashbrown::HashMap;
 use itertools::Itertools;
+use parking_lot::Mutex;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
 pub struct Marker(pub u64);
@@ -29,7 +28,7 @@ pub struct Printer {
 }
 impl Printer {
     pub fn flush() {
-        let mut printer = PRINTER.lock().unwrap();
+        let mut printer = PRINTER.lock();
         printer.aliases.clear();
         printer.expr_strings.clear();
         printer.iter = 0;
@@ -42,12 +41,12 @@ impl Printer {
             Printer::marker(&marker),
             name
         );
-        // self.expr_strings.insert(marker, name);
+        // PRINTER.lock().expr_strings.insert(marker, name);
     }
 
     #[must_use]
     pub fn marker(marker: &Marker) -> String {
-        let mut printer = PRINTER.lock().unwrap();
+        let mut printer = PRINTER.lock();
         match *marker {
             Marker::RETURN => "tR".into(),
             marker => {
@@ -91,7 +90,7 @@ impl Printer {
     #[must_use]
     pub fn tpe(tpe: &Type) -> String {
         let s = match tpe {
-            Type::Generic { term } => format!("T where T {}", Self::term(term)),
+            Type::Generic { term } => format!("T: {}", Self::term(term)),
             Type::Unknown => "<?>".into(),
             Type::Undefined => "undefined".into(),
             Type::Noone => "noone".into(),
@@ -137,11 +136,17 @@ impl Printer {
                 ..
             } => format!(
                 "({}) → {}",
-                [format!("self<{}>", Printer::term(self_parameter))]
+                [self_parameter.as_ref().map(|v| format!("self<{}>", Printer::term(v)))]
                     .into_iter()
-                    .chain(parameters.iter().map(|(_, param)| Self::term(param)))
+                    .flatten()
+                    .chain(parameters.iter().map(Self::term))
                     .join(", "),
                 Self::term(return_type),
+            ),
+            App::Call { function, arguments } => format!(
+                "{}({})",
+                Printer::term(function),
+                arguments.iter().map(Self::term).join(", "),
             ),
         }
     }
@@ -149,16 +154,6 @@ impl Printer {
     #[must_use]
     pub fn deref(deref: &Deref) -> String {
         match deref {
-            Deref::Call {
-                target,
-                arguments,
-                uses_new,
-            } => format!(
-                "{}{}({})",
-                if *uses_new { "new " } else { "" },
-                Self::term(target),
-                arguments.iter().map(Self::term).join(", ")
-            ),
             Deref::Field { field_name, target } => {
                 format!("{}.{field_name}", Self::term(target))
             }
@@ -170,9 +165,15 @@ impl Printer {
     pub fn trt(trt: &Trait) -> String {
         match trt {
             Trait::FieldOp(op) => match op {
-                FieldOp::Read(name, term) | FieldOp::Write(name, term) => format!("∋ {name}: {}", Self::term(term)),
+                FieldOp::Readable(name, term) => format!("Readable<{name}: {}>", Self::term(term)),
+                FieldOp::Writable(name, term) => format!("Writable<{name}: {}>", Self::term(term)),
             },
-            Trait::Derive(term) => format!("⊇ {}", Self::term(term)),
+            Trait::Derive(term) => format!("Derive<{}>", Self::term(term)),
+            Trait::Callable(args, return_type) => format!(
+                "Callable<({}) -> {}>",
+                args.iter().map(Self::term).join(", "),
+                Self::term(return_type)
+            ),
         }
     }
 

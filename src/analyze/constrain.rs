@@ -45,9 +45,9 @@ impl<'s> Constraints<'s> {
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
                     let marker = self.scope.ensure_alias(value);
-                    self.marker_eq_symbol(Marker::RETURN, Term::Marker(marker));
+                    self.marker_eq_term(Marker::RETURN, Term::Marker(marker));
                 } else {
-                    self.marker_eq_symbol(Marker::RETURN, Term::Type(Type::Undefined));
+                    self.marker_eq_term(Marker::RETURN, Term::Type(Type::Undefined));
                 }
             }
 
@@ -67,7 +67,7 @@ impl<'s> Constraints<'s> {
                     let marker = self.scope.ensure_alias(expr);
                     self.marker_impl(
                         self.scope.self_marker,
-                        Trait::FieldOp(FieldOp::Write(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                        Trait::FieldOp(FieldOp::Writable(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
                     )
                 } else {
                     // validate that the new type is equal to the last type? shadowing is a
@@ -82,15 +82,10 @@ impl<'s> Constraints<'s> {
 
             // Declare the parameters into the scope, collecting their markers
             #[allow(clippy::needless_collect)]
-            let param_registrations: Vec<(String, Marker)> = function
+            let param_registrations: Vec<Marker> = function
                 .parameters
                 .iter()
-                .map(|param| {
-                    (
-                        param.name().into(),
-                        func_scope.declare_local(param.name().into(), param.name_expr()),
-                    )
-                })
+                .map(|param| func_scope.declare_local(param.name().into(), param.name_expr()))
                 .collect();
 
             // Access the body
@@ -102,22 +97,26 @@ impl<'s> Constraints<'s> {
             println!("\n--- Ending process... ---\n");
 
             // Re-collect the parameters
-            let parameters: Vec<(String, Term)> = param_registrations
+            let parameters: Vec<Term> = param_registrations
                 .into_iter()
-                .map(|(name, marker)| (name, writer.find_term(marker)))
+                .map(|marker| writer.find_term(marker))
                 .collect();
 
-            // If the function has any fields in its namespace, then it is generic over some self
-            let fields = writer.scope_self_traits(&func_scope);
+            // Retrieve any traits this function's self must implement
+            let traits = writer.scope_self_traits(&func_scope);
+            let self_parameter = if traits.is_empty() {
+                None
+            } else {
+                Some(Box::new(Term::Generic(traits)))
+            };
 
             let return_type = writer.take_return_term();
             self.expr_eq_app(
                 expr,
                 App::Function {
-                    self_parameter: Box::new(Term::Generic(fields)),
+                    self_parameter,
                     parameters,
                     return_type: Box::new(return_type),
-                    body: function.body_stmts(),
                 },
             );
 
@@ -183,12 +182,12 @@ impl<'s> Constraints<'s> {
                         if self.context == Context::Declare {
                             self.marker_impl(
                                 self.scope.self_marker,
-                                Trait::FieldOp(FieldOp::Write(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                                Trait::FieldOp(FieldOp::Writable(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
                             )
                         } else {
                             self.marker_impl(
                                 self.scope.self_marker,
-                                Trait::FieldOp(FieldOp::Read(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                                Trait::FieldOp(FieldOp::Readable(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
                             )
                         }
                     }
@@ -201,9 +200,9 @@ impl<'s> Constraints<'s> {
                         self.expr_impl(
                             left,
                             Trait::FieldOp(if self.context != Context::Read {
-                                FieldOp::Write(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
+                                FieldOp::Writable(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
                             } else {
-                                FieldOp::Read(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
+                                FieldOp::Readable(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
                             }),
                         );
 
@@ -253,22 +252,49 @@ impl<'s> Constraints<'s> {
                 arguments,
                 uses_new,
             }) => {
-                // let trt = Trait::ReturnType(Box::new(Term::Marker(self.scope.ensure_alias(expr))));
-                // self.expr_impl(left, trt);
                 let left_marker = self.scope.ensure_alias(left);
-                self.marker_impl(
-                    self.scope.self_marker,
-                    Trait::Derive(Box::new(Term::Marker(left_marker))),
-                );
-                let deref = Deref::Call {
-                    target: Box::new(Term::Marker(left_marker)),
-                    arguments: arguments
-                        .iter()
-                        .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
-                        .collect(),
-                    uses_new: *uses_new,
-                };
-                self.expr_eq_deref(expr, deref);
+                let this_expr_marker = self.scope.ensure_alias(expr);
+
+                // Create a function based on what we know
+                let arguments: Vec<Term> = arguments
+                    .iter()
+                    .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
+                    .collect();
+
+                // Create our call
+                // self.expr_eq_app(
+                //     expr,
+                //     App::Call {
+                //         function: Box::new(Term::Marker(left_marker)),
+                //         arguments: arguments.clone(),
+                //     },
+                // );
+
+                // Make sure the left can implement this call
+                self.expr_impl(
+                    left,
+                    Trait::Callable(arguments, Box::new(Term::Marker(this_expr_marker))),
+                )
+
+                // let trt = Trait::ReturnType(Box::new(Term::Marker(self.scope.
+                // ensure_alias(expr)))); self.expr_impl(left, trt);
+
+                // our current scope must derive the self traits of the left
+                // self.marker_impl(
+                //     self.scope.self_marker,
+                //     Trait::Derive(Box::new(Term::Marker(left_marker))),
+                // );
+
+                // this call is equal to a deref of the left
+                // let deref = Deref::Call {
+                //     target: Box::new(Term::Marker(left_marker)),
+                //     arguments: arguments
+                //         .iter()
+                //         .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
+                //         .collect(),
+                //     uses_new: *uses_new,
+                // };
+                // self.expr_eq_deref(expr, deref);
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner);
@@ -285,14 +311,14 @@ impl<'s> Constraints<'s> {
                         let marker = self.scope.ensure_alias(expr);
                         self.marker_impl(
                             self.scope.self_marker,
-                            Trait::FieldOp(FieldOp::Write(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                            Trait::FieldOp(FieldOp::Writable(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
                         )
                     }
                 } else {
                     let marker = self.scope.ensure_alias(expr);
                     self.marker_impl(
                         self.scope.self_marker,
-                        Trait::FieldOp(FieldOp::Read(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                        Trait::FieldOp(FieldOp::Readable(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
                     )
                 }
             }
@@ -381,14 +407,14 @@ impl<'s> Constraints<'s> {
 
     pub fn expr_eq_term(&mut self, expr: &Expr, term: Term) {
         let marker = self.scope.ensure_alias(expr);
-        self.marker_eq_symbol(marker, term);
+        self.marker_eq_term(marker, term);
     }
 
     pub fn marker_impl(&mut self, marker: Marker, trt: Trait) {
         self.collection.push(Constraint::Trait(marker, trt));
     }
 
-    pub fn marker_eq_symbol(&mut self, marker: Marker, term: Term) {
+    pub fn marker_eq_term(&mut self, marker: Marker, term: Term) {
         self.collection.push(Constraint::Eq(marker, term));
     }
 }

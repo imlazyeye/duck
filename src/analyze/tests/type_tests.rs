@@ -225,59 +225,23 @@ fn return_constant() {
 }
 
 #[test]
-fn wrapped_lambda_in_struct_field() {
+fn call_default_return_value() {
     harness_type_ast(
-        "function wrapper(lambda) {
-            return { y: lambda(0) };
-        }
-        function inner(n) { return n; }
-        var data = wrapper(inner);",
-        [(
-            "data",
-            Type::Struct {
-                fields: HashMap::from([("y".into(), Type::Real)]),
-            },
-        )],
-    );
-}
-
-#[test]
-fn complicated_data() {
-    harness_type_ast(
-        "function build_data(x, y, z) {
-            return {
-                x: x,
-                y: y(0),
-                z: z[0][0].a.b.c,
-            };
-        }
-        function build_x(x) { return x; }
-        function y_fn(n) { return n; }
-        var z = [[{ a: { b: { c: 0 }}}]];
-        var data = build_data(build_x(0), y_fn, z);
-        var output = data.x + data.y + data.z;",
-        [("output", Type::Real)],
-    );
-}
-
-#[test]
-fn default_return_value() {
-    harness_type_ast(
-        "function foo() {}
+        "var foo = function() {}
         var bar = foo();",
         [("bar", Type::Undefined)],
     )
 }
 
 #[test]
-fn constant_return_value() {
+fn call_constant_return_value() {
     harness_type_ast(
-        "function foo() {
+        "var foo = function() {
             return 0;
         }
         var bar = foo();",
         [("bar", Type::Real)],
-    )
+    );
 }
 
 #[test]
@@ -337,37 +301,103 @@ fn multi_use_generic_function() {
     );
 }
 
-// #[test]
-// fn inferred_function() {
-//     harness_type_ast(
-//         "function foo(x) {
-//             var y = x() + 1;
-//             return y;
-//         }
-//         function bar() {}
-//         var buzz = foo(bar);",
-//         [(
-//             "buzz",
-//             Type::Function {
-//                 parameters: vec![],
-//                 return_type: Box::new(Type::Real),
-//             },
-//         )],
-//     );
-// }
+/*
+function x(n) { // fn foo<T>(T) -> T
+    return n;
+}
+
+function foo(x) {
+    var _ = x(1) + 1; // x impl fn x(int) -> int
+    var _ = x(true) || true; // x impl fn x(bool) -> bool
+}
+
+Okay, here's my conclusion. At least in the context of the above code, `x` should not be expressed as a concrete type.
+Instead, x is: `T: Callable<(int) -> int>, Callable<(bool) -> bool>`
+
+*/
 
 #[test]
-fn function_infer_array_type() {
+fn inferred_function() {
+    harness_type_ast(
+        "var foo = function(x) {
+            return x() + 1;
+        }",
+        [(
+            "foo",
+            Type::Function {
+                parameters: vec![],
+                return_type: Box::new(Type::Real),
+            },
+        )],
+    );
+}
+
+#[test]
+fn inferred_array() {
     harness_type_expr(
         "function(a) {
-            return a[0] && true;
+            return a[0] + 1;
         }",
         Type::Function {
             parameters: vec![Type::Array {
-                member_type: Box::new(Type::Bool),
+                member_type: Box::new(Type::Real),
             }],
-            return_type: Box::new(Type::Bool),
+            return_type: Box::new(Type::Real),
         },
+    );
+}
+
+#[test]
+fn inferred_struct() {
+    harness_type_expr(
+        "function(a) {
+            return a.b + 1;
+        }",
+        Type::Function {
+            parameters: vec![Type::Generic {
+                term: Box::new(Term::Generic(vec![Trait::FieldOp(FieldOp::Readable(
+                    "b".into(),
+                    Box::new(Term::Type(Type::Real)),
+                ))])),
+            }],
+            return_type: Box::new(Type::Real),
+        },
+    );
+}
+
+#[test]
+fn wrapped_lambda_in_struct_field() {
+    harness_type_ast(
+        "function wrapper(lambda) {
+            return { y: lambda(0) };
+        }
+        function inner(n) { return n; }
+        var data = wrapper(inner);",
+        [(
+            "data",
+            Type::Struct {
+                fields: HashMap::from([("y".into(), Type::Real)]),
+            },
+        )],
+    );
+}
+
+#[test]
+fn complex_data() {
+    harness_type_ast(
+        "function build_data(x, y, z) {
+            return {
+                x: x,
+                y: y(0),
+                z: z[0][0].a.b.c,
+            };
+        }
+        function build_x(x) { return x; }
+        function y_fn(n) { return n; }
+        var z = [[{ a: { b: { c: 0 }}}]];
+        var data = build_data(build_x(0), y_fn, z);
+        var output = data.x + data.y + data.z;",
+        [("output", Type::Real)],
     );
 }
 
