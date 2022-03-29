@@ -30,8 +30,19 @@ impl From<Term> for Type {
                 App::Function {
                     parameters,
                     return_type,
+                    self_parameter,
                     ..
                 } => Type::Function {
+                    self_parameter: self_parameter.and_then(|v| match v.as_ref() {
+                        Term::Trait(Trait::FieldOps(ops)) => {
+                            if ops.is_empty() {
+                                None
+                            } else {
+                                Some(Box::new(v.as_ref().clone().into()))
+                            }
+                        }
+                        _ => unreachable!(),
+                    }),
                     parameters: parameters.into_iter().map(|param| param.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
@@ -45,6 +56,7 @@ impl From<Term> for Type {
                 },
                 Trait::Derive(_) => todo!(),
                 Trait::Callable(args, return_type) => Type::Function {
+                    self_parameter: None, // todo?
                     parameters: args.into_iter().map(|v| v.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },

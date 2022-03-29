@@ -35,7 +35,11 @@ impl Scope {
             markers: HashMap::default(),
         };
         typewriter
-            .new_substitution(self_marker, Term::Type(Type::Any), &mut scope)
+            .new_substitution(
+                self_marker,
+                Term::Trait(Trait::FieldOps(HashMap::default())),
+                &mut scope,
+            )
             .expect("No type error can arrise from declaraing a new self");
         scope
     }

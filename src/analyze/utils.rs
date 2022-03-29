@@ -100,11 +100,16 @@ impl Printer {
             ),
             Type::Union { types } => types.iter().map(Self::tpe).join("| "),
             Type::Function {
+                self_parameter,
                 parameters,
                 return_type,
             } => format!(
                 "fn ({}) -> {}",
-                parameters.iter().map(Self::tpe).join(", "),
+                [self_parameter.as_ref().map(|v| format!("self<{}>", Printer::tpe(v)))]
+                    .into_iter()
+                    .flatten()
+                    .chain(parameters.iter().map(Self::tpe))
+                    .join(", "),
                 Self::tpe(return_type)
             ),
         };
@@ -142,13 +147,19 @@ impl Printer {
     #[must_use]
     pub fn trt(trt: &Trait) -> String {
         match trt {
-            Trait::FieldOps(field_ops) => field_ops
-                .iter()
-                .map(|(name, op)| match op.as_ref() {
-                    FieldOp::Readable(term) => format!("Readable<{name}: {}>", Self::term(term)),
-                    FieldOp::Writable(term) => format!("Writable<{name}: {}>", Self::term(term)),
-                })
-                .join(", "),
+            Trait::FieldOps(field_ops) => {
+                if field_ops.is_empty() {
+                    "*".into()
+                } else {
+                    field_ops
+                        .iter()
+                        .map(|(name, op)| match op.as_ref() {
+                            FieldOp::Readable(term) => format!("Readable<{name}: {}>", Self::term(term)),
+                            FieldOp::Writable(term) => format!("Writable<{name}: {}>", Self::term(term)),
+                        })
+                        .join(", ")
+                }
+            }
             Trait::Derive(term) => format!("Derive<{}>", Self::term(term)),
             Trait::Callable(args, return_type) => format!(
                 "Callable<({}) -> {}>",
@@ -179,11 +190,11 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn marker_impl(marker: &Marker, trt: &Trait) -> String {
+    pub fn term_impl(term: &Term, trt: &Trait) -> String {
         format!(
             "{}         {}   ⊇   {}",
             "IMPL".bright_cyan(),
-            Printer::marker(marker),
+            Printer::term(term),
             Printer::trt(trt),
         )
     }
@@ -206,12 +217,6 @@ impl Printer {
                 "CON".bright_magenta(),
                 Self::marker(marker),
                 Self::term(term),
-            ),
-            Constraint::Trait(marker, trt) => format!(
-                "{}          {}   ⊇   {}",
-                "CON".bright_magenta(),
-                Self::marker(marker),
-                Self::trt(trt)
             ),
         }
     }

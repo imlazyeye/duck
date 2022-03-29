@@ -242,6 +242,7 @@ impl<'s> Constraints<'s> {
                 arguments,
                 uses_new,
             }) => {
+                let left_marker = self.scope.ensure_alias(left);
                 let this_expr_marker = self.scope.ensure_alias(expr);
 
                 // Create a function based on what we know
@@ -254,7 +255,13 @@ impl<'s> Constraints<'s> {
                 self.expr_impl(
                     left,
                     Trait::Callable(arguments, Box::new(Term::Marker(this_expr_marker))),
-                )
+                );
+
+                // Lastly, the calling scope must derive the scope of this function
+                self.marker_impl(
+                    self.scope.self_marker,
+                    Trait::Derive(Box::new(Term::Marker(left_marker))),
+                );
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner);
@@ -373,7 +380,7 @@ impl<'s> Constraints<'s> {
     }
 
     pub fn marker_impl(&mut self, marker: Marker, trt: Trait) {
-        self.collection.push(Constraint::Trait(marker, trt));
+        self.collection.push(Constraint::Eq(marker, Term::Trait(trt)));
     }
 
     pub fn marker_eq_term(&mut self, marker: Marker, term: Term) {
@@ -384,7 +391,6 @@ impl<'s> Constraints<'s> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Constraint {
     Eq(Marker, Term),
-    Trait(Marker, Trait),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

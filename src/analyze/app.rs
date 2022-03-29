@@ -10,4 +10,8 @@ pub enum App {
         parameters: Vec<Term>,
         return_type: Box<Term>,
     },
+    // Call {
+    //     function: Box<Term>,
+    //     arguments: Vec<Term>,
+    // },
 }
