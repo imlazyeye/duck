@@ -35,9 +35,10 @@ impl Typewriter {
         }
     }
 
-    pub fn scope_self_traits(&self, scope: &Scope) -> Vec<Trait> {
+    pub fn scope_self_trait(&self, scope: &Scope) -> Option<Trait> {
         match self.find_term(scope.self_marker) {
-            Term::Generic(fields) => fields,
+            Term::Trait(trt) => Some(trt),
+            Term::Type(Type::Any) => None,
             _ => unreachable!(),
         }
     }
@@ -83,11 +84,8 @@ impl Typewriter {
         println!("{}", Printer::marker_unification(marker, term));
 
         // If there is an impl, we should apply it
-        if let Term::Generic(traits) = term {
-            for trt in traits {
-                self.apply_trait(marker, trt, scope)?;
-            }
-            return Ok(());
+        if let Term::Trait(trt) = term {
+            self.apply_trait(marker, trt, scope)?
         }
 
         // If a substitution is already available for this marker, we will unify the term with that
@@ -113,16 +111,15 @@ impl Typewriter {
                     Term::App(App::Object(fields)) => {
                         return self.unify_marker(marker, fields.get_mut(field_name).expect("doh"), scope);
                     }
-                    Term::Generic(traits) => {
-                        for trt in traits {
-                            match trt {
-                                Trait::FieldOp(FieldOp::Readable(_, field))
-                                | Trait::FieldOp(FieldOp::Writable(_, field)) => {
-                                    self.unify_marker(marker, field, scope)?;
+                    Term::Trait(trt) => {
+                        match trt {
+                            Trait::FieldOps(fields) => {
+                                for (_, term) in fields {
+                                    self.unify_marker(marker, term.as_mut().term_mut(), scope)?
                                 }
-                                Trait::Derive(target) => self.unify_marker(marker, target, scope)?,
-                                Trait::Callable(arguments, return_type) => todo!(),
                             }
+                            Trait::Derive(target) => self.unify_marker(marker, target, scope)?,
+                            Trait::Callable(arguments, return_type) => todo!(),
                         }
                         return Ok(());
                     }
@@ -181,19 +178,20 @@ impl Typewriter {
                     parameters: lhs_params,
                     return_type: lhs_return,
                     ..
-                } => {
-                    if let Term::App(App::Function {
+                } => match rhs {
+                    Term::App(App::Function {
                         parameters: rhs_params,
                         return_type: rhs_return,
                         ..
-                    }) = rhs
-                    {
+                    })
+                    | Term::Trait(Trait::Callable(rhs_params, rhs_return)) => {
                         for (i, param) in rhs_params.iter_mut().enumerate() {
                             self.unify_terms(&mut lhs_params[i], param, scope)?;
                         }
                         self.unify_terms(lhs_return, rhs_return, scope)?;
                     }
-                }
+                    _ => {}
+                },
                 App::Call { function, arguments } => {
                     println!("could have ran here")
                 }
@@ -217,61 +215,80 @@ impl Typewriter {
         println!("{}", Printer::marker_impl(marker, trt));
         if let Some(sub) = &mut self.substitutions.get_mut(marker).cloned() {
             match trt {
-                Trait::FieldOp(field_op) => match sub {
-                    Term::App(App::Object(fields)) => match field_op {
-                        FieldOp::Readable(name, term) => {
-                            self.unify_terms(fields.get_mut(name).expect("missing field being read"), term, scope)
-                        }
-                        FieldOp::Writable(name, term) => {
-                            if let Some(field) = fields.get_mut(name) {
-                                self.unify_terms(field, term, scope)
-                            } else {
-                                // add in the field then
-                                fields.insert(name.clone(), term.as_ref().clone());
-                                self.new_substitution(*marker, sub.clone(), scope)
-                            }
-                        }
-                    },
-                    Term::Generic(sub_traits) => {
-                        if let Some(sub_op) = sub_traits
-                            .iter_mut()
-                            .filter_map(|sub_trait| match sub_trait {
-                                Trait::FieldOp(sub_op) if sub_op.name() == field_op.name() => Some(sub_op),
-                                _ => None,
-                            })
-                            .next()
-                        {
-                            // Unify the terms
-                            self.unify_terms(field_op.term_mut(), sub_op.term_mut(), scope)?;
-
-                            // If our sub is currently a read, and the pattern is a write, we will upgarde
-                            if let FieldOp::Readable(_, _) = sub_op {
-                                if let FieldOp::Writable(_, _) = field_op {
-                                    *sub_op = field_op.clone();
+                Trait::FieldOps(field_ops) => match sub {
+                    Term::App(App::Object(fields)) => {
+                        for (name, field_op) in field_ops {
+                            match field_op.as_mut() {
+                                FieldOp::Readable(term) => self.unify_terms(
+                                    fields.get_mut(name).expect("missing field being read"),
+                                    term,
+                                    scope,
+                                )?,
+                                FieldOp::Writable(term) => {
+                                    if let Some(field) = fields.get_mut(name) {
+                                        self.unify_terms(field, term, scope)?
+                                    } else {
+                                        // add in the field then
+                                        fields.insert(name.clone(), term.clone());
+                                    }
                                 }
                             }
-                        } else {
-                            sub_traits.push(trt.clone());
                         }
-                        self.new_substitution(*marker, Term::Generic(sub_traits.clone()), scope)
+                        self.new_substitution(*marker, sub.clone(), scope)
                     }
+                    Term::Trait(sub_trait) => {
+                        if let Trait::FieldOps(sub_ops) = sub_trait {
+                            for (trt_name, trt_op) in field_ops {
+                                // Unify the terms
+                                match trt_op.as_mut() {
+                                    FieldOp::Readable(term) => {
+                                        let sub_op = sub_ops.get_mut(trt_name).expect("foo");
+                                        self.unify_terms(trt_op.term_mut(), sub_op.term_mut(), scope)?;
+                                    }
+                                    FieldOp::Writable(term) => {
+                                        if let Some(field) = sub_ops.get_mut(trt_name) {
+                                            self.unify_terms(field.term_mut(), term, scope)?
+                                        } else {
+                                            // add in the field then
+                                            sub_ops.insert(trt_name.clone(), trt_op.clone());
+                                        }
+                                    }
+                                }
+
+                                // If our sub is currently a read, and the pattern is a write, we
+                                // will upgarde if let FieldOp::
+                                // Readable(_) = sub_op.as_ref() {
+                                //     if let FieldOp::Writable(_) = trt_op.as_ref() {
+                                //         *sub_op = trt_op.clone();
+                                //     }
+                                // }
+                            }
+                        } else {
+                            panic!()
+                        }
+                        self.new_substitution(*marker, Term::Trait(sub_trait.clone()), scope)
+                    }
+                    Term::Type(Type::Any) => self.new_substitution(*marker, Term::Trait(trt.clone()), scope),
                     _ => Ok(()),
                 },
-                Trait::Derive(_) => self.new_substitution(*marker, Term::Generic(vec![trt.clone()]), scope),
+                Trait::Derive(_) => self.new_substitution(*marker, Term::Trait(trt.clone()), scope),
                 Trait::Callable(arguments, return_type) => match sub {
                     Term::App(App::Function {
-                        self_parameter,
                         parameters,
-                        return_type,
-                    }) => {
-                        println!("check to make sure that this works");
-                        Ok(())
+                        return_type: func_return,
+                        ..
+                    })
+                    | Term::Trait(Trait::Callable(parameters, func_return)) => {
+                        for (i, arg) in arguments.iter_mut().enumerate() {
+                            self.unify_terms(arg, &mut parameters[i], scope)?
+                        }
+                        self.unify_terms(return_type, func_return, scope)
                     }
                     _ => Ok(()),
                 },
             }
         } else {
-            let term = Term::Generic(vec![trt.clone()]);
+            let term = Term::Trait(trt.clone());
             if !self.occurs(marker, &term) {
                 self.new_substitution(*marker, term, scope)
             } else {
@@ -314,23 +331,13 @@ impl Typewriter {
             Term::Deref(deref) => match deref {
                 Deref::Field { target, .. } | Deref::MemberType { target } => self.occurs(marker, target),
             },
-            Term::Generic(traits) => {
-                for trt in traits {
-                    match trt {
-                        Trait::FieldOp(field_op) => {
-                            if self.occurs(marker, field_op.term()) {
-                                return true;
-                            }
-                        }
-                        Trait::Derive(target) => return self.occurs(marker, target),
-                        Trait::Callable(arguments, return_type) => {
-                            return self.occurs(marker, return_type)
-                                || arguments.iter().any(|arg| self.occurs(marker, arg));
-                        }
-                    }
+            Term::Trait(trt) => match trt {
+                Trait::FieldOps(field_ops) => field_ops.iter().any(|(_, op)| self.occurs(marker, op.term())),
+                Trait::Derive(target) => return self.occurs(marker, target),
+                Trait::Callable(arguments, return_type) => {
+                    return self.occurs(marker, return_type) || arguments.iter().any(|arg| self.occurs(marker, arg));
                 }
-                false
-            }
+            },
         }
     }
 
@@ -384,11 +391,9 @@ impl Typewriter {
                         if let Some(self_parameter) = self_parameter {
                             call_writer.normalize_term(self_parameter, &mut call_scope);
                             match self_parameter.as_mut() {
-                                Term::Generic(traits) => {
-                                    for trt in traits {
-                                        let self_marker = scope.self_marker;
-                                        self.apply_trait(&self_marker, trt, scope).unwrap()
-                                    }
+                                Term::Trait(trt) => {
+                                    let self_marker = scope.self_marker;
+                                    self.apply_trait(&self_marker, trt, scope).unwrap()
                                 }
                                 _ => unreachable!(),
                             }
@@ -404,34 +409,44 @@ impl Typewriter {
                 Deref::Field { target, .. } => self.normalize_term(target, scope),
                 Deref::MemberType { target } => self.normalize_term(target, scope),
             },
-            Term::Generic(traits) => {
-                let iter_traits = traits.clone();
-                traits.clear();
-                for mut trt in iter_traits {
-                    self.normalize_trait(&mut trt, scope);
-                    if let Trait::Derive(target) = &mut trt {
-                        if let Term::App(App::Function { self_parameter, .. }) = target.as_ref() {
-                            if let Some(self_parameter) = self_parameter {
-                                if let Term::Generic(new_traits) = self_parameter.as_ref() {
-                                    for new_trt in new_traits {
-                                        traits.push(new_trt.clone());
-                                    }
-                                    return;
-                                }
-                            }
-                        }
+            Term::Trait(trt) => {
+                match trt {
+                    Trait::FieldOps(ops) => ops
+                        .iter_mut()
+                        .for_each(|(_, op)| self.normalize_term(op.term_mut(), scope)),
+                    Trait::Derive(_) => todo!(),
+                    Trait::Callable(args, return_type) => {
+                        args.iter_mut().for_each(|arg| self.normalize_term(arg, scope));
+                        self.normalize_term(return_type.as_mut(), scope);
                     }
-                    traits.push(trt);
                 }
+                // let iter_traits = traits.clone();
+                // traits.clear();
+                // for mut trt in iter_traits {
+                //     self.normalize_trait(&mut trt, scope);
+                //     if let Trait::Derive(target) = &mut trt {
+                //         if let Term::App(App::Function { self_parameter, .. }) = target.as_ref()
+                // {             if let Some(self_parameter) = self_parameter {
+                //                 if let Term::Generic(new_traits) = self_parameter.as_ref() {
+                //                     for new_trt in new_traits {
+                //                         traits.push(new_trt.clone());
+                //                     }
+                //                     return;
+                //                 }
+                //             }
+                //         }
+                //     }
+                //     traits.push(trt);
+                // }
             }
         }
     }
 
     fn normalize_trait(&mut self, trt: &mut Trait, scope: &mut Scope) {
         match trt {
-            Trait::FieldOp(op) => {
-                self.normalize_term(op.term_mut(), scope);
-            }
+            Trait::FieldOps(field_ops) => field_ops
+                .iter_mut()
+                .for_each(|(_, op)| self.normalize_term(op.term_mut(), scope)),
             Trait::Derive(target) => {
                 self.normalize_term(target, scope);
             }

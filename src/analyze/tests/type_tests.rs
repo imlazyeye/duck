@@ -135,7 +135,7 @@ fn empty_array() {
     harness_type_expr(
         "[]",
         Type::Array {
-            member_type: Box::new(Type::Unknown),
+            member_type: Box::new(Type::Any),
         },
     );
 }
@@ -301,20 +301,19 @@ fn multi_use_generic_function() {
     );
 }
 
-/*
-function x(n) { // fn foo<T>(T) -> T
-    return n;
-}
-
-function foo(x) {
-    var _ = x(1) + 1; // x impl fn x(int) -> int
-    var _ = x(true) || true; // x impl fn x(bool) -> bool
-}
-
-Okay, here's my conclusion. At least in the context of the above code, `x` should not be expressed as a concrete type.
-Instead, x is: `T: Callable<(int) -> int>, Callable<(bool) -> bool>`
-
-*/
+// function x(n) { // fn foo<T>(T) -> T
+// return n;
+// }
+//
+// function foo(x) {
+// var _ = x(1) + 1; // x impl fn x(int) -> int
+// var _ = x(true) || true; // x impl fn x(bool) -> bool
+// }
+//
+// Okay, here's my conclusion. At least in the context of the above code, `x` should not be
+// expressed as a concrete type. Instead, x is: `T: Callable<(int) -> int>, Callable<(bool) ->
+// bool>`
+//
 
 #[test]
 fn inferred_function() {
@@ -325,7 +324,10 @@ fn inferred_function() {
         [(
             "foo",
             Type::Function {
-                parameters: vec![],
+                parameters: vec![Type::Function {
+                    parameters: vec![],
+                    return_type: Box::new(Type::Real),
+                }],
                 return_type: Box::new(Type::Real),
             },
         )],
@@ -354,11 +356,8 @@ fn inferred_struct() {
             return a.b + 1;
         }",
         Type::Function {
-            parameters: vec![Type::Generic {
-                term: Box::new(Term::Generic(vec![Trait::FieldOp(FieldOp::Readable(
-                    "b".into(),
-                    Box::new(Term::Type(Type::Real)),
-                ))])),
+            parameters: vec![Type::Struct {
+                fields: HashMap::from([("b".into(), Type::Real)]),
             }],
             return_type: Box::new(Type::Real),
         },
@@ -366,12 +365,24 @@ fn inferred_struct() {
 }
 
 #[test]
+fn return_from_other_function() {
+    harness_type_ast(
+        "var wrapper = function(lambda) {
+            return lambda(0);
+        }
+        var inner = function(n) { return n; }
+        var data = wrapper(inner);",
+        [("data", Type::Real)],
+    );
+}
+
+#[test]
 fn wrapped_lambda_in_struct_field() {
     harness_type_ast(
-        "function wrapper(lambda) {
+        "var wrapper = function(lambda) {
             return { y: lambda(0) };
         }
-        function inner(n) { return n; }
+        var inner = function(n) { return n; }
         var data = wrapper(inner);",
         [(
             "data",

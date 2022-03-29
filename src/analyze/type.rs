@@ -6,7 +6,7 @@ pub enum Type {
     Generic {
         term: Box<Term>,
     },
-    Unknown,
+    Any,
     Undefined,
     Noone,
     Bool,

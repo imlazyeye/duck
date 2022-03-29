@@ -1,33 +1,29 @@
+use hashbrown::HashMap;
+
 use super::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Trait {
-    FieldOp(FieldOp),
+    FieldOps(HashMap<String, Box<FieldOp>>),
     Derive(Box<Term>),
     Callable(Vec<Term>, Box<Term>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum FieldOp {
-    Readable(String, Box<Term>),
-    Writable(String, Box<Term>),
+    Readable(Term),
+    Writable(Term),
 }
 impl FieldOp {
-    pub fn name(&self) -> &str {
-        match self {
-            FieldOp::Readable(name, _) | FieldOp::Writable(name, _) => name,
-        }
-    }
-
     pub fn term(&self) -> &Term {
         match self {
-            FieldOp::Readable(_, term) | FieldOp::Writable(_, term) => term.as_ref(),
+            FieldOp::Readable(term) | FieldOp::Writable(term) => term,
         }
     }
 
     pub fn term_mut(&mut self) -> &mut Term {
         match self {
-            FieldOp::Readable(_, term) | FieldOp::Writable(_, term) => term.as_mut(),
+            FieldOp::Readable(term) | FieldOp::Writable(term) => term,
         }
     }
 }

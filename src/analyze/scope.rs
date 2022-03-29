@@ -35,7 +35,7 @@ impl Scope {
             markers: HashMap::default(),
         };
         typewriter
-            .new_substitution(self_marker, Term::Generic(vec![]), &mut scope)
+            .new_substitution(self_marker, Term::Type(Type::Any), &mut scope)
             .expect("No type error can arrise from declaraing a new self");
         scope
     }
@@ -63,20 +63,14 @@ impl Scope {
         {
             Ok(term) => Ok(term),
             Err(e) => {
-                let fields = typewriter.scope_self_traits(self);
-                fields
-                    .iter()
-                    .find_map(|trt| match trt {
-                        Trait::FieldOp(field_op) => {
-                            if identifier.lexeme == field_op.name() {
-                                Some(field_op.term().clone())
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    })
-                    .ok_or(e)
+                if let Some(trt) = typewriter.scope_self_trait(self) {
+                    match trt {
+                        Trait::FieldOps(fields) => fields.get(&identifier.lexeme).map(|v| v.term().clone()).ok_or(e),
+                        _ => Err(e),
+                    }
+                } else {
+                    Err(e)
+                }
             }
         }
     }

@@ -67,7 +67,10 @@ impl<'s> Constraints<'s> {
                     let marker = self.scope.ensure_alias(expr);
                     self.marker_impl(
                         self.scope.self_marker,
-                        Trait::FieldOp(FieldOp::Writable(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                        Trait::FieldOps(HashMap::from([(
+                            iden.lexeme.clone(),
+                            Box::new(FieldOp::Writable(Term::Marker(marker))),
+                        )])),
                     )
                 } else {
                     // validate that the new type is equal to the last type? shadowing is a
@@ -103,11 +106,10 @@ impl<'s> Constraints<'s> {
                 .collect();
 
             // Retrieve any traits this function's self must implement
-            let traits = writer.scope_self_traits(&func_scope);
-            let self_parameter = if traits.is_empty() {
-                None
+            let self_parameter = if let Some(trt) = writer.scope_self_trait(&func_scope) {
+                Some(Box::new(Term::Trait(trt)))
             } else {
-                Some(Box::new(Term::Generic(traits)))
+                None
             };
 
             let return_type = writer.take_return_term();
@@ -182,12 +184,18 @@ impl<'s> Constraints<'s> {
                         if self.context == Context::Declare {
                             self.marker_impl(
                                 self.scope.self_marker,
-                                Trait::FieldOp(FieldOp::Writable(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                                Trait::FieldOps(HashMap::from([(
+                                    right.lexeme.clone(),
+                                    Box::new(FieldOp::Writable(Term::Marker(marker))),
+                                )])),
                             )
                         } else {
                             self.marker_impl(
                                 self.scope.self_marker,
-                                Trait::FieldOp(FieldOp::Readable(right.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                                Trait::FieldOps(HashMap::from([(
+                                    right.lexeme.clone(),
+                                    Box::new(FieldOp::Readable(Term::Marker(marker))),
+                                )])),
                             )
                         }
                     }
@@ -199,11 +207,14 @@ impl<'s> Constraints<'s> {
                         let left_marker = self.scope.ensure_alias(left);
                         self.expr_impl(
                             left,
-                            Trait::FieldOp(if self.context != Context::Read {
-                                FieldOp::Writable(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
-                            } else {
-                                FieldOp::Readable(right.lexeme.clone(), Box::new(Term::Marker(this_expr_marker)))
-                            }),
+                            Trait::FieldOps(HashMap::from([(
+                                right.lexeme.clone(),
+                                Box::new(if self.context != Context::Read {
+                                    FieldOp::Writable(Term::Marker(this_expr_marker))
+                                } else {
+                                    FieldOp::Readable(Term::Marker(this_expr_marker))
+                                }),
+                            )])),
                         );
 
                         // constrain the result of this expression to the field
@@ -311,14 +322,20 @@ impl<'s> Constraints<'s> {
                         let marker = self.scope.ensure_alias(expr);
                         self.marker_impl(
                             self.scope.self_marker,
-                            Trait::FieldOp(FieldOp::Writable(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                            Trait::FieldOps(HashMap::from([(
+                                iden.lexeme.clone(),
+                                Box::new(FieldOp::Writable(Term::Marker(marker))),
+                            )])),
                         )
                     }
                 } else {
                     let marker = self.scope.ensure_alias(expr);
                     self.marker_impl(
                         self.scope.self_marker,
-                        Trait::FieldOp(FieldOp::Readable(iden.lexeme.clone(), Box::new(Term::Marker(marker)))),
+                        Trait::FieldOps(HashMap::from([(
+                            iden.lexeme.clone(),
+                            Box::new(FieldOp::Readable(Term::Marker(marker))),
+                        )])),
                     )
                 }
             }
@@ -329,13 +346,13 @@ impl<'s> Constraints<'s> {
                     Literal::Noone => Type::Noone,
                     Literal::String(_) => Type::String,
                     Literal::Real(_) | Literal::Hex(_) => Type::Real,
-                    Literal::Misc(_) => Type::Unknown,
+                    Literal::Misc(_) => Type::Any,
                     Literal::Array(exprs) => {
                         // Infer the type based on the first member
                         let app = if let Some(marker) = exprs.first().map(|expr| self.scope.ensure_alias(expr)) {
                             App::Array(Box::new(Term::Marker(marker)))
                         } else {
-                            App::Array(Box::new(Term::Type(Type::Unknown))) // todo will this resolve?
+                            App::Array(Box::new(Term::Type(Type::Any))) // todo will this resolve?
                         };
                         self.expr_eq_app(expr, app);
                         return;

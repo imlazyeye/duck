@@ -7,7 +7,7 @@ pub enum Term {
     Marker(Marker),
     App(App),
     Deref(Deref),
-    Generic(Vec<Trait>),
+    Trait(Trait),
 }
 
 impl From<Term> for Type {
@@ -39,11 +39,19 @@ impl From<Term> for Type {
                 App::Call { .. } => unreachable!(),
             },
             Term::Deref(deref) => unreachable!("tried to convert deref to type: {}", Printer::deref(&deref)),
-            Term::Generic(traits) => {
-                Type::Generic {
-                term: Box::new(Term::Generic(traits)),
-            }
-        },
+            Term::Trait(trt) => match trt {
+                Trait::FieldOps(ops) => Type::Struct {
+                    fields: ops
+                        .into_iter()
+                        .map(|(name, op)| (name, op.term().clone().into()))
+                        .collect(),
+                },
+                Trait::Derive(_) => todo!(),
+                Trait::Callable(args, return_type) => Type::Function {
+                    parameters: args.into_iter().map(|v| v.into()).collect(),
+                    return_type: Box::new(return_type.as_ref().clone().into()),
+                },
+            },
         }
     }
 }

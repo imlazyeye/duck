@@ -77,13 +77,7 @@ impl Printer {
             Term::Marker(marker) => Self::marker(marker),
             Term::App(app) => Self::app(app),
             Term::Deref(deref) => Self::deref(deref),
-            Term::Generic(traits) => {
-                if traits.is_empty() {
-                    "*".into()
-                } else {
-                    traits.iter().map(Self::trt).join(", ")
-                }
-            }
+            Term::Trait(trt) => Self::trt(trt),
         }
     }
 
@@ -91,7 +85,7 @@ impl Printer {
     pub fn tpe(tpe: &Type) -> String {
         let s = match tpe {
             Type::Generic { term } => format!("T: {}", Self::term(term)),
-            Type::Unknown => "<?>".into(),
+            Type::Any => "any".into(),
             Type::Undefined => "undefined".into(),
             Type::Noone => "noone".into(),
             Type::Bool => "bool".into(),
@@ -164,10 +158,13 @@ impl Printer {
     #[must_use]
     pub fn trt(trt: &Trait) -> String {
         match trt {
-            Trait::FieldOp(op) => match op {
-                FieldOp::Readable(name, term) => format!("Readable<{name}: {}>", Self::term(term)),
-                FieldOp::Writable(name, term) => format!("Writable<{name}: {}>", Self::term(term)),
-            },
+            Trait::FieldOps(field_ops) => field_ops
+                .iter()
+                .map(|(name, op)| match op.as_ref() {
+                    FieldOp::Readable(term) => format!("Readable<{name}: {}>", Self::term(term)),
+                    FieldOp::Writable(term) => format!("Writable<{name}: {}>", Self::term(term)),
+                })
+                .join(", "),
             Trait::Derive(term) => format!("Derive<{}>", Self::term(term)),
             Trait::Callable(args, return_type) => format!(
                 "Callable<({}) -> {}>",
