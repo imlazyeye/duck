@@ -138,7 +138,6 @@ pub mod parse {
 pub mod analyze {
     mod app;
     mod constrain;
-    mod deref;
     mod global_scope;
     mod scope;
     mod term;
@@ -148,7 +147,6 @@ pub mod analyze {
     mod utils;
     pub use app::*;
     pub use constrain::*;
-    pub use deref::*;
     pub use global_scope::*;
     pub use r#trait::*;
     pub use r#type::*;

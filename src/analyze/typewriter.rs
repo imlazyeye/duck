@@ -1,5 +1,5 @@
 use super::*;
-use crate::parse::{Identifier, Stmt};
+use crate::parse::Stmt;
 use hashbrown::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -93,42 +93,6 @@ impl Typewriter {
             return self.unify_terms(sub, term, scope);
         }
 
-        // If the term is a deref, we might be able to translate it
-        // Todo: move all of these to normalize
-        if let Term::Deref(deref) = term {
-            match deref {
-                Deref::MemberType { target } => match target.as_mut() {
-                    Term::App(App::Array(member_type)) => {
-                        return self.unify_marker(marker, member_type.as_mut(), scope);
-                    }
-                    Term::Type(Type::Array { member_type }) => {
-                        return self.unify_marker(marker, &mut Term::Type(member_type.as_ref().clone()), scope);
-                    }
-                    Term::Marker(_) => {}
-                    _ => panic!("invalid array deref target"),
-                },
-                Deref::Field { target, field_name } => match target.as_mut() {
-                    Term::App(App::Object(fields)) => {
-                        return self.unify_marker(marker, fields.get_mut(field_name).expect("doh"), scope);
-                    }
-                    Term::Trait(trt) => {
-                        match trt {
-                            Trait::FieldOps(fields) => {
-                                for (_, term) in fields {
-                                    self.unify_marker(marker, term.as_mut().term_mut(), scope)?
-                                }
-                            }
-                            Trait::Derive(target) => self.unify_marker(marker, target, scope)?,
-                            Trait::Callable(arguments, return_type) => todo!(),
-                        }
-                        return Ok(());
-                    }
-                    Term::Marker(_) => {}
-                    _ => panic!("invalid obj deref target"),
-                },
-            }
-        }
-
         // Check for occurance -- if there is any, then we won't register this
         if !self.occurs(marker, term) {
             self.new_substitution(*marker, term.clone(), scope)?;
@@ -192,9 +156,6 @@ impl Typewriter {
                     }
                     _ => {}
                 },
-                App::Call { function, arguments } => {
-                    println!("could have ran here")
-                }
             }
         }
 
@@ -243,11 +204,11 @@ impl Typewriter {
                                 match trt_op.as_mut() {
                                     FieldOp::Readable(term) => {
                                         let sub_op = sub_ops.get_mut(trt_name).expect("foo");
-                                        self.unify_terms(trt_op.term_mut(), sub_op.term_mut(), scope)?;
+                                        self.unify_terms(sub_op.term_mut(), term, scope)?;
                                     }
                                     FieldOp::Writable(term) => {
-                                        if let Some(field) = sub_ops.get_mut(trt_name) {
-                                            self.unify_terms(field.term_mut(), term, scope)?
+                                        if let Some(sub_op) = sub_ops.get_mut(trt_name) {
+                                            self.unify_terms(sub_op.term_mut(), term, scope)?
                                         } else {
                                             // add in the field then
                                             sub_ops.insert(trt_name.clone(), trt_op.clone());
@@ -277,12 +238,21 @@ impl Typewriter {
                         parameters,
                         return_type: func_return,
                         ..
-                    })
-                    | Term::Trait(Trait::Callable(parameters, func_return)) => {
+                    }) => {
+                        // Create a temporary writer to unify this call with the function. We do this so we can
+                        // learn more information about the call without applying changes to the function itself,
+                        // since the function should remain generic.
+                        let mut temp_writer = self.clone();
                         for (i, arg) in arguments.iter_mut().enumerate() {
-                            self.unify_terms(arg, &mut parameters[i], scope)?
+                            temp_writer.unify_terms(arg, &mut parameters[i], scope)?
                         }
-                        self.unify_terms(return_type, func_return, scope)
+                        temp_writer.unify_terms(return_type, func_return, scope)?;
+
+                        // Now use the temporary writer to normalize our return type, and unify our return type with
+                        // that result
+                        let mut new_return_type = return_type.clone();
+                        temp_writer.normalize_term(&mut new_return_type, scope);
+                        self.unify_terms(return_type, &mut new_return_type, scope)
                     }
                     _ => Ok(()),
                 },
@@ -324,16 +294,10 @@ impl Typewriter {
                         || self.occurs(marker, return_type)
                         || parameters.iter().any(|param| self.occurs(marker, param))
                 }
-                App::Call { function, arguments } => {
-                    self.occurs(marker, function) || arguments.iter().any(|arg| self.occurs(marker, arg))
-                }
-            },
-            Term::Deref(deref) => match deref {
-                Deref::Field { target, .. } | Deref::MemberType { target } => self.occurs(marker, target),
             },
             Term::Trait(trt) => match trt {
                 Trait::FieldOps(field_ops) => field_ops.iter().any(|(_, op)| self.occurs(marker, op.term())),
-                Trait::Derive(target) => return self.occurs(marker, target),
+                Trait::Derive(target) => self.occurs(marker, target),
                 Trait::Callable(arguments, return_type) => {
                     return self.occurs(marker, return_type) || arguments.iter().any(|arg| self.occurs(marker, arg));
                 }
@@ -366,48 +330,6 @@ impl Typewriter {
                         .iter_mut()
                         .for_each(|param| self.normalize_term(param, scope));
                 }
-                App::Call { function, arguments } => {
-                    self.normalize_term(function, scope);
-                    arguments.iter_mut().for_each(|arg| self.normalize_term(arg, scope));
-                    if let Term::App(App::Function {
-                        parameters,
-                        return_type,
-                        self_parameter,
-                        ..
-                    }) = function.as_mut()
-                    {
-                        // Create a temporary typewriter that will be used to evaluate this call
-                        let mut call_writer = self.clone();
-                        let mut call_scope = Scope::new(&mut call_writer);
-
-                        // Unify the parameters with our arguments
-                        for (i, arg) in arguments.iter_mut().enumerate() {
-                            call_writer
-                                .unify_terms(&mut parameters[i], arg, &mut call_scope)
-                                .unwrap(); // TODO THIS MUST BE THROWN
-                        }
-
-                        // Apply the traits on the functions self to our current scope
-                        if let Some(self_parameter) = self_parameter {
-                            call_writer.normalize_term(self_parameter, &mut call_scope);
-                            match self_parameter.as_mut() {
-                                Term::Trait(trt) => {
-                                    let self_marker = scope.self_marker;
-                                    self.apply_trait(&self_marker, trt, scope).unwrap()
-                                }
-                                _ => unreachable!(),
-                            }
-                        }
-
-                        // Normalize the return type
-                        call_writer.normalize_term(return_type, scope);
-                        *term = return_type.as_ref().clone();
-                    }
-                }
-            },
-            Term::Deref(deref) => match deref {
-                Deref::Field { target, .. } => self.normalize_term(target, scope),
-                Deref::MemberType { target } => self.normalize_term(target, scope),
             },
             Term::Trait(trt) => {
                 match trt {

@@ -76,7 +76,6 @@ impl Printer {
             Term::Type(tpe) => Self::tpe(tpe),
             Term::Marker(marker) => Self::marker(marker),
             Term::App(app) => Self::app(app),
-            Term::Deref(deref) => Self::deref(deref),
             Term::Trait(trt) => Self::trt(trt),
         }
     }
@@ -137,21 +136,6 @@ impl Printer {
                     .join(", "),
                 Self::term(return_type),
             ),
-            App::Call { function, arguments } => format!(
-                "{}({})",
-                Printer::term(function),
-                arguments.iter().map(Self::term).join(", "),
-            ),
-        }
-    }
-
-    #[must_use]
-    pub fn deref(deref: &Deref) -> String {
-        match deref {
-            Deref::Field { field_name, target } => {
-                format!("{}.{field_name}", Self::term(target))
-            }
-            Deref::MemberType { target } => format!("{}[*]", Self::term(target)),
         }
     }
 

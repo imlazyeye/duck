@@ -106,11 +106,9 @@ impl<'s> Constraints<'s> {
                 .collect();
 
             // Retrieve any traits this function's self must implement
-            let self_parameter = if let Some(trt) = writer.scope_self_trait(&func_scope) {
-                Some(Box::new(Term::Trait(trt)))
-            } else {
-                None
-            };
+            let self_parameter = writer
+                .scope_self_trait(&func_scope)
+                .map(|trt| Box::new(Term::Trait(trt)));
 
             let return_type = writer.take_return_term();
             self.expr_eq_app(
@@ -204,7 +202,6 @@ impl<'s> Constraints<'s> {
                     }
                     Access::Dot { left, right } => {
                         let this_expr_marker = self.scope.ensure_alias(expr);
-                        let left_marker = self.scope.ensure_alias(left);
                         self.expr_impl(
                             left,
                             Trait::FieldOps(HashMap::from([(
@@ -216,15 +213,6 @@ impl<'s> Constraints<'s> {
                                 }),
                             )])),
                         );
-
-                        // constrain the result of this expression to the field
-                        self.expr_eq_deref(
-                            expr,
-                            Deref::Field {
-                                field_name: right.lexeme.clone(),
-                                target: Box::new(Term::Marker(left_marker)),
-                            },
-                        );
                     }
                     Access::Array {
                         left,
@@ -233,7 +221,6 @@ impl<'s> Constraints<'s> {
                         ..
                     } => {
                         let this_expr_marker = self.scope.ensure_alias(expr);
-                        let left_marker = self.scope.ensure_alias(left);
 
                         // our indexes must be real
                         self.expr_eq_type(index_one, Type::Real);
@@ -243,14 +230,6 @@ impl<'s> Constraints<'s> {
 
                         // the left must be an array of the member
                         self.expr_eq_app(left, App::Array(Box::new(Term::Marker(this_expr_marker))));
-
-                        // constrain the result of this expression to the member
-                        self.expr_eq_deref(
-                            expr,
-                            Deref::MemberType {
-                                target: Box::new(Term::Marker(left_marker)),
-                            },
-                        );
                     }
                     Access::Struct { .. } => {}
                     Access::Map { .. } => {}
@@ -263,7 +242,6 @@ impl<'s> Constraints<'s> {
                 arguments,
                 uses_new,
             }) => {
-                let left_marker = self.scope.ensure_alias(left);
                 let this_expr_marker = self.scope.ensure_alias(expr);
 
                 // Create a function based on what we know
@@ -272,40 +250,11 @@ impl<'s> Constraints<'s> {
                     .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
                     .collect();
 
-                // Create our call
-                // self.expr_eq_app(
-                //     expr,
-                //     App::Call {
-                //         function: Box::new(Term::Marker(left_marker)),
-                //         arguments: arguments.clone(),
-                //     },
-                // );
-
                 // Make sure the left can implement this call
                 self.expr_impl(
                     left,
                     Trait::Callable(arguments, Box::new(Term::Marker(this_expr_marker))),
                 )
-
-                // let trt = Trait::ReturnType(Box::new(Term::Marker(self.scope.
-                // ensure_alias(expr)))); self.expr_impl(left, trt);
-
-                // our current scope must derive the self traits of the left
-                // self.marker_impl(
-                //     self.scope.self_marker,
-                //     Trait::Derive(Box::new(Term::Marker(left_marker))),
-                // );
-
-                // this call is equal to a deref of the left
-                // let deref = Deref::Call {
-                //     target: Box::new(Term::Marker(left_marker)),
-                //     arguments: arguments
-                //         .iter()
-                //         .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
-                //         .collect(),
-                //     uses_new: *uses_new,
-                // };
-                // self.expr_eq_deref(expr, deref);
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner);
@@ -411,10 +360,6 @@ impl<'s> Constraints<'s> {
 
     pub fn expr_eq_app(&mut self, target: &Expr, application: App) {
         self.expr_eq_term(target, Term::App(application))
-    }
-
-    pub fn expr_eq_deref(&mut self, target: &Expr, deref: Deref) {
-        self.expr_eq_term(target, Term::Deref(deref))
     }
 
     pub fn expr_impl(&mut self, target: &Expr, trt: Trait) {

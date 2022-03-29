@@ -6,7 +6,6 @@ pub enum Term {
     Type(Type),
     Marker(Marker),
     App(App),
-    Deref(Deref),
     Trait(Trait),
 }
 
@@ -36,9 +35,7 @@ impl From<Term> for Type {
                     parameters: parameters.into_iter().map(|param| param.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
-                App::Call { .. } => unreachable!(),
             },
-            Term::Deref(deref) => unreachable!("tried to convert deref to type: {}", Printer::deref(&deref)),
             Term::Trait(trt) => match trt {
                 Trait::FieldOps(ops) => Type::Struct {
                     fields: ops
