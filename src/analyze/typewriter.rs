@@ -166,7 +166,11 @@ impl Typewriter {
                         return_type: rhs_return,
                         ..
                     })
-                    | Term::Trait(Trait::Callable(rhs_params, rhs_return)) => {
+                    | Term::Trait(Trait::Callable {
+                        arguments: rhs_params,
+                        expected_return: rhs_return,
+                        ..
+                    }) => {
                         for (i, param) in rhs_params.iter_mut().enumerate() {
                             self.unify_terms(&mut lhs_params[i], param, scope)?;
                         }
@@ -232,11 +236,15 @@ impl Typewriter {
                 _ => {}
             },
             Trait::Derive(_) => {}
-            Trait::Callable(arguments, return_type) => {
+            Trait::Callable {
+                calling_scope,
+                arguments,
+                expected_return,
+            } => {
                 if let Term::App(App::Function {
+                    self_parameter,
                     parameters,
                     return_type: func_return,
-                    ..
                 }) = term
                 {
                     // Create a temporary writer to unify this call with the function. We do this so we can
@@ -244,17 +252,35 @@ impl Typewriter {
                     // since the function should remain generic.
                     println!("--- Starting a call... ---");
                     let mut temp_writer = self.clone();
+
+                    // Figure out the argumentsF
                     for (i, arg) in arguments.iter_mut().enumerate() {
                         temp_writer.unify_terms(arg, &mut parameters[i], scope)?
                     }
-                    temp_writer.unify_terms(return_type, func_return, scope)?;
+                    temp_writer.unify_terms(expected_return, func_return, scope)?;
 
                     // Now use the temporary writer to normalize our return type, and unify our return type with
                     // that result
-                    let mut new_return_type = return_type.clone();
+                    let mut new_return_type = expected_return.clone();
                     temp_writer.normalize_term(&mut new_return_type, scope);
+                    self.unify_terms(expected_return, &mut new_return_type, scope)?;
+
+                    // Also match up our scopes
+                    if let Some(self_parameter) = self_parameter {
+                        // let self_trait = if let Term::Trait(self_trait) = self_parameter.as_mut() {
+                        //     self_trait
+                        // } else {
+                        //     unreachable!()
+                        // };
+                        // println!("WOW!");
+                        // if let Term::Trait(Trait::FieldOps(ops)) = calling_scope.as_mut() {
+                        //     self.apply_trait(calling_scope.as_mut(), self_trait, scope);
+                        // } else {
+                        //     unreachable!();
+                        // }
+                    }
+
                     println!("--- Call complete. ---");
-                    self.unify_terms(return_type, &mut new_return_type, scope)?;
                     return Ok(false);
                 }
             }
@@ -293,8 +319,14 @@ impl Typewriter {
             Term::Trait(trt) => match trt {
                 Trait::FieldOps(field_ops) => field_ops.iter().any(|(_, op)| self.occurs(marker, op.term())),
                 Trait::Derive(target) => self.occurs(marker, target),
-                Trait::Callable(arguments, return_type) => {
-                    return self.occurs(marker, return_type) || arguments.iter().any(|arg| self.occurs(marker, arg));
+                Trait::Callable {
+                    calling_scope,
+                    arguments,
+                    expected_return,
+                } => {
+                    return self.occurs(marker, calling_scope)
+                        || self.occurs(marker, expected_return)
+                        || arguments.iter().any(|arg| self.occurs(marker, arg));
                 }
             },
         }
@@ -338,23 +370,29 @@ impl Typewriter {
             Trait::Derive(target) => {
                 self.normalize_term(target, scope);
                 match target.as_ref() {
-                    Term::App(App::Function {
-                        self_parameter: Some(self_parameter),
-                        ..
-                    }) => {
-                        if let Term::Trait(new_trt) = self_parameter.as_ref() {
-                            println!("trt is now {}", Printer::trt(new_trt));
-                            *trt = new_trt.clone();
+                    Term::App(App::Function { self_parameter, .. }) => {
+                        if let Some(self_parameter) = self_parameter {
+                            if let Term::Trait(new_trt) = self_parameter.as_ref() {
+                                *trt = new_trt.clone();
+                            }
+                        } else {
+                            // this neither!
+                            *trt = Trait::FieldOps(HashMap::default())
                         }
                     }
                     // This won't last lol
-                    Term::Trait(Trait::Callable(_, _)) => *trt = Trait::FieldOps(HashMap::default()),
+                    Term::Trait(Trait::Callable { .. }) => *trt = Trait::FieldOps(HashMap::default()),
                     _ => {}
                 }
             }
-            Trait::Callable(args, return_type) => {
-                args.iter_mut().for_each(|arg| self.normalize_term(arg, scope));
-                self.normalize_term(return_type, scope);
+            Trait::Callable {
+                calling_scope,
+                arguments,
+                expected_return,
+            } => {
+                arguments.iter_mut().for_each(|arg| self.normalize_term(arg, scope));
+                self.normalize_term(calling_scope, scope);
+                self.normalize_term(expected_return, scope);
             }
         }
     }

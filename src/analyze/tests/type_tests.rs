@@ -244,22 +244,19 @@ test_var_type!(
         self.a = 0;
     }
     foo();",
-    foo: Type::Real,
+    a: Type::Real,
 );
-
-#[test]
-fn mutate_self_via_nested_function() {
-    harness_type_ast(
-        "var foo = function() {
-            self.a = 0;
-        }
-        var bar = function(foo) {
-            foo();
-        }
-        bar(foo);",
-        [("a", Type::Real)],
-    );
-}
+test_var_type!(
+    mutate_self_via_nested_function,
+    "var foo = function() {
+        self.a = 0;
+    }
+    var bar = function(foo) {
+        foo();
+    }
+    bar(foo);",
+    a: Type::Real,
+);
 
 #[test]
 fn constructor() {

@@ -161,10 +161,17 @@ impl Printer {
                 }
             }
             Trait::Derive(term) => format!("Derive<{}>", Self::term(term)),
-            Trait::Callable(args, return_type) => format!(
+            Trait::Callable {
+                calling_scope,
+                arguments,
+                expected_return,
+            } => format!(
                 "Callable<({}) -> {}>",
-                args.iter().map(Self::term).join(", "),
-                Self::term(return_type)
+                [format!("self<{}>", Printer::term(calling_scope.as_ref()))]
+                    .into_iter()
+                    .chain(arguments.iter().map(Self::term))
+                    .join(", "),
+                Self::term(expected_return)
             ),
         }
     }

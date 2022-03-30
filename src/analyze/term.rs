@@ -31,7 +31,6 @@ impl From<Term> for Type {
                     parameters,
                     return_type,
                     self_parameter,
-                    ..
                 } => Type::Function {
                     self_parameter: self_parameter.and_then(|v| match v.as_ref() {
                         Term::Trait(Trait::FieldOps(ops)) => {
@@ -55,10 +54,14 @@ impl From<Term> for Type {
                         .collect(),
                 },
                 Trait::Derive(_) => todo!(),
-                Trait::Callable(args, return_type) => Type::Function {
-                    self_parameter: None, // todo?
-                    parameters: args.into_iter().map(|v| v.into()).collect(),
-                    return_type: Box::new(return_type.as_ref().clone().into()),
+                Trait::Callable {
+                    calling_scope,
+                    arguments,
+                    expected_return,
+                } => Type::Function {
+                    self_parameter: Some(Box::new(calling_scope.as_ref().clone().into())),
+                    parameters: arguments.into_iter().map(|v| v.into()).collect(),
+                    return_type: Box::new(expected_return.as_ref().clone().into()),
                 },
             },
         }

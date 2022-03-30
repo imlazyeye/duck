@@ -254,14 +254,18 @@ impl<'s> Constraints<'s> {
                 // Make sure the left can implement this call
                 self.expr_impl(
                     left,
-                    Trait::Callable(arguments, Box::new(Term::Marker(this_expr_marker))),
+                    Trait::Callable {
+                        calling_scope: Box::new(Term::Marker(self.scope.self_marker)),
+                        arguments,
+                        expected_return: Box::new(Term::Marker(this_expr_marker)),
+                    },
                 );
 
                 // Lastly, the calling scope must derive the scope of this function
-                self.marker_impl(
-                    self.scope.self_marker,
-                    Trait::Derive(Box::new(Term::Marker(left_marker))),
-                );
+                // self.marker_impl(
+                //     self.scope.self_marker,
+                //     Trait::Derive(Box::new(Term::Marker(left_marker))),
+                // );
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner);

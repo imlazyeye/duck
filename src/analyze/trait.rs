@@ -6,7 +6,11 @@ use super::*;
 pub enum Trait {
     FieldOps(HashMap<String, Box<FieldOp>>),
     Derive(Box<Term>),
-    Callable(Vec<Term>, Box<Term>),
+    Callable {
+        calling_scope: Box<Term>,
+        arguments: Vec<Term>,
+        expected_return: Box<Term>,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone)]
