@@ -167,8 +167,10 @@ impl Printer {
                 calling_scope,
                 arguments,
                 expected_return,
+                uses_new,
             } => format!(
-                "Callable<({}) -> {}>",
+                "{}<({}) -> {}>",
+                if *uses_new { "Constructor" } else { "Callable" },
                 [if calling_scope.is_empty() {
                     None
                 } else {

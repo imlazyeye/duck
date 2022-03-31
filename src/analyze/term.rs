@@ -51,6 +51,7 @@ impl From<Term> for Type {
                     calling_scope,
                     arguments,
                     expected_return,
+                    ..
                 } => Type::Function {
                     self_fields: if calling_scope.is_empty() {
                         None

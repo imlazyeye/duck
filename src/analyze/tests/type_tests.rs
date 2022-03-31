@@ -30,10 +30,10 @@ pub(super) fn get_var_type(source: &'static str, name: &'static str) -> Type {
 pub(super) fn harness_typewriter(source: &str) -> (TestTypeWriter, Scope) {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
-    let mut typewriter = Typewriter::new();
-    let mut scope = Scope::default();
+    let mut typewriter = Typewriter::default();
     let mut ast = parser.into_ast().unwrap();
-    typewriter.write(&mut scope, ast.stmts_mut());
+    typewriter.write(ast.stmts_mut());
+    let scope = typewriter.scope.clone();
     println!("Result for: \n{source}");
     for name in scope.local_fields().iter() {
         let str = name.bright_black();
@@ -269,31 +269,31 @@ test_var_type!(
 // Constructors
 test_var_type!(
     constructor,
-    "function Foo() constructor {
+    "var foo = function() constructor {
         self.a = 0;
     }
-    var foo = new Foo();",
-    foo: new_struct!(a: Real)
+    var bar = new foo();",
+    bar: new_struct!(a: Real)
 );
 test_var_type!(
     manual_inheritance,
-    "function Foo() {
+    "var foo = function() {
         self.a = 0;
     }
-    function Bar(foo) constructor {
+    var bar = function(foo) constructor {
         foo();
     }
-    var bar = new Bar(Foo);",
-    bar: new_struct!(a: Real)
+    var fizz = new bar(foo);",
+    fizz: new_struct!(a: Real)
 );
 test_var_type!(
     inheritance,
-    "function Foo() constructor {
+    "var foo = function() constructor {
         self.a = 0;
     }
-    function Bar() : Foo() constructor {}
-    var bar = new Bar(Foo);",
-    bar: new_struct!(a: Real)
+    var bar = function() : foo() constructor {}
+    var fizz = new bar(Foo);",
+    fizz: new_struct!(a: Real)
 );
 
 // Misc

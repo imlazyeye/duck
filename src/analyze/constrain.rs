@@ -5,7 +5,6 @@ use hashbrown::HashMap;
 #[derive(Debug)]
 pub(super) struct Constraints<'s> {
     pub collection: Vec<Constraint>,
-    scope: &'s mut Scope,
     typewriter: &'s mut Typewriter,
     context: Context,
 }
@@ -29,8 +28,8 @@ impl<'s> Constraints<'s> {
                 for initializer in declarations.iter() {
                     let expr = initializer.name_expr();
                     let iden = initializer.name_identifier();
-                    if !self.scope.has_local_field(&iden.lexeme) {
-                        self.scope.declare_local(iden.lexeme.clone(), expr);
+                    if !self.typewriter.scope.has_local_field(&iden.lexeme) {
+                        self.typewriter.scope.declare_local(iden.lexeme.clone(), expr);
                     }
                     match initializer {
                         OptionalInitilization::Uninitialized(_) => self.expr_eq_type(expr, Type::Undefined),
@@ -44,7 +43,7 @@ impl<'s> Constraints<'s> {
 
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
-                    let marker = self.scope.ensure_alias(value);
+                    let marker = self.typewriter.scope.ensure_alias(value);
                     self.marker_eq_term(Marker::RETURN, Term::Marker(marker));
                 } else {
                     self.marker_eq_term(Marker::RETURN, Term::Type(Type::Undefined));
@@ -63,8 +62,9 @@ impl<'s> Constraints<'s> {
         if let ExprType::FunctionDeclaration(function) = expr.inner() {
             // If this is a named function, declare it to the local scope
             if let Some(iden) = &function.name {
-                let marker = self.scope.ensure_alias(expr);
-                self.scope
+                let marker = self.typewriter.scope.ensure_alias(expr);
+                self.typewriter
+                    .scope
                     .self_fields
                     .insert(iden.lexeme.clone(), FieldOp::Writable(Term::Marker(marker)));
             }
@@ -86,8 +86,8 @@ impl<'s> Constraints<'s> {
             let body = function.body_stmts();
 
             // Typewrite the function
-            let mut writer = self.typewriter.clone();
-            writer.write(&mut func_scope, &body);
+            let mut writer = Typewriter::new_from(self.typewriter, func_scope);
+            writer.write(&body);
             println!("\n--- Ending process... ---\n");
 
             // Re-collect the parameters
@@ -97,6 +97,7 @@ impl<'s> Constraints<'s> {
                 .collect();
 
             // Retrieve any traits this function's self must implement
+            let func_scope = writer.scope.clone();
             let self_fields = if func_scope.self_fields.is_empty() {
                 None
             } else {
@@ -171,13 +172,15 @@ impl<'s> Constraints<'s> {
                         // read the global scope for the type?
                     }
                     Access::Current { right } => {
-                        let marker = self.scope.ensure_alias(expr);
+                        let marker = self.typewriter.scope.ensure_alias(expr);
                         if self.context == Context::Declare {
-                            self.scope
+                            self.typewriter
+                                .scope
                                 .self_fields
                                 .insert(right.lexeme.clone(), FieldOp::Writable(Term::Marker(marker)));
                         } else {
-                            self.scope
+                            self.typewriter
+                                .scope
                                 .self_fields
                                 .insert(right.lexeme.clone(), FieldOp::Readable(Term::Marker(marker)));
                         }
@@ -186,7 +189,7 @@ impl<'s> Constraints<'s> {
                         // read the above scope for the type?
                     }
                     Access::Dot { left, right } => {
-                        let this_expr_marker = self.scope.ensure_alias(expr);
+                        let this_expr_marker = self.typewriter.scope.ensure_alias(expr);
                         self.expr_impl(
                             left,
                             Trait::FieldOp(
@@ -205,7 +208,7 @@ impl<'s> Constraints<'s> {
                         index_two,
                         ..
                     } => {
-                        let this_expr_marker = self.scope.ensure_alias(expr);
+                        let this_expr_marker = self.typewriter.scope.ensure_alias(expr);
 
                         // our indexes must be real
                         self.expr_eq_type(index_one, Type::Real);
@@ -227,21 +230,22 @@ impl<'s> Constraints<'s> {
                 arguments,
                 uses_new,
             }) => {
-                let this_expr_marker = self.scope.ensure_alias(expr);
+                let this_expr_marker = self.typewriter.scope.ensure_alias(expr);
 
                 // Create a function based on what we know
                 let arguments: Vec<Term> = arguments
                     .iter()
-                    .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
+                    .map(|arg| Term::Marker(self.typewriter.scope.ensure_alias(arg)))
                     .collect();
 
                 // Make sure the left can implement this call
                 self.expr_impl(
                     left,
                     Trait::Callable {
-                        calling_scope: self.scope.self_fields.clone(),
+                        calling_scope: self.typewriter.scope.self_fields.clone(),
                         arguments,
                         expected_return: Box::new(Term::Marker(this_expr_marker)),
+                        uses_new: *uses_new,
                     },
                 );
             }
@@ -250,21 +254,23 @@ impl<'s> Constraints<'s> {
             }
 
             ExprType::Identifier(iden) => {
-                if let Ok(marker) = self.scope.lookup_marker(iden) {
-                    self.scope.alias_expr_to(expr, marker);
+                if let Ok(marker) = self.typewriter.scope.lookup_marker(iden) {
+                    self.typewriter.scope.alias_expr_to(expr, marker);
                 } else if self.context != Context::Read {
                     // Check if a local variable for this already exists
-                    if self.scope.has_local_field(&iden.lexeme) {
+                    if self.typewriter.scope.has_local_field(&iden.lexeme) {
                         // do nothing for now
                     } else {
-                        let marker = self.scope.ensure_alias(expr);
-                        self.scope
+                        let marker = self.typewriter.scope.ensure_alias(expr);
+                        self.typewriter
+                            .scope
                             .self_fields
                             .insert(iden.lexeme.clone(), FieldOp::Writable(Term::Marker(marker)));
                     }
                 } else {
-                    let marker = self.scope.ensure_alias(expr);
-                    self.scope
+                    let marker = self.typewriter.scope.ensure_alias(expr);
+                    self.typewriter
+                        .scope
                         .self_fields
                         .insert(iden.lexeme.clone(), FieldOp::Readable(Term::Marker(marker)));
                 }
@@ -279,11 +285,12 @@ impl<'s> Constraints<'s> {
                     Literal::Misc(_) => Type::Any,
                     Literal::Array(exprs) => {
                         // Infer the type based on the first member
-                        let app = if let Some(marker) = exprs.first().map(|expr| self.scope.ensure_alias(expr)) {
-                            App::Array(Box::new(Term::Marker(marker)))
-                        } else {
-                            App::Array(Box::new(Term::Type(Type::Any))) // todo will this resolve?
-                        };
+                        let app =
+                            if let Some(marker) = exprs.first().map(|expr| self.typewriter.scope.ensure_alias(expr)) {
+                                App::Array(Box::new(Term::Marker(marker)))
+                            } else {
+                                App::Array(Box::new(Term::Type(Type::Any))) // todo will this resolve?
+                            };
                         self.expr_eq_app(expr, app);
                         return;
                     }
@@ -294,7 +301,7 @@ impl<'s> Constraints<'s> {
                         for declaration in declarations {
                             fields.insert(
                                 declaration.0.lexeme.clone(),
-                                FieldOp::Readable(Term::Marker(self.scope.ensure_alias(&declaration.1))),
+                                FieldOp::Readable(Term::Marker(self.typewriter.scope.ensure_alias(&declaration.1))),
                             );
                         }
                         self.expr_eq_app(expr, App::Object(fields));
@@ -309,20 +316,16 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn build(scope: &'s mut Scope, typewriter: &'s mut Typewriter, stmts: &[Stmt]) -> Vec<Constraint> {
+    pub fn build(typewriter: &'s mut Typewriter, stmts: &[Stmt]) -> Vec<Constraint> {
         let mut constraints = Self {
             collection: vec![],
             typewriter,
-            scope,
             context: Context::Read,
         };
         for stmt in stmts.iter() {
             constraints.constrain_stmt(stmt);
         }
         constraints.collection.dedup();
-        // for (marker, name) in constraints.scope.expr_strings.iter() {
-        //     Printer::give_expr_alias(*marker, name.clone());
-        // }
         for con in constraints.collection.iter() {
             println!("{}", Printer::constraint(con));
         }
@@ -335,7 +338,7 @@ impl<'s> Constraints<'s> {
     }
 
     pub fn expr_eq_expr(&mut self, target: &Expr, expr: &Expr) {
-        let marker = self.scope.ensure_alias(expr);
+        let marker = self.typewriter.scope.ensure_alias(expr);
         self.expr_eq_term(target, Term::Marker(marker))
     }
 
@@ -344,12 +347,12 @@ impl<'s> Constraints<'s> {
     }
 
     pub fn expr_impl(&mut self, target: &Expr, trt: Trait) {
-        let marker = self.scope.ensure_alias(target);
+        let marker = self.typewriter.scope.ensure_alias(target);
         self.marker_impl(marker, trt);
     }
 
     pub fn expr_eq_term(&mut self, expr: &Expr, term: Term) {
-        let marker = self.scope.ensure_alias(expr);
+        let marker = self.typewriter.scope.ensure_alias(expr);
         self.marker_eq_term(marker, term);
     }
 

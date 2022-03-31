@@ -1,30 +1,54 @@
 use super::*;
 use crate::parse::Stmt;
 use hashbrown::HashMap;
+use itertools::Itertools;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Typewriter {
     pub substitutions: HashMap<Marker, Term>,
-    pub collection: Vec<Constraint>,
+    pub constraints: Vec<Constraint>,
+    pub scope: Scope,
 }
 
 // General
 impl Typewriter {
-    pub fn new() -> Self {
+    pub fn new(scope: Scope) -> Self {
         Self {
             substitutions: HashMap::default(),
-            collection: Vec::default(),
+            constraints: Vec::default(),
+            scope,
         }
     }
 
-    pub fn write(&mut self, scope: &mut Scope, stmts: &[Stmt]) {
-        let constraints = Constraints::build(scope, self, stmts);
-        self.apply_constraints(constraints, scope);
+    pub fn new_from(other: &Self, scope: Scope) -> Self {
+        Self {
+            substitutions: other.substitutions.clone(),
+            constraints: other.constraints.clone(),
+            scope,
+        }
+    }
+
+    pub fn write(&mut self, stmts: &[Stmt]) {
+        let constraints = Constraints::build(self, stmts);
+        self.apply_constraints(constraints);
+        let mut oh_no = self.scope.clone();
+        for (_, term) in oh_no.self_fields.iter_mut() {
+            self.normalize_term(term.term_mut());
+        }
+        self.scope = oh_no;
         println!("\nCurrent substitutions:");
         self.substitutions
             .iter()
             .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term)));
-        println!("Local fields in scope: {:?}", scope.local_fields());
+        println!("Local fields in scope: {:?}", self.scope.local_fields());
+        println!(
+            "Fields in self: [{}]",
+            self.scope
+                .self_fields
+                .iter()
+                .map(|(name, op)| format!("{name}: {}", Printer::term(op.term())))
+                .join(", ")
+        );
     }
 
     pub fn take_return_term(&mut self) -> Term {
@@ -42,16 +66,16 @@ impl Typewriter {
 
 impl Default for Typewriter {
     fn default() -> Self {
-        Self::new()
+        Self::new(Scope::default())
     }
 }
 
 // Unification
 impl Typewriter {
-    pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, scope: &mut Scope) {
+    pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>) {
         while let Some(mut pattern) = constraints.pop() {
             let result = match &mut pattern {
-                Constraint::Eq(marker, term) => self.unify_marker(marker, term, scope),
+                Constraint::Eq(marker, term) => self.unify_marker(marker, term),
             };
             if let Err(TypeError(lhs, rhs)) = result {
                 panic!(
@@ -63,57 +87,52 @@ impl Typewriter {
         }
     }
 
-    pub(super) fn unify_marker(
-        &mut self,
-        marker: &Marker,
-        term: &mut Term,
-        scope: &mut Scope,
-    ) -> Result<(), TypeError> {
+    pub(super) fn unify_marker(&mut self, marker: &Marker, term: &mut Term) -> Result<(), TypeError> {
         // Ensure our term is as simple as possible
-        // self.normalize_term(term, scope);
+        // self.normalize_term(term);
         println!("{}", Printer::marker_unification(marker, term));
 
         // If a substitution is already available for this marker, we will unify the term with that
         if let Some(sub) = &mut self.substitutions.get_mut(marker).cloned() {
             // If the rhs is a trait, apply it to the left
             if let Term::Trait(trt) = term {
-                if !self.apply_trait(sub, trt, scope)? {
+                if !self.apply_trait(sub, trt)? {
                     return Ok(());
                 }
             } else {
                 // Otherwise, process the terms and get out of here
-                return self.unify_terms(sub, term, scope);
+                return self.unify_terms(sub, term);
             }
         }
 
         // Check for occurance -- if there is any, then we won't register this
         if !self.occurs(marker, term) {
-            self.new_substitution(*marker, term.clone(), scope)?;
+            self.new_substitution(*marker, term.clone())?;
         }
 
         Ok(())
     }
 
-    fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term, scope: &mut Scope) -> Result<(), TypeError> {
+    fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term) -> Result<(), TypeError> {
         // If these terms are equal, there's nothing to do
         if lhs == rhs {
             return Ok(());
         }
 
         // Normalize all inputs
-        // self.normalize_term(lhs, scope);
-        // self.normalize_term(rhs, scope);
+        // self.normalize_term(lhs);
+        // self.normalize_term(rhs);
 
         println!("{}", Printer::term_unification(lhs, rhs));
 
         // If the lhs is a marker, unify it to the right
         if let Term::Marker(marker) = lhs {
-            return self.unify_marker(marker, rhs, scope);
+            return self.unify_marker(marker, rhs);
         }
 
         // If the rhs is a marker, unify it to the left
         if let Term::Marker(marker) = rhs {
-            return self.unify_marker(marker, lhs, scope);
+            return self.unify_marker(marker, lhs);
         }
 
         // If the lhs is an app, we might be able to unify its interior
@@ -121,7 +140,7 @@ impl Typewriter {
             match lhs_app {
                 App::Array(lhs_member_type) => {
                     if let Term::App(App::Array(rhs_member_type)) = rhs {
-                        self.unify_terms(lhs_member_type, rhs_member_type, scope)?;
+                        self.unify_terms(lhs_member_type, rhs_member_type)?;
                     }
                 }
                 App::Object(_) => {}
@@ -141,9 +160,9 @@ impl Typewriter {
                         ..
                     }) => {
                         for (i, param) in rhs_params.iter_mut().enumerate() {
-                            self.unify_terms(&mut lhs_params[i], param, scope)?;
+                            self.unify_terms(&mut lhs_params[i], param)?;
                         }
-                        self.unify_terms(lhs_return, rhs_return, scope)?;
+                        self.unify_terms(lhs_return, rhs_return)?;
                     }
                     _ => {}
                 },
@@ -162,14 +181,14 @@ impl Typewriter {
         Ok(())
     }
 
-    fn apply_trait(&mut self, term: &mut Term, trt: &mut Trait, scope: &mut Scope) -> Result<bool, TypeError> {
+    fn apply_trait(&mut self, term: &mut Term, trt: &mut Trait) -> Result<bool, TypeError> {
         println!("{}", Printer::term_impl(term, trt));
         match trt {
             Trait::FieldOp(field_name, field_op) => {
                 if let Term::App(App::Object(fields)) = term {
                     // If the field is already present, it must match, but otherwise we can inject it
                     if let Some(object_field_op) = fields.get_mut(field_name) {
-                        self.unify_terms(object_field_op.term_mut(), field_op.term_mut(), scope)?;
+                        self.unify_terms(object_field_op.term_mut(), field_op.term_mut())?;
                         return Ok(false);
                     } else {
                         fields.insert(field_name.clone(), *field_op.clone());
@@ -181,6 +200,7 @@ impl Typewriter {
                 calling_scope,
                 arguments,
                 expected_return,
+                uses_new,
             } => {
                 if let Term::App(App::Function {
                     self_fields,
@@ -196,21 +216,41 @@ impl Typewriter {
 
                     // Figure out the arguments
                     for (i, arg) in arguments.iter_mut().enumerate() {
-                        temp_writer.unify_terms(arg, &mut parameters[i], scope)?
+                        temp_writer.unify_terms(arg, &mut parameters[i])?
                     }
 
                     // Figure out the return
-                    temp_writer.unify_terms(expected_return, func_return, scope)?;
+                    temp_writer.unify_terms(expected_return, func_return)?;
 
-                    // Now apply everything the temp writer knows onto our arguments and return
+                    // Now apply everything the temp writer knows onto our arguments
                     for arg in arguments.iter_mut() {
                         let mut new_arg = arg.clone();
-                        temp_writer.normalize_term(&mut new_arg, scope);
-                        self.unify_terms(arg, &mut new_arg, scope)?;
+                        temp_writer.normalize_term(&mut new_arg);
+                        self.unify_terms(arg, &mut new_arg)?;
                     }
-                    let mut new_return_type = expected_return.clone();
-                    temp_writer.normalize_term(&mut new_return_type, scope);
-                    self.unify_terms(expected_return, &mut new_return_type, scope)?;
+
+                    // If its a constructor, then our return type is actually just the self of the function
+                    if *uses_new {
+                        self.unify_terms(
+                            expected_return,
+                            &mut Term::App(App::Object(self_fields.clone().unwrap_or_default())),
+                        )?
+                    } else {
+                        // Otherwise its based on what the temp writer knows
+                        let mut new_return_type = expected_return.clone();
+                        temp_writer.normalize_term(&mut new_return_type);
+                        self.unify_terms(expected_return, &mut new_return_type)?;
+                    }
+
+                    // Finally, apply the self fields of the function to the current scope.
+                    if let Some(self_fields) = self_fields {
+                        for (name, op) in self_fields.iter() {
+                            self.scope.self_fields.insert(name.clone(), op.clone());
+                        }
+                    }
+                    for (name, op) in temp_writer.scope.self_fields.iter() {
+                        self.scope.self_fields.insert(name.clone(), op.clone());
+                    }
                     println!("--- Call complete. ---");
                     return Ok(false);
                 }
@@ -254,6 +294,7 @@ impl Typewriter {
                     calling_scope,
                     arguments,
                     expected_return,
+                    ..
                 } => {
                     return calling_scope.iter().any(|(_, op)| self.occurs(marker, op.term()))
                         || self.occurs(marker, expected_return)
@@ -263,7 +304,7 @@ impl Typewriter {
         }
     }
 
-    fn normalize_term(&mut self, term: &mut Term, scope: &mut Scope) {
+    fn normalize_term(&self, term: &mut Term) {
         match term {
             Term::Type(_) => {}
             Term::Marker(marker) => {
@@ -272,10 +313,8 @@ impl Typewriter {
                 }
             }
             Term::App(app) => match app {
-                App::Array(member_term) => self.normalize_term(member_term, scope),
-                App::Object(fields) => fields
-                    .iter_mut()
-                    .for_each(|(_, op)| self.normalize_term(op.term_mut(), scope)),
+                App::Array(member_term) => self.normalize_term(member_term),
+                App::Object(fields) => fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut())),
                 App::Function {
                     self_fields,
                     parameters,
@@ -285,39 +324,38 @@ impl Typewriter {
                     if let Some(self_fields) = self_fields.as_mut() {
                         self_fields
                             .iter_mut()
-                            .for_each(|(_, op)| self.normalize_term(op.term_mut(), scope))
+                            .for_each(|(_, op)| self.normalize_term(op.term_mut()))
                     }
-                    self.normalize_term(return_type, scope);
-                    parameters
-                        .iter_mut()
-                        .for_each(|param| self.normalize_term(param, scope));
+                    self.normalize_term(return_type);
+                    parameters.iter_mut().for_each(|param| self.normalize_term(param));
                 }
             },
-            Term::Trait(trt) => self.normalize_trait(trt, scope),
+            Term::Trait(trt) => self.normalize_trait(trt),
         }
     }
 
-    fn normalize_trait(&mut self, trt: &mut Trait, scope: &mut Scope) {
+    fn normalize_trait(&self, trt: &mut Trait) {
         match trt {
-            Trait::FieldOp(_, op) => self.normalize_term(op.term_mut(), scope),
+            Trait::FieldOp(_, op) => self.normalize_term(op.term_mut()),
             Trait::Callable {
                 calling_scope,
                 arguments,
                 expected_return,
+                ..
             } => {
-                arguments.iter_mut().for_each(|arg| self.normalize_term(arg, scope));
+                arguments.iter_mut().for_each(|arg| self.normalize_term(arg));
                 calling_scope
                     .iter_mut()
-                    .for_each(|(_, op)| self.normalize_term(op.term_mut(), scope));
-                self.normalize_term(expected_return, scope);
+                    .for_each(|(_, op)| self.normalize_term(op.term_mut()));
+                self.normalize_term(expected_return);
             }
         }
     }
 
     /// ### Errors
     /// shut up
-    pub fn new_substitution(&mut self, marker: Marker, mut term: Term, scope: &mut Scope) -> Result<(), TypeError> {
-        self.normalize_term(&mut term, scope);
+    pub fn new_substitution(&mut self, marker: Marker, mut term: Term) -> Result<(), TypeError> {
+        self.normalize_term(&mut term);
         println!("{}", Printer::substitution(&marker, &term));
         self.substitutions.insert(marker, term);
         let markers_needing_updates: Vec<Marker> = self // todo why didn't i retain
@@ -328,7 +366,7 @@ impl Typewriter {
             .collect();
         for marker in markers_needing_updates {
             let mut term = self.substitutions.remove(&marker).unwrap();
-            self.normalize_term(&mut term, scope);
+            self.normalize_term(&mut term);
             self.substitutions.insert(marker, term);
         }
         Ok(())

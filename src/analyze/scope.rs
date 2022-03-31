@@ -6,24 +6,10 @@ use crate::{
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use hashbrown::HashMap;
 
-#[derive(Debug, Clone, Default)]
-pub struct Fields(HashMap<String, (ExprId, Location)>);
-impl std::ops::Deref for Fields {
-    type Target = HashMap<String, (ExprId, Location)>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl std::ops::DerefMut for Fields {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct Scope {
     pub self_fields: HashMap<String, FieldOp>,
-    local: Fields,
+    local: HashMap<String, (ExprId, Location)>,
     markers: HashMap<ExprId, Marker>,
 }
 impl Scope {
