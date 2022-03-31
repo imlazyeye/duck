@@ -71,6 +71,10 @@ impl<'s> Constraints<'s> {
 
             println!("\n--- Processing function... ---\n");
 
+            if let Some(Constructor::WithInheritance(expr)) = &function.constructor {
+                self.constrain_expr(expr);
+            }
+
             // Create a new scope for this function
             let mut func_scope = Scope::default();
 

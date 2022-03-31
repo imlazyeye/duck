@@ -292,7 +292,7 @@ test_var_type!(
         self.a = 0;
     }
     var bar = function() : foo() constructor {}
-    var fizz = new bar(Foo);",
+    var fizz = new bar();",
     fizz: new_struct!(a: Real)
 );
 

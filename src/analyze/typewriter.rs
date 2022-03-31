@@ -229,20 +229,7 @@ impl Typewriter {
                         self.unify_terms(arg, &mut new_arg)?;
                     }
 
-                    // If its a constructor, then our return type is actually just the self of the function
-                    if *uses_new {
-                        self.unify_terms(
-                            expected_return,
-                            &mut Term::App(App::Object(self_fields.clone().unwrap_or_default())),
-                        )?
-                    } else {
-                        // Otherwise its based on what the temp writer knows
-                        let mut new_return_type = expected_return.clone();
-                        temp_writer.normalize_term(&mut new_return_type);
-                        self.unify_terms(expected_return, &mut new_return_type)?;
-                    }
-
-                    // Finally, apply the self fields of the function to the current scope.
+                    // Apply the self fields of the function to the current scope.
                     if let Some(self_fields) = self_fields {
                         for (name, op) in self_fields.iter() {
                             self.scope.self_fields.insert(name.clone(), op.clone());
@@ -251,6 +238,26 @@ impl Typewriter {
                     for (name, op) in temp_writer.scope.self_fields.iter() {
                         self.scope.self_fields.insert(name.clone(), op.clone());
                     }
+
+                    // If using new, we want to define the properties of the constructor itself
+                    if *uses_new {
+                        if let Some(self_fields) = self_fields {
+                            self_fields.extend(&mut self.scope.self_fields.clone().into_iter());
+                        } else {
+                            *self_fields = Some(self.scope.self_fields.clone());
+                        }
+                        self.unify_terms(
+                            expected_return,
+                            &mut Term::App(App::Object(self_fields.clone().unwrap_or_default())),
+                        )?;
+                        return Ok(true);
+                    } else {
+                        // Otherwise its based on what the temp writer knows
+                        let mut new_return_type = expected_return.clone();
+                        temp_writer.normalize_term(&mut new_return_type);
+                        self.unify_terms(expected_return, &mut new_return_type)?;
+                    }
+                    println!("the scope of {} is {:?}", Printer::term(term), self.scope.self_fields);
                     println!("--- Call complete. ---");
                     return Ok(false);
                 }
