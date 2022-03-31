@@ -63,25 +63,16 @@ impl<'s> Constraints<'s> {
         if let ExprType::FunctionDeclaration(function) = expr.inner() {
             // If this is a named function, declare it to the local scope
             if let Some(iden) = &function.name {
-                if !self.scope.has_field(&iden.lexeme) {
-                    let marker = self.scope.ensure_alias(expr);
-                    self.marker_impl(
-                        self.scope.self_marker,
-                        Trait::FieldOps(HashMap::from([(
-                            iden.lexeme.clone(),
-                            Box::new(FieldOp::Writable(Term::Marker(marker))),
-                        )])),
-                    )
-                } else {
-                    // validate that the new type is equal to the last type? shadowing is a
-                    // problem
-                }
+                let marker = self.scope.ensure_alias(expr);
+                self.scope
+                    .self_fields
+                    .insert(iden.lexeme.clone(), FieldOp::Writable(Term::Marker(marker)));
             }
 
             println!("\n--- Processing function... ---\n");
 
             // Create a new scope for this function
-            let mut func_scope = Scope::new(self.typewriter);
+            let mut func_scope = Scope::default();
 
             // Declare the parameters into the scope, collecting their markers
             #[allow(clippy::needless_collect)]
@@ -106,15 +97,17 @@ impl<'s> Constraints<'s> {
                 .collect();
 
             // Retrieve any traits this function's self must implement
-            let self_parameter = writer
-                .scope_self_trait(&func_scope)
-                .map(|trt| Box::new(Term::Trait(trt)));
+            let self_fields = if func_scope.self_fields.is_empty() {
+                None
+            } else {
+                Some(func_scope.self_fields)
+            };
 
             let return_type = writer.take_return_term();
             self.expr_eq_app(
                 expr,
                 App::Function {
-                    self_parameter,
+                    self_fields,
                     parameters,
                     return_type: Box::new(return_type),
                 },
@@ -180,21 +173,13 @@ impl<'s> Constraints<'s> {
                     Access::Current { right } => {
                         let marker = self.scope.ensure_alias(expr);
                         if self.context == Context::Declare {
-                            self.marker_impl(
-                                self.scope.self_marker,
-                                Trait::FieldOps(HashMap::from([(
-                                    right.lexeme.clone(),
-                                    Box::new(FieldOp::Writable(Term::Marker(marker))),
-                                )])),
-                            )
+                            self.scope
+                                .self_fields
+                                .insert(right.lexeme.clone(), FieldOp::Writable(Term::Marker(marker)));
                         } else {
-                            self.marker_impl(
-                                self.scope.self_marker,
-                                Trait::FieldOps(HashMap::from([(
-                                    right.lexeme.clone(),
-                                    Box::new(FieldOp::Readable(Term::Marker(marker))),
-                                )])),
-                            )
+                            self.scope
+                                .self_fields
+                                .insert(right.lexeme.clone(), FieldOp::Readable(Term::Marker(marker)));
                         }
                     }
                     Access::Other { .. } => {
@@ -204,14 +189,14 @@ impl<'s> Constraints<'s> {
                         let this_expr_marker = self.scope.ensure_alias(expr);
                         self.expr_impl(
                             left,
-                            Trait::FieldOps(HashMap::from([(
+                            Trait::FieldOp(
                                 right.lexeme.clone(),
                                 Box::new(if self.context != Context::Read {
                                     FieldOp::Writable(Term::Marker(this_expr_marker))
                                 } else {
                                     FieldOp::Readable(Term::Marker(this_expr_marker))
                                 }),
-                            )])),
+                            ),
                         );
                     }
                     Access::Array {
@@ -242,7 +227,6 @@ impl<'s> Constraints<'s> {
                 arguments,
                 uses_new,
             }) => {
-                let left_marker = self.scope.ensure_alias(left);
                 let this_expr_marker = self.scope.ensure_alias(expr);
 
                 // Create a function based on what we know
@@ -255,17 +239,11 @@ impl<'s> Constraints<'s> {
                 self.expr_impl(
                     left,
                     Trait::Callable {
-                        calling_scope: Box::new(Term::Marker(self.scope.self_marker)),
+                        calling_scope: self.scope.self_fields.clone(),
                         arguments,
                         expected_return: Box::new(Term::Marker(this_expr_marker)),
                     },
                 );
-
-                // Lastly, the calling scope must derive the scope of this function
-                // self.marker_impl(
-                //     self.scope.self_marker,
-                //     Trait::Derive(Box::new(Term::Marker(left_marker))),
-                // );
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner);
@@ -280,23 +258,15 @@ impl<'s> Constraints<'s> {
                         // do nothing for now
                     } else {
                         let marker = self.scope.ensure_alias(expr);
-                        self.marker_impl(
-                            self.scope.self_marker,
-                            Trait::FieldOps(HashMap::from([(
-                                iden.lexeme.clone(),
-                                Box::new(FieldOp::Writable(Term::Marker(marker))),
-                            )])),
-                        )
+                        self.scope
+                            .self_fields
+                            .insert(iden.lexeme.clone(), FieldOp::Writable(Term::Marker(marker)));
                     }
                 } else {
                     let marker = self.scope.ensure_alias(expr);
-                    self.marker_impl(
-                        self.scope.self_marker,
-                        Trait::FieldOps(HashMap::from([(
-                            iden.lexeme.clone(),
-                            Box::new(FieldOp::Readable(Term::Marker(marker))),
-                        )])),
-                    )
+                    self.scope
+                        .self_fields
+                        .insert(iden.lexeme.clone(), FieldOp::Readable(Term::Marker(marker)));
                 }
             }
             ExprType::Literal(literal) => {
@@ -304,7 +274,7 @@ impl<'s> Constraints<'s> {
                     Literal::True | Literal::False => Type::Bool,
                     Literal::Undefined => Type::Undefined,
                     Literal::Noone => Type::Noone,
-                    Literal::String(_) => Type::String,
+                    Literal::String(_) => Type::Str,
                     Literal::Real(_) | Literal::Hex(_) => Type::Real,
                     Literal::Misc(_) => Type::Any,
                     Literal::Array(exprs) => {
@@ -324,7 +294,7 @@ impl<'s> Constraints<'s> {
                         for declaration in declarations {
                             fields.insert(
                                 declaration.0.lexeme.clone(),
-                                Term::Marker(self.scope.ensure_alias(&declaration.1)),
+                                FieldOp::Readable(Term::Marker(self.scope.ensure_alias(&declaration.1))),
                             );
                         }
                         self.expr_eq_app(expr, App::Object(fields));

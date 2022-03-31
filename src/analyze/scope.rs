@@ -20,30 +20,13 @@ impl std::ops::DerefMut for Fields {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Scope {
-    pub self_marker: Marker,
+    pub self_fields: HashMap<String, FieldOp>,
     local: Fields,
     markers: HashMap<ExprId, Marker>,
 }
 impl Scope {
-    pub fn new(typewriter: &mut Typewriter) -> Self {
-        let self_marker = Marker::new();
-        let mut scope = Self {
-            self_marker,
-            local: Fields::default(),
-            markers: HashMap::default(),
-        };
-        typewriter
-            .new_substitution(
-                self_marker,
-                Term::Trait(Trait::FieldOps(HashMap::default())),
-                &mut scope,
-            )
-            .expect("No type error can arrise from declaraing a new self");
-        scope
-    }
-
     pub fn has_field(&self, name: &str) -> bool {
         self.has_local_field(name)
     }
@@ -66,16 +49,12 @@ impl Scope {
             .map(|marker| typewriter.find_term(marker))
         {
             Ok(term) => Ok(term),
-            Err(e) => {
-                if let Some(trt) = typewriter.scope_self_trait(self) {
-                    match trt {
-                        Trait::FieldOps(fields) => fields.get(&identifier.lexeme).map(|v| v.term().clone()).ok_or(e),
-                        _ => Err(e),
-                    }
-                } else {
-                    Err(e)
-                }
-            }
+            Err(e) => self
+                .self_fields
+                .get(&identifier.lexeme)
+                .map(|op| op.term())
+                .cloned()
+                .ok_or(e),
         }
     }
 

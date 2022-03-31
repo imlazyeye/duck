@@ -89,7 +89,7 @@ impl Printer {
             Type::Noone => "noone".into(),
             Type::Bool => "bool".into(),
             Type::Real => "real".into(),
-            Type::String => "string".into(),
+            Type::Str => "string".into(),
             Type::Array { member_type } => format!("[{}]", Self::tpe(member_type)),
             Type::Struct { fields } => format!(
                 "{{ {} }}",
@@ -100,7 +100,7 @@ impl Printer {
             ),
             Type::Union { types } => types.iter().map(Self::tpe).join("| "),
             Type::Function {
-                self_parameter,
+                self_fields: self_parameter,
                 parameters,
                 return_type,
             } => format!(
@@ -120,25 +120,37 @@ impl Printer {
     pub fn app(app: &App) -> String {
         match app {
             App::Array(inner) => format!("[{}]", Self::term(inner)),
-            App::Object(fields) => format!(
-                "{{ {} }}",
-                fields
-                    .iter()
-                    .map(|(name, term)| format!("{name}: {}", Self::term(term)))
-                    .join(", ")
-            ),
+            App::Object(object) => {
+                if object.is_empty() {
+                    "{}".into()
+                } else {
+                    format!(
+                        "{{ {} }}",
+                        object
+                            .iter()
+                            .map(|(name, term)| format!("{name}: {}", Self::term(term.term())))
+                            .join(", ")
+                    )
+                }
+            }
             App::Function {
-                self_parameter,
+                self_fields,
                 parameters,
                 return_type,
                 ..
             } => format!(
                 "({}) → {}",
-                [self_parameter.as_ref().map(|v| format!("self<{}>", Printer::term(v)))]
-                    .into_iter()
-                    .flatten()
-                    .chain(parameters.iter().map(Self::term))
-                    .join(", "),
+                [self_fields.as_ref().map(|fields| format!(
+                    "self: {}",
+                    fields
+                        .iter()
+                        .map(|(n, op)| Printer::trt(&Trait::FieldOp(n.into(), Box::new(op.clone()))))
+                        .join(", ")
+                ))]
+                .into_iter()
+                .flatten()
+                .chain(parameters.iter().map(Self::term))
+                .join(", "),
                 Self::term(return_type),
             ),
         }
@@ -147,30 +159,31 @@ impl Printer {
     #[must_use]
     pub fn trt(trt: &Trait) -> String {
         match trt {
-            Trait::FieldOps(field_ops) => {
-                if field_ops.is_empty() {
-                    "*".into()
-                } else {
-                    field_ops
-                        .iter()
-                        .map(|(name, op)| match op.as_ref() {
-                            FieldOp::Readable(term) => format!("Readable<{name}: {}>", Self::term(term)),
-                            FieldOp::Writable(term) => format!("Writable<{name}: {}>", Self::term(term)),
-                        })
-                        .join(", ")
-                }
-            }
-            Trait::Derive(term) => format!("Derive<{}>", Self::term(term)),
+            Trait::FieldOp(name, op) => match op.as_ref() {
+                FieldOp::Readable(term) => format!("Readable<{name}: {}>", Self::term(term)),
+                FieldOp::Writable(term) => format!("Writable<{name}: {}>", Self::term(term)),
+            },
             Trait::Callable {
                 calling_scope,
                 arguments,
                 expected_return,
             } => format!(
                 "Callable<({}) -> {}>",
-                [format!("self<{}>", Printer::term(calling_scope.as_ref()))]
-                    .into_iter()
-                    .chain(arguments.iter().map(Self::term))
-                    .join(", "),
+                [if calling_scope.is_empty() {
+                    None
+                } else {
+                    Some(format!(
+                        "self: {}",
+                        calling_scope
+                            .iter()
+                            .map(|(n, op)| Printer::trt(&Trait::FieldOp(n.into(), Box::new(op.clone()))))
+                            .join(", ")
+                    ))
+                }]
+                .into_iter()
+                .flatten()
+                .chain(arguments.iter().map(Self::term))
+                .join(", "),
                 Self::term(expected_return)
             ),
         }
