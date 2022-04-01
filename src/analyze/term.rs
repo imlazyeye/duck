@@ -42,6 +42,9 @@ impl From<Term> for Type {
                     parameters: parameters.into_iter().map(|param| param.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
+                App::Union(terms) => Type::Union {
+                    types: terms.into_iter().map(|v| v.into()).collect(),
+                },
             },
             Term::Trait(trt) => match trt {
                 Trait::FieldOp(name, op) => Type::Struct {

@@ -138,11 +138,26 @@ impl Typewriter {
             return self.unify_marker(marker, lhs, scope);
         }
 
-        // Right now, we only unify arrays here, cause everything else uses traits!
-        if let Term::App(App::Array(lhs_member_type)) = lhs {
-            if let Term::App(App::Array(rhs_member_type)) = rhs {
-                self.unify_terms(lhs_member_type, rhs_member_type, scope)?;
+        // Apps?
+        match lhs {
+            Term::App(App::Array(lhs_member_type)) => {
+                if let Term::App(App::Array(rhs_member_type)) = rhs {
+                    self.unify_terms(lhs_member_type, rhs_member_type, scope)?;
+                }
             }
+            Term::App(App::Union(lhs_types)) => match rhs {
+                Term::App(App::Union(rhs_types)) => {
+                    for (i, tpe) in lhs_types.iter_mut().enumerate() {
+                        self.unify_terms(tpe, rhs_types.get_mut(i).expect("foo"), scope)?
+                    }
+                }
+                _ => {
+                    for tpe in lhs_types.iter_mut() {
+                        self.unify_terms(tpe, rhs, scope)?
+                    }
+                }
+            },
+            _ => (),
         }
 
         // Are these clashing types?
@@ -265,6 +280,7 @@ impl Typewriter {
                     }) || self.occurs(marker, return_type)
                         || parameters.iter().any(|param| self.occurs(marker, param))
                 }
+                App::Union(terms) => terms.iter().any(|v| self.occurs(marker, v)),
             },
             Term::Trait(trt) => match trt {
                 Trait::FieldOp(_, op) => self.occurs(marker, op.term()),
@@ -305,6 +321,7 @@ impl Typewriter {
                     self.normalize_term(return_type);
                     parameters.iter_mut().for_each(|param| self.normalize_term(param));
                 }
+                App::Union(terms) => terms.iter_mut().for_each(|v| self.normalize_term(v)),
             },
             Term::Trait(trt) => match trt {
                 Trait::FieldOp(_, op) => self.normalize_term(op.term_mut()),

@@ -79,3 +79,8 @@ macro_rules! new_function {
         }
     };
 }
+
+#[macro_export]
+macro_rules! new_union {
+   ($($tpe:expr),*) => (Type::Union { types: vec![$($tpe),*] })
+}

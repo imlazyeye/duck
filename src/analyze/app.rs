@@ -10,6 +10,7 @@ pub enum App {
         parameters: Vec<Term>,
         return_type: Box<Term>,
     },
+    Union(Vec<Term>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

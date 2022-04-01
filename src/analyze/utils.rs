@@ -153,6 +153,7 @@ impl Printer {
                 .join(", "),
                 Self::term(return_type),
             ),
+            App::Union(terms) => terms.iter().map(Printer::term).join(" | "),
         }
     }
 

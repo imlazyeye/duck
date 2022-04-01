@@ -146,8 +146,12 @@ impl<'s> Constraints<'s> {
                 self.expr_eq_expr(expr, left);
             }
             ExprType::NullCoalecence(NullCoalecence { left, right }) => {
-                self.expr_eq_expr(right, left);
-                self.expr_eq_expr(expr, left);
+                let right_marker = self.scope.ensure_alias(right);
+                self.expr_eq_app(
+                    left,
+                    App::Union(vec![Term::Marker(right_marker), Term::Type(Type::Undefined)]),
+                );
+                self.expr_eq_expr(expr, right);
             }
             ExprType::Ternary(Ternary {
                 condition,

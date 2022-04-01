@@ -1,4 +1,4 @@
-use crate::{analyze::*, new_array, new_function, new_struct, parse::*};
+use crate::{analyze::*, new_array, new_function, new_struct, new_union, parse::*};
 use colored::Colorize;
 use pretty_assertions::assert_eq;
 use Type::*;
@@ -96,7 +96,12 @@ test_expr_type!(
     "!x" => Bool,
 );
 test_expr_type!(ternary, "true ? 0 : 0" => Real);
-// test_expr_type!(null_coalecence, "undefined ?? 0" => Real);
+test_expr_type!(
+    null_coalecence,
+    "function(x) {
+        return x ?? 0;
+    }" => new_function!((new_union!(Real, Undefined)) => Real)
+);
 test_expr_type!(
     evaluation,
     "1 + 1" => Real,
