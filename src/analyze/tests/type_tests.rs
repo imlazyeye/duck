@@ -31,9 +31,9 @@ pub(super) fn harness_typewriter(source: &str) -> (TestTypeWriter, Scope) {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
     let mut typewriter = Typewriter::default();
+    let mut scope = Scope::new(&mut typewriter);
     let mut ast = parser.into_ast().unwrap();
-    typewriter.write(ast.stmts_mut());
-    let scope = typewriter.scope.clone();
+    typewriter.write(ast.stmts_mut(), &mut scope);
     println!("Result for: \n{source}");
     for name in scope.local_fields().iter() {
         let str = name.bright_black();
@@ -108,11 +108,14 @@ test_expr_type!(
 );
 test_expr_type!(logical, "true && false" => Bool);
 
+// Local variable
+test_var_type!(local_variable, "var a = 0", a: Real);
+
 // Arrays
 test_expr_type!(empty_array, "[]" => new_array!(Any));
 test_expr_type!(constant_array, "[0]" => new_array!(Real));
 test_expr_type!(nested_array, "[[[0]]]" => new_array!(new_array!(new_array!(Real))));
-test_var_type!(array_access, "var x = [0], y = x[0];", y: Real,);
+test_var_type!(array_access, "var x = [0], y = x[0];", y: Real);
 
 // Structs
 test_expr_type!(empty_struct, "{}" => new_struct!());
@@ -122,7 +125,12 @@ test_var_type!(struct_access, "var foo = { x: 0 }, bar = foo.x;", bar: Real,);
 // Functions
 test_expr_type!(function, "function() {}" => new_function!(() => Undefined));
 test_var_type!(
-    default_return,
+    named_function,
+    "function foo() {};",
+    foo: new_function!(() => Undefined)
+);
+test_var_type!(
+    return_nothing,
     "var foo = function() {};
     var bar = foo();",
     bar: Undefined,
@@ -134,7 +142,13 @@ test_var_type!(
     bar: Real,
 );
 test_var_type!(
-    return_generic,
+    return_inferred_constant,
+    "var foo = function(x) { return x + 1; };
+    var bar = foo(1);",
+    bar: Real,
+);
+test_var_type!(
+    return_generic_value,
     "var foo = function(x) { return x; };
     var bar = foo(true);",
     bar: Bool,
@@ -248,7 +262,7 @@ test_expr_type!(
 );
 test_var_type!(
     mutate_self_via_function,
-    "var foo = function() {
+    "function foo() {
         self.a = 0;
     }
     foo();",

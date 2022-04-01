@@ -6,13 +6,32 @@ use crate::{
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 use hashbrown::HashMap;
 
-#[derive(Debug, PartialEq, Default, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Scope {
-    pub self_fields: HashMap<String, FieldOp>,
+    pub self_marker: Marker,
     local: HashMap<String, (ExprId, Location)>,
     markers: HashMap<ExprId, Marker>,
 }
 impl Scope {
+    pub fn shallow_new(scope: &Scope) -> Self {
+        Self {
+            self_marker: scope.self_marker,
+            local: Default::default(),
+            markers: Default::default(),
+        }
+    }
+
+    pub fn new(typewriter: &mut Typewriter) -> Self {
+        let self_marker = Marker::new();
+        typewriter
+            .new_substitution(self_marker, Term::App(App::Object(HashMap::default())))
+            .unwrap();
+        Self {
+            self_marker,
+            local: Default::default(),
+            markers: Default::default(),
+        }
+    }
     pub fn has_field(&self, name: &str) -> bool {
         self.has_local_field(name)
     }
@@ -35,8 +54,8 @@ impl Scope {
             .map(|marker| typewriter.find_term(marker))
         {
             Ok(term) => Ok(term),
-            Err(e) => self
-                .self_fields
+            Err(e) => typewriter
+                .self_fields(self)
                 .get(&identifier.lexeme)
                 .map(|op| op.term())
                 .cloned()
@@ -93,12 +112,5 @@ impl Scope {
                 marker
             }
         }
-    }
-
-    pub fn create_ghost_marker(&mut self, expr: &Expr) -> Marker {
-        let marker = Marker::new();
-        self.markers.insert(ExprId::new(), marker);
-        Printer::give_expr_alias(marker, expr.to_string());
-        marker
     }
 }

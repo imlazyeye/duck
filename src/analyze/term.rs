@@ -48,21 +48,11 @@ impl From<Term> for Type {
                     fields: HashMap::from([(name, op.term().clone().into())]),
                 },
                 Trait::Callable {
-                    calling_scope,
                     arguments,
                     expected_return,
                     ..
                 } => Type::Function {
-                    self_fields: if calling_scope.is_empty() {
-                        None
-                    } else {
-                        Some(Box::new(Type::Struct {
-                            fields: calling_scope
-                                .into_iter()
-                                .map(|(n, op)| (n, op.term().clone().into()))
-                                .collect(),
-                        }))
-                    },
+                    self_fields: None,
                     parameters: arguments.into_iter().map(|v| v.into()).collect(),
                     return_type: Box::new(expected_return.as_ref().clone().into()),
                 },

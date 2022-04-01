@@ -164,28 +164,13 @@ impl Printer {
                 FieldOp::Writable(term) => format!("Writable<{name}: {}>", Self::term(term)),
             },
             Trait::Callable {
-                calling_scope,
                 arguments,
                 expected_return,
                 uses_new,
             } => format!(
                 "{}<({}) -> {}>",
                 if *uses_new { "Constructor" } else { "Callable" },
-                [if calling_scope.is_empty() {
-                    None
-                } else {
-                    Some(format!(
-                        "self: {}",
-                        calling_scope
-                            .iter()
-                            .map(|(n, op)| Printer::trt(&Trait::FieldOp(n.into(), Box::new(op.clone()))))
-                            .join(", ")
-                    ))
-                }]
-                .into_iter()
-                .flatten()
-                .chain(arguments.iter().map(Self::term))
-                .join(", "),
+                arguments.iter().map(Self::term).join(", "),
                 Self::term(expected_return)
             ),
         }
