@@ -14,17 +14,19 @@ pub(super) struct Constraints<'s> {
 // Constraining
 impl<'s> Constraints<'s> {
     fn constrain_stmt(&mut self, stmt: &Stmt) {
-        self.context = match stmt.inner() {
-            StmtType::Assignment(Assignment { op, .. }) => match op {
-                AssignmentOp::Identity(_) => Context::Declare,
-                _ => Context::Write,
-            },
-            _ => Context::Read,
-        };
-
+        self.context = Context::Read;
         match stmt.inner() {
-            StmtType::Assignment(Assignment { left, right, .. }) => {
+            StmtType::Assignment(Assignment { left, right, op }) => {
+                self.context = match op {
+                    AssignmentOp::Identity(_) => Context::Declare,
+                    _ => Context::Write,
+                };
+                self.constrain_expr(left);
+                self.context = Context::Read;
+                self.constrain_expr(right);
                 self.expr_eq_expr(left, right);
+
+                return;
             }
             StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {

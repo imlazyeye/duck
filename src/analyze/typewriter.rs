@@ -32,14 +32,6 @@ impl Typewriter {
             Err(e) => return Err(vec![e]),
         }
 
-        // let mut oh_no = self.self_fields_mut(scope).clone();
-        // match oh_no {
-        //     Object::Concrete(fields) => fields.iter_mut().for_each(|(_, term)|
-        // self.normalize_term(term)),     Object::Inferred(fields) =>
-        // fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut())), }
-        // self.substitutions
-        //     .insert(scope.self_marker, Term::App(App::Object(oh_no)));
-
         println!("\nCurrent substitutions:");
         self.substitutions
             .iter()
@@ -112,6 +104,7 @@ impl Typewriter {
                 self.apply_trait(&mut sub, trt, scope)?;
             } else {
                 // Otherwise, process the terms
+                self.normalize_term(term);
                 self.unify_terms(&mut sub, term, scope)?;
             }
             *term = sub;
@@ -148,11 +141,22 @@ impl Typewriter {
             Term::App(App::Array(lhs_member_type)) => {
                 if let Term::App(App::Array(rhs_member_type)) = rhs {
                     self.unify_terms(lhs_member_type, rhs_member_type, scope)?;
+                } else {
+                    return Err(Diagnostic::error().with_message(format!("{} is not an array", Printer::term(rhs))));
                 }
             }
             Term::App(App::Object(object)) => {
-                if let Term::App(App::Object(other_object)) = rhs {
-                    object.apply_object(other_object, self, scope)?;
+                match rhs {
+                    Term::App(App::Object(other_object)) => {
+                        object.apply_object(other_object, self, scope)?;
+                    }
+                    Term::Trait(Trait::FieldOp(_, _)) => {
+                        // hmm this could replace the trait thing, yknow?
+                    }
+                    _ => {
+                        return Err(Diagnostic::error()
+                            .with_message(format!("{} is does not contain fields", Printer::term(rhs))));
+                    }
                 }
             }
             Term::App(App::Union(lhs_types)) => match rhs {
@@ -180,6 +184,10 @@ impl Typewriter {
                         Printer::tpe(rhs_type)
                     )));
                 }
+            } else {
+                // Flip it around -- we technically could just panic if lhs != rhs in general, but this will let us
+                // get better errors
+                self.unify_terms(rhs, lhs, scope)?;
             }
         }
 
@@ -192,6 +200,10 @@ impl Typewriter {
             Trait::FieldOp(field_name, field_op) => {
                 if let Term::App(App::Object(object)) = term {
                     object.apply_field_op(field_name, field_op, self, scope)?;
+                } else {
+                    return Err(
+                        Diagnostic::error().with_message(format!("{} is does not contain fields", Printer::term(term)))
+                    );
                 }
             }
             Trait::Callable {
@@ -257,6 +269,10 @@ impl Typewriter {
                         Printer::term(self.find_term(&scope.self_marker).unwrap())
                     );
                     println!("--- Call complete. ---");
+                } else {
+                    return Err(
+                        Diagnostic::error().with_message(format!("{} is not a valid call target", Printer::term(term)))
+                    );
                 }
             }
         };

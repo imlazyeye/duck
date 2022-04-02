@@ -3,7 +3,7 @@ use colored::Colorize;
 use pretty_assertions::assert_eq;
 use Type::*;
 
-pub(super) struct TestTypeWriter(Typewriter);
+pub struct TestTypeWriter(Typewriter);
 impl std::ops::Deref for TestTypeWriter {
     type Target = Typewriter;
     fn deref(&self) -> &Self::Target {
@@ -16,18 +16,18 @@ impl Drop for TestTypeWriter {
     }
 }
 
-pub(super) fn get_type(source: &'static str) -> Type {
+pub fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
     let (typewriter, scope) = harness_typewriter(source).unwrap();
     scope.lookup_type(&Identifier::lazy("a"), &typewriter).unwrap()
 }
 
-pub(super) fn get_var_type(source: &'static str, name: &'static str) -> Type {
+pub fn get_var_type(source: &'static str, name: &'static str) -> Type {
     let (typewriter, scope) = harness_typewriter(source).unwrap();
     scope.lookup_type(&Identifier::lazy(name), &typewriter).unwrap()
 }
 
-pub(super) fn harness_typewriter(source: &str) -> Result<(TestTypeWriter, Scope), Vec<TypeError>> {
+pub fn harness_typewriter(source: &str) -> Result<(TestTypeWriter, Scope), Vec<TypeError>> {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
     let mut errors = vec![];
@@ -89,16 +89,6 @@ macro_rules! test_var_type {
     };
 }
 
-macro_rules! test_failure {
-    ($name:ident, $src:expr) => {
-        #[cfg(test)]
-        #[test]
-        fn $name() {
-            assert!(harness_typewriter($src).is_err());
-        }
-    };
-}
-
 // Basic expressions
 test_expr_type!(undefined, "undefined" => Undefined);
 test_expr_type!(bools, "true" => Bool, "false" => Bool);
@@ -106,15 +96,18 @@ test_expr_type!(real, "1" => Real, "0.1" => Real);
 test_expr_type!(real_float, "0.1" => Real);
 test_expr_type!(string, "\"foo\"" => Str);
 test_expr_type!(grouping, "(0)" => Real);
-test_expr_type!(postfix, "x++" => Real, "x--" => Real);
-test_expr_type!(
+test_var_type!(postfix, "var x = 0, y = x++, z = x--;", x: Real, y: Real, z: Real);
+test_var_type!(
     unary,
-    "++x" => Real,
-    "--x" => Real,
-    "+x" => Real,
-    "-x" => Real,
-    "~x" => Real,
-    "!x" => Bool,
+    "var a = 0, b = ++a, c = --a, d = +a, e = -a, f = ~a, g = true, h = !g;",
+    a: Real,
+    b: Real,
+    c: Real,
+    d: Real,
+    e: Real,
+    f: Real,
+    g: Bool,
+    h: Bool,
 );
 test_expr_type!(ternary, "true ? 0 : 0" => Real);
 test_expr_type!(
@@ -217,7 +210,7 @@ test_var_type!(
         return x + y * 2; 
     }
     var fizz = foo(["hello"], 0);
-    var buzz = foo([ { a: true } ], bam(1, 2));"#,
+    var buzz = foo([ { a: true } ], bar(1, 2));"#,
     fizz: Str,
     buzz: new_struct!(a: Bool)
 );
@@ -363,14 +356,3 @@ test_var_type!(
     data: new_struct!(x: Real, y: Real, z: Real),
     output: Real
 );
-
-// Violations
-// test_failure!(invalid_equality, "var a = 0 == true;");
-// test_failure!(undefined_variable, "var a = b;");
-// test_failure!(undefined_field, "var a = {}, b = a.x;");
-// test_failure!(invalid_array_access, "var a = 0, b = a[0];");
-// test_failure!(invalid_dot_access, "var a = 0, b = a.x;");
-// test_failure!(invalid_call_target, "var a = 0, b = a();");
-// test_failure!(missing_arguments, "var a = function(x) {}, b = a();");
-// test_failure!(extra_arguments, "var a = function() {}, b = a(0);");
-// test_failure!(invalid_arguments, "var a = function(x) { return x + 1; }, b = a(true);");
