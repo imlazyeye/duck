@@ -8,6 +8,7 @@ pub(super) struct Constraints<'s> {
     scope: &'s mut Scope,
     typewriter: &'s mut Typewriter,
     context: Context,
+    errors: Vec<TypeError>,
 }
 
 // Constraining
@@ -79,11 +80,7 @@ impl<'s> Constraints<'s> {
 
             // Create a new scope for this function
             let mut writer = self.typewriter.clone();
-            let mut scope = if function.constructor.is_some() {
-                Scope::new(&mut writer)
-            } else {
-                Scope::shallow_new(self.scope)
-            };
+            let mut scope = Scope::new_inferred(&mut writer);
 
             // Declare the parameters into the scope, collecting their markers
             #[allow(clippy::needless_collect)]
@@ -97,17 +94,19 @@ impl<'s> Constraints<'s> {
             let body = function.body_stmts();
 
             // Typewrite the function
-            writer.write(&body, &mut scope);
+            if let Err(e) = writer.write(&body, &mut scope) {
+                self.errors.extend(e);
+            }
             println!("\n--- Ending process... ---\n");
 
             // Re-collect the parameters
             let parameters: Vec<Term> = param_registrations
                 .into_iter()
-                .map(|marker| writer.find_term(marker))
+                .map(|marker| writer.find_term(&marker).cloned().unwrap_or(Term::Marker(marker)))
                 .collect();
 
             // Retrieve any fields this function's self must implement
-            let self_fields = writer.self_fields_mut(&scope);
+            let self_fields = writer.find_term(&scope.self_marker).unwrap().as_object().unwrap();
             let self_fields = if self_fields.is_empty() {
                 None
             } else {
@@ -313,10 +312,10 @@ impl<'s> Constraints<'s> {
                         for declaration in declarations {
                             fields.insert(
                                 declaration.0.lexeme.clone(),
-                                FieldOp::Readable(Term::Marker(self.scope.ensure_alias(&declaration.1))),
+                                Term::Marker(self.scope.ensure_alias(&declaration.1)),
                             );
                         }
-                        self.expr_eq_app(expr, App::Object(fields));
+                        self.expr_eq_app(expr, App::Object(Object::Concrete(fields)));
                         return;
                     }
                 };
@@ -328,12 +327,17 @@ impl<'s> Constraints<'s> {
 
 // Utilities
 impl<'s> Constraints<'s> {
-    pub fn build(typewriter: &'s mut Typewriter, scope: &'s mut Scope, stmts: &[Stmt]) -> Vec<Constraint> {
+    pub fn build(
+        typewriter: &'s mut Typewriter,
+        scope: &'s mut Scope,
+        stmts: &[Stmt],
+    ) -> Result<Vec<Constraint>, Vec<TypeError>> {
         let mut constraints = Self {
             collection: vec![],
             typewriter,
             scope,
             context: Context::Read,
+            errors: vec![],
         };
         for stmt in stmts.iter() {
             constraints.constrain_stmt(stmt);
@@ -343,7 +347,11 @@ impl<'s> Constraints<'s> {
             println!("{}", Printer::constraint(con));
         }
         constraints.collection.reverse();
-        constraints.collection
+        if constraints.errors.is_empty() {
+            Ok(constraints.collection)
+        } else {
+            Err(constraints.errors)
+        }
     }
 
     pub fn expr_eq_type(&mut self, target: &Expr, tpe: Type) {

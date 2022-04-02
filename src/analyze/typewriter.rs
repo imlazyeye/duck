@@ -1,5 +1,6 @@
 use super::*;
-use crate::parse::Stmt;
+use crate::{parse::Stmt, FileId};
+use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;
 use itertools::Itertools;
 
@@ -18,15 +19,27 @@ impl Typewriter {
         }
     }
 
-    pub fn write(&mut self, stmts: &[Stmt], scope: &mut Scope) {
-        let constraints = Constraints::build(self, scope, stmts);
-        self.apply_constraints(constraints, scope);
-        let mut oh_no = self.self_fields_mut(scope).clone();
-        for (_, term) in oh_no.iter_mut() {
-            self.normalize_term(term.term_mut());
+    /// ### Errors
+    /// shut up
+    pub fn write(&mut self, stmts: &[Stmt], scope: &mut Scope) -> Result<(), Vec<TypeError>> {
+        let constraints = match Constraints::build(self, scope, stmts) {
+            Ok(constraints) => constraints,
+            Err(e) => return Err(e),
+        };
+
+        match self.apply_constraints(constraints, scope) {
+            Ok(_) => {}
+            Err(e) => return Err(vec![e]),
         }
-        self.substitutions
-            .insert(scope.self_marker, Term::App(App::Object(oh_no)));
+
+        // let mut oh_no = self.self_fields_mut(scope).clone();
+        // match oh_no {
+        //     Object::Concrete(fields) => fields.iter_mut().for_each(|(_, term)|
+        // self.normalize_term(term)),     Object::Inferred(fields) =>
+        // fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut())), }
+        // self.substitutions
+        //     .insert(scope.self_marker, Term::App(App::Object(oh_no)));
+
         println!("\nCurrent substitutions:");
         self.substitutions
             .iter()
@@ -34,11 +47,17 @@ impl Typewriter {
         println!("Local fields in scope: {:?}", scope.local_fields());
         println!(
             "Fields in self: [{}]",
-            self.self_fields_mut(scope)
+            self.find_term(&scope.self_marker)
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .fields()
                 .iter()
-                .map(|(name, op)| format!("{name}: {}", Printer::term(op.term())))
+                .map(|(name, term)| format!("{name}: {}", Printer::term(term)))
                 .join(", ")
         );
+
+        Ok(())
     }
 
     pub fn take_return_term(&mut self) -> Term {
@@ -49,22 +68,12 @@ impl Typewriter {
         }
     }
 
-    pub fn find_term(&self, marker: Marker) -> Term {
-        self.substitutions.get(&marker).cloned().unwrap_or(Term::Marker(marker))
+    pub fn find_term(&self, marker: &Marker) -> Option<&Term> {
+        self.substitutions.get(marker)
     }
 
-    pub fn self_fields(&self, scope: &Scope) -> &HashMap<String, FieldOp> {
-        match self.substitutions.get(&scope.self_marker) {
-            Some(Term::App(App::Object(fields))) => fields,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn self_fields_mut(&mut self, scope: &Scope) -> &mut HashMap<String, FieldOp> {
-        match self.substitutions.get_mut(&scope.self_marker) {
-            Some(Term::App(App::Object(fields))) => fields,
-            f => unreachable!("{f:?}"),
-        }
+    pub fn find_term_mut(&mut self, marker: &Marker) -> Option<&mut Term> {
+        self.substitutions.get_mut(marker)
     }
 }
 
@@ -76,19 +85,15 @@ impl Default for Typewriter {
 
 // Unification
 impl Typewriter {
-    pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, scope: &mut Scope) {
+    /// ### Errors
+    /// shut up
+    pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, scope: &mut Scope) -> Result<(), TypeError> {
         while let Some(mut pattern) = constraints.pop() {
-            let result = match &mut pattern {
-                Constraint::Eq(marker, term) => self.unify_marker(marker, term, scope),
-            };
-            if let Err(TypeError(lhs, rhs)) = result {
-                panic!(
-                    "hit a type error: lhs: {} rhs: {}",
-                    Printer::tpe(&lhs),
-                    Printer::tpe(&rhs)
-                );
+            match &mut pattern {
+                Constraint::Eq(marker, term) => self.unify_marker(marker, term, scope)?,
             }
         }
+        Ok(())
     }
 
     pub(super) fn unify_marker(
@@ -105,11 +110,11 @@ impl Typewriter {
             // If the rhs is a trait, apply it to the left
             if let Term::Trait(trt) = term {
                 self.apply_trait(&mut sub, trt, scope)?;
-                *term = sub;
             } else {
                 // Otherwise, process the terms
                 self.unify_terms(&mut sub, term, scope)?;
             }
+            *term = sub;
         }
 
         // Check for occurance -- if there is any, then we won't register this
@@ -120,7 +125,7 @@ impl Typewriter {
         Ok(())
     }
 
-    fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term, scope: &mut Scope) -> Result<(), TypeError> {
+    pub(super) fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term, scope: &mut Scope) -> Result<(), TypeError> {
         // If these terms are equal, there's nothing to do
         if lhs == rhs {
             return Ok(());
@@ -145,6 +150,11 @@ impl Typewriter {
                     self.unify_terms(lhs_member_type, rhs_member_type, scope)?;
                 }
             }
+            Term::App(App::Object(object)) => {
+                if let Term::App(App::Object(other_object)) = rhs {
+                    object.apply_object(other_object, self, scope)?;
+                }
+            }
             Term::App(App::Union(lhs_types)) => match rhs {
                 Term::App(App::Union(rhs_types)) => {
                     for (i, tpe) in lhs_types.iter_mut().enumerate() {
@@ -164,7 +174,11 @@ impl Typewriter {
         if let Term::Type(lhs_type) = lhs {
             if let Term::Type(rhs_type) = rhs {
                 if lhs_type != rhs_type {
-                    return Err(TypeError(lhs_type.clone(), rhs_type.clone()));
+                    return Err(Diagnostic::error().with_message(format!(
+                        "Attempted to equate two incompatible types: {} and {}",
+                        Printer::tpe(lhs_type),
+                        Printer::tpe(rhs_type)
+                    )));
                 }
             }
         }
@@ -176,13 +190,8 @@ impl Typewriter {
         println!("{}", Printer::term_impl(term, trt));
         match trt {
             Trait::FieldOp(field_name, field_op) => {
-                if let Term::App(App::Object(fields)) = term {
-                    // If the field is already present, it must match, but otherwise we can inject it
-                    if let Some(object_field_op) = fields.get_mut(field_name) {
-                        self.unify_terms(object_field_op.term_mut(), field_op.term_mut(), scope)?;
-                    } else {
-                        fields.insert(field_name.clone(), *field_op.clone());
-                    }
+                if let Term::App(App::Object(object)) = term {
+                    object.apply_field_op(field_name, field_op, self, scope)?;
                 }
             }
             Trait::Callable {
@@ -205,7 +214,7 @@ impl Typewriter {
 
                     // Figure out the arguments
                     for (i, arg) in arguments.iter_mut().enumerate() {
-                        temp_writer.unify_terms(arg, &mut parameters[i], &mut temp_scope)?
+                        temp_writer.unify_terms(arg, &mut parameters[i].clone(), &mut temp_scope)?
                     }
 
                     // Figure out the return
@@ -220,20 +229,22 @@ impl Typewriter {
                     }
 
                     // Apply the self fields of the function to the current scope.
-                    let self_fields = self.self_fields_mut(scope);
-                    if let Some(func_self_fields) = func_self_fields {
-                        for (name, op) in func_self_fields.iter() {
-                            self_fields.insert(name.clone(), op.clone());
-                        }
+                    let self_marker = scope.self_marker;
+                    if let Some(func_self_fields) = func_self_fields.as_mut() {
+                        self.unify_marker(
+                            &self_marker,
+                            &mut Term::App(App::Object(func_self_fields.clone())), // todod
+                            scope,
+                        )?;
                     }
-                    for (name, op) in temp_writer.self_fields_mut(&temp_scope) {
-                        self_fields.insert(name.clone(), op.clone());
-                    }
+
+                    let temp_self_fields = temp_writer.find_term_mut(&scope.self_marker).unwrap();
+                    self.unify_marker(&self_marker, temp_self_fields, scope)?;
 
                     // If using new, we want to return the properties of the constructor itself
                     if *uses_new {
-                        let fields = self_fields.clone();
-                        self.unify_terms(expected_return, &mut Term::App(App::Object(fields)), scope)?;
+                        let mut fields = self.find_term(&scope.self_marker).unwrap().clone();
+                        self.unify_terms(expected_return, &mut fields, scope)?;
                     } else {
                         // Otherwise its based on what the temp writer knows
                         let mut new_return_type = expected_return.clone();
@@ -241,9 +252,9 @@ impl Typewriter {
                         self.unify_terms(expected_return, &mut new_return_type, scope)?;
                     }
                     println!(
-                        "the scope of {} is {:?}",
+                        "the scope of {} is {}",
                         Printer::term(term),
-                        self.self_fields_mut(scope)
+                        Printer::term(self.find_term(&scope.self_marker).unwrap())
                     );
                     println!("--- Call complete. ---");
                 }
@@ -268,15 +279,19 @@ impl Typewriter {
             }
             Term::App(term_app) => match term_app {
                 App::Array(member_term) => self.occurs(marker, member_term),
-                App::Object(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field.term())),
+                App::Object(object) => match object {
+                    Object::Concrete(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
+                    Object::Inferred(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field.term())),
+                },
                 App::Function {
                     self_fields: self_parameter,
                     parameters,
                     return_type,
                     ..
                 } => {
-                    self_parameter.as_ref().map_or(false, |fields| {
-                        fields.iter().any(|(_, op)| self.occurs(marker, op.term()))
+                    self_parameter.as_ref().map_or(false, |object| match object {
+                        Object::Concrete(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
+                        Object::Inferred(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field.term())),
                     }) || self.occurs(marker, return_type)
                         || parameters.iter().any(|param| self.occurs(marker, param))
                 }
@@ -306,17 +321,25 @@ impl Typewriter {
             }
             Term::App(app) => match app {
                 App::Array(member_term) => self.normalize_term(member_term),
-                App::Object(fields) => fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut())),
+                App::Object(object) => match object {
+                    Object::Concrete(fields) => fields.iter_mut().for_each(|(_, op)| self.normalize_term(op)),
+                    Object::Inferred(fields) => {
+                        fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut()))
+                    }
+                },
                 App::Function {
                     self_fields,
                     parameters,
                     return_type,
                     ..
                 } => {
-                    if let Some(self_fields) = self_fields.as_mut() {
-                        self_fields
-                            .iter_mut()
-                            .for_each(|(_, op)| self.normalize_term(op.term_mut()))
+                    if let Some(object) = self_fields.as_mut() {
+                        match object {
+                            Object::Concrete(fields) => fields.iter_mut().for_each(|(_, op)| self.normalize_term(op)),
+                            Object::Inferred(fields) => {
+                                fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut()))
+                            }
+                        }
                     }
                     self.normalize_term(return_type);
                     parameters.iter_mut().for_each(|param| self.normalize_term(param));
@@ -358,5 +381,4 @@ impl Typewriter {
     }
 }
 
-#[derive(Debug)]
-pub struct TypeError(Type, Type);
+pub type TypeError = Diagnostic<FileId>;

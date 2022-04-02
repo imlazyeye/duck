@@ -9,6 +9,22 @@ pub enum Term {
     Trait(Trait),
 }
 
+impl Term {
+    pub fn as_object(&self) -> Option<&Object> {
+        match self {
+            Term::App(App::Object(obj)) => Some(obj),
+            _ => None,
+        }
+    }
+
+    pub fn as_object_mut(&mut self) -> Option<&mut Object> {
+        match self {
+            Term::App(App::Object(obj)) => Some(obj),
+            _ => None,
+        }
+    }
+}
+
 impl From<Term> for Type {
     fn from(term: Term) -> Self {
         match term {
@@ -21,24 +37,20 @@ impl From<Term> for Type {
                     member_type: Box::new(Type::from(member_type.as_ref().to_owned())),
                 },
                 App::Object(object) => Type::Struct {
-                    fields: object
-                        .into_iter()
-                        .map(|(n, term)| (n, term.term().clone().into()))
-                        .collect(),
+                    fields: match object {
+                        Object::Concrete(fields) => fields.into_iter().map(|(n, term)| (n, term.into())).collect(),
+                        Object::Inferred(fields) => fields
+                            .into_iter()
+                            .map(|(n, term)| (n, term.term().clone().into()))
+                            .collect(),
+                    },
                 },
                 App::Function {
                     self_fields,
                     parameters,
                     return_type,
                 } => Type::Function {
-                    self_fields: self_fields.map(|self_fields| {
-                        Box::new(Type::Struct {
-                            fields: self_fields
-                                .into_iter()
-                                .map(|(n, op)| (n, op.term().clone().into()))
-                                .collect(),
-                        })
-                    }),
+                    self_fields: self_fields.map(|self_fields| Box::new(self_fields.into())),
                     parameters: parameters.into_iter().map(|param| param.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),
                 },
@@ -59,6 +71,29 @@ impl From<Term> for Type {
                     parameters: arguments.into_iter().map(|v| v.into()).collect(),
                     return_type: Box::new(expected_return.as_ref().clone().into()),
                 },
+            },
+        }
+    }
+}
+
+impl From<Object> for Type {
+    fn from(obj: Object) -> Self {
+        match obj {
+            Object::Concrete(fields) => Type::Struct {
+                fields: fields.into_iter().map(|(name, term)| (name, term.into())).collect(),
+            },
+            Object::Inferred(fields) => Type::Struct {
+                fields: fields
+                    .into_iter()
+                    .map(|(name, op)| {
+                        (
+                            name,
+                            match op {
+                                FieldOp::Readable(term) | FieldOp::Writable(term) => term.into(),
+                            },
+                        )
+                    })
+                    .collect(),
             },
         }
     }

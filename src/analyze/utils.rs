@@ -127,8 +127,9 @@ impl Printer {
                     format!(
                         "{{ {} }}",
                         object
+                            .fields()
                             .iter()
-                            .map(|(name, term)| format!("{name}: {}", Self::term(term.term())))
+                            .map(|(name, term)| format!("{name}: {}", Self::term(term)))
                             .join(", ")
                     )
                 }
@@ -140,11 +141,13 @@ impl Printer {
                 ..
             } => format!(
                 "({}) → {}",
-                [self_fields.as_ref().map(|fields| format!(
+                [self_fields.as_ref().map(|object| format!(
                     "self: {}",
-                    fields
+                    object
+                        .as_inferred()
+                        .unwrap()
                         .iter()
-                        .map(|(n, op)| Printer::trt(&Trait::FieldOp(n.into(), Box::new(op.clone()))))
+                        .map(|(name, term)| Printer::trt(&Trait::FieldOp(name.into(), Box::new(term.clone()))))
                         .join(", ")
                 ))]
                 .into_iter()

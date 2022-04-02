@@ -21,10 +21,18 @@ impl Scope {
         }
     }
 
-    pub fn new(typewriter: &mut Typewriter) -> Self {
+    pub fn new_inferred(typewriter: &mut Typewriter) -> Self {
+        Self::new(typewriter, Object::Inferred(HashMap::default()))
+    }
+
+    pub fn new_concrete(typewriter: &mut Typewriter) -> Self {
+        Self::new(typewriter, Object::Concrete(HashMap::default()))
+    }
+
+    fn new(typewriter: &mut Typewriter, object: Object) -> Self {
         let self_marker = Marker::new();
         typewriter
-            .new_substitution(self_marker, Term::App(App::Object(HashMap::default())))
+            .new_substitution(self_marker, Term::App(App::Object(object)))
             .unwrap();
         Self {
             self_marker,
@@ -32,6 +40,7 @@ impl Scope {
             markers: Default::default(),
         }
     }
+
     pub fn has_field(&self, name: &str) -> bool {
         self.has_local_field(name)
     }
@@ -51,13 +60,13 @@ impl Scope {
     pub fn lookup_term(&self, identifier: &Identifier, typewriter: &Typewriter) -> Result<Term, Diagnostic<FileId>> {
         match self
             .lookup_marker(identifier)
-            .map(|marker| typewriter.find_term(marker))
+            .map(|marker| typewriter.find_term(&marker).unwrap())
+            .cloned()
         {
             Ok(term) => Ok(term),
             Err(e) => typewriter
-                .self_fields(self)
-                .get(&identifier.lexeme)
-                .map(|op| op.term())
+                .find_term(&self.self_marker)
+                .and_then(|term| term.as_object().and_then(|obj| obj.get(&identifier.lexeme)))
                 .cloned()
                 .ok_or(e),
         }

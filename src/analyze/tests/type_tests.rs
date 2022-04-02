@@ -18,30 +18,41 @@ impl Drop for TestTypeWriter {
 
 pub(super) fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
-    let (typewriter, scope) = harness_typewriter(source);
+    let (typewriter, scope) = harness_typewriter(source).unwrap();
     scope.lookup_type(&Identifier::lazy("a"), &typewriter).unwrap()
 }
 
 pub(super) fn get_var_type(source: &'static str, name: &'static str) -> Type {
-    let (typewriter, scope) = harness_typewriter(source);
+    let (typewriter, scope) = harness_typewriter(source).unwrap();
     scope.lookup_type(&Identifier::lazy(name), &typewriter).unwrap()
 }
 
-pub(super) fn harness_typewriter(source: &str) -> (TestTypeWriter, Scope) {
+pub(super) fn harness_typewriter(source: &str) -> Result<(TestTypeWriter, Scope), Vec<TypeError>> {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
+    let mut errors = vec![];
     let mut typewriter = Typewriter::default();
-    let mut scope = Scope::new(&mut typewriter);
+    let mut scope = Scope::new_concrete(&mut typewriter);
     let mut ast = parser.into_ast().unwrap();
-    typewriter.write(ast.stmts_mut(), &mut scope);
+    if let Err(e) = &mut typewriter.write(ast.stmts_mut(), &mut scope) {
+        errors.append(e);
+    }
     println!("Result for: \n{source}");
     for name in scope.local_fields().iter() {
         let str = name.bright_black();
-        let tpe = scope.lookup_type(&Identifier::lazy(name), &typewriter).unwrap();
-        let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-        println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
+        match scope.lookup_type(&Identifier::lazy(name), &typewriter) {
+            Ok(tpe) => {
+                let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
+                println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
+            }
+            Err(e) => errors.push(e),
+        }
     }
-    (TestTypeWriter(typewriter), scope)
+    if errors.is_empty() {
+        Ok((TestTypeWriter(typewriter), scope))
+    } else {
+        Err(errors)
+    }
 }
 
 macro_rules! test_expr_type {
@@ -74,6 +85,16 @@ macro_rules! test_var_type {
         #[test]
         fn $name() {
             $(assert_eq!(get_var_type($src, stringify!($var)), $should_be);)*
+        }
+    };
+}
+
+macro_rules! test_failure {
+    ($name:ident, $src:expr) => {
+        #[cfg(test)]
+        #[test]
+        fn $name() {
+            assert!(harness_typewriter($src).is_err());
         }
     };
 }
@@ -126,6 +147,14 @@ test_var_type!(array_access, "var x = [0], y = x[0];", y: Real);
 test_expr_type!(empty_struct, "{}" => new_struct!());
 test_expr_type!(populated_struct, "{ x: 0 }" => new_struct!(x: Real));
 test_var_type!(struct_access, "var foo = { x: 0 }, bar = foo.x;", bar: Real,);
+test_var_type!(
+    function_on_struct,
+    "var foo = {
+        bar: function() { return 0; },
+    };
+    var fizz = foo.bar();",
+    fizz: Real
+);
 
 // Functions
 test_expr_type!(function, "function() {}" => new_function!(() => Undefined));
@@ -315,9 +344,9 @@ test_var_type!(
     fizz: new_struct!(a: Real)
 );
 
-// Misc
+// Stress tests
 test_var_type!(
-    needlessly_difficult,
+    stressful_data,
     "var build_data = function(x, y, z) {
         return {
             x: x,
@@ -334,3 +363,14 @@ test_var_type!(
     data: new_struct!(x: Real, y: Real, z: Real),
     output: Real
 );
+
+// Violations
+// test_failure!(invalid_equality, "var a = 0 == true;");
+// test_failure!(undefined_variable, "var a = b;");
+// test_failure!(undefined_field, "var a = {}, b = a.x;");
+// test_failure!(invalid_array_access, "var a = 0, b = a[0];");
+// test_failure!(invalid_dot_access, "var a = 0, b = a.x;");
+// test_failure!(invalid_call_target, "var a = 0, b = a();");
+// test_failure!(missing_arguments, "var a = function(x) {}, b = a();");
+// test_failure!(extra_arguments, "var a = function() {}, b = a(0);");
+// test_failure!(invalid_arguments, "var a = function(x) { return x + 1; }, b = a(true);");
