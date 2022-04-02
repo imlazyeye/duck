@@ -175,18 +175,14 @@ impl Typewriter {
         }
 
         // Trait?
-        match lhs {
-            Term::Trait(trt) => match trt {
-                Trait::Callable { .. } => match rhs {
-                    Term::App(App::Function { .. }) => {
-                        self.apply_trait(rhs, trt, scope)?;
-                        *lhs = rhs.clone();
-                    }
-                    _ => {}
-                },
-                _ => {}
-            },
-            _ => {}
+        if let Term::Trait(trt) = lhs {
+            if let Trait::Callable { .. } = trt {
+                if let Term::App(App::Function { .. }) = rhs {
+                    // todo: this just doesn't feel right why is this here
+                    self.apply_trait(rhs, trt, scope)?;
+                    *lhs = rhs.clone();
+                }
+            }
         }
 
         // Are these clashing types?
@@ -226,98 +222,8 @@ impl Typewriter {
                 expected_return,
                 uses_new,
             } => {
-                if let Term::App(App::Function {
-                    self_fields: func_self,
-                    parameters,
-                    return_type: func_return,
-                }) = term
-                {
-                    // Create a temporary writer to unify this call with the function. We do this so we can
-                    // learn more information about the call without applying changes to the function itself,
-                    // since the function should remain generic.
-                    println!("--- Starting a call... ---");
-                    let mut call_writer = self.clone();
-
-                    // If we're using new, we treat this as a constructor, which will change behavior
-                    let call_self_object = if *uses_new {
-                        println!("Call is a constructor.");
-                        // The constructor gets its own new scope, so we do not need to pass it our
-                        // self terms. It just uses whatever the function itself calls for
-                        func_self
-                            .clone()
-                            .unwrap_or_else(|| Object::Inferred(HashMap::default()))
-                    } else {
-                        println!("Call is a function.");
-                        // If the function uses self parameters, we need to create a new scope for it that knows about
-                        // our feilds
-                        if let Some(mut func_self) = func_self.as_ref().cloned() {
-                            func_self.apply_object(
-                                self.find_term_mut(&scope.self_marker)
-                                    .and_then(|term| term.as_object_mut())
-                                    .unwrap(),
-                                &mut call_writer,
-                                scope,
-                            )?;
-                            func_self
-                        } else {
-                            // Otherwise, it has no scope
-                            Object::Inferred(HashMap::default())
-                        }
-                    };
-                    let mut call_scope = Scope::new(&mut call_writer, call_self_object);
-
-                    // Figure out the arguments
-                    println!("Unifying arguments.");
-                    for (i, arg) in arguments.iter_mut().enumerate() {
-                        call_writer.unify_terms(arg, &mut parameters[i].clone(), &mut call_scope)?
-                    }
-
-                    // Figure out the return
-                    println!("Unifying the return.");
-                    call_writer.unify_terms(expected_return, func_return, &mut call_scope)?;
-
-                    println!("--- Extracting information from call... ---");
-
-                    // Now apply everything the temp writer knows onto our arguments
-                    println!("Reverse unifying the arguments.");
-                    for arg in arguments.iter_mut() {
-                        let mut new_arg = arg.clone();
-                        call_writer.normalize_term(&mut new_arg);
-                        self.unify_terms(arg, &mut new_arg, scope)?;
-                    }
-
-                    // If we just made a constructor, we need to adjust our return value to be a struct made of its
-                    // scope
-                    let self_marker = scope.self_marker;
-                    if *uses_new {
-                        println!(
-                            "Crafting the constructed return from {}.",
-                            Printer::marker(&call_scope.self_marker)
-                        );
-                        let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
-                        self.unify_terms(expected_return, call_scope_object, scope)?;
-                    } else {
-                        println!("Modifying the scope.");
-                        // Otherwise, we need to apply any modifications this function made to our scope
-                        let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
-                        self.unify_marker(&self_marker, call_scope_object, scope)?;
-                        let temp_self_fields = call_writer.find_term_mut(&scope.self_marker).unwrap();
-                        self.unify_marker(&self_marker, temp_self_fields, scope)?;
-
-                        // Once that's done, our return value is just the normalized value that we
-                        // can find from the call writer
-                        println!("Normalizing the return.");
-                        let mut new_return_type = expected_return.clone();
-                        call_writer.normalize_term(&mut new_return_type);
-                        self.unify_terms(expected_return, &mut new_return_type, scope)?;
-                    }
-
-                    println!(
-                        "the scope of {} is {}",
-                        Printer::term(term),
-                        Printer::term(self.find_term(&scope.self_marker).unwrap())
-                    );
-                    println!("--- Call complete. ---");
+                if let Term::App(App::Function(function)) = term {
+                    self.call_function(function, arguments, expected_return, *uses_new, scope)?;
                 } else {
                     return Err(
                         Diagnostic::error().with_message(format!("{} is not a valid call target", Printer::term(term)))
@@ -325,6 +231,118 @@ impl Typewriter {
                 }
             }
         };
+        Ok(())
+    }
+
+    fn call_function(
+        &mut self,
+        function: &mut super::Function,
+        arguments: &mut Vec<Term>,
+        expected_return: &mut Box<Term>,
+        uses_new: bool,
+        scope: &mut Scope,
+    ) -> Result<(), TypeError> {
+        // Create a temporary writer to unify this call with the function. We do this so we can
+        // learn more information about the call without applying changes to the function itself,
+        // since the function should remain generic.
+        println!(
+            "--- Calling a {}... ---",
+            if uses_new { "constructor" } else { "function " }
+        );
+        let mut call_writer = self.clone();
+
+        // If we're using new, we treat this as a constructor, which will change behavior
+        let mut call_scope = if uses_new {
+            // The constructor gets its own new scope, so we do not need to pass it our
+            // self terms. It just uses whatever the function itself calls for.
+            let obj = function
+                .self_fields
+                .clone()
+                .unwrap_or_else(|| Object::Inferred(HashMap::default()));
+
+            Scope::new(&mut call_writer, obj)
+        } else {
+            // If the function uses self parameters, we need to create a new scope for it that knows about
+            // our fields
+            let obj = if let Some(mut func_self) = function.self_fields.as_ref().cloned() {
+                func_self.apply_object(
+                    self.find_term_mut(&scope.self_marker)
+                        .and_then(|term| term.as_object_mut())
+                        .unwrap(),
+                    &mut call_writer,
+                    scope,
+                )?;
+                func_self
+            } else {
+                // Otherwise, it has no scope
+                Object::Inferred(HashMap::default())
+            };
+
+            Scope::new(&mut call_writer, obj)
+        };
+
+        // If we have inheritance, we need to call that function in this scope
+        if let Some(inheritance) = &mut function.inheritance {
+            let mut our_term = scope.lookup_term(inheritance, self)?;
+            if let Term::App(App::Function(function)) = &mut our_term {
+                call_writer.call_function(
+                    function,
+                    arguments,
+                    &mut expected_return.clone(),
+                    false,
+                    &mut call_scope,
+                )?;
+                println!("sdasd");
+            }
+        }
+
+        // Figure out the arguments
+        println!("Unifying arguments.");
+        for (i, arg) in arguments.iter_mut().enumerate() {
+            call_writer.unify_terms(arg, &mut function.parameters[i].clone(), &mut call_scope)?
+        }
+
+        // Figure out the return
+        println!("Unifying the return.");
+        call_writer.unify_terms(expected_return, &mut function.return_type, &mut call_scope)?;
+
+        println!("--- Extracting information from call... ---");
+
+        // Now apply everything the temp writer knows onto our arguments
+        println!("Reverse unifying the arguments.");
+        for arg in arguments.iter_mut() {
+            let mut new_arg = arg.clone();
+            call_writer.normalize_term(&mut new_arg);
+            self.unify_terms(arg, &mut new_arg, scope)?;
+        }
+
+        // If we just made a constructor, we need to adjust our return value to be a struct made of its
+        // scope
+        let self_marker = scope.self_marker;
+        if uses_new {
+            println!(
+                "Crafting the constructed return from {}.",
+                Printer::marker(&call_scope.self_marker)
+            );
+            let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
+            self.unify_terms(expected_return, call_scope_object, scope)?;
+        } else {
+            println!("Modifying the scope.");
+            // Otherwise, we need to apply any modifications this function made to our scope
+            let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
+            self.unify_marker(&self_marker, call_scope_object, scope)?;
+            let temp_self_fields = call_writer.find_term_mut(&scope.self_marker).unwrap();
+            self.unify_marker(&self_marker, temp_self_fields, scope)?;
+
+            // Once that's done, our return value is just the normalized value that we
+            // can find from the call writer
+            println!("Normalizing the return.");
+            let mut new_return_type = expected_return.clone();
+            call_writer.normalize_term(&mut new_return_type);
+            self.unify_terms(expected_return, &mut new_return_type, scope)?;
+        }
+        println!("--- Call complete. ---");
+
         Ok(())
     }
 
@@ -348,13 +366,13 @@ impl Typewriter {
                     Object::Concrete(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
                     Object::Inferred(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field.term())),
                 },
-                App::Function {
-                    self_fields: self_parameter,
+                App::Function(super::Function {
+                    self_fields,
                     parameters,
                     return_type,
                     ..
-                } => {
-                    self_parameter.as_ref().map_or(false, |object| match object {
+                }) => {
+                    self_fields.as_ref().map_or(false, |object| match object {
                         Object::Concrete(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
                         Object::Inferred(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field.term())),
                     }) || self.occurs(marker, return_type)
@@ -392,12 +410,12 @@ impl Typewriter {
                         fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut()))
                     }
                 },
-                App::Function {
+                App::Function(super::Function {
                     self_fields,
                     parameters,
                     return_type,
                     ..
-                } => {
+                }) => {
                     if let Some(object) = self_fields.as_mut() {
                         match object {
                             Object::Concrete(fields) => fields.iter_mut().for_each(|(_, op)| self.normalize_term(op)),

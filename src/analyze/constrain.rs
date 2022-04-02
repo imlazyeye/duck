@@ -75,11 +75,6 @@ impl<'s> Constraints<'s> {
 
             println!("\n--- Processing function... ---\n");
 
-            // Grab the inheritance if its there
-            if let Some(Constructor::WithInheritance(expr)) = &function.constructor {
-                self.constrain_expr(expr);
-            }
-
             // Create a new scope for this function
             let mut writer = self.typewriter.clone();
             let mut scope = Scope::new_inferred(&mut writer);
@@ -93,7 +88,41 @@ impl<'s> Constraints<'s> {
                 .collect();
 
             // Access the body
-            let body = function.body_stmts();
+            let mut body = function.body_stmts();
+
+            // If there is inheritance, inject it into the body as normal calls
+            let inheritance = if let Some(Constructor::WithInheritance(expr)) = &function.constructor {
+                let call = if let ExprType::Call(call) = expr.inner().clone() {
+                    call
+                } else {
+                    unreachable!()
+                };
+
+                // First ensure that this inheritance call is accessible in the function's scope
+                let identifier = call.left.inner().as_identifier().unwrap().clone();
+                scope.declare_local(identifier.lexeme.clone(), &call.left);
+
+                // Now inject the call
+                body.insert(
+                    0,
+                    StmtType::Expr(
+                        ExprType::Call(Call {
+                            left: call.left,
+                            arguments: call.arguments,
+                            uses_new: false, /* we cheat and call the constructor as a normal function so it'll
+                                              * modify the calling scope */
+                        })
+                        .into_expr(expr.id(), expr.span(), expr.file_id(), None),
+                    )
+                    .into_stmt(expr.span(), expr.file_id(), None),
+                );
+
+                // Finally, return the marker of this expression, which will later be used to
+                // provide the call with the inheritance function
+                Some(identifier)
+            } else {
+                None
+            };
 
             // Typewrite the function
             if let Err(e) = writer.write(&body, &mut scope) {
@@ -118,11 +147,12 @@ impl<'s> Constraints<'s> {
             let return_type = writer.take_return_term();
             self.expr_eq_app(
                 expr,
-                App::Function {
+                App::Function(super::Function {
                     self_fields,
+                    inheritance,
                     parameters,
                     return_type: Box::new(return_type),
-                },
+                }),
             );
 
             // We return, as *we* handeled visiting the children.

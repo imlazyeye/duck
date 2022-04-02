@@ -1,3 +1,5 @@
+use crate::parse::Identifier;
+
 use super::*;
 use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;
@@ -6,12 +8,16 @@ use hashbrown::HashMap;
 pub enum App {
     Array(Box<Term>),
     Object(Object),
-    Function {
-        self_fields: Option<Object>,
-        parameters: Vec<Term>,
-        return_type: Box<Term>,
-    },
+    Function(Function),
     Union(Vec<Term>),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Function {
+    pub self_fields: Option<Object>,
+    pub inheritance: Option<Identifier>,
+    pub parameters: Vec<Term>,
+    pub return_type: Box<Term>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

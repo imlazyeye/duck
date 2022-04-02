@@ -48,11 +48,12 @@ impl From<Term> for Type {
                             .collect(),
                     },
                 },
-                App::Function {
+                App::Function(Function {
                     self_fields,
                     parameters,
                     return_type,
-                } => Type::Function {
+                    ..
+                }) => Type::Function {
                     self_fields: self_fields.map(|self_fields| Box::new(self_fields.into())),
                     parameters: parameters.into_iter().map(|param| param.into()).collect(),
                     return_type: Box::new(return_type.as_ref().clone().into()),

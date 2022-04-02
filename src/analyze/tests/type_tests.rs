@@ -234,6 +234,22 @@ test_var_type!(
     a: Real,
 );
 test_var_type!(
+    mutate_self_via_multi_nested_function,
+    "var foo = function() {
+        self.a = 0;
+    }
+    var bar = function() {
+        self.b = 0;
+    }
+    var fizz = function(foo, bar) {
+        foo();
+        bar();
+    }
+    fizz(foo, bar);",
+    a: Real,
+    b: Real,
+);
+test_var_type!(
     alias_function,
     "var bar = function() {
         var new_struct = new foo();
@@ -244,6 +260,17 @@ test_var_type!(
     }
     var fizz = bar();",
     fizz: new_struct!(x: Real)
+);
+test_var_type!(
+    bound_scope_in_struct,
+    "var foo = {
+        bar: 0,
+        fizz: function() {
+            return self.bar;
+        }
+    };
+    var buzz = foo.fizz();",
+    buzz: Real,
 );
 
 // Constructors
@@ -267,6 +294,21 @@ test_var_type!(
     fizz: new_struct!(a: Real)
 );
 test_var_type!(
+    multi_manual_inheritance,
+    "var foo = function() {
+        self.a = 0;
+    }
+    var bar = function() {
+        self.b = 0;
+    }
+    var fizz = function(foo, bar) constructor {
+        foo();
+        bar();
+    }
+    var buzz = new fizz(foo, bar);",
+    buzz: new_struct!(a: Real, b: Real)
+);
+test_var_type!(
     inheritance,
     "var foo = function() constructor {
         self.a = 0;
@@ -274,6 +316,27 @@ test_var_type!(
     var bar = function() : foo() constructor {}
     var fizz = new bar();",
     fizz: new_struct!(a: Real)
+);
+test_var_type!(
+    inheritance_passing_arguments,
+    "var foo = function(x) constructor {
+        self.a = x;
+    }
+    var bar = function(x) : foo(x) constructor {}
+    var fizz = new bar(0);",
+    fizz: new_struct!(a: Real)
+);
+test_var_type!(
+    multi_inheritance,
+    "var foo = function() constructor {
+        self.a = 0;
+    }
+    var bar = function() : foo() constructor {
+        self.b = 0;
+    }
+    var fizz = function() : bar() constructor {}
+    var buzz = new fizz();",
+    buzz: new_struct!(a: Real, b: Real)
 );
 
 // Stress tests
@@ -309,5 +372,5 @@ test_var_type!(
 
     var a = Vec2(0, 0);
     "#,
-    a: Real
+    a: new_struct!(x: Real, y: Real)
 );

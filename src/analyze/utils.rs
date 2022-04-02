@@ -134,12 +134,12 @@ impl Printer {
                     )
                 }
             }
-            App::Function {
+            App::Function(Function {
                 self_fields,
                 parameters,
                 return_type,
                 ..
-            } => format!(
+            }) => format!(
                 "({}) → {}",
                 [self_fields.as_ref().map(|object| format!(
                     "self: {}",
