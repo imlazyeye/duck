@@ -48,6 +48,16 @@ impl Object {
         }
     }
 
+    pub fn fields_mut(&mut self) -> Vec<(&str, &mut Term)> {
+        match self {
+            Object::Concrete(fields) => fields.iter_mut().map(|(name, term)| (name.as_str(), term)).collect(),
+            Object::Inferred(fields) => fields
+                .iter_mut()
+                .map(|(name, op)| (name.as_str(), op.term_mut()))
+                .collect(),
+        }
+    }
+
     pub fn as_inferred(&self) -> Option<&HashMap<String, FieldOp>> {
         match self {
             Object::Concrete(_) => None,

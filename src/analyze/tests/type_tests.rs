@@ -1,5 +1,5 @@
-use crate::{analyze::*, new_array, new_function, new_struct, new_union, parse::*};
-use colored::Colorize;
+use super::*;
+use crate::{analyze::*, new_array, new_function, new_struct, new_union, test_expr_type, test_var_type};
 use pretty_assertions::assert_eq;
 use Type::*;
 
@@ -14,79 +14,6 @@ impl Drop for TestTypeWriter {
     fn drop(&mut self) {
         Printer::flush()
     }
-}
-
-pub fn get_type(source: &'static str) -> Type {
-    let source = Box::leak(Box::new(format!("var a = {source}")));
-    let (typewriter, scope) = harness_typewriter(source).unwrap();
-    scope.lookup_type(&Identifier::lazy("a"), &typewriter).unwrap()
-}
-
-pub fn get_var_type(source: &'static str, name: &'static str) -> Type {
-    let (typewriter, scope) = harness_typewriter(source).unwrap();
-    scope.lookup_type(&Identifier::lazy(name), &typewriter).unwrap()
-}
-
-pub fn harness_typewriter(source: &str) -> Result<(TestTypeWriter, Scope), Vec<TypeError>> {
-    let source = Box::leak(Box::new(source.to_string()));
-    let parser = Parser::new(source, 0);
-    let mut errors = vec![];
-    let mut typewriter = Typewriter::default();
-    let mut scope = Scope::new_concrete(&mut typewriter);
-    let mut ast = parser.into_ast().unwrap();
-    if let Err(e) = &mut typewriter.write(ast.stmts_mut(), &mut scope) {
-        errors.append(e);
-    }
-    println!("Result for: \n{source}");
-    for name in scope.local_fields().iter() {
-        let str = name.bright_black();
-        match scope.lookup_type(&Identifier::lazy(name), &typewriter) {
-            Ok(tpe) => {
-                let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-                println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
-            }
-            Err(e) => errors.push(e),
-        }
-    }
-    if errors.is_empty() {
-        Ok((TestTypeWriter(typewriter), scope))
-    } else {
-        Err(errors)
-    }
-}
-
-macro_rules! test_expr_type {
-    ($name:ident, $src:expr => $should_be:expr) => {
-        #[cfg(test)]
-        #[test]
-        fn $name() {
-            assert_eq!(get_type($src), $should_be);
-        }
-    };
-    ($name:ident, $($src:expr => $should_be:expr), * $(,)?) => {
-        #[cfg(test)]
-        #[test]
-        fn $name() {
-            $(assert_eq!(get_type($src), $should_be);)*
-        }
-    };
-}
-
-macro_rules! test_var_type {
-    ($name:ident, $src:expr, $var:ident: $should_be:expr) => {
-        #[cfg(test)]
-        #[test]
-        fn $name() {
-            assert_eq!(get_var_type($src, stringify!($var)), $should_be);
-        }
-    };
-    ($name:ident, $src:expr, $($var:ident: $should_be:expr), * $(,)?) => {
-        #[cfg(test)]
-        #[test]
-        fn $name() {
-            $(assert_eq!(get_var_type($src, stringify!($var)), $should_be);)*
-        }
-    };
 }
 
 // Basic expressions
@@ -306,6 +233,18 @@ test_var_type!(
     bar(foo);",
     a: Real,
 );
+test_var_type!(
+    alias_function,
+    "var bar = function() {
+        var new_struct = new foo();
+        return new_struct;
+    }
+    function foo() constructor {
+        self.x = 0;
+    }
+    var fizz = bar();",
+    fizz: new_struct!(x: Real)
+);
 
 // Constructors
 test_var_type!(
@@ -355,4 +294,20 @@ test_var_type!(
     z: new_array!(new_array!(new_struct!(a: new_struct!(b: new_struct!(c: Real))))),
     data: new_struct!(x: Real, y: Real, z: Real),
     output: Real
+);
+test_var_type!(
+    vec_2,
+    r#"
+    function Vec2(_x, _y) {
+        return new __Vec2(_x, _y);
+    }
+
+    function __Vec2(_x, _y) constructor {
+        self.x = _x;
+        self.y = _y;
+    }
+
+    var a = Vec2(0, 0);
+    "#,
+    a: Real
 );

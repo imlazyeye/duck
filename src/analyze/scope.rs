@@ -29,7 +29,7 @@ impl Scope {
         Self::new(typewriter, Object::Concrete(HashMap::default()))
     }
 
-    fn new(typewriter: &mut Typewriter, object: Object) -> Self {
+    pub fn new(typewriter: &mut Typewriter, object: Object) -> Self {
         let self_marker = Marker::new();
         typewriter
             .new_substitution(self_marker, Term::App(App::Object(object)))
