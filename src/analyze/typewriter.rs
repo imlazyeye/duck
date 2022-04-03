@@ -1,53 +1,44 @@
 use super::*;
-use crate::{parse::Stmt, FileId};
+use crate::{
+    duck_error,
+    parse::{Expr, ExprId, Stmt},
+    FileId,
+};
 use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;
-use itertools::Itertools;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Typewriter {
     pub substitutions: HashMap<Marker, Term>,
-    pub constraints: Vec<Constraint>,
+    pub active_self: Record,
+    pub locals: Record,
+    pub markers: HashMap<ExprId, Marker>,
 }
 
 // General
 impl Typewriter {
-    pub fn new() -> Self {
-        Self {
-            substitutions: HashMap::default(),
-            constraints: Vec::default(),
-        }
-    }
-
-    /// ### Errors
-    /// shut up
-    pub fn write(&mut self, stmts: &[Stmt], scope: &mut Scope) -> Result<(), Vec<TypeError>> {
-        let constraints = match Constraints::build(self, scope, stmts) {
-            Ok(constraints) => constraints,
-            Err(e) => return Err(e),
-        };
-
-        match self.apply_constraints(constraints, scope) {
-            Ok(_) => {}
-            Err(e) => return Err(vec![e]),
+    pub fn write(&mut self, stmts: &[Stmt]) -> Result<(), Vec<TypeError>> {
+        let mut constraints = Constraints::build(self, stmts)?;
+        while let Some(Constraint::Eq(marker, mut term)) = constraints.pop() {
+            self.unify_marker(&marker, &mut term).map_err(|v| vec![v])?;
         }
 
         println!("\nCurrent substitutions:");
         self.substitutions
             .iter()
-            .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term)));
-        println!("Local fields in scope: {:?}", scope.local_fields());
-        println!(
-            "Fields in self: [{}]",
-            self.find_term(&scope.self_marker)
-                .unwrap()
-                .as_object()
-                .unwrap()
-                .fields()
-                .iter()
-                .map(|(name, term)| format!("{name}: {}", Printer::term(term)))
-                .join(", ")
-        );
+            .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term, self)));
+        // println!("Local fields in scope: {:?}", scope.local_fields());
+        // println!(
+        //     "Fields in self: [{}]",
+        //     self.find_term(&scope.self_marker)
+        //         .unwrap()
+        //         .as_object()
+        //         .unwrap()
+        //         .fields()
+        //         .iter()
+        //         .map(|(name, term)| format!("{name}: {}", Printer::term(term)))
+        //         .join(", ")
+        // );
 
         Ok(())
     }
@@ -60,336 +51,181 @@ impl Typewriter {
         }
     }
 
-    pub fn find_term(&self, marker: &Marker) -> Option<&Term> {
-        self.substitutions.get(marker)
+    pub fn lookup(&self, name: &str) -> Option<Type> {
+        let marker = if let Some(field) = self.locals.get(name) {
+            field.marker
+        } else if let Some(field) = self.active_self.get(name) {
+            field.marker
+        } else {
+            return None;
+        };
+        let term = self.lookup_normalized_term(&marker);
+        Some(self.term_to_type(term))
     }
 
-    pub fn find_term_mut(&mut self, marker: &Marker) -> Option<&mut Term> {
-        self.substitutions.get_mut(marker)
+    pub fn lookup_normalized_term(&self, marker: &Marker) -> Term {
+        let mut term = self.substitutions.get(marker).cloned().unwrap();
+        self.normalize_term(&mut term);
+        term
     }
-}
 
-impl Default for Typewriter {
-    fn default() -> Self {
-        Self::new()
+    pub fn term_to_type(&self, term: Term) -> Type {
+        match term {
+            Term::Type(tpe) => tpe,
+            Term::Marker(marker) => Type::Generic {
+                term: Box::new(Term::Marker(marker)),
+            },
+            Term::App(app) => match app {
+                App::Array(member_type) => Type::Array {
+                    member_type: Box::new(self.term_to_type(member_type.as_ref().to_owned())),
+                },
+                App::Record(record) => Type::Struct {
+                    fields: record
+                        .fields
+                        .into_iter()
+                        .map(|(name, field)| {
+                            let term = self.lookup_normalized_term(&field.marker);
+                            (name, self.term_to_type(term))
+                        })
+                        .collect(),
+                },
+            },
+        }
+    }
+
+    pub fn marker_for(&mut self, expr: &Expr) -> Result<Marker, TypeError> {
+        if let Some(marker) = self.markers.get(&expr.id()) {
+            Ok(*marker)
+        } else if let Some(iden) = expr.inner().as_identifier() {
+            if let Some(field) = self.locals.get(&iden.lexeme) {
+                Ok(field.marker)
+            } else if let Some(field) = self.active_self.get(&iden.lexeme) {
+                Ok(field.marker)
+            } else {
+                duck_error!("Unrecognized variable: {iden}")
+            }
+        } else {
+            Ok(self.new_marker(expr))
+        }
+    }
+
+    pub fn write_self(&mut self, name: &str, expr: &Expr, value: Marker) -> Result<Marker, TypeError> {
+        let marker = self
+            .active_self
+            .write_field(name, expr.id(), expr.location(), value)?
+            .apply(self)?;
+        Printer::give_expr_alias(marker, expr.to_string());
+        Ok(marker)
+    }
+
+    pub fn write_local(&mut self, name: &str, expr: &Expr, value: Marker) -> Result<Marker, TypeError> {
+        let marker = self
+            .locals
+            .write_field(name, expr.id(), expr.location(), value)?
+            .apply(self)?;
+        Printer::give_expr_alias(marker, expr.to_string());
+        Ok(marker)
+    }
+
+    pub fn new_marker(&mut self, expr: &Expr) -> Marker {
+        let marker = Marker::new();
+        Printer::give_expr_alias(marker, expr.to_string());
+        self.markers.insert(expr.id(), marker);
+        marker
     }
 }
 
 // Unification
 impl Typewriter {
-    /// ### Errors
-    /// shut up
-    pub fn apply_constraints(&mut self, mut constraints: Vec<Constraint>, scope: &mut Scope) -> Result<(), TypeError> {
-        while let Some(mut pattern) = constraints.pop() {
-            match &mut pattern {
-                Constraint::Eq(marker, term) => self.unify_marker(marker, term, scope)?,
-            }
-        }
-        Ok(())
-    }
+    pub fn unify_marker(&mut self, marker: &Marker, term: &mut Term) -> Result<(), TypeError> {
+        println!("{}", Printer::marker_unification(marker, term, self));
 
-    pub(super) fn unify_marker(
-        &mut self,
-        marker: &Marker,
-        term: &mut Term,
-        scope: &mut Scope,
-    ) -> Result<(), TypeError> {
-        // Ensure our term is as simple as possible
-        println!("{}", Printer::marker_unification(marker, term));
-
-        // If a substitution is already available for this marker, we will unify the term with that
         if let Some(mut sub) = self.substitutions.get_mut(marker).cloned() {
-            // If the rhs is a trait, apply it to the left
-            if let Term::Trait(trt) = term {
-                self.apply_trait(&mut sub, trt, scope)?;
-            } else {
-                // Otherwise, process the terms
-                self.normalize_term(term);
-                self.unify_terms(&mut sub, term, scope)?;
-            }
+            self.normalize_term(term);
+            self.unify_terms(&mut sub, term)?;
             *term = sub;
         }
 
-        // Check for occurance -- if there is any, then we won't register this
         if !self.occurs(marker, term) {
-            self.new_substitution(*marker, term.clone())?;
+            self.new_substitution(*marker, term.clone())
+        } else {
+            Ok(())
         }
-
-        Ok(())
     }
 
-    pub(super) fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term, scope: &mut Scope) -> Result<(), TypeError> {
-        // If these terms are equal, there's nothing to do
+    pub fn unify_terms(&mut self, lhs: &mut Term, rhs: &mut Term) -> Result<(), TypeError> {
         if lhs == rhs {
             return Ok(());
         }
 
-        println!("{}", Printer::term_unification(lhs, rhs));
-
-        // If the lhs is a marker, unify it to the right
-        if let Term::Marker(marker) = lhs {
-            return self.unify_marker(marker, rhs, scope);
-        }
-
-        // If the rhs is a marker, unify it to the left
+        // Early out of the rhs is a marker
         if let Term::Marker(marker) = rhs {
-            return self.unify_marker(marker, lhs, scope);
+            return self.unify_marker(marker, lhs);
         }
 
-        // Apps?
+        println!("{}", Printer::term_unification(lhs, rhs, self));
+
+        // Unify the terms
         match lhs {
-            Term::App(App::Array(lhs_member_type)) => {
-                if let Term::App(App::Array(rhs_member_type)) = rhs {
-                    self.unify_terms(lhs_member_type, rhs_member_type, scope)?;
-                } else {
-                    return Err(Diagnostic::error().with_message(format!("{} is not an array", Printer::term(rhs))));
-                }
-            }
-            Term::App(App::Object(object)) => {
-                match rhs {
-                    Term::App(App::Object(other_object)) => {
-                        object.apply_object(other_object, self, scope)?;
+            Term::Marker(marker) => self.unify_marker(marker, rhs),
+            Term::App(lhs_app) => match lhs_app {
+                App::Array(lhs_member) => match rhs {
+                    Term::App(App::Array(rhs_member)) => self.unify_terms(lhs_member, rhs_member),
+                    _ => {
+                        duck_error!("{} is not an array", Printer::term(rhs, self))
                     }
-                    Term::Trait(Trait::FieldOp(_, _)) => {
-                        // hmm this could replace the trait thing, yknow?
+                },
+                App::Record(record) => match rhs {
+                    Term::App(App::Record(other_record)) => {
+                        // Apply the other record to this record
+                        for (name, rhs_field) in other_record.fields.iter() {
+                            if let Some(lhs_field) = record.get(name) {
+                                self.unify_marker(&lhs_field.marker, &mut Term::Marker(rhs_field.marker))?;
+                            } else if other_record.is_writer {
+                                record
+                                    .write_field(name, rhs_field.expr_id, rhs_field.location, rhs_field.marker)?
+                                    .apply(self)?;
+                            } else {
+                                return duck_error!("Missing field: {name}");
+                            }
+                        }
+                        Ok(())
                     }
                     _ => {
-                        return Err(Diagnostic::error()
-                            .with_message(format!("{} is does not contain fields", Printer::term(rhs))));
+                        duck_error!("{} is does not contain fields", Printer::term(rhs, self))
                     }
-                }
-            }
-            Term::App(App::Union(lhs_types)) => match rhs {
-                Term::App(App::Union(rhs_types)) => {
-                    for (i, tpe) in lhs_types.iter_mut().enumerate() {
-                        self.unify_terms(tpe, rhs_types.get_mut(i).expect("foo"), scope)?
-                    }
-                }
-                _ => {
-                    for tpe in lhs_types.iter_mut() {
-                        self.unify_terms(tpe, rhs, scope)?
-                    }
-                }
+                },
             },
-            _ => (),
-        }
-
-        // Trait?
-        if let Term::Trait(trt) = lhs {
-            if let Trait::Callable { .. } = trt {
-                if let Term::App(App::Function { .. }) = rhs {
-                    // todo: this just doesn't feel right why is this here
-                    self.apply_trait(rhs, trt, scope)?;
-                    *lhs = rhs.clone();
-                }
-            }
-        }
-
-        // Are these clashing types?
-        if let Term::Type(lhs_type) = lhs {
-            if let Term::Type(rhs_type) = rhs {
-                if lhs_type != rhs_type {
-                    return Err(Diagnostic::error().with_message(format!(
-                        "Attempted to equate two incompatible types: {} and {}",
-                        Printer::tpe(lhs_type),
-                        Printer::tpe(rhs_type)
-                    )));
-                }
-            } else {
-                // Flip it around -- we technically could just panic if lhs != rhs in general, but this will let us
-                // get better errors
-                self.unify_terms(rhs, lhs, scope)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    fn apply_trait(&mut self, term: &mut Term, trt: &mut Trait, scope: &mut Scope) -> Result<(), TypeError> {
-        println!("{}", Printer::term_impl(term, trt));
-        match trt {
-            Trait::FieldOp(field_name, field_op) => {
-                if let Term::App(App::Object(object)) = term {
-                    object.apply_field_op(field_name, field_op, self, scope)?;
+            Term::Type(_) => {
+                if lhs != rhs {
+                    duck_error!(
+                        "Attempted to equate two incompatible terms: {lhs:?} and {rhs:?}",
+                        // Printer::term(lhs),
+                        // Printer::term(rhs)
+                    )
                 } else {
-                    return Err(
-                        Diagnostic::error().with_message(format!("{} is does not contain fields", Printer::term(term)))
-                    );
+                    Ok(())
                 }
             }
-            Trait::Callable {
-                arguments,
-                expected_return,
-                uses_new,
-            } => {
-                if let Term::App(App::Function(function)) = term {
-                    self.call_function(function, arguments, expected_return, *uses_new, scope)?;
-                } else {
-                    return Err(
-                        Diagnostic::error().with_message(format!("{} is not a valid call target", Printer::term(term)))
-                    );
-                }
-            }
-        };
-        Ok(())
-    }
-
-    fn call_function(
-        &mut self,
-        function: &mut super::Function,
-        arguments: &mut Vec<Term>,
-        expected_return: &mut Box<Term>,
-        uses_new: bool,
-        scope: &mut Scope,
-    ) -> Result<(), TypeError> {
-        // Create a temporary writer to unify this call with the function. We do this so we can
-        // learn more information about the call without applying changes to the function itself,
-        // since the function should remain generic.
-        println!(
-            "--- Calling a {}... ---",
-            if uses_new { "constructor" } else { "function " }
-        );
-        let mut call_writer = self.clone();
-
-        // If we're using new, we treat this as a constructor, which will change behavior
-        let mut call_scope = if uses_new {
-            // The constructor gets its own new scope, so we do not need to pass it our
-            // self terms. It just uses whatever the function itself calls for.
-            let obj = function
-                .self_fields
-                .clone()
-                .unwrap_or_else(|| Object::Inferred(HashMap::default()));
-
-            Scope::new(&mut call_writer, obj)
-        } else {
-            // If the function uses self parameters, we need to create a new scope for it that knows about
-            // our fields
-            let obj = if let Some(mut func_self) = function.self_fields.as_ref().cloned() {
-                func_self.apply_object(
-                    self.find_term_mut(&scope.self_marker)
-                        .and_then(|term| term.as_object_mut())
-                        .unwrap(),
-                    &mut call_writer,
-                    scope,
-                )?;
-                func_self
-            } else {
-                // Otherwise, it has no scope
-                Object::Inferred(HashMap::default())
-            };
-
-            Scope::new(&mut call_writer, obj)
-        };
-
-        // If we have inheritance, we need to call that function in this scope
-        if let Some(inheritance) = &mut function.inheritance {
-            let mut our_term = scope.lookup_term(inheritance, self)?;
-            if let Term::App(App::Function(function)) = &mut our_term {
-                call_writer.call_function(
-                    function,
-                    arguments,
-                    &mut expected_return.clone(),
-                    false,
-                    &mut call_scope,
-                )?;
-                println!("sdasd");
-            }
         }
-
-        // Figure out the arguments
-        println!("Unifying arguments.");
-        for (i, arg) in arguments.iter_mut().enumerate() {
-            call_writer.unify_terms(arg, &mut function.parameters[i].clone(), &mut call_scope)?
-        }
-
-        // Figure out the return
-        println!("Unifying the return.");
-        call_writer.unify_terms(expected_return, &mut function.return_type, &mut call_scope)?;
-
-        println!("--- Extracting information from call... ---");
-
-        // Now apply everything the temp writer knows onto our arguments
-        println!("Reverse unifying the arguments.");
-        for arg in arguments.iter_mut() {
-            let mut new_arg = arg.clone();
-            call_writer.normalize_term(&mut new_arg);
-            self.unify_terms(arg, &mut new_arg, scope)?;
-        }
-
-        // If we just made a constructor, we need to adjust our return value to be a struct made of its
-        // scope
-        let self_marker = scope.self_marker;
-        if uses_new {
-            println!(
-                "Crafting the constructed return from {}.",
-                Printer::marker(&call_scope.self_marker)
-            );
-            let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
-            self.unify_terms(expected_return, call_scope_object, scope)?;
-        } else {
-            println!("Modifying the scope.");
-            // Otherwise, we need to apply any modifications this function made to our scope
-            let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
-            self.unify_marker(&self_marker, call_scope_object, scope)?;
-            let temp_self_fields = call_writer.find_term_mut(&scope.self_marker).unwrap();
-            self.unify_marker(&self_marker, temp_self_fields, scope)?;
-
-            // Once that's done, our return value is just the normalized value that we
-            // can find from the call writer
-            println!("Normalizing the return.");
-            let mut new_return_type = expected_return.clone();
-            call_writer.normalize_term(&mut new_return_type);
-            self.unify_terms(expected_return, &mut new_return_type, scope)?;
-        }
-        println!("--- Call complete. ---");
-
-        Ok(())
     }
 
     fn occurs(&self, marker: &Marker, term: &Term) -> bool {
         match term {
             Term::Type(_) => false,
             Term::Marker(term_marker) => {
-                // If the term just points to our marker, then its an occurance
-                if term_marker == marker {
-                    true
-                } else if let Some(sub) = self.substitutions.get(term_marker) {
-                    // If the term exists in our substitutions, check if the sub occurs with our marker
-                    self.occurs(marker, sub)
-                } else {
-                    false
-                }
+                term_marker == marker
+                    || self
+                        .substitutions
+                        .get(term_marker)
+                        .map_or(false, |term| self.occurs(marker, term))
             }
             Term::App(term_app) => match term_app {
                 App::Array(member_term) => self.occurs(marker, member_term),
-                App::Object(object) => match object {
-                    Object::Concrete(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
-                    Object::Inferred(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field.term())),
-                },
-                App::Function(super::Function {
-                    self_fields,
-                    parameters,
-                    return_type,
-                    ..
-                }) => {
-                    self_fields.as_ref().map_or(false, |object| match object {
-                        Object::Concrete(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field)),
-                        Object::Inferred(fields) => fields.iter().any(|(_, field)| self.occurs(marker, field.term())),
-                    }) || self.occurs(marker, return_type)
-                        || parameters.iter().any(|param| self.occurs(marker, param))
-                }
-                App::Union(terms) => terms.iter().any(|v| self.occurs(marker, v)),
-            },
-            Term::Trait(trt) => match trt {
-                Trait::FieldOp(_, op) => self.occurs(marker, op.term()),
-                Trait::Callable {
-                    arguments,
-                    expected_return,
-                    ..
-                } => {
-                    return self.occurs(marker, expected_return)
-                        || arguments.iter().any(|arg| self.occurs(marker, arg));
-                }
+                App::Record(record) => record.fields.iter().any(|(_, field)| {
+                    let term = self.lookup_normalized_term(&field.marker);
+                    self.occurs(marker, &term)
+                }),
             },
         }
     }
@@ -404,41 +240,7 @@ impl Typewriter {
             }
             Term::App(app) => match app {
                 App::Array(member_term) => self.normalize_term(member_term),
-                App::Object(object) => match object {
-                    Object::Concrete(fields) => fields.iter_mut().for_each(|(_, op)| self.normalize_term(op)),
-                    Object::Inferred(fields) => {
-                        fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut()))
-                    }
-                },
-                App::Function(super::Function {
-                    self_fields,
-                    parameters,
-                    return_type,
-                    ..
-                }) => {
-                    if let Some(object) = self_fields.as_mut() {
-                        match object {
-                            Object::Concrete(fields) => fields.iter_mut().for_each(|(_, op)| self.normalize_term(op)),
-                            Object::Inferred(fields) => {
-                                fields.iter_mut().for_each(|(_, op)| self.normalize_term(op.term_mut()))
-                            }
-                        }
-                    }
-                    self.normalize_term(return_type);
-                    parameters.iter_mut().for_each(|param| self.normalize_term(param));
-                }
-                App::Union(terms) => terms.iter_mut().for_each(|v| self.normalize_term(v)),
-            },
-            Term::Trait(trt) => match trt {
-                Trait::FieldOp(_, op) => self.normalize_term(op.term_mut()),
-                Trait::Callable {
-                    arguments,
-                    expected_return,
-                    ..
-                } => {
-                    arguments.iter_mut().for_each(|arg| self.normalize_term(arg));
-                    self.normalize_term(expected_return);
-                }
+                App::Record(_) => {}
             },
         }
     }
@@ -447,7 +249,7 @@ impl Typewriter {
     /// shut up
     pub fn new_substitution(&mut self, marker: Marker, mut term: Term) -> Result<(), TypeError> {
         self.normalize_term(&mut term);
-        println!("{}", Printer::substitution(&marker, &term));
+        println!("{}", Printer::substitution(&marker, &term, self));
         self.substitutions.insert(marker, term);
         let markers_needing_updates: Vec<Marker> = self
             .substitutions
@@ -465,3 +267,110 @@ impl Typewriter {
 }
 
 pub type TypeError = Diagnostic<FileId>;
+
+// fn call_function(
+//     &mut self,
+//     function: &mut super::Function,
+//     arguments: &mut Vec<Term>,
+//     expected_return: &mut Box<Term>,
+//     uses_new: bool,
+//     scope: &mut Scope,
+// ) -> Result<(), TypeError> {
+//     // Create a temporary writer to unify this call with the function. We do this so we can
+//     // learn more information about the call without applying changes to the function itself,
+//     // since the function should remain generic.
+//     println!(
+//         "--- Calling a {}... ---",
+//         if uses_new { "constructor" } else { "function " }
+//     );
+//     let mut call_writer = self.clone();
+
+//     // If we're using new, we treat this as a constructor, which will change behavior
+//     let mut call_scope = if uses_new {
+//         // The constructor gets its own new scope, so we do not need to pass it our
+//         // self terms. It just uses whatever the function itself calls for.
+//         // let obj = function
+//         //     .self_fields
+//         //     .clone()
+//         //     .unwrap_or_else(|| Object::Inferred(HashMap::default()));
+
+//         Scope::new_concrete(self)
+//     } else {
+//         // If the function uses self parameters, we need to create a new scope for it that knows
+// about         // our fields
+//         let obj = if let Some(binding) = function.binding {
+//             self.find_term_mut(&binding)
+//                 .and_then(|term| term.as_object_mut())
+//                 .unwrap()
+//                 .clone()
+//         } else {
+//             Object::Inferred(HashMap::default())
+//         };
+
+//         Scope::new(&mut call_writer, obj)
+//     };
+
+//     // If we have inheritance, we need to call that function in this scope
+//     if let Some(inheritance) = &mut function.inheritance {
+//         let mut our_term = scope.lookup_term(inheritance, self)?;
+//         if let Term::App(App::Function(function)) = &mut our_term {
+//             call_writer.call_function(
+//                 function,
+//                 arguments,
+//                 &mut expected_return.clone(),
+//                 false,
+//                 &mut call_scope,
+//             )?;
+//             println!("sdasd");
+//         }
+//     }
+
+//     // Figure out the arguments
+//     println!("Unifying arguments.");
+//     for (i, arg) in arguments.iter_mut().enumerate() {
+//         call_writer.unify_terms(arg, &mut function.parameters[i].clone(), &mut call_scope)?
+//     }
+
+//     // Figure out the return
+//     println!("Unifying the return.");
+//     call_writer.unify_terms(expected_return, &mut function.return_type, &mut call_scope)?;
+
+//     println!("--- Extracting information from call... ---");
+
+//     // Now apply everything the temp writer knows onto our arguments
+//     println!("Reverse unifying the arguments.");
+//     for arg in arguments.iter_mut() {
+//         let mut new_arg = arg.clone();
+//         call_writer.normalize_term(&mut new_arg);
+//         self.unify_terms(arg, &mut new_arg, scope)?;
+//     }
+
+//     // If we just made a constructor, we need to adjust our return value to be a struct made of
+// its     // scope
+//     let self_marker = scope.self_marker;
+//     if uses_new {
+//         println!(
+//             "Crafting the constructed return from {}.",
+//             Printer::marker(&call_scope.self_marker)
+//         );
+//         let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
+//         self.unify_terms(expected_return, call_scope_object, scope)?;
+//     } else {
+//         println!("Modifying the scope.");
+//         // Otherwise, we need to apply any modifications this function made to our scope
+//         let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
+//         self.unify_marker(&self_marker, call_scope_object, scope)?;
+//         let temp_self_fields = call_writer.find_term_mut(&scope.self_marker).unwrap();
+//         self.unify_marker(&self_marker, temp_self_fields, scope)?;
+
+//         // Once that's done, our return value is just the normalized value that we
+//         // can find from the call writer
+//         println!("Normalizing the return.");
+//         let mut new_return_type = expected_return.clone();
+//         call_writer.normalize_term(&mut new_return_type);
+//         self.unify_terms(expected_return, &mut new_return_type, scope)?;
+//     }
+//     println!("--- Call complete. ---");
+
+//     Ok(())
+// }

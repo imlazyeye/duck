@@ -8,6 +8,7 @@ use parking_lot::Mutex;
 pub struct Marker(pub u64);
 impl Marker {
     pub const RETURN: Self = Marker(u64::MAX);
+    pub const NULL: Self = Marker(u64::MAX);
     pub fn new() -> Self {
         Self(rand::random())
     }
@@ -71,164 +72,117 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn term(term: &Term) -> String {
+    pub fn term(term: &Term, tw: &Typewriter) -> String {
         match term {
-            Term::Type(tpe) => Self::tpe(tpe),
+            Term::Type(tpe) => Self::tpe(tpe, tw),
             Term::Marker(marker) => Self::marker(marker),
-            Term::App(app) => Self::app(app),
-            Term::Trait(trt) => Self::trt(trt),
+            Term::App(app) => Self::app(app, tw),
         }
     }
 
     #[must_use]
-    pub fn tpe(tpe: &Type) -> String {
+    pub fn tpe(tpe: &Type, tw: &Typewriter) -> String {
         let s = match tpe {
-            Type::Generic { term } => format!("T: {}", Self::term(term)),
+            Type::Generic { term } => Self::term(term, tw),
             Type::Any => "any".into(),
             Type::Undefined => "undefined".into(),
             Type::Noone => "noone".into(),
             Type::Bool => "bool".into(),
             Type::Real => "real".into(),
             Type::Str => "string".into(),
-            Type::Array { member_type } => format!("[{}]", Self::tpe(member_type)),
+            Type::Array { member_type } => format!("[{}]", Self::tpe(member_type, tw)),
             Type::Struct { fields } => format!(
                 "{{ {} }}",
                 fields
                     .iter()
-                    .map(|(name, inner_tpe)| format!("{name}: {}", Self::tpe(inner_tpe)))
+                    .map(|(name, inner_tpe)| format!("{name}: {}", Self::tpe(inner_tpe, tw)))
                     .join(", ")
             ),
-            Type::Union { types } => types.iter().map(Self::tpe).join("| "),
+            Type::Union { types } => types.iter().map(|v| Self::tpe(v, tw)).join("| "),
             Type::Function {
-                self_fields: self_parameter,
                 parameters,
                 return_type,
             } => format!(
                 "fn ({}) -> {}",
-                [self_parameter.as_ref().map(|v| format!("self<{}>", Printer::tpe(v)))]
-                    .into_iter()
-                    .flatten()
-                    .chain(parameters.iter().map(Self::tpe))
-                    .join(", "),
-                Self::tpe(return_type)
+                parameters.iter().map(|v| Self::tpe(v, tw)).join(", "),
+                Self::tpe(return_type, tw)
             ),
         };
         s.blue().bold().to_string()
     }
 
     #[must_use]
-    pub fn app(app: &App) -> String {
+    pub fn app(app: &App, tw: &Typewriter) -> String {
         match app {
-            App::Array(inner) => format!("[{}]", Self::term(inner)),
-            App::Object(object) => {
-                if object.is_empty() {
-                    "{}".into()
-                } else {
-                    format!(
-                        "{{ {} }}",
-                        object
-                            .fields()
-                            .iter()
-                            .map(|(name, term)| format!("{name}: {}", Self::term(term)))
-                            .join(", ")
-                    )
-                }
-            }
-            App::Function(Function {
-                self_fields,
-                parameters,
-                return_type,
-                ..
-            }) => format!(
-                "({}) → {}",
-                [self_fields.as_ref().map(|object| format!(
-                    "self: {}",
-                    object
-                        .as_inferred()
-                        .unwrap()
-                        .iter()
-                        .map(|(name, term)| Printer::trt(&Trait::FieldOp(name.into(), Box::new(term.clone()))))
-                        .join(", ")
-                ))]
-                .into_iter()
-                .flatten()
-                .chain(parameters.iter().map(Self::term))
-                .join(", "),
-                Self::term(return_type),
-            ),
-            App::Union(terms) => terms.iter().map(Printer::term).join(" | "),
-        }
-    }
-
-    #[must_use]
-    pub fn trt(trt: &Trait) -> String {
-        match trt {
-            Trait::FieldOp(name, op) => match op.as_ref() {
-                FieldOp::Readable(term) => format!("Readable<{name}: {}>", Self::term(term)),
-                FieldOp::Writable(term) => format!("Writable<{name}: {}>", Self::term(term)),
-            },
-            Trait::Callable {
-                arguments,
-                expected_return,
-                uses_new,
-            } => format!(
-                "{}<({}) -> {}>",
-                if *uses_new { "Constructor" } else { "Callable" },
-                arguments.iter().map(Self::term).join(", "),
-                Self::term(expected_return)
+            App::Array(inner) => format!("[{}]", Self::term(inner, tw)),
+            App::Record(record) => format!(
+                "{{ {} }}",
+                record
+                    .fields
+                    .iter()
+                    .map(|(name, field)| format!(
+                        "{}: {}",
+                        name,
+                        Printer::term(&tw.lookup_normalized_term(&field.marker), tw)
+                    ))
+                    .join(", ")
             ),
         }
     }
 
     #[must_use]
-    pub fn term_unification(a: &Term, b: &Term) -> String {
+    pub fn term_unification(a: &Term, b: &Term, tw: &Typewriter) -> String {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY T".bright_yellow(),
-            Printer::term(a),
-            Printer::term(b),
+            Printer::term(a, tw),
+            Printer::term(b, tw),
         )
     }
 
     #[must_use]
-    pub fn marker_unification(marker: &Marker, term: &Term) -> String {
+    pub fn marker_unification(marker: &Marker, term: &Term, tw: &Typewriter) -> String {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY M".bright_yellow(),
             Printer::marker(marker),
-            Printer::term(term),
+            Printer::term(term, tw),
         )
     }
 
     #[must_use]
-    pub fn term_impl(term: &Term, trt: &Trait) -> String {
-        format!(
-            "{}         {}   ⊇   {}",
-            "IMPL".bright_cyan(),
-            Printer::term(term),
-            Printer::trt(trt),
-        )
-    }
-
-    #[must_use]
-    pub fn substitution(marker: &Marker, term: &Term) -> String {
+    pub fn substitution(marker: &Marker, term: &Term, tw: &Typewriter) -> String {
         format!(
             "{}          {}   →   {}",
             "SUB".bright_green(),
             Printer::marker(marker),
-            Printer::term(term),
+            Printer::term(term, tw),
         )
     }
 
     #[must_use]
-    pub fn constraint(constraint: &Constraint) -> String {
+    pub fn constraint(constraint: &Constraint, tw: &Typewriter) -> String {
         match constraint {
             Constraint::Eq(marker, term) => format!(
                 "{}          {}   =   {}",
                 "CON".bright_magenta(),
                 Self::marker(marker),
-                Self::term(term),
+                Self::term(term, tw),
             ),
         }
     }
+}
+
+#[macro_export]
+macro_rules! duck_error {
+    ($($arg:tt)*) => {
+        Err(codespan_reporting::diagnostic::Diagnostic::error().with_message(format!($($arg)*)))
+    };
+}
+
+#[macro_export]
+macro_rules! duck_bug {
+    ($($msg_arg:expr), * $(,)?) => {
+        Err(codespan_reporting::diagnostic::Diagnostic:::bug().with_message(format!($($msg_arg)*)))
+    };
 }

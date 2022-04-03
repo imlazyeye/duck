@@ -1,5 +1,4 @@
 use crate::{analyze::*, parse::*};
-use colored::Colorize;
 
 pub struct TestTypeWriter(Typewriter);
 impl std::ops::Deref for TestTypeWriter {
@@ -14,46 +13,45 @@ impl Drop for TestTypeWriter {
     }
 }
 
-pub fn harness_typewriter(source: &str) -> Result<(TestTypeWriter, Scope), Vec<TypeError>> {
+pub fn harness_typewriter(source: &str) -> Result<TestTypeWriter, Vec<TypeError>> {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
     let mut errors = vec![];
     let mut typewriter = Typewriter::default();
-    let mut scope = Scope::new_concrete(&mut typewriter);
     let mut ast = parser.into_ast().unwrap();
-    if let Err(e) = &mut typewriter.write(ast.stmts_mut(), &mut scope) {
+    if let Err(e) = &mut typewriter.write(ast.stmts_mut()) {
         errors.append(e);
     }
     // println!("Result for: \n{source}");
     println!("Local Fields:\n");
-    for name in scope.local_fields().iter() {
-        let str = name.bright_black();
-        match scope.lookup_type(&Identifier::lazy(name), &typewriter) {
-            Ok(tpe) => {
-                let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-                println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
-            }
-            Err(e) => errors.push(e),
-        }
-    }
+    // for name in scope.local_fields().iter() {
+    //     let str = name.bright_black();
+    //     match scope.lookup_type(&Identifier::lazy(name), &typewriter) {
+    //         Ok(tpe) => {
+    //             let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
+    //             println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
+    //         }
+    //         Err(e) => errors.push(e),
+    //     }
+    // }
 
-    println!("\nSelf Fields:\n");
-    if let Some(self_object) = typewriter
-        .find_term(&scope.self_marker)
-        .and_then(|term| term.as_object())
-    {
-        for (name, field) in self_object.fields() {
-            let str = name.bright_black();
-            let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-            println!(
-                "{str}{whitespace}{}\n",
-                Printer::tpe(&(field.clone()).into()).bright_cyan().bold()
-            );
-        }
-    }
+    // println!("\nSelf Fields:\n");
+    // if let Some(self_object) = typewriter
+    //     .find_term(&scope.self_marker)
+    //     .and_then(|term| term.as_object())
+    // {
+    //     for (name, field) in self_object.fields() {
+    //         let str = name.bright_black();
+    //         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
+    //         println!(
+    //             "{str}{whitespace}{}\n",
+    //             Printer::tpe(&(field.clone()).into()).bright_cyan().bold()
+    //         );
+    //     }
+    // }
 
     if errors.is_empty() {
-        Ok((TestTypeWriter(typewriter), scope))
+        Ok(TestTypeWriter(typewriter))
     } else {
         Err(errors)
     }
@@ -61,13 +59,13 @@ pub fn harness_typewriter(source: &str) -> Result<(TestTypeWriter, Scope), Vec<T
 
 pub fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
-    let (typewriter, scope) = harness_typewriter(source).unwrap();
-    scope.lookup_type(&Identifier::lazy("a"), &typewriter).unwrap()
+    let typewriter = harness_typewriter(source).unwrap();
+    typewriter.lookup("a").unwrap()
 }
 
 pub fn get_var_type(source: &'static str, name: &'static str) -> Type {
-    let (typewriter, scope) = harness_typewriter(source).unwrap();
-    scope.lookup_type(&Identifier::lazy(name), &typewriter).unwrap()
+    let typewriter = harness_typewriter(source).unwrap();
+    typewriter.lookup(name).unwrap()
 }
 
 #[macro_export]
