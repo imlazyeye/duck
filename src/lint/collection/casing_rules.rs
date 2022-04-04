@@ -47,7 +47,7 @@ impl CasingRules {
 impl EarlyExprPass for CasingRules {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<crate::FileId>>) {
         match expr.inner() {
-            ExprType::FunctionDeclaration(Function {
+            ExprType::Function(Function {
                 name: Some(name),
                 constructor: Some(_),
                 ..
@@ -58,7 +58,7 @@ impl EarlyExprPass for CasingRules {
                 config,
                 reports,
             ),
-            ExprType::FunctionDeclaration(Function {
+            ExprType::Function(Function {
                 name: Some(name),
                 constructor: None,
                 ..

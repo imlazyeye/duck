@@ -127,6 +127,24 @@ impl Printer {
                     ))
                     .join(", ")
             ),
+            App::Function(Function {
+                parameters,
+                return_type,
+                ..
+            }) => format!(
+                "fn ({}) -> {}",
+                parameters.iter().map(|v| Printer::term(v, tw)).join(", "),
+                Printer::term(return_type, tw)
+            ),
+            App::Call(Call {
+                parameters,
+                return_type,
+                ..
+            }) => format!(
+                "({}) -> {}",
+                parameters.iter().map(|v| Printer::term(v, tw)).join(", "),
+                Printer::term(return_type, tw)
+            ),
         }
     }
 

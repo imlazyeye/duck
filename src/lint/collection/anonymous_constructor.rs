@@ -24,7 +24,7 @@ impl Lint for AnonymousConstructor {
 
 impl EarlyExprPass for AnonymousConstructor {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::FunctionDeclaration(Function {
+        if let ExprType::Function(Function {
             name: None,
             constructor: Some(_),
             ..

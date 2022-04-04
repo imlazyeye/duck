@@ -5,6 +5,7 @@ use crate::parse::*;
 pub(super) struct Constraints<'s> {
     pub collection: Vec<Constraint>,
     typewriter: &'s mut Typewriter,
+    functions: Vec<Expr>,
     errors: Vec<TypeError>,
 }
 
@@ -18,7 +19,7 @@ impl<'s> Constraints<'s> {
                 if let AssignmentOp::Identity(_) = op {
                     match left.inner() {
                         ExprType::Identifier(iden) => {
-                            if self.typewriter.locals.contains(&iden.lexeme) {
+                            if self.typewriter.locals().contains(&iden.lexeme) {
                                 self.typewriter.write_local(&iden.lexeme, left, right_marker)?;
                             } else {
                                 self.typewriter.write_self(&iden.lexeme, left, right_marker)?;
@@ -89,6 +90,10 @@ impl<'s> Constraints<'s> {
     }
 
     fn constrain_expr(&mut self, expr: &Expr) -> Result<(), TypeError> {
+        if let ExprType::Function(_) = expr.inner() {
+            self.functions.push(expr.clone());
+            return Ok(());
+        }
         expr.visit_child_stmts(|stmt| {
             if let Err(err) = self.constrain_stmt(stmt) {
                 self.errors.push(err);
@@ -100,7 +105,7 @@ impl<'s> Constraints<'s> {
             }
         });
         match expr.inner() {
-            ExprType::FunctionDeclaration(_) => {}
+            ExprType::Function(_) => unreachable!(),
             ExprType::Logical(Logical { left, right, .. }) => {
                 self.expr_eq_type(left, Type::Bool)?;
                 self.expr_eq_type(right, Type::Bool)?;
@@ -184,25 +189,19 @@ impl<'s> Constraints<'s> {
                     Access::List { .. } => {}
                 }
             }
-            ExprType::Call(Call { .. }) => {
-                // let this_expr_marker = self.scope.ensure_alias(expr);
-
-                // // Create a function based on what we know
-                // let arguments: Vec<Term> = arguments
-                //     .iter()
-                //     .map(|arg| Term::Marker(self.scope.ensure_alias(arg)))
-                //     .collect();
-
-                // Make sure the left can implement this call
-                todo!()
-                // self.expr_impl(
-                //     left,
-                //     Trait::Callable {
-                //         arguments,
-                //         expected_return: Box::new(Term::Marker(this_expr_marker)),
-                //         uses_new: *uses_new,
-                //     },
-                // );
+            ExprType::Call(crate::parse::Call { left, arguments, .. }) => {
+                let this_expr_marker = self.typewriter.marker_for(expr)?;
+                let mut parameters = vec![];
+                for arg in arguments.iter() {
+                    parameters.push(Term::Marker(self.typewriter.marker_for(arg)?));
+                }
+                self.expr_eq_app(
+                    left,
+                    App::Call(super::Call {
+                        parameters,
+                        return_type: Box::new(Term::Marker(this_expr_marker)),
+                    }),
+                )?;
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
                 self.expr_eq_expr(expr, inner)?;
@@ -250,6 +249,56 @@ impl<'s> Constraints<'s> {
 
         Ok(())
     }
+
+    fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<(), TypeError> {
+        println!("\n--- Processing function... ---\n");
+        let expr_marker = self.typewriter.marker_for(expr)?;
+        if let Some(name) = &function.name {
+            self.typewriter.write_self(&name.lexeme, expr, expr_marker)?;
+        }
+        let previous_local_marker = self.typewriter.new_local_scope();
+        let mut parameters = vec![];
+        for param in function.parameters.iter() {
+            let value_marker = match param {
+                OptionalInitilization::Uninitialized(_) => Marker::new(),
+                OptionalInitilization::Initialized(_) => {
+                    self.typewriter.marker_for(param.assignment_value().unwrap())?
+                }
+            };
+            parameters.push(
+                self.typewriter
+                    .write_local(param.name(), param.name_expr(), value_marker)?,
+            );
+        }
+        println!("\n--- Starting process... ---\n");
+        if let Err(errs) = &mut self.typewriter.process_statements(function.body_stmts()) {
+            return Err(errs.pop().unwrap()); // todo
+        }
+        println!("\n--- Finished process... ---\n");
+        let return_term = self.typewriter.take_return_term();
+        self.typewriter.set_locals(previous_local_marker);
+        self.expr_eq_app(
+            expr,
+            App::Function(super::Function {
+                binding: Some(self.typewriter.active_self_marker()),
+                inheritance: function.constructor.as_ref().and_then(|v| match v {
+                    Constructor::WithInheritance(call) => Some(
+                        call.inner()
+                            .as_call()
+                            .and_then(|call| call.left.inner().as_identifier())
+                            .cloned()
+                            .unwrap(),
+                    ),
+                    Constructor::WithoutInheritance => None,
+                }),
+                parameters: parameters
+                    .into_iter()
+                    .map(|marker| self.typewriter.lookup_normalized_term(&marker))
+                    .collect(),
+                return_type: Box::new(return_term),
+            }),
+        )
+    }
 }
 
 // Utilities
@@ -258,10 +307,18 @@ impl<'s> Constraints<'s> {
         let mut constraints = Self {
             collection: vec![],
             typewriter,
+            functions: vec![],
             errors: vec![],
         };
         for stmt in stmts.iter() {
             if let Err(e) = constraints.constrain_stmt(stmt) {
+                constraints.errors.push(e);
+            }
+        }
+        for expr in constraints.functions.clone().iter() {
+            // todo
+            let function = expr.inner().as_function().unwrap();
+            if let Err(e) = constraints.process_function(expr, function) {
                 constraints.errors.push(e);
             }
         }
@@ -305,100 +362,3 @@ impl<'s> Constraints<'s> {
 pub enum Constraint {
     Eq(Marker, Term),
 }
-
-// if let ExprType::FunctionDeclaration(function) = expr.inner() {
-//     // If this is a named function, declare it to the scope
-//     if let Some(iden) = &function.name {
-//         let marker = self.scope.ensure_alias(expr);
-//         self.marker_impl(
-//             self.scope.self_marker,
-//             Trait::FieldOp(iden.lexeme.clone(),
-// Box::new(FieldOp::Writable(Term::Marker(marker)))),         );
-//     }
-
-//     println!("\n--- Processing function... ---\n");
-
-//     // Create a new scope for this function
-//     let mut writer = self.typewriter.clone();
-//     let mut scope = self.scope.new_child();
-
-//     // Declare the parameters into the scope, collecting their markers
-//     #[allow(clippy::needless_collect)]
-//     let param_registrations: Vec<Marker> = function
-//         .parameters
-//         .iter()
-//         .map(|param| scope.declare_local(param.name().into(), param.name_expr()))
-//         .collect();
-
-//     // Access the body
-//     let mut body = function.body_stmts();
-
-//     // If there is inheritance, inject it into the body as normal calls
-//     let inheritance = if let Some(Constructor::WithInheritance(expr)) = &function.constructor {
-//         let call = if let ExprType::Call(call) = expr.inner().clone() {
-//             call
-//         } else {
-//             unreachable!()
-//         };
-
-//         // First ensure that this inheritance call is accessible in the function's scope
-//         let identifier = call.left.inner().as_identifier().unwrap().clone();
-//         scope.declare_local(identifier.lexeme.clone(), &call.left);
-
-//         // Now inject the call
-//         body.insert(
-//             0,
-//             StmtType::Expr(
-//                 ExprType::Call(Call {
-//                     left: call.left,
-//                     arguments: call.arguments,
-//                     uses_new: false, /* we cheat and call the constructor as a normal function so
-// it'll
-//                                       * modify the calling scope */
-//                 })
-//                 .into_expr(expr.id(), expr.span(), expr.file_id(), None),
-//             )
-//             .into_stmt(expr.span(), expr.file_id(), None),
-//         );
-
-//         // Finally, return the marker of this expression, which will later be used to
-//         // provide the call with the inheritance function
-//         Some(identifier)
-//     } else {
-//         None
-//     };
-
-//     // Typewrite the function
-//     if let Err(e) = writer.write(&body, &mut scope) {
-//         self.errors.extend(e);
-//     }
-//     println!("\n--- Ending process... ---\n");
-
-//     // Re-collect the parameters
-//     let parameters: Vec<Term> = param_registrations
-//         .into_iter()
-//         .map(|marker| writer.find_term(&marker).cloned().unwrap_or(Term::Marker(marker)))
-//         .collect();
-
-//     // Retrieve any fields this function's self must implement
-//     let self_fields = writer.find_term(&scope.self_marker).unwrap().as_object().unwrap();
-//     let self_fields = if self_fields.is_empty() {
-//         None
-//     } else {
-//         Some(self_fields.clone())
-//     };
-
-//     let return_type = writer.take_return_term();
-//     self.expr_eq_app(
-//         expr,
-//         App::Function(super::Function {
-//             binding: Some(self.scope.self_marker),
-//             inheritance,
-//             parameters,
-//             return_type: Box::new(return_type),
-//         }),
-//     );
-
-//     // We return, as *we* handeled visiting the children.
-//     return;
-// }

@@ -23,7 +23,7 @@ impl Lint for InvalidComparison {
 }
 impl InvalidComparison {
     fn test_expr(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        let is_valid = !matches!(expr.inner(), ExprType::FunctionDeclaration(_));
+        let is_valid = !matches!(expr.inner(), ExprType::Function(_));
         if !is_valid {
             reports.push(
                 Self::diagnostic(config)

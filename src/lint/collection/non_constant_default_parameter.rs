@@ -54,7 +54,7 @@ impl LateExprPass for NonConstantDefaultParameter {
         reports: &mut Vec<Diagnostic<FileId>>,
         global_scope: &GlobalScope,
     ) {
-        if let ExprType::FunctionDeclaration(Function { parameters, .. }) = expr.inner() {
+        if let ExprType::Function(Function { parameters, .. }) = expr.inner() {
             for param in parameters {
                 if let Some(default_expr) = param.assignment_value() {
                     let constant = Self::is_constant(default_expr, global_scope);

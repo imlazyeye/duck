@@ -24,7 +24,7 @@ impl Lint for TooManyArguments {
 
 impl EarlyExprPass for TooManyArguments {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::FunctionDeclaration(Function { parameters, .. }) = expr.inner() {
+        if let ExprType::Function(Function { parameters, .. }) = expr.inner() {
             if parameters.len() > config.max_arguments {
                 let start = parameters.first().unwrap().name_expr().span().start();
                 let end = match parameters.last().unwrap() {

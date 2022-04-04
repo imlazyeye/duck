@@ -10,7 +10,7 @@ use itertools::Itertools;
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprType {
     /// Declaration of a function.
-    FunctionDeclaration(Function),
+    Function(Function),
     /// A logical comparision.
     Logical(Logical),
     /// An equality assessment.
@@ -53,6 +53,14 @@ impl ExprType {
         }
     }
 
+    /// Returns the expression a the interior fields of a Access::Current, or None.
+    pub fn as_current_access(&self) -> Option<&Identifier> {
+        match self {
+            ExprType::Access(Access::Current { right }) => Some(right),
+            _ => None,
+        }
+    }
+
     /// Returns the expression as an Literal or None.
     pub fn as_literal(&self) -> Option<&Literal> {
         match self {
@@ -73,6 +81,14 @@ impl ExprType {
     pub fn as_equality(&self) -> Option<&Equality> {
         match self {
             ExprType::Equality(inner) => Some(inner),
+            _ => None,
+        }
+    }
+
+    /// Returns the expression as a function or None.
+    pub fn as_function(&self) -> Option<&Function> {
+        match self {
+            ExprType::Function(inner) => Some(inner),
             _ => None,
         }
     }
@@ -140,7 +156,7 @@ impl ParseVisitor for Expr {
         S: FnMut(&Stmt),
     {
         match self.inner() {
-            ExprType::FunctionDeclaration(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Function(inner) => inner.visit_child_stmts(visitor),
             ExprType::Logical(inner) => inner.visit_child_stmts(visitor),
             ExprType::Equality(inner) => inner.visit_child_stmts(visitor),
             ExprType::Evaluation(inner) => inner.visit_child_stmts(visitor),
@@ -161,7 +177,7 @@ impl ParseVisitor for Expr {
         S: FnMut(&mut Stmt),
     {
         match self.inner_mut() {
-            ExprType::FunctionDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Function(inner) => inner.visit_child_stmts_mut(visitor),
             ExprType::Logical(inner) => inner.visit_child_stmts_mut(visitor),
             ExprType::Equality(inner) => inner.visit_child_stmts_mut(visitor),
             ExprType::Evaluation(inner) => inner.visit_child_stmts_mut(visitor),
@@ -182,7 +198,7 @@ impl ParseVisitor for Expr {
         E: FnMut(&Expr),
     {
         match self.inner() {
-            ExprType::FunctionDeclaration(inner) => inner.visit_child_exprs(visitor),
+            ExprType::Function(inner) => inner.visit_child_exprs(visitor),
             ExprType::Logical(inner) => inner.visit_child_exprs(visitor),
             ExprType::Equality(inner) => inner.visit_child_exprs(visitor),
             ExprType::Evaluation(inner) => inner.visit_child_exprs(visitor),
@@ -203,7 +219,7 @@ impl ParseVisitor for Expr {
         E: FnMut(&mut Expr),
     {
         match self.inner_mut() {
-            ExprType::FunctionDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprType::Function(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Logical(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Equality(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Evaluation(inner) => inner.visit_child_exprs_mut(visitor),
@@ -222,7 +238,7 @@ impl ParseVisitor for Expr {
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.inner() {
-            ExprType::FunctionDeclaration(Function {
+            ExprType::Function(Function {
                 name,
                 parameters,
                 constructor,

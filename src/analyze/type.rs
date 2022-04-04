@@ -48,28 +48,10 @@ macro_rules! record {
 }
 
 #[macro_export]
-macro_rules! new_function {
+macro_rules! function {
     (() => $return_type:expr) => {
         Type::Function {
             parameters: vec![],
-            return_type: Box::new($return_type),
-        }
-    };
-    ((self: $self_param:expr) => $return_type:expr) => {
-        Type::Function {
-            parameters: vec![],
-            return_type: Box::new($return_type),
-        }
-    };
-    ((self: $self_param:expr, $($arg:expr), * $(,)?) => $return_type:expr) => {
-        Type::Function {
-            parameters: vec![$($arg)*],
-            return_type: Box::new($return_type),
-        }
-    };
-    ((self, $($arg:expr), * $(,)?) => $return_type:expr) => {
-        Type::Function {
-            parameters: vec![$($arg)*],
             return_type: Box::new($return_type),
         }
     };

@@ -51,16 +51,16 @@ impl Function {
     }
 
     /// Returns the list of statements in this function's body
-    pub fn body_stmts(&self) -> Vec<Stmt> {
+    pub fn body_stmts(&self) -> &Vec<Stmt> {
         match self.body.inner() {
-            StmtType::Block(body) => body.body.clone(),
+            StmtType::Block(body) => &body.body,
             _ => unreachable!(),
         }
     }
 }
 impl From<Function> for ExprType {
     fn from(function: Function) -> Self {
-        Self::FunctionDeclaration(function)
+        Self::Function(function)
     }
 }
 impl IntoExpr for Function {}

@@ -443,7 +443,7 @@ impl Parser {
     fn expr_stmt(&mut self, expr: Expr) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         match expr.inner() {
-            ExprType::FunctionDeclaration(..)
+            ExprType::Function(..)
             | ExprType::Postfix(..)
             | ExprType::Unary(..) // FIXME: only some unary is valid here
             | ExprType::Grouping(..)

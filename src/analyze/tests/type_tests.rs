@@ -1,5 +1,5 @@
 use super::*;
-use crate::{analyze::*, array, record, test_expr_type, test_var_type};
+use crate::{analyze::*, array, function, record, test_expr_type, test_var_type};
 use pretty_assertions::assert_eq;
 use Type::*;
 
@@ -98,57 +98,53 @@ test_var_type!(
 // );
 
 // Functions
-// test_expr_type!(function, "function() {}" => new_function!(() => Undefined));
-// test_var_type!(
-//     named_function,
-//     "function foo() {};",
-//     foo: new_function!(() => Undefined)
-// );
-// test_var_type!(
-//     return_nothing,
-//     "var foo = function() {};
-//     var bar = foo();",
-//     bar: Undefined,
-// );
-// test_var_type!(
-//     return_constant,
-//     "var foo = function() { return 0; };
-//     var bar = foo();",
-//     bar: Real,
-// );
-// test_var_type!(
-//     return_inferred_constant,
-//     "var foo = function(x) { return x + 1; };
-//     var bar = foo(1);",
-//     bar: Real,
-// );
-// test_var_type!(
-//     return_generic_value,
-//     "var foo = function(x) { return x; };
-//     var bar = foo(true);",
-//     bar: Bool,
-// );
-// test_var_type!(
-//     return_generic_array,
-//     "var foo = function(x) { return x[0]; };
-//     var bar = foo([0]);",
-//     bar: Real,
-// );
-// test_var_type!(
-//     return_generic_struct,
-//     "var foo = function(x) { return x.y; };
-//     var bar = foo({ y: 0 });",
-//     bar: Real,
-// );
-// test_var_type!(
-//     return_other_function_return,
-//     "var wrapper = function(lambda) {
-//         return lambda(0);
-//     }
-//     var inner = function(n) { return n; }
-//     var data = wrapper(inner);",
-//     data: Real,
-// );
+test_expr_type!(function, "function() {}" => function!(() => Undefined));
+test_var_type!(named_function, "function foo() {};", foo: function!(() => Undefined));
+test_var_type!(
+    return_nothing,
+    "var foo = function() {};
+    var bar = foo();",
+    bar: Undefined,
+);
+test_var_type!(
+    return_constant,
+    "var foo = function() { return 0; };
+    var bar = foo();",
+    bar: Real,
+);
+test_var_type!(
+    return_inferred_constant,
+    "var foo = function(x) { return x + 1; };
+    var bar = foo(1);",
+    bar: Real,
+);
+test_var_type!(
+    return_generic_value,
+    "var foo = function(x) { return x; };
+    var bar = foo(true);",
+    bar: Bool,
+);
+test_var_type!(
+    return_generic_array,
+    "var foo = function(x) { return x[0]; };
+    var bar = foo([0]);",
+    bar: Real,
+);
+test_var_type!(
+    return_generic_struct,
+    "var foo = function(x) { return x.y; };
+    var bar = foo({ y: 0 });",
+    bar: Real,
+);
+test_var_type!(
+    return_other_function_return,
+    "var wrapper = function(lambda) {
+        return lambda(0);
+    }
+    var inner = function(n) { return n; }
+    var data = wrapper(inner);",
+    data: Real,
+);
 // test_var_type!(
 //     return_advanced_generic,
 //     r#"var foo = function(a, b) {
@@ -174,22 +170,22 @@ test_var_type!(
 // );
 // test_expr_type!(
 //     infer_function_in_parameters,
-//     "function(x) { return x() + 1; }" => new_function!(
-//         (new_function!(() => Real)) => Real
+//     "function(x) { return x() + 1; }" => function!(
+//         (function!(() => Real)) => Real
 //     )
 // );
-// test_expr_type!(
-//     infer_array_in_parameters,
-//     "function(x) { return x[0] + 1; }" => new_function!(
-//         (new_array!(Real)) => Real
-//     )
-// );
-// test_expr_type!(
-//     infer_struct_in_parameters,
-//     "function(x) { return x.y + 1; }" => new_function!(
-//         (new_struct!(y: Real)) => Real
-//     )
-// );
+test_expr_type!(
+    infer_array_in_parameters,
+    "function(x) { return x[0] + 1; }" => function!(
+        (array!(Real)) => Real
+    )
+);
+test_expr_type!(
+    infer_struct_in_parameters,
+    "function(x) { return x.y + 1; }" => function!(
+        (record!(y: Real)) => Real
+    )
+);
 // test_var_type!(
 //     mutate_struct_via_function,
 //     "var foo = function(a) {
@@ -197,7 +193,7 @@ test_var_type!(
 //     }
 //     var bar = {};
 //     foo(bar);",
-//     bar: new_struct!(a: Real)
+//     bar: record!(a: Real)
 // );
 // test_var_type!(
 //     retain_all_fields_in_generic_call,
@@ -223,39 +219,39 @@ test_var_type!(
 // Self
 test_var_type!(self_assignment_no_keyword, "foo = 0;", foo: Real);
 test_var_type!(self_assignment_with_keyword, "self.foo = 0;", foo: Real);
-// test_var_type!(
-//     function_write_constant_to_self,
-//     "self.a = 0;
-//     function bar() { self.a = 0; }",
-//     bar: new_function!(
-//         () => Undefined
-//     ),
-// );
-// test_var_type!(
-//     function_write_parameter_to_self,
-//     "self.a = 0;
-//     function bar(x) { self.a = x + 1; }",
-//     bar: new_function!(
-//         (Real) => Undefined
-//     ),
-// );
-// test_var_type!(
-//     function_read_self_out_of_order,
-//     "function bar() { return self.a; }
-//     self.a = 0;",
-//     bar: new_function!(() => Real),
-// );
-// test_var_type!(
-//     function_write_self_out_of_order,
-//     "function bar(x) { self.a = x; }
-//     self.a = 0;",
-//     bar: new_function!((Real) => Undefined),
-// );
+test_var_type!(
+    function_write_constant_to_self,
+    "self.a = 0;
+    function bar() { self.a = 0; }",
+    bar: function!(
+        () => Undefined
+    ),
+);
+test_var_type!(
+    function_write_parameter_to_self,
+    "self.a = 0;
+    function bar(x) { self.a = x + 1; }",
+    bar: function!(
+        (Real) => Undefined
+    ),
+);
+test_var_type!(
+    function_read_self_out_of_order,
+    "function bar() { return self.a; }
+    self.a = 0;",
+    bar: function!(() => Real),
+);
+test_var_type!(
+    function_write_self_out_of_order,
+    "function bar(x) { self.a = x; }
+    self.a = 0;",
+    bar: function!((Real) => Undefined),
+);
 // test_var_type!(
 //     function_calls_out_of_order,
 //     "function foo() { self.bar();}
 //     function bar() {}",
-//     bar: new_function!(() => Undefined),
+//     bar: function!(() => Undefined),
 // );
 // test_var_type!(
 //     alias_function,
@@ -358,8 +354,8 @@ test_var_type!(self_assignment_with_keyword, "self.foo = 0;", foo: Real);
 //     var z = [[{ a: { b: { c: 0 }}}]];
 //     var data = build_data(build_x(0), y_fn, z);
 //     var output = data.x + data.y + data.z;",
-//     z: new_array!(new_array!(new_struct!(a: new_struct!(b: new_struct!(c: Real))))),
-//     data: new_struct!(x: Real, y: Real, z: Real),
+//     z: array!(array!(record!(a: record!(b: record!(c: Real))))),
+//     data: record!(x: Real, y: Real, z: Real),
 //     output: Real
 // );
 // test_var_type!(

@@ -140,14 +140,14 @@ pub mod analyze {
     mod global_scope;
     mod scope;
     mod term;
-    mod r#trait;
+    mod record;
     mod r#type;
     mod typewriter;
     mod utils;
     pub use app::*;
     pub use constrain::*;
     pub use global_scope::*;
-    pub use r#trait::*;
+    pub use record::*;
     pub use r#type::*;
     pub use scope::*;
     pub use term::*;

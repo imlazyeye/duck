@@ -19,7 +19,7 @@ pub fn harness_typewriter(source: &str) -> Result<TestTypeWriter, Vec<TypeError>
     let mut errors = vec![];
     let mut typewriter = Typewriter::default();
     let mut ast = parser.into_ast().unwrap();
-    if let Err(e) = &mut typewriter.write(ast.stmts_mut()) {
+    if let Err(e) = &mut typewriter.process_statements(ast.stmts_mut()) {
         errors.append(e);
     }
     // println!("Result for: \n{source}");
@@ -60,12 +60,12 @@ pub fn harness_typewriter(source: &str) -> Result<TestTypeWriter, Vec<TypeError>
 pub fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
     let typewriter = harness_typewriter(source).unwrap();
-    typewriter.lookup("a").unwrap()
+    typewriter.lookup_type("a").unwrap()
 }
 
 pub fn get_var_type(source: &'static str, name: &'static str) -> Type {
     let typewriter = harness_typewriter(source).unwrap();
-    typewriter.lookup(name).unwrap()
+    typewriter.lookup_type(name).unwrap()
 }
 
 #[macro_export]
