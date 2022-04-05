@@ -8,7 +8,7 @@ use parking_lot::Mutex;
 pub struct Marker(pub u64);
 impl Marker {
     pub const RETURN: Self = Marker(u64::MAX);
-    pub const NULL: Self = Marker(u64::MAX);
+    pub const NULL: Self = Marker(u64::MAX - 1);
     pub fn new() -> Self {
         Self(rand::random())
     }
@@ -77,6 +77,7 @@ impl Printer {
             Term::Type(tpe) => Self::tpe(tpe, tw),
             Term::Marker(marker) => Self::marker(marker),
             Term::App(app) => Self::app(app, tw),
+            Term::Error => "<error>".to_string(),
         }
     }
 
@@ -115,18 +116,29 @@ impl Printer {
     pub fn app(app: &App, tw: &Typewriter) -> String {
         match app {
             App::Array(inner) => format!("[{}]", Self::term(inner, tw)),
-            App::Record(record) => format!(
-                "{{ {} }}",
-                record
-                    .fields
-                    .iter()
-                    .map(|(name, field)| format!(
-                        "{}: {}",
-                        name,
-                        Printer::term(&tw.lookup_normalized_term(&field.marker).unwrap(), tw)
-                    ))
-                    .join(", ")
-            ),
+            App::Record(record) => {
+                if record.fields.is_empty() {
+                    "{}".into()
+                } else {
+                    format!(
+                        "{}{{ {} }}",
+                        match record.state {
+                            State::Inferred => "?",
+                            State::Extendable => "mut ",
+                            State::Concrete => "",
+                        },
+                        record
+                            .fields
+                            .iter()
+                            .map(|(name, field)| format!(
+                                "{}: {}",
+                                name,
+                                Printer::term(&tw.lookup_normalized_term(&field.marker).unwrap_or(Term::Error), tw)
+                            ))
+                            .join(", ")
+                    )
+                }
+            }
             App::Function(Function {
                 parameters,
                 return_type,

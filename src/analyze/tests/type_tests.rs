@@ -1,20 +1,7 @@
 use super::*;
-use crate::{analyze::*, array, function, record, test_expr_type, test_var_type};
+use crate::{analyze::*, array, function, record, test_expr_type, test_failure, test_var_type};
 use pretty_assertions::assert_eq;
 use Type::*;
-
-pub struct TestTypeWriter(Typewriter);
-impl std::ops::Deref for TestTypeWriter {
-    type Target = Typewriter;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-impl Drop for TestTypeWriter {
-    fn drop(&mut self) {
-        Printer::flush()
-    }
-}
 
 // Basic expressions
 test_expr_type!(undefined, "undefined" => Undefined);
@@ -70,10 +57,10 @@ test_expr_type!(empty_struct, "{}" => record!());
 test_expr_type!(populated_struct, "{ x: 0 }" => record!(x: Real));
 test_var_type!(struct_access, "var foo = { x: 0 }, bar = foo.x;", bar: Real,);
 test_var_type!(
-    post_creation_struct_declarations,
+    struct_extention,
     "var foo = { x: 0 };
     foo.y = 0;",
-    foo: record!(x: Real, y: Real)
+    foo: record!(x: Real, y: Real),
 );
 test_var_type!(
     nested_structs,
@@ -196,16 +183,16 @@ test_expr_type!(
 //     foo(bar);",
 //     bar: record!(a: Real)
 // );
-test_var_type!(
-    retain_all_fields_in_generic_call,
-    "var foo = function(a) {
-        a.a = 0;
-        return a;
-    }
-    var bar = { a: 0, b: 0 };
-    foo(bar);",
-    bar: record!(a: Real, b: Real)
-);
+// test_var_type!(
+//     retain_all_fields_in_generic_call,
+//     "var foo = function(a) {
+//         a.a = 0;
+//         return a;
+//     }
+//     var bar = { a: 0, b: 0 };
+//     foo(bar);",
+//     bar: record!(a: Real, b: Real)
+// );
 // test_var_type!(
 //     retain_all_fields_in_generic_call_after_return,
 //     "var foo = function(a) {
@@ -236,6 +223,14 @@ test_var_type!(
         (Real) => Undefined
     ),
 );
+test_var_type!(function_extend_self, "function foo() { self.a = 0; }", a: Real,);
+test_var_type!(
+    function_extend_self_nested,
+    "function foo() { 
+        function bar() { self.a = 0; }
+    }",
+    a: Real,
+);
 test_var_type!(
     function_read_self_out_of_order,
     "function bar() { return self.a; }
@@ -254,18 +249,11 @@ test_var_type!(
     function bar() {}",
     bar: function!(() => Undefined),
 );
-// test_var_type!(
-//     alias_function,
-//     "function foo() constructor {
-//         self.x = 0;
-//     }
-//     var bar = function() {
-//         var new_struct = new foo();
-//         return new_struct;
-//     }
-//     var fizz = bar();",
-//     fizz: new_struct!(x: Real)
-// );
+test_failure!(
+    function_extention_out_of_order,
+    "self.a = self.b;
+    function foo() { self.b = 0; }"
+);
 // test_var_type!(
 //     bound_scope_in_struct,
 //     "var foo = {
@@ -277,16 +265,16 @@ test_var_type!(
 //     var buzz = foo.fizz();",
 //     buzz: Real,
 // );
-// test_var_type!(
-//     obj_setter,
-//     "self.x = 0;
-//     self.y = 0;
-//     function set(obj) {
-//         self.x = obj.x;
-//         self.y = obj.y;
-//     }",
-//     set: new_function!((new_struct!(x: Real, y: Real)) => Undefined),
-// );
+test_var_type!(
+    obj_setter,
+    "self.x = 0;
+    self.y = 0;
+    function set(obj) {
+        self.x = obj.x;
+        self.y = obj.y;
+    }",
+    set: function!((record!(x: Real, y: Real)) => Undefined),
+);
 
 // Constructors
 // test_var_type!(
@@ -338,6 +326,18 @@ test_var_type!(
 //     var fizz = function() : bar() constructor {}
 //     var buzz = new fizz();",
 //     buzz: new_struct!(a: Real, b: Real)
+// );
+// test_var_type!(
+//     alias_function,
+//     "function foo() constructor {
+//         self.x = 0;
+//     }
+//     var bar = function() {
+//         var new_struct = new foo();
+//         return new_struct;
+//     }
+//     var fizz = bar();",
+//     fizz: new_struct!(x: Real)
 // );
 
 // Stress tests

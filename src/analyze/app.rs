@@ -23,3 +23,9 @@ pub struct Call {
     pub parameters: Vec<Term>,
     pub target: Box<Term>,
 }
+
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum RecordOp {
+    Read,
+    Write,
+}

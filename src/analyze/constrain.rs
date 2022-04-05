@@ -20,25 +20,29 @@ impl<'s> Constraints<'s> {
                     match left.inner() {
                         ExprType::Identifier(iden) => {
                             if self.typewriter.locals().contains(&iden.lexeme) {
-                                self.typewriter.write_local(&iden.lexeme, left, right_marker)?;
+                                self.typewriter
+                                    .update_local(&iden.lexeme, left, right_marker, RecordOp::Write)?;
                             } else {
-                                self.typewriter.write_self(&iden.lexeme, left, right_marker)?;
+                                self.typewriter
+                                    .update_self(&iden.lexeme, left, right_marker, RecordOp::Write)?;
                             }
                         }
                         ExprType::Access(Access::Current { right: iden }) => {
-                            self.typewriter.write_self(&iden.lexeme, left, right_marker)?;
+                            self.typewriter
+                                .update_self(&iden.lexeme, left, right_marker, RecordOp::Write)?;
                         }
                         ExprType::Access(Access::Dot {
                             left: struct_expr,
                             right: iden,
                         }) => {
-                            let mut record = Record::writer();
+                            let mut record = Record::inferred();
                             record
-                                .write_field(
+                                .update_field(
                                     &iden.lexeme,
                                     left.id(),
                                     left.location(),
                                     self.typewriter.marker_for(right)?,
+                                    RecordOp::Write,
                                 )?
                                 .apply(self.typewriter)?;
                             self.expr_eq_app(struct_expr, App::Record(record))?;
@@ -58,8 +62,12 @@ impl<'s> Constraints<'s> {
                             self.typewriter.marker_for(initializer.assignment_value().unwrap())?
                         }
                     };
-                    self.typewriter
-                        .write_local(initializer.name(), initializer.name_expr(), value)?;
+                    self.typewriter.update_local(
+                        initializer.name(),
+                        initializer.name_expr(),
+                        value,
+                        RecordOp::Write,
+                    )?;
                 }
             }
 
@@ -93,7 +101,8 @@ impl<'s> Constraints<'s> {
         if let ExprType::Function(function) = expr.inner() {
             let expr_marker = self.typewriter.marker_for(expr)?;
             if let Some(name) = &function.name {
-                self.typewriter.write_self(&name.lexeme, expr, expr_marker)?;
+                self.typewriter
+                    .update_self(&name.lexeme, expr, expr_marker, RecordOp::Write)?;
             }
             self.functions.push(expr.clone());
             return Ok(());
@@ -156,16 +165,21 @@ impl<'s> Constraints<'s> {
             ExprType::Access(access) => {
                 match access {
                     Access::Global { .. } => {}
-                    Access::Current { .. } => {}
+                    Access::Current { right } => {
+                        let marker = self.typewriter.marker_for(expr)?;
+                        self.typewriter
+                            .update_self(&right.lexeme, expr, marker, RecordOp::Read)?;
+                    }
                     Access::Other { .. } => {}
                     Access::Dot { left, right } => {
-                        let mut record = Record::reader();
+                        let mut record = Record::inferred();
                         record
-                            .write_field(
+                            .update_field(
                                 &right.lexeme,
-                                left.id(),
-                                left.location(),
+                                expr.id(),
+                                expr.location(),
                                 self.typewriter.marker_for(expr)?,
+                                RecordOp::Read,
                             )?
                             .apply(self.typewriter)?;
                         self.expr_eq_app(left, App::Record(record))?;
@@ -194,7 +208,6 @@ impl<'s> Constraints<'s> {
                 }
             }
             ExprType::Call(crate::parse::Call { left, arguments, .. }) => {
-                let expr_marker = self.typewriter.marker_for(expr)?;
                 let left_marker = self.typewriter.marker_for(left)?;
                 let mut parameters = vec![];
                 for arg in arguments.iter() {
@@ -212,7 +225,16 @@ impl<'s> Constraints<'s> {
                 self.expr_eq_expr(expr, inner)?;
             }
 
-            ExprType::Identifier(..) => {}
+            ExprType::Identifier(iden) => {
+                let marker = self.typewriter.marker_for(expr)?;
+                if self.typewriter.locals().contains(&iden.lexeme) {
+                    self.typewriter
+                        .update_local(&iden.lexeme, expr, marker, RecordOp::Read)?;
+                } else {
+                    self.typewriter
+                        .update_self(&iden.lexeme, expr, marker, RecordOp::Read)?;
+                }
+            }
             ExprType::Literal(literal) => {
                 let tpe = match literal {
                     Literal::True | Literal::False => Type::Bool,
@@ -233,14 +255,15 @@ impl<'s> Constraints<'s> {
                         return Ok(());
                     }
                     Literal::Struct(declarations) => {
-                        let mut record = Record::default();
+                        let mut record = Record::extendable();
                         for declaration in declarations {
                             record
-                                .write_field(
+                                .update_field(
                                     &declaration.0.lexeme,
                                     declaration.1.id(),
                                     declaration.1.location(),
                                     self.typewriter.marker_for(&declaration.1)?,
+                                    RecordOp::Write,
                                 )?
                                 .apply(self.typewriter)?;
                         }
@@ -276,10 +299,12 @@ impl<'s> Constraints<'s> {
                     self.typewriter.marker_for(param.assignment_value().unwrap())?
                 }
             };
-            parameters.push(
-                self.typewriter
-                    .write_local(param.name(), param.name_expr(), value_marker)?,
-            );
+            parameters.push(self.typewriter.update_local(
+                param.name(),
+                param.name_expr(),
+                value_marker,
+                RecordOp::Write,
+            )?);
         }
         if let Err(errs) = &mut self.typewriter.process_statements(function.body_stmts()) {
             return Err(errs.pop().unwrap()); // todo

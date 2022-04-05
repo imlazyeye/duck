@@ -22,33 +22,14 @@ pub fn harness_typewriter(source: &str) -> Result<TestTypeWriter, Vec<TypeError>
     if let Err(e) = &mut typewriter.process_statements(ast.stmts_mut()) {
         errors.append(e);
     }
-    // println!("Result for: \n{source}");
-    println!("Local Fields:\n");
-    // for name in scope.local_fields().iter() {
-    //     let str = name.bright_black();
-    //     match scope.lookup_type(&Identifier::lazy(name), &typewriter) {
-    //         Ok(tpe) => {
-    //             let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-    //             println!("{str}{whitespace}{}\n", Printer::tpe(&tpe).bright_cyan().bold());
-    //         }
-    //         Err(e) => errors.push(e),
-    //     }
-    // }
-
-    // println!("\nSelf Fields:\n");
-    // if let Some(self_object) = typewriter
-    //     .find_term(&scope.self_marker)
-    //     .and_then(|term| term.as_object())
-    // {
-    //     for (name, field) in self_object.fields() {
-    //         let str = name.bright_black();
-    //         let whitespace = String::from_utf8(vec![b' '; 75 - str.len()]).unwrap();
-    //         println!(
-    //             "{str}{whitespace}{}\n",
-    //             Printer::tpe(&(field.clone()).into()).bright_cyan().bold()
-    //         );
-    //     }
-    // }
+    for (name, _) in typewriter
+        .active_self()
+        .fields
+        .iter()
+        .chain(typewriter.locals().fields.iter())
+    {
+        let _ = typewriter.lookup_type(name).map_err(|e| errors.push(e));
+    }
 
     if errors.is_empty() {
         Ok(TestTypeWriter(typewriter))
