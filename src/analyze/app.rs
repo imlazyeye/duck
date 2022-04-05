@@ -21,5 +21,5 @@ pub struct Function {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Call {
     pub parameters: Vec<Term>,
-    pub return_type: Box<Term>,
+    pub target: Box<Term>,
 }

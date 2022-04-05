@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    duck_error,
+    duck_bug, duck_error,
     parse::{Expr, ExprId, Stmt},
     FileId,
 };
@@ -38,55 +38,60 @@ impl Typewriter {
         }
     }
 
-    pub fn lookup_type(&self, name: &str) -> Option<Type> {
+    pub fn lookup_type(&self, name: &str) -> Result<Type, TypeError> {
         let marker = if let Some(field) = self.locals().get(name) {
             field.marker
         } else if let Some(field) = self.active_self().get(name) {
             field.marker
         } else {
-            return None;
+            return duck_bug!("nah");
         };
-        Some(self.term_to_type(self.substitutions.get(&marker).cloned().unwrap()))
+        self.term_to_type(self.substitutions.get(&marker).cloned().unwrap())
     }
 
-    pub fn lookup_normalized_term(&self, marker: &Marker) -> Term {
+    pub fn lookup_normalized_term(&self, marker: &Marker) -> Result<Term, TypeError> {
         let mut term = self.substitutions.get(marker).cloned().unwrap();
-        self.normalize_term(&mut term);
-        term
+        self.normalize_term(&mut term)?;
+        Ok(term)
     }
 
-    pub fn term_to_type(&self, mut term: Term) -> Type {
-        self.normalize_term(&mut term);
-        match term {
+    pub fn term_to_type(&self, mut term: Term) -> Result<Type, TypeError> {
+        self.normalize_term(&mut term)?;
+        let tpe = match term {
             Term::Type(tpe) => tpe,
             Term::Marker(marker) => Type::Generic {
                 term: Box::new(Term::Marker(marker)),
             },
             Term::App(app) => match app {
                 App::Array(member_type) => Type::Array {
-                    member_type: Box::new(self.term_to_type(member_type.as_ref().to_owned())),
+                    member_type: Box::new(self.term_to_type(member_type.as_ref().to_owned())?),
                 },
                 App::Record(record) => Type::Struct {
                     fields: record
                         .fields
                         .into_iter()
                         .map(|(name, field)| {
-                            let term = self.lookup_normalized_term(&field.marker);
-                            (name, self.term_to_type(term))
+                            self.lookup_normalized_term(&field.marker)
+                                .and_then(|v| self.term_to_type(v))
+                                .map(|tpe| (name, tpe))
                         })
-                        .collect(),
+                        .collect::<Result<HashMap<String, Type>, TypeError>>()?,
                 },
                 App::Function(function) => Type::Function {
                     parameters: function
                         .parameters
                         .into_iter()
                         .map(|term| self.term_to_type(term))
-                        .collect(),
-                    return_type: Box::new(self.term_to_type(*function.return_type)),
+                        .collect::<Result<Vec<Type>, TypeError>>()?,
+                    return_type: Box::new(self.term_to_type(*function.return_type)?),
                 },
-                App::Call(_) => unreachable!(),
+                App::Call(call) => Type::Generic {
+                    term: Box::new(Term::App(App::Call(call))),
+                },
             },
-        }
+        };
+
+        Ok(tpe)
     }
 
     pub fn marker_for(&mut self, expr: &Expr) -> Result<Marker, TypeError> {
@@ -152,6 +157,10 @@ impl Typewriter {
         self.active_self
     }
 
+    pub fn locals_marker(&self) -> Marker {
+        self.locals
+    }
+
     pub fn locals(&self) -> &Record {
         match self.substitutions.get(&self.locals).unwrap() {
             Term::App(App::Record(record)) => record,
@@ -186,7 +195,7 @@ impl Typewriter {
         println!("{}", Printer::marker_unification(marker, term, self));
 
         if let Some(mut sub) = self.substitutions.get_mut(marker).cloned() {
-            self.normalize_term(term);
+            // self.normalize_term(term);
             self.unify_terms(&mut sub, term)?;
             *term = sub;
         }
@@ -240,31 +249,11 @@ impl Typewriter {
                         duck_error!("{} is does not contain fields", Printer::term(rhs, self))
                     }
                 },
-                App::Call(call) => match rhs {
-                    Term::App(App::Function(function)) => {
-                        println!("\n--- Calling function... ---\n");
-                        let mut temp_writer = self.clone();
-                        let mut temp_parameters = function.parameters.clone();
-                        let mut temp_return = function.return_type.clone();
-                        for (i, param) in temp_parameters.iter_mut().enumerate() {
-                            let arg = if let Some(arg) = call.parameters.get_mut(i) {
-                                arg
-                            } else {
-                                return duck_error!("Missing argument {i} in call.");
-                            };
-                            temp_writer.unify_terms(arg, param)?;
-                        }
-                        temp_writer.normalize_term(&mut temp_return);
-                        self.unify_terms(&mut call.return_type, &mut temp_return)?;
-                        // *lhs = rhs.clone();
-                        println!("\n--- Ending call... ---\n");
-                        Ok(())
-                    }
-                    _ => {
-                        duck_error!("{} is not a function", Printer::term(rhs, self))
-                    }
-                },
-                App::Function(_) => self.unify_terms(rhs, lhs),
+                App::Call(_) => {
+                    *lhs = rhs.clone();
+                    Ok(())
+                }
+                App::Function(_) => Ok(()),
             },
             Term::Type(_) => {
                 if lhs != rhs {
@@ -292,47 +281,62 @@ impl Typewriter {
             }
             Term::App(term_app) => match term_app {
                 App::Array(member_term) => self.occurs(marker, member_term),
-                App::Record(record) => record.fields.iter().any(|(_, field)| {
-                    let term = self.lookup_normalized_term(&field.marker);
-                    self.occurs(marker, &term)
-                }),
+                App::Record(record) => record.fields.iter().any(|(_, field)| marker == &field.marker),
                 App::Function(Function {
                     parameters,
                     return_type,
                     ..
-                })
-                | App::Call(Call {
-                    parameters,
-                    return_type,
                 }) => self.occurs(marker, return_type) || parameters.iter().any(|v| self.occurs(marker, v)),
+                App::Call(Call { target, parameters }) => {
+                    self.occurs(marker, target) || parameters.iter().any(|v| self.occurs(marker, v))
+                }
             },
         }
     }
 
-    fn normalize_term(&self, term: &mut Term) {
+    fn normalize_term(&self, term: &mut Term) -> Result<(), TypeError> {
         match term {
-            Term::Type(_) => {}
+            Term::Type(_) => Ok(()),
             Term::Marker(marker) => {
                 if let Some(sub) = self.substitutions.get(marker) {
                     *term = sub.clone();
-                    self.normalize_term(term);
+                    self.normalize_term(term)
+                } else {
+                    Ok(())
                 }
             }
             Term::App(app) => match app {
                 App::Array(member_term) => self.normalize_term(member_term),
-                App::Record(_) => {}
+                App::Record(_) => Ok(()),
                 App::Function(super::Function {
                     parameters,
                     return_type,
                     ..
-                })
-                | App::Call(super::Call {
-                    parameters,
-                    return_type,
-                    ..
                 }) => {
-                    parameters.iter_mut().for_each(|v| self.normalize_term(v));
-                    self.normalize_term(return_type);
+                    parameters.iter_mut().try_for_each(|v| self.normalize_term(v))?;
+                    self.normalize_term(return_type)
+                }
+                App::Call(super::Call { target, parameters }) => {
+                    parameters.iter_mut().try_for_each(|v| self.normalize_term(v))?;
+                    self.normalize_term(target)?;
+                    if let Term::App(App::Function(function)) = target.as_mut() {
+                        println!("\n--- Calling function... ---\n");
+                        let mut temp_writer = self.clone();
+                        let mut temp_parameters = function.parameters.clone();
+                        let mut temp_return = function.return_type.clone();
+                        for (i, param) in temp_parameters.iter_mut().enumerate() {
+                            let arg = if let Some(arg) = parameters.get_mut(i) {
+                                arg
+                            } else {
+                                return duck_error!("Missing argument {i} in call.");
+                            };
+                            temp_writer.unify_terms(arg, param)?;
+                        }
+                        temp_writer.normalize_term(&mut temp_return)?;
+                        *term = *temp_return;
+                        println!("\n--- Ending call... ---\n");
+                    }
+                    Ok(())
                 }
             },
         }
@@ -340,21 +344,21 @@ impl Typewriter {
 
     /// ### Errors
     /// shut up
-    pub fn new_substitution(&mut self, marker: Marker, mut term: Term) -> Result<(), TypeError> {
-        self.normalize_term(&mut term);
+    pub fn new_substitution(&mut self, marker: Marker, term: Term) -> Result<(), TypeError> {
+        // self.normalize_term(&mut term);
         println!("{}", Printer::substitution(&marker, &term, self));
         self.substitutions.insert(marker, term);
-        let markers_needing_updates: Vec<Marker> = self
-            .substitutions
-            .iter()
-            .filter(|(_, sub_term)| self.occurs(&marker, sub_term))
-            .map(|(marker, _)| *marker)
-            .collect();
-        for marker in markers_needing_updates {
-            let mut term = self.substitutions.remove(&marker).unwrap();
-            self.normalize_term(&mut term);
-            self.substitutions.insert(marker, term);
-        }
+        // let markers_needing_updates: Vec<Marker> = self
+        //     .substitutions
+        //     .iter()
+        //     .filter(|(_, sub_term)| self.occurs(&marker, sub_term))
+        //     .map(|(marker, _)| *marker)
+        //     .collect();
+        // for marker in markers_needing_updates {
+        //     let mut term = self.substitutions.remove(&marker).unwrap();
+        //     // self.normalize_term(&mut term);
+        //     self.substitutions.insert(marker, term);
+        // }
         Ok(())
     }
 }
@@ -377,110 +381,3 @@ impl Default for Typewriter {
 }
 
 pub type TypeError = Diagnostic<FileId>;
-
-// fn call_function(
-//     &mut self,
-//     function: &mut super::Function,
-//     arguments: &mut Vec<Term>,
-//     expected_return: &mut Box<Term>,
-//     uses_new: bool,
-//     scope: &mut Scope,
-// ) -> Result<(), TypeError> {
-//     // Create a temporary writer to unify this call with the function. We do this so we can
-//     // learn more information about the call without applying changes to the function itself,
-//     // since the function should remain generic.
-//     println!(
-//         "--- Calling a {}... ---",
-//         if uses_new { "constructor" } else { "function " }
-//     );
-//     let mut call_writer = self.clone();
-
-//     // If we're using new, we treat this as a constructor, which will change behavior
-//     let mut call_scope = if uses_new {
-//         // The constructor gets its own new scope, so we do not need to pass it our
-//         // self terms. It just uses whatever the function itself calls for.
-//         // let obj = function
-//         //     .self_fields
-//         //     .clone()
-//         //     .unwrap_or_else(|| Object::Inferred(HashMap::default()));
-
-//         Scope::new_concrete(self)
-//     } else {
-//         // If the function uses self parameters, we need to create a new scope for it that knows
-// about         // our fields
-//         let obj = if let Some(binding) = function.binding {
-//             self.find_term_mut(&binding)
-//                 .and_then(|term| term.as_object_mut())
-//                 .unwrap()
-//                 .clone()
-//         } else {
-//             Object::Inferred(HashMap::default())
-//         };
-
-//         Scope::new(&mut call_writer, obj)
-//     };
-
-//     // If we have inheritance, we need to call that function in this scope
-//     if let Some(inheritance) = &mut function.inheritance {
-//         let mut our_term = scope.lookup_term(inheritance, self)?;
-//         if let Term::App(App::Function(function)) = &mut our_term {
-//             call_writer.call_function(
-//                 function,
-//                 arguments,
-//                 &mut expected_return.clone(),
-//                 false,
-//                 &mut call_scope,
-//             )?;
-//             println!("sdasd");
-//         }
-//     }
-
-//     // Figure out the arguments
-//     println!("Unifying arguments.");
-//     for (i, arg) in arguments.iter_mut().enumerate() {
-//         call_writer.unify_terms(arg, &mut function.parameters[i].clone(), &mut call_scope)?
-//     }
-
-//     // Figure out the return
-//     println!("Unifying the return.");
-//     call_writer.unify_terms(expected_return, &mut function.return_type, &mut call_scope)?;
-
-//     println!("--- Extracting information from call... ---");
-
-//     // Now apply everything the temp writer knows onto our arguments
-//     println!("Reverse unifying the arguments.");
-//     for arg in arguments.iter_mut() {
-//         let mut new_arg = arg.clone();
-//         call_writer.normalize_term(&mut new_arg);
-//         self.unify_terms(arg, &mut new_arg, scope)?;
-//     }
-
-//     // If we just made a constructor, we need to adjust our return value to be a struct made of
-// its     // scope
-//     let self_marker = scope.self_marker;
-//     if uses_new {
-//         println!(
-//             "Crafting the constructed return from {}.",
-//             Printer::marker(&call_scope.self_marker)
-//         );
-//         let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
-//         self.unify_terms(expected_return, call_scope_object, scope)?;
-//     } else {
-//         println!("Modifying the scope.");
-//         // Otherwise, we need to apply any modifications this function made to our scope
-//         let call_scope_object = call_writer.find_term_mut(&call_scope.self_marker).unwrap();
-//         self.unify_marker(&self_marker, call_scope_object, scope)?;
-//         let temp_self_fields = call_writer.find_term_mut(&scope.self_marker).unwrap();
-//         self.unify_marker(&self_marker, temp_self_fields, scope)?;
-
-//         // Once that's done, our return value is just the normalized value that we
-//         // can find from the call writer
-//         println!("Normalizing the return.");
-//         let mut new_return_type = expected_return.clone();
-//         call_writer.normalize_term(&mut new_return_type);
-//         self.unify_terms(expected_return, &mut new_return_type, scope)?;
-//     }
-//     println!("--- Call complete. ---");
-
-//     Ok(())
-// }

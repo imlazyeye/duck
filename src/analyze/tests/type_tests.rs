@@ -88,14 +88,14 @@ test_var_type!(
     foo.x = bar.y;",
     foo: record!(x: Real),
 );
-// test_var_type!(
-//     function_on_struct,
-//     "var foo = {
-//         bar: function() { return 0; },
-//     };
-//     var fizz = foo.bar();",
-//     fizz: Real
-// );
+test_var_type!(
+    function_on_struct,
+    "var foo = {
+        bar: function() { return 0; },
+    };
+    var fizz = foo.bar();",
+    fizz: Real
+);
 
 // Functions
 test_expr_type!(function, "function() {}" => function!(() => Undefined));
@@ -136,38 +136,39 @@ test_var_type!(
     var bar = foo({ y: 0 });",
     bar: Real,
 );
-// test_var_type!(
-//     return_other_function_return,
-//     "function wrapper(lambda) {
-//         return lambda(0);
-//     }
-//     function inner(n) { return n; }
-//     var data = wrapper(inner);",
-//     data: Real,
-// );
-// test_var_type!(
-//     return_advanced_generic,
-//     r#"var foo = function(a, b) {
-//         return a[b];
-//     }
-//     var bar = function(x, y) {
-//         return x + y * 2;
-//     }
-//     var fizz = foo(["hello"], 0);
-//     var buzz = foo([ { a: true } ], bar(1, 2));"#,
-//     fizz: Str,
-//     buzz: new_struct!(a: Bool)
-// );
-// test_var_type!(
-//     multi_use_generic_function,
-//     "var foo = function(a) {
-//         return a;
-//     }
-//     var bar = foo(true);
-//     var fizz = foo(0);",
-//     bar: Bool,
-//     fizz: Real,
-// );
+test_var_type!(
+    return_other_function_return,
+    "function wrapper(lambda) {
+        return lambda(0);
+    }
+    function inner(n) { return n; }
+    var data = wrapper(inner);",
+    data: Real,
+);
+test_var_type!(
+    return_advanced_generic,
+    r#"var foo = function(a, b) {
+        return a[b];
+    }
+    var bar = function(x, y) {
+        return x + y * 2;
+    }
+    var fizz = foo(["hello"], 0);
+    var buzz = foo([ { a: true } ], bar(1, 2));"#,
+    fizz: Str,
+    buzz: record!(a: Bool)
+);
+test_var_type!(
+    multi_use_generic_function,
+    "var foo = function(a) {
+        return a;
+    }
+    var bar = foo(true);
+    var fizz = foo(0);",
+    bar: Bool,
+    fizz: Real,
+);
+// This one will require traits! (Returns<T> in particular)
 // test_expr_type!(
 //     infer_function_in_parameters,
 //     "function(x) { return x() + 1; }" => function!(
@@ -195,16 +196,16 @@ test_expr_type!(
 //     foo(bar);",
 //     bar: record!(a: Real)
 // );
-// test_var_type!(
-//     retain_all_fields_in_generic_call,
-//     "var foo = function(a) {
-//         a.a = 0;
-//         return a;
-//     }
-//     var bar = { a: 0, b: 0 };
-//     foo(bar);",
-//     bar: new_struct!(a: Real, b: Real)
-// );
+test_var_type!(
+    retain_all_fields_in_generic_call,
+    "var foo = function(a) {
+        a.a = 0;
+        return a;
+    }
+    var bar = { a: 0, b: 0 };
+    foo(bar);",
+    bar: record!(a: Real, b: Real)
+);
 // test_var_type!(
 //     retain_all_fields_in_generic_call_after_return,
 //     "var foo = function(a) {
@@ -213,7 +214,7 @@ test_expr_type!(
 //     }
 //     var bar = { a: 0, b: 0 };
 //     bar = foo(bar);",
-//     bar: new_struct!(a: Real, b: Real)
+//     bar: record!(a: Real, b: Real)
 // );
 
 // Self

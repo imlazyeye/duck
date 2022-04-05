@@ -66,9 +66,9 @@ impl<'s> Constraints<'s> {
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
                     let marker = self.typewriter.marker_for(value)?;
-                    self.marker_eq_term(Marker::RETURN, Term::Marker(marker));
+                    self.marker_eq_term(Marker::RETURN, Term::Marker(marker))?;
                 } else {
-                    self.marker_eq_term(Marker::RETURN, Term::Type(Type::Undefined));
+                    self.marker_eq_term(Marker::RETURN, Term::Type(Type::Undefined))?;
                 }
             }
 
@@ -194,16 +194,17 @@ impl<'s> Constraints<'s> {
                 }
             }
             ExprType::Call(crate::parse::Call { left, arguments, .. }) => {
-                let this_expr_marker = self.typewriter.marker_for(expr)?;
+                let expr_marker = self.typewriter.marker_for(expr)?;
+                let left_marker = self.typewriter.marker_for(left)?;
                 let mut parameters = vec![];
                 for arg in arguments.iter() {
                     parameters.push(Term::Marker(self.typewriter.marker_for(arg)?));
                 }
                 self.expr_eq_app(
-                    left,
+                    expr,
                     App::Call(super::Call {
-                        parameters,
-                        return_type: Box::new(Term::Marker(this_expr_marker)),
+                        parameters: parameters.clone(),
+                        target: Box::new(Term::Marker(left_marker)),
                     }),
                 )?;
             }
@@ -304,7 +305,7 @@ impl<'s> Constraints<'s> {
                 parameters: parameters
                     .into_iter()
                     .map(|marker| self.typewriter.lookup_normalized_term(&marker))
-                    .collect(),
+                    .collect::<Result<Vec<Term>, TypeError>>()?,
                 return_type,
             }),
         )
@@ -359,13 +360,12 @@ impl<'s> Constraints<'s> {
 
     pub fn expr_eq_term(&mut self, expr: &Expr, term: Term) -> Result<(), TypeError> {
         let marker = self.typewriter.marker_for(expr)?;
-        self.marker_eq_term(marker, term);
-        Ok(())
+        self.marker_eq_term(marker, term)
     }
 
-    pub fn marker_eq_term(&mut self, marker: Marker, mut term: Term) {
-        // self.typewriter.unify_marker(&marker, &mut term).unwrap();
-        self.collection.push(Constraint::Eq(marker, term));
+    pub fn marker_eq_term(&mut self, marker: Marker, mut term: Term) -> Result<(), TypeError> {
+        self.typewriter.unify_marker(&marker, &mut term)
+        // self.collection.push(Constraint::Eq(marker, term));
     }
 }
 

@@ -123,7 +123,7 @@ impl Printer {
                     .map(|(name, field)| format!(
                         "{}: {}",
                         name,
-                        Printer::term(&tw.lookup_normalized_term(&field.marker), tw)
+                        Printer::term(&tw.lookup_normalized_term(&field.marker).unwrap(), tw)
                     ))
                     .join(", ")
             ),
@@ -136,14 +136,10 @@ impl Printer {
                 parameters.iter().map(|v| Printer::term(v, tw)).join(", "),
                 Printer::term(return_type, tw)
             ),
-            App::Call(Call {
-                parameters,
-                return_type,
-                ..
-            }) => format!(
-                "({}) -> {}",
+            App::Call(Call { parameters, target }) => format!(
+                "{}({})",
+                Printer::term(target, tw),
                 parameters.iter().map(|v| Printer::term(v, tw)).join(", "),
-                Printer::term(return_type, tw)
             ),
         }
     }
@@ -201,6 +197,6 @@ macro_rules! duck_error {
 #[macro_export]
 macro_rules! duck_bug {
     ($($msg_arg:expr), * $(,)?) => {
-        Err(codespan_reporting::diagnostic::Diagnostic:::bug().with_message(format!($($msg_arg)*)))
+        Err(codespan_reporting::diagnostic::Diagnostic::bug().with_message(format!($($msg_arg)*)))
     };
 }
