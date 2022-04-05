@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     duck_error,
-    parse::{ExprId, Location},
+    parse::{Expr, ExprId, Location},
 };
 use hashbrown::HashMap;
 
@@ -44,40 +44,21 @@ impl Record {
         self.state = state;
     }
 
-    pub fn update_field(
-        &mut self,
-        name: &str,
-        expr_id: ExprId,
-        location: Location,
-        value: Marker,
-        op: RecordOp,
-    ) -> Result<FieldWriteToken, TypeError> {
-        println!("{name} {op:?}");
+    pub fn apply_field(&mut self, name: &str, field: Field, value: Marker) -> Result<FieldWriteToken, TypeError> {
         let marker = if let Some(registration) = self.fields.get(name) {
-            println!("it existed");
             registration.marker
         } else {
-            println!("tryna write");
             let can_extend = match self.state {
                 State::Inferred => true,
-                State::Extendable => op == RecordOp::Write,
+                State::Extendable => field.op == RecordOp::Write,
                 State::Concrete => false,
             };
             if can_extend {
-                let marker = Marker::new();
-                self.fields.insert(
-                    name.into(),
-                    Field {
-                        expr_id,
-                        marker,
-                        location,
-                        op,
-                    },
-                );
-                marker
+                // let marker = Marker::new();
+                self.fields.insert(name.into(), field);
+                field.marker
             } else {
                 // TODO: this should be a special record error
-                println!("HERE!");
                 return duck_error!("Attempted to declare `{name}` into the registry after it had been locked.");
             }
         };
@@ -113,12 +94,22 @@ impl Default for State {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Field {
     pub expr_id: ExprId,
     pub marker: Marker,
     pub location: Location,
     pub op: RecordOp,
+}
+impl Field {
+    pub fn new(declaration_expr: &Expr, op: RecordOp) -> Self {
+        Self {
+            expr_id: declaration_expr.id(),
+            marker: Marker::new(),
+            location: declaration_expr.location(),
+            op,
+        }
+    }
 }
 
 #[must_use]

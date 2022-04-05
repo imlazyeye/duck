@@ -115,19 +115,31 @@ impl Typewriter {
         }
     }
 
-    pub fn update_self(&mut self, name: &str, expr: &Expr, value: Marker, op: RecordOp) -> Result<Marker, TypeError> {
+    pub fn apply_field_to_self(
+        &mut self,
+        name: &str,
+        expr: &Expr,
+        value: Marker,
+        op: RecordOp,
+    ) -> Result<Marker, TypeError> {
         let marker = self
             .active_self_mut()
-            .update_field(name, expr.id(), expr.location(), value, op)?
+            .apply_field(name, Field::new(expr, op), value)?
             .apply(self)?;
         Printer::give_expr_alias(marker, expr.to_string());
         Ok(marker)
     }
 
-    pub fn update_local(&mut self, name: &str, expr: &Expr, value: Marker, op: RecordOp) -> Result<Marker, TypeError> {
+    pub fn apply_field_to_local(
+        &mut self,
+        name: &str,
+        expr: &Expr,
+        value: Marker,
+        op: RecordOp,
+    ) -> Result<Marker, TypeError> {
         let marker = self
             .locals_mut()
-            .update_field(name, expr.id(), expr.location(), value, op)?
+            .apply_field(name, Field::new(expr, op), value)?
             .apply(self)?;
         Printer::give_expr_alias(marker, expr.to_string());
         Ok(marker)
@@ -234,15 +246,7 @@ impl Typewriter {
                     Term::App(App::Record(other_record)) => {
                         // Apply the other record to this record
                         for (name, rhs_field) in other_record.fields.iter() {
-                            record
-                                .update_field(
-                                    name,
-                                    rhs_field.expr_id,
-                                    rhs_field.location,
-                                    rhs_field.marker,
-                                    rhs_field.op,
-                                )?
-                                .apply(self)?;
+                            record.apply_field(name, *rhs_field, rhs_field.marker)?.apply(self)?;
                         }
                         Ok(())
                     }
