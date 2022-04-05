@@ -136,15 +136,15 @@ test_var_type!(
     var bar = foo({ y: 0 });",
     bar: Real,
 );
-test_var_type!(
-    return_other_function_return,
-    "var wrapper = function(lambda) {
-        return lambda(0);
-    }
-    var inner = function(n) { return n; }
-    var data = wrapper(inner);",
-    data: Real,
-);
+// test_var_type!(
+//     return_other_function_return,
+//     "function wrapper(lambda) {
+//         return lambda(0);
+//     }
+//     function inner(n) { return n; }
+//     var data = wrapper(inner);",
+//     data: Real,
+// );
 // test_var_type!(
 //     return_advanced_generic,
 //     r#"var foo = function(a, b) {
@@ -247,12 +247,12 @@ test_var_type!(
     self.a = 0;",
     bar: function!((Real) => Undefined),
 );
-// test_var_type!(
-//     function_calls_out_of_order,
-//     "function foo() { self.bar();}
-//     function bar() {}",
-//     bar: function!(() => Undefined),
-// );
+test_var_type!(
+    function_calls_out_of_order,
+    "function foo() { self.bar();}
+    function bar() {}",
+    bar: function!(() => Undefined),
+);
 // test_var_type!(
 //     alias_function,
 //     "function foo() constructor {

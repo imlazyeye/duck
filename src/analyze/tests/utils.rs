@@ -63,9 +63,16 @@ pub fn get_type(source: &'static str) -> Type {
     typewriter.lookup_type("a").unwrap()
 }
 
-pub fn get_var_type(source: &'static str, name: &'static str) -> Type {
+pub fn assert_var_type(source: &'static str, name: &'static str, should_be: Type) {
     let typewriter = harness_typewriter(source).unwrap();
-    typewriter.lookup_type(name).unwrap()
+    let tpe = typewriter.lookup_type(name).unwrap();
+    assert_eq!(
+        tpe,
+        should_be,
+        "`{name}` should be {}, but it is {}",
+        Printer::tpe(&should_be, &typewriter),
+        Printer::tpe(&tpe, &typewriter),
+    );
 }
 
 #[macro_export]
@@ -92,14 +99,14 @@ macro_rules! test_var_type {
         #[cfg(test)]
         #[test]
         fn $name() {
-            assert_eq!(get_var_type($src, stringify!($var)), $should_be);
+            assert_var_type($src, stringify!($var), $should_be);
         }
     };
     ($name:ident, $src:expr, $($var:ident: $should_be:expr), * $(,)?) => {
         #[cfg(test)]
         #[test]
         fn $name() {
-            $(assert_eq!(get_var_type($src, stringify!($var)), $should_be);)*
+            $(assert_var_type($src, stringify!($var), $should_be);)*
         }
     };
 }

@@ -46,8 +46,7 @@ impl Typewriter {
         } else {
             return None;
         };
-        let term = self.lookup_normalized_term(&marker);
-        Some(self.term_to_type(term))
+        Some(self.term_to_type(self.substitutions.get(&marker).cloned().unwrap()))
     }
 
     pub fn lookup_normalized_term(&self, marker: &Marker) -> Term {
@@ -56,7 +55,8 @@ impl Typewriter {
         term
     }
 
-    pub fn term_to_type(&self, term: Term) -> Type {
+    pub fn term_to_type(&self, mut term: Term) -> Type {
+        self.normalize_term(&mut term);
         match term {
             Term::Type(tpe) => tpe,
             Term::Marker(marker) => Type::Generic {
@@ -166,16 +166,17 @@ impl Typewriter {
         }
     }
 
-    pub fn set_locals(&mut self, marker: Marker) {
+    pub fn set_locals(&mut self, marker: Marker) -> Marker {
+        let m = self.locals;
         self.locals = marker;
+        m
     }
 
     pub fn new_local_scope(&mut self) -> Marker {
-        let old_local_marker = self.locals;
-        self.locals = Marker::new();
+        let locals = Marker::new();
         self.substitutions
-            .insert(self.locals, Term::App(App::Record(Record::default())));
-        old_local_marker
+            .insert(locals, Term::App(App::Record(Record::default())));
+        locals
     }
 }
 
@@ -255,6 +256,7 @@ impl Typewriter {
                         }
                         temp_writer.normalize_term(&mut temp_return);
                         self.unify_terms(&mut call.return_type, &mut temp_return)?;
+                        // *lhs = rhs.clone();
                         println!("\n--- Ending call... ---\n");
                         Ok(())
                     }
@@ -313,6 +315,7 @@ impl Typewriter {
             Term::Marker(marker) => {
                 if let Some(sub) = self.substitutions.get(marker) {
                     *term = sub.clone();
+                    self.normalize_term(term);
                 }
             }
             Term::App(app) => match app {

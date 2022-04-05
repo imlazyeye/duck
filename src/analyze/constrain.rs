@@ -90,7 +90,11 @@ impl<'s> Constraints<'s> {
     }
 
     fn constrain_expr(&mut self, expr: &Expr) -> Result<(), TypeError> {
-        if let ExprType::Function(_) = expr.inner() {
+        if let ExprType::Function(function) = expr.inner() {
+            let expr_marker = self.typewriter.marker_for(expr)?;
+            if let Some(name) = &function.name {
+                self.typewriter.write_self(&name.lexeme, expr, expr_marker)?;
+            }
             self.functions.push(expr.clone());
             return Ok(());
         }
@@ -251,12 +255,18 @@ impl<'s> Constraints<'s> {
     }
 
     fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<(), TypeError> {
-        println!("\n--- Processing function... ---\n");
         let expr_marker = self.typewriter.marker_for(expr)?;
-        if let Some(name) = &function.name {
-            self.typewriter.write_self(&name.lexeme, expr, expr_marker)?;
-        }
-        let previous_local_marker = self.typewriter.new_local_scope();
+        println!(
+            "\n--- Entering function ({}: {})... ---\n",
+            if let Some(name) = &function.name {
+                &name.lexeme
+            } else {
+                "anon"
+            },
+            Printer::marker(&expr_marker)
+        );
+        let new_local_marker = self.typewriter.new_local_scope();
+        let old_local_marker = self.typewriter.set_locals(new_local_marker);
         let mut parameters = vec![];
         for param in function.parameters.iter() {
             let value_marker = match param {
@@ -270,13 +280,12 @@ impl<'s> Constraints<'s> {
                     .write_local(param.name(), param.name_expr(), value_marker)?,
             );
         }
-        println!("\n--- Starting process... ---\n");
         if let Err(errs) = &mut self.typewriter.process_statements(function.body_stmts()) {
             return Err(errs.pop().unwrap()); // todo
         }
-        println!("\n--- Finished process... ---\n");
-        let return_term = self.typewriter.take_return_term();
-        self.typewriter.set_locals(previous_local_marker);
+        let return_type = Box::new(self.typewriter.take_return_term());
+        self.typewriter.set_locals(old_local_marker);
+        println!("\n--- Exiting function... ---\n");
         self.expr_eq_app(
             expr,
             App::Function(super::Function {
@@ -291,11 +300,12 @@ impl<'s> Constraints<'s> {
                     ),
                     Constructor::WithoutInheritance => None,
                 }),
+                local_marker: new_local_marker,
                 parameters: parameters
                     .into_iter()
                     .map(|marker| self.typewriter.lookup_normalized_term(&marker))
                     .collect(),
-                return_type: Box::new(return_term),
+                return_type,
             }),
         )
     }
@@ -315,10 +325,10 @@ impl<'s> Constraints<'s> {
                 constraints.errors.push(e);
             }
         }
-        for expr in constraints.functions.clone().iter() {
+        for expr in constraints.functions.clone() {
             // todo
             let function = expr.inner().as_function().unwrap();
-            if let Err(e) = constraints.process_function(expr, function) {
+            if let Err(e) = constraints.process_function(&expr, function) {
                 constraints.errors.push(e);
             }
         }
@@ -353,7 +363,8 @@ impl<'s> Constraints<'s> {
         Ok(())
     }
 
-    pub fn marker_eq_term(&mut self, marker: Marker, term: Term) {
+    pub fn marker_eq_term(&mut self, marker: Marker, mut term: Term) {
+        // self.typewriter.unify_marker(&marker, &mut term).unwrap();
         self.collection.push(Constraint::Eq(marker, term));
     }
 }

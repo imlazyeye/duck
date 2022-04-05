@@ -13,6 +13,7 @@ pub enum App {
 pub struct Function {
     pub binding: Option<Marker>,
     pub inheritance: Option<Identifier>,
+    pub local_marker: Marker,
     pub parameters: Vec<Term>,
     pub return_type: Box<Term>,
 }
