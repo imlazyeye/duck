@@ -79,7 +79,7 @@ impl From<HashMap<String, Field>> for Record {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum State {
     /// A generic record inferred from context.
     Inferred,

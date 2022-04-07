@@ -7,6 +7,11 @@ impl std::ops::Deref for TestTypeWriter {
         &self.0
     }
 }
+impl std::ops::DerefMut for TestTypeWriter {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 impl Drop for TestTypeWriter {
     fn drop(&mut self) {
         Printer::flush()
@@ -25,8 +30,9 @@ pub fn harness_typewriter(source: &str) -> Result<TestTypeWriter, Vec<TypeError>
     for (name, _) in typewriter
         .active_self()
         .fields
+        .clone()
         .iter()
-        .chain(typewriter.locals().fields.iter())
+        .chain(typewriter.locals().clone().fields.iter())
     {
         let _ = typewriter.lookup_type(name).map_err(|e| errors.push(e));
     }
@@ -40,16 +46,15 @@ pub fn harness_typewriter(source: &str) -> Result<TestTypeWriter, Vec<TypeError>
 
 pub fn get_type(source: &'static str) -> Type {
     let source = Box::leak(Box::new(format!("var a = {source}")));
-    let typewriter = harness_typewriter(source).unwrap();
+    let mut typewriter = harness_typewriter(source).unwrap();
     typewriter.lookup_type("a").unwrap()
 }
 
 pub fn assert_var_type(source: &'static str, name: &'static str, should_be: Type) {
-    let typewriter = harness_typewriter(source).unwrap();
+    let mut typewriter = harness_typewriter(source).unwrap();
     let tpe = typewriter.lookup_type(name).unwrap();
-    assert_eq!(
-        tpe,
-        should_be,
+    assert!(
+        tpe == should_be,
         "`{name}` should be {}, but it is {}",
         Printer::tpe(&should_be, &typewriter),
         Printer::tpe(&tpe, &typewriter),

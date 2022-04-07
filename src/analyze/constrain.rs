@@ -291,7 +291,30 @@ impl<'s> Constraints<'s> {
             },
             Printer::marker(&expr_marker)
         );
-        let new_local_marker = self.typewriter.new_local_scope();
+        let (binding, old_self_marker) = if let Some(constructor) = function.constructor.as_ref() {
+            let new_scope = self.typewriter.new_scope();
+            let old_self_marker = self.typewriter.set_active_self(new_scope);
+            (
+                Binding::Constructor(
+                    self.typewriter.new_scope(),
+                    match constructor {
+                        Constructor::WithInheritance(call) => Some(
+                            call.inner()
+                                .as_call()
+                                .and_then(|call| call.left.inner().as_identifier())
+                                .cloned()
+                                .unwrap(),
+                        ),
+                        _ => None,
+                    },
+                ),
+                Some(old_self_marker),
+            )
+        } else {
+            ((Binding::Method(self.typewriter.active_self_marker())), None)
+        };
+
+        let new_local_marker = self.typewriter.new_scope();
         let old_local_marker = self.typewriter.set_locals(new_local_marker);
         let mut parameters = vec![];
         for param in function.parameters.iter() {
@@ -311,28 +334,28 @@ impl<'s> Constraints<'s> {
         if let Err(errs) = &mut self.typewriter.process_statements(function.body_stmts()) {
             return Err(errs.pop().unwrap()); // todo
         }
-        let return_type = Box::new(self.typewriter.take_return_term());
+
         self.typewriter.set_locals(old_local_marker);
+        let return_type = if let Some(old_self_marker) = old_self_marker {
+            let ret = self
+                .typewriter
+                .lookup_normalized_term(&self.typewriter.active_self_marker())?;
+            self.typewriter.set_active_self(old_self_marker);
+            Box::new(ret)
+        } else {
+            Box::new(self.typewriter.take_return_term())
+        };
         println!("\n--- Exiting function... ---\n");
+        let parameters = parameters
+            .into_iter()
+            .map(|marker| self.typewriter.lookup_normalized_term(&marker))
+            .collect::<Result<Vec<Term>, TypeError>>()?;
         self.expr_eq_app(
             expr,
             App::Function(super::Function {
-                binding: Some(self.typewriter.active_self_marker()),
-                inheritance: function.constructor.as_ref().and_then(|v| match v {
-                    Constructor::WithInheritance(call) => Some(
-                        call.inner()
-                            .as_call()
-                            .and_then(|call| call.left.inner().as_identifier())
-                            .cloned()
-                            .unwrap(),
-                    ),
-                    Constructor::WithoutInheritance => None,
-                }),
+                binding: Some(binding),
                 local_marker: new_local_marker,
-                parameters: parameters
-                    .into_iter()
-                    .map(|marker| self.typewriter.lookup_normalized_term(&marker))
-                    .collect::<Result<Vec<Term>, TypeError>>()?,
+                parameters,
                 return_type,
             }),
         )

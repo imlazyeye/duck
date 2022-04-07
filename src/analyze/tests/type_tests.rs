@@ -211,17 +211,13 @@ test_var_type!(
     function_write_constant_to_self,
     "self.a = 0;
     function bar() { self.a = 0; }",
-    bar: function!(
-        () => Undefined
-    ),
+    bar: function!(() => Undefined),
 );
 test_var_type!(
     function_write_parameter_to_self,
     "self.a = 0;
     function bar(x) { self.a = x + 1; }",
-    bar: function!(
-        (Real) => Undefined
-    ),
+    bar: function!((Real) => Undefined),
 );
 test_var_type!(function_extend_self, "function foo() { self.a = 0; }", a: Real,);
 test_var_type!(
@@ -277,14 +273,22 @@ test_var_type!(
 );
 
 // Constructors
-// test_var_type!(
-//     constructor,
-//     "var foo = function() constructor {
-//         self.a = 0;
-//     }
-//     var bar = new foo();",
-//     bar: new_struct!(a: Real)
-// );
+test_var_type!(
+    constructor,
+    "var foo = function() constructor {
+        self.a = 0;
+    }
+    var bar = new foo();",
+    bar: record!(a: Real)
+);
+test_var_type!(
+    constructor_with_parameter,
+    "function foo(y) constructor {
+        self.x = y;
+    }
+    var bar = foo(0);",
+    bar: record!(x: Real)
+);
 // test_var_type!(
 //     constructor_getter,
 //     "var foo = function() constructor {
@@ -327,18 +331,18 @@ test_var_type!(
 //     var buzz = new fizz();",
 //     buzz: new_struct!(a: Real, b: Real)
 // );
-// test_var_type!(
-//     alias_function,
-//     "function foo() constructor {
-//         self.x = 0;
-//     }
-//     var bar = function() {
-//         var new_struct = new foo();
-//         return new_struct;
-//     }
-//     var fizz = bar();",
-//     fizz: new_struct!(x: Real)
-// );
+test_var_type!(
+    alias_function,
+    "function foo() constructor {
+        self.x = 0;
+    }
+    var bar = function() {
+        var new_struct = new foo();
+        return new_struct;
+    }
+    var fizz = bar();",
+    fizz: record!(x: Real)
+);
 
 // Stress tests
 // test_var_type!(
@@ -377,5 +381,5 @@ test_var_type!(
 
 //     var a = Vec2(0, 0);
 //     "#,
-//     a: new_struct!(x: Real, y: Real, get_x: new_function!(() => Real))
+//     a: record!(x: Real, y: Real, get_x: function!(() => Real))
 // );

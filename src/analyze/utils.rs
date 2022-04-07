@@ -77,7 +77,6 @@ impl Printer {
             Term::Type(tpe) => Self::tpe(tpe, tw),
             Term::Marker(marker) => Self::marker(marker),
             Term::App(app) => Self::app(app, tw),
-            Term::Error => "<error>".to_string(),
         }
     }
 
@@ -130,11 +129,7 @@ impl Printer {
                         record
                             .fields
                             .iter()
-                            .map(|(name, field)| format!(
-                                "{}: {}",
-                                name,
-                                Printer::term(&tw.lookup_normalized_term(&field.marker).unwrap_or(Term::Error), tw)
-                            ))
+                            .map(|(name, field)| format!("{}: {}", name, Printer::marker(&field.marker)))
                             .join(", ")
                     )
                 }

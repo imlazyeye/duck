@@ -23,10 +23,10 @@ impl Typewriter {
             self.unify_marker(&marker, &mut term).map_err(|v| vec![v])?;
         }
 
-        println!("\nCurrent substitutions:");
-        self.substitutions
-            .iter()
-            .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term, self)));
+        // println!("\nCurrent substitutions:");
+        // self.substitutions
+        //     .iter()
+        //     .for_each(|(marker, term)| println!("{}", Printer::substitution(marker, term, self)));
         Ok(())
     }
 
@@ -58,7 +58,6 @@ impl Typewriter {
     pub fn term_to_type(&self, mut term: Term) -> Result<Type, TypeError> {
         self.normalize_term(&mut term)?;
         let tpe = match term {
-            Term::Error => Type::Any,
             Term::Type(tpe) => tpe,
             Term::Marker(marker) => Type::Generic {
                 term: Box::new(Term::Marker(marker)),
@@ -71,11 +70,7 @@ impl Typewriter {
                     fields: record
                         .fields
                         .into_iter()
-                        .map(|(name, field)| {
-                            self.lookup_normalized_term(&field.marker)
-                                .and_then(|v| self.term_to_type(v))
-                                .map(|tpe| (name, tpe))
-                        })
+                        .map(|(name, field)| self.term_to_type(Term::Marker(field.marker)).map(|tpe| (name, tpe)))
                         .collect::<Result<HashMap<String, Type>, TypeError>>()?,
                 },
                 App::Function(function) => Type::Function {
@@ -122,11 +117,9 @@ impl Typewriter {
         value: Marker,
         op: RecordOp,
     ) -> Result<Marker, TypeError> {
-        let marker = self
-            .active_self_mut()
-            .apply_field(name, Field::new(expr, op), value)?
-            .apply(self)?;
-        Printer::give_expr_alias(marker, expr.to_string());
+        let field = Field::new(expr, op);
+        Printer::give_expr_alias(field.marker, expr.to_string());
+        let marker = self.active_self_mut().apply_field(name, field, value)?.apply(self)?;
         Ok(marker)
     }
 
@@ -137,11 +130,9 @@ impl Typewriter {
         value: Marker,
         op: RecordOp,
     ) -> Result<Marker, TypeError> {
-        let marker = self
-            .locals_mut()
-            .apply_field(name, Field::new(expr, op), value)?
-            .apply(self)?;
-        Printer::give_expr_alias(marker, expr.to_string());
+        let field = Field::new(expr, op);
+        Printer::give_expr_alias(field.marker, expr.to_string());
+        let marker = self.locals_mut().apply_field(name, field, value)?.apply(self)?;
         Ok(marker)
     }
 
@@ -194,11 +185,17 @@ impl Typewriter {
         m
     }
 
-    pub fn new_local_scope(&mut self) -> Marker {
-        let locals = Marker::new();
+    pub fn set_active_self(&mut self, marker: Marker) -> Marker {
+        let m = self.active_self;
+        self.active_self = marker;
+        m
+    }
+
+    pub fn new_scope(&mut self) -> Marker {
+        let marker = Marker::new();
         self.substitutions
-            .insert(locals, Term::App(App::Record(Record::extendable())));
-        locals
+            .insert(marker, Term::App(App::Record(Record::extendable())));
+        marker
     }
 }
 
@@ -267,16 +264,12 @@ impl Typewriter {
                     Ok(())
                 }
             }
-            Term::Error => {
-                *rhs = Term::Error;
-                Ok(())
-            }
         }
     }
 
     fn occurs(&self, marker: &Marker, term: &Term) -> bool {
         match term {
-            Term::Type(_) | Term::Error => false,
+            Term::Type(_) => false,
             Term::Marker(term_marker) => {
                 term_marker == marker
                     || self
@@ -301,7 +294,7 @@ impl Typewriter {
 
     fn normalize_term(&self, term: &mut Term) -> Result<(), TypeError> {
         match term {
-            Term::Type(_) | Term::Error => Ok(()),
+            Term::Type(_) => Ok(()),
             Term::Marker(marker) => {
                 if let Some(sub) = self.substitutions.get(marker) {
                     *term = sub.clone();
@@ -321,8 +314,11 @@ impl Typewriter {
                     parameters.iter_mut().try_for_each(|v| self.normalize_term(v))?;
                     self.normalize_term(return_type)
                 }
-                App::Call(super::Call { target, parameters }) => {
-                    parameters.iter_mut().try_for_each(|v| self.normalize_term(v))?;
+                App::Call(super::Call {
+                    target,
+                    parameters: arguments,
+                }) => {
+                    // arguments.iter_mut().try_for_each(|v| self.normalize_term(v))?;
                     self.normalize_term(target)?;
                     match target.as_mut() {
                         Term::Marker(_) => Ok(()),
@@ -332,12 +328,12 @@ impl Typewriter {
                             let mut temp_parameters = function.parameters.clone();
                             let mut temp_return = function.return_type.clone();
                             for (i, param) in temp_parameters.iter_mut().enumerate() {
-                                let arg = if let Some(arg) = parameters.get_mut(i) {
+                                let arg = if let Some(arg) = arguments.get_mut(i) {
                                     arg
                                 } else {
                                     return duck_error!("Missing argument {i} in call.");
                                 };
-                                temp_writer.unify_terms(arg, param)?;
+                                temp_writer.unify_terms(param, arg)?;
                             }
                             temp_writer.normalize_term(&mut temp_return)?;
                             *term = *temp_return;

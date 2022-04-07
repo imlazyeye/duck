@@ -11,11 +11,16 @@ pub enum App {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Function {
-    pub binding: Option<Marker>,
-    pub inheritance: Option<Identifier>,
+    pub binding: Option<Binding>,
     pub local_marker: Marker,
     pub parameters: Vec<Term>,
     pub return_type: Box<Term>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Binding {
+    Method(Marker),
+    Constructor(Marker, Option<Identifier>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
