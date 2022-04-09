@@ -176,6 +176,6 @@ macro_rules! duck_error {
 #[macro_export]
 macro_rules! duck_bug {
     ($($msg_arg:expr), * $(,)?) => {
-        Err(codespan_reporting::diagnostic::Diagnostic::bug().with_message(format!($($msg_arg)*)))
+        Err(codespan_reporting::diagnostic::Diagnostic::bug().with_message(format!($($msg_arg, )*)))
     };
 }

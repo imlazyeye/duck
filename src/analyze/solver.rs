@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    duck_error,
+    duck_bug, duck_error,
     parse::{Expr, ExprId},
     FileId,
 };
@@ -37,8 +37,11 @@ impl Solver {
     }
 
     pub fn resolve_var(&self, var: &Var) -> Result<Ty, TypeError> {
-        let mut ty = self.subs.get(var).cloned().unwrap();
-        self.normalize(&mut ty)?;
+        let mut ty = match self.subs.get(var).cloned() {
+            Some(ty) => ty,
+            None => return duck_bug!("Var {} did not have a substitution!", Printer::var(var)),
+        };
+        self.normalize(&mut ty);
         Ok(ty)
     }
 
@@ -48,7 +51,7 @@ impl Solver {
         } else {
             return duck_error!("Could not resolve a type for `{name}`");
         };
-        self.normalize(&mut ty)?;
+        self.normalize(&mut ty);
         Ok(ty)
     }
 

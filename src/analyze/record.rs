@@ -56,7 +56,6 @@ impl Record {
             if can_extend {
                 self.fields.insert(name.into(), field);
             } else {
-                // TODO: this should be a special record error
                 return duck_error!("Attempted to declare `{name}` into the registry after it had been locked.");
             }
             Ok(FieldOp::NewValue)

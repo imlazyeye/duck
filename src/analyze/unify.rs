@@ -30,7 +30,7 @@ impl Solver {
                         };
                         solver.unify_tys(param, arg)?;
                     }
-                    solver.normalize(&mut def.return_type)?;
+                    solver.normalize(&mut def.return_type);
                     self.unify_tys(&mut call.return_type, &mut def.return_type)?;
                     println!("\n--- Ending call... ---\n");
                     Ok(())
@@ -70,10 +70,10 @@ impl Solver {
         }
 
         if !self.occurs(var, ty) {
-            self.new_substitution(*var, ty.clone())
-        } else {
-            Ok(())
+            self.new_substitution(*var, ty.clone());
         }
+
+        Ok(())
     }
 
     fn occurs(&self, var: &Var, ty: &Ty) -> bool {
@@ -88,34 +88,29 @@ impl Solver {
         }
     }
 
-    pub fn normalize(&self, ty: &mut Ty) -> Result<(), TypeError> {
+    pub fn normalize(&self, ty: &mut Ty) {
         match ty {
             Ty::Var(var) => {
                 if let Some(sub) = self.subs.get(var) {
                     *ty = sub.clone();
                     self.normalize(ty)
-                } else {
-                    Ok(())
                 }
             }
             Ty::Array(member_ty) => self.normalize(member_ty),
             Ty::Record(record) => record
                 .fields
                 .iter_mut()
-                .try_for_each(|(_, field)| self.normalize(&mut field.ty)),
+                .for_each(|(_, field)| self.normalize(&mut field.ty)),
             Ty::Func(func) => {
-                func.parameters_mut().iter_mut().try_for_each(|v| self.normalize(v))?;
+                func.parameters_mut().iter_mut().for_each(|v| self.normalize(v));
                 self.normalize(func.return_type_mut())
             }
-            _ => Ok(()),
+            _ => {}
         }
     }
 
-    /// ### Errors
-    /// shut up
-    pub fn new_substitution(&mut self, var: Var, ty: Ty) -> Result<(), TypeError> {
+    pub fn new_substitution(&mut self, var: Var, ty: Ty) {
         println!("{}", Printer::substitution(&var, &ty));
         self.subs.insert(var, ty);
-        Ok(())
     }
 }

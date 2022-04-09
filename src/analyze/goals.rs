@@ -129,7 +129,6 @@ impl Solver {
                 }
             }
 
-            // todo: constrain types required for these things
             _ => {}
         }
 
@@ -423,14 +422,24 @@ impl Solver {
             Box::new(self.subs.remove(&Var::Return).unwrap_or(Ty::Undefined))
         };
         println!("\n--- Exiting function... ---\n");
-        self.expr_eq_ty(
-            expr,
-            Ty::Func(super::Func::Def(super::Def {
-                binding: Some(binding),
-                parameters,
-                return_type,
-            })),
-        )
+
+        // Create the new definition
+        let mut ty = Ty::Func(super::Func::Def(super::Def {
+            binding: Some(binding),
+            parameters,
+            return_type,
+        }));
+
+        // Do we already have a call placed on us?
+        let expr_var = self.var_for_expr(expr);
+        if let Ok(mut expr_ty) = self.resolve_var(&expr_var) {
+            println!("--- Resolving a previous definition... ---\n");
+            self.unify_tys(&mut ty, &mut expr_ty)?;
+        }
+
+        self.new_substitution(expr_var, ty);
+
+        Ok(())
     }
 }
 

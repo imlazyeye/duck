@@ -1,5 +1,5 @@
 use super::*;
-use crate::{analyze::*, array, function, record, test_expr_type, test_failure, test_var_type};
+use crate::{analyze::*, array, function, record, test_expr_type, test_var_type};
 use Ty::*;
 
 // Basic expressions
@@ -235,35 +235,6 @@ test_var_type!(
     }",
     a: Real,
 );
-test_var_type!(
-    function_read_self_out_of_order,
-    "function bar() { return self.a; }
-    self.a = 0;",
-    bar: function!(() => Real),
-);
-test_var_type!(
-    function_write_self_out_of_order,
-    "function bar(x) { self.a = x; }
-    self.a = 0;",
-    bar: function!((Real) => Undefined),
-);
-test_var_type!(
-    function_calls_out_of_order,
-    "function foo() { self.bar();}
-    function bar() {}",
-    bar: function!(() => Undefined),
-);
-test_var_type!(
-    identity_after_delay,
-    "function wrapper() {
-        return identity(0);
-    }
-    function identity(x) {
-        return x;
-    }
-    var bar = wrapper();",
-    bar: Real,
-);
 // test_var_type!(
 //     bound_scope_in_struct,
 //     "var foo = {
@@ -357,10 +328,50 @@ test_var_type!(
     var fizz = bar();",
     fizz: record!(x: Real)
 );
+// test_var_type!(
+//     constructor_clone,
+//     "function foo() constructor {
+//         function clone() { return new foo(); }
+//     }
+//     var bar = new foo();
+//     var fizz = bar.clone();",
+//     fizz: record!()
+// );
+
+// Out of order
+// test_var_type!(
+//     function_read_self_out_of_order,
+//     "function bar() { return self.a; }
+//     self.a = 0;",
+//     bar: function!(() => Real),
+// );
+// test_var_type!(
+//     function_write_self_out_of_order,
+//     "function bar(x) { self.a = x; }
+//     self.a = 0;",
+//     bar: function!((Real) => Undefined),
+// );
+// test_var_type!(
+//     function_calls_out_of_order,
+//     "function foo() { self.bar();}
+//     function bar() {}",
+//     bar: function!(() => Undefined),
+// );
+// test_var_type!(
+//     identity_out_of_order,
+//     "function wrapper() {
+//         return identity(0);
+//     }
+//     function identity(x) {
+//         return x;
+//     }
+//     var bar = wrapper();",
+//     bar: Real,
+// );
 
 // Stress tests
 test_var_type!(
-    stressful_data,
+    complicted_data_construction,
     "var build_data = function(x, y, z) {
         return {
             x: x,
@@ -377,23 +388,37 @@ test_var_type!(
     data: record!(x: Real, y: Real, z: Real),
     output: Real
 );
-// test_var_type!(
-//     vec_2,
-//     r#"
-//     function Vec2(_x, _y) {
-//         return new __Vec2(_x, _y);
-//     }
+test_var_type!(
+    vec_2,
+    r#"
+    function Vec2(_x, _y) constructor {
+        self.x = _x;
+        self.y = _y;
 
-//     function __Vec2(_x, _y) constructor {
-//         self.x = _x;
-//         self.y = _y;
+        static set = function(o) {
+            self.x = o.x;
+            self.y = o.y;
+        }
 
-//         static get_x = function() {
-//             return self.x;
-//         }
-//     }
+        // static clone = function() {
+        //     return Vec2(self.x, self.y);
+        // }
 
-//     var a = Vec2(0, 0);
-//     "#,
-//     a: record!(x: Real, y: Real, get_x: function!(() => Real))
-// );
+        // static eq = function(o) {
+        //     if o == undefined {
+        //         return false;
+        //     }
+        //     return o.x == self.x && o.y == self.y;
+        // }
+
+
+    }
+
+    var a = Vec2(0, 0);
+    "#,
+    a: record!(
+        x: Real,
+        y: Real,
+        set: function!((record!(x: Real, y: Real)) => Undefined),
+    )
+);
