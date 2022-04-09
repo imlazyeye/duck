@@ -1,8 +1,5 @@
 use super::*;
-use crate::{
-    duck_error,
-    parse::{Expr, ExprId, Location},
-};
+use crate::{duck_error, parse::Location};
 use hashbrown::HashMap;
 
 #[derive(Debug, Default, PartialEq, Clone)]
@@ -44,9 +41,12 @@ impl Record {
         self.state = state;
     }
 
-    pub fn apply_field(&mut self, name: &str, field: Field, value: Marker) -> Result<FieldWriteToken, TypeError> {
-        let marker = if let Some(registration) = self.fields.get(name) {
-            registration.marker
+    pub fn apply_field(&mut self, name: &str, field: Field) -> Result<FieldOp, TypeError> {
+        if let Some(registration) = self.fields.get(name) {
+            Ok(FieldOp::Unification {
+                previous: registration.ty.clone(),
+                new: field.ty,
+            })
         } else {
             let can_extend = match self.state {
                 State::Inferred => true,
@@ -54,20 +54,13 @@ impl Record {
                 State::Concrete => false,
             };
             if can_extend {
-                // let marker = Marker::new();
                 self.fields.insert(name.into(), field);
-                field.marker
             } else {
                 // TODO: this should be a special record error
                 return duck_error!("Attempted to declare `{name}` into the registry after it had been locked.");
             }
-        };
-
-        Ok(FieldWriteToken {
-            marker,
-            value,
-            applied: false,
-        })
+            Ok(FieldOp::NewValue)
+        }
     }
 }
 impl From<HashMap<String, Field>> for Record {
@@ -94,42 +87,40 @@ impl Default for State {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Field {
-    pub expr_id: ExprId,
-    pub marker: Marker,
+    pub ty: Ty,
     pub location: Location,
     pub op: RecordOp,
 }
-impl Field {
-    pub fn new(declaration_expr: &Expr, op: RecordOp) -> Self {
-        Self {
-            expr_id: declaration_expr.id(),
-            marker: Marker::new(),
-            location: declaration_expr.location(),
-            op,
+
+#[must_use]
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, PartialEq, Clone)]
+pub enum FieldOp {
+    NewValue,
+    Unification { previous: Ty, new: Ty },
+}
+impl FieldOp {
+    pub fn apply(mut self, tw: &mut Solver) -> Result<(), TypeError> {
+        match &mut self {
+            FieldOp::NewValue => {}
+            FieldOp::Unification { previous, new } => tw.unify_tys(previous, new)?,
+        };
+        std::mem::forget(self);
+        Ok(())
+    }
+}
+impl std::ops::Drop for FieldOp {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            panic!("Failed to apply FieldOp to a Solver!");
         }
     }
 }
 
-#[must_use]
-#[derive(Debug, PartialEq, Clone)]
-pub struct FieldWriteToken {
-    marker: Marker,
-    value: Marker,
-    applied: bool,
-}
-impl FieldWriteToken {
-    pub fn apply(mut self, tw: &mut Typewriter) -> Result<Marker, TypeError> {
-        self.applied = true;
-        tw.unify_marker(&self.marker, &mut Term::Marker(self.value))
-            .map(|_| self.marker)
-    }
-}
-impl std::ops::Drop for FieldWriteToken {
-    fn drop(&mut self) {
-        if !self.applied {
-            panic!("Failed to apply FieldWriteToken to a Typewriter!");
-        }
-    }
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum RecordOp {
+    Read,
+    Write,
 }

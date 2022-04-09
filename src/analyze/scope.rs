@@ -1,4 +1,4 @@
-use super::{Marker, Record};
+use super::{Record, Var};
 use crate::parse::ExprId;
 use hashbrown::HashMap;
 
@@ -6,7 +6,7 @@ use hashbrown::HashMap;
 pub struct Table {
     pub active_self: Record,
     pub locals: Record,
-    pub markers: HashMap<ExprId, Marker>,
+    pub vars: HashMap<ExprId, Var>,
 }
 
 // use super::*;
@@ -20,36 +20,36 @@ pub struct Table {
 
 // #[derive(Debug, PartialEq, Clone)]
 // pub struct Scope {
-//     pub self_marker: Marker,
+//     pub self_var: Var,
 //     local: HashMap<String, (ExprId, Location)>,
-//     markers: HashMap<ExprId, Marker>,
+//     vars: HashMap<ExprId, Var>,
 // }
 // impl Scope {
 //     pub fn new_child(&self) -> Self {
 //         Self {
-//             self_marker: self.self_marker,
+//             self_var: self.self_var,
 //             local: Default::default(),
-//             markers: Default::default(),
+//             vars: Default::default(),
 //         }
 //     }
 
-//     pub fn new_inferred(typewriter: &mut Typewriter) -> Self {
-//         Self::new(typewriter, Object::Inferred(HashMap::default()))
+//     pub fn new_inferred(solver: &mut Solver) -> Self {
+//         Self::new(solver, Object::Inferred(HashMap::default()))
 //     }
 
-//     pub fn new_concrete(typewriter: &mut Typewriter) -> Self {
-//         Self::new(typewriter, Object::Concrete(HashMap::default()))
+//     pub fn new_concrete(solver: &mut Solver) -> Self {
+//         Self::new(solver, Object::Concrete(HashMap::default()))
 //     }
 
-//     pub fn new(typewriter: &mut Typewriter, object: Object) -> Self {
-//         let self_marker = Marker::new();
-//         typewriter
-//             .new_substitution(self_marker, Term::App(App::Record(object)))
+//     pub fn new(solver: &mut Solver, object: Object) -> Self {
+//         let self_var = Var::new();
+//         solver
+//             .new_substitution(self_var, Ty::App(App::Record(object)))
 //             .unwrap();
 //         Self {
-//             self_marker,
+//             self_var,
 //             local: Default::default(),
-//             markers: Default::default(),
+//             vars: Default::default(),
 //         }
 //     }
 
@@ -59,26 +59,26 @@ pub struct Table {
 
 //     /// ### Errors
 //     /// Returns an error if the field is not in scope.
-//     pub fn lookup_type(&self, identifier: &Identifier, typewriter: &Typewriter) -> Result<Type,
-// Diagnostic<FileId>> {         self.lookup_term(identifier, typewriter).map(|v| v.into())
+//     pub fn lookup_type(&self, identifier: &Identifier, solver: &Solver) -> Result<Type,
+// Diagnostic<FileId>> {         self.lookup_ty(identifier, solver).map(|v| v.into())
 //     }
 
 //     /// ### Errors
 //     /// Returns an error if the field is not in scope.
-//     pub fn lookup_term(&self, identifier: &Identifier, typewriter: &Typewriter) -> Result<Term,
+//     pub fn lookup_ty(&self, identifier: &Identifier, solver: &Solver) -> Result<Ty,
 // Diagnostic<FileId>> {         match self
-//             .lookup_marker(identifier)
-//             .and_then(|marker| {
-//                 typewriter.find_term(&marker).ok_or_else(|| {
+//             .lookup_var(identifier)
+//             .and_then(|var| {
+//                 solver.find_ty(&var).ok_or_else(|| {
 //                     Diagnostic::bug().with_message(format!("Variable has no value: {}",
 // identifier.lexeme))                 })
 //             })
 //             .cloned()
 //         {
-//             Ok(term) => Ok(term),
-//             Err(e) => typewriter
-//                 .find_term(&self.self_marker)
-//                 .and_then(|term| term.as_object().and_then(|obj| obj.get(&identifier.lexeme)))
+//             Ok(ty) => Ok(ty),
+//             Err(e) => solver
+//                 .find_ty(&self.self_var)
+//                 .and_then(|ty| ty.as_object().and_then(|obj| obj.get(&identifier.lexeme)))
 //                 .cloned()
 //                 .ok_or(e),
 //         }
@@ -86,14 +86,14 @@ pub struct Table {
 
 //     /// ### Errors
 //     /// Returns an error if the field is not in scope.
-//     pub fn lookup_marker(&self, identifier: &Identifier) -> Result<Marker, Diagnostic<FileId>> {
+//     pub fn lookup_var(&self, identifier: &Identifier) -> Result<Var, Diagnostic<FileId>> {
 //         match self
 //             .local
 //             .get(&identifier.lexeme)
-//             .and_then(|(expr_id, _)| self.markers.get(expr_id))
+//             .and_then(|(expr_id, _)| self.vars.get(expr_id))
 //             .copied()
 //         {
-//             Some(marker) => Ok(marker),
+//             Some(var) => Ok(var),
 //             None => Err(Diagnostic::error()
 //                 .with_message(format!("Unrecognized variable: {}", identifier.lexeme))
 //                 .with_labels(vec![
@@ -102,35 +102,35 @@ pub struct Table {
 //         }
 //     }
 
-//     pub fn declare_local(&mut self, name: String, expr: &Expr) -> Marker {
+//     pub fn declare_local(&mut self, name: String, expr: &Expr) -> Var {
 //         assert!(!self.local.contains_key(&name));
-//         let marker = self.ensure_alias(expr);
+//         let var = self.ensure_alias(expr);
 //         self.local.insert(name, (expr.id(), expr.location()));
-//         marker
+//         var
 //     }
 
 //     pub fn local_fields(&self) -> Vec<String> {
 //         self.local.iter().map(|(name, _)| name).cloned().collect()
 //     }
 
-//     pub fn alias_expr_to(&mut self, expr: &Expr, marker: Marker) {
-//         self.markers.insert(expr.id(), marker);
+//     pub fn alias_expr_to(&mut self, expr: &Expr, var: Var) {
+//         self.vars.insert(expr.id(), var);
 //     }
 
-//     pub fn ensure_alias(&mut self, expr: &Expr) -> Marker {
+//     pub fn ensure_alias(&mut self, expr: &Expr) -> Var {
 //         if let Some(iden) = expr.inner().as_identifier() {
-//             if let Ok(marker) = self.lookup_marker(iden) {
-//                 self.alias_expr_to(expr, marker);
-//                 return marker;
+//             if let Ok(var) = self.lookup_var(iden) {
+//                 self.alias_expr_to(expr, var);
+//                 return var;
 //             }
 //         }
-//         match self.markers.get(&expr.id()).copied() {
-//             Some(marker) => marker,
+//         match self.vars.get(&expr.id()).copied() {
+//             Some(var) => var,
 //             None => {
-//                 let marker = Marker::new();
-//                 self.alias_expr_to(expr, marker);
-//                 Printer::give_expr_alias(marker, expr.to_string());
-//                 marker
+//                 let var = Var::new();
+//                 self.alias_expr_to(expr, var);
+//                 Printer::give_expr_alias(var, expr.to_string());
+//                 var
 //             }
 //         }
 //     }

@@ -26,3 +26,7 @@ impl Ast {
         &mut self.stmts
     }
 }
+
+/// An identifier for an individual Ast.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
+pub struct AstId(u64);

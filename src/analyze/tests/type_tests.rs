@@ -1,7 +1,6 @@
 use super::*;
 use crate::{analyze::*, array, function, record, test_expr_type, test_failure, test_var_type};
-use pretty_assertions::assert_eq;
-use Type::*;
+use Ty::*;
 
 // Basic expressions
 test_expr_type!(undefined, "undefined" => Undefined);
