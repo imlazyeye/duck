@@ -303,48 +303,48 @@ test_var_type!(
     var bar = foo(0);",
     bar: record!(x: Real)
 );
-// test_var_type!(
-//     constructor_getter,
-//     "var foo = function() constructor {
-//         self.a = 0;
-//         function get_a() {
-//             return self.a;
-//         }
-//     }
-//     var bar = new foo()
-//     var fizz = bar.get_a();",
-//     fizz: Real,
-// );
-// test_var_type!(
-//     inheritance,
-//     "var foo = function() constructor {
-//         self.a = 0;
-//     }
-//     var bar = function() : foo() constructor {}
-//     var fizz = new bar();",
-//     fizz: new_struct!(a: Real)
-// );
-// test_var_type!(
-//     inheritance_passing_arguments,
-//     "var foo = function(x) constructor {
-//         self.a = x;
-//     }
-//     var bar = function(x) : foo(x) constructor {}
-//     var fizz = new bar(0);",
-//     fizz: new_struct!(a: Real)
-// );
-// test_var_type!(
-//     multi_inheritance,
-//     "var foo = function() constructor {
-//         self.a = 0;
-//     }
-//     var bar = function() : foo() constructor {
-//         self.b = 0;
-//     }
-//     var fizz = function() : bar() constructor {}
-//     var buzz = new fizz();",
-//     buzz: new_struct!(a: Real, b: Real)
-// );
+test_var_type!(
+    constructor_getter,
+    "var foo = function() constructor {
+        self.a = 0;
+        function get_a() {
+            return self.a;
+        }
+    }
+    var bar = new foo()
+    var fizz = bar.get_a();",
+    fizz: Real,
+);
+test_var_type!(
+    inheritance,
+    "var foo = function() constructor {
+        self.a = 0;
+    }
+    var bar = function() : foo() constructor {}
+    var fizz = new bar();",
+    fizz: record!(a: Real)
+);
+test_var_type!(
+    inheritance_passing_arguments,
+    "var foo = function(x) constructor {
+        self.a = x;
+    }
+    var bar = function(x) : foo(x) constructor {}
+    var fizz = new bar(0);",
+    fizz: record!(a: Real)
+);
+test_var_type!(
+    multi_inheritance,
+    "var foo = function() constructor {
+        self.a = 0;
+    }
+    var bar = function() : foo() constructor {
+        self.b = 0;
+    }
+    var fizz = function() : bar() constructor {}
+    var buzz = new fizz();",
+    buzz: record!(a: Real, b: Real)
+);
 test_var_type!(
     alias_function,
     "function foo() constructor {
@@ -359,24 +359,24 @@ test_var_type!(
 );
 
 // Stress tests
-// test_var_type!(
-//     stressful_data,
-//     "var build_data = function(x, y, z) {
-//         return {
-//             x: x,
-//             y: y(0),
-//             z: z[0][0].a.b.c,
-//         };
-//     }
-//     var build_x = function(x) { return x; }
-//     var y_fn = function(n) { return n; }
-//     var z = [[{ a: { b: { c: 0 }}}]];
-//     var data = build_data(build_x(0), y_fn, z);
-//     var output = data.x + data.y + data.z;",
-//     z: array!(array!(record!(a: record!(b: record!(c: Real))))),
-//     data: record!(x: Real, y: Real, z: Real),
-//     output: Real
-// );
+test_var_type!(
+    stressful_data,
+    "var build_data = function(x, y, z) {
+        return {
+            x: x,
+            y: y(0),
+            z: z[0][0].a.b.c,
+        };
+    }
+    var build_x = function(x) { return x; }
+    var y_fn = function(n) { return n; }
+    var z = [[{ a: { b: { c: 0 }}}]];
+    var data = build_data(build_x(0), y_fn, z);
+    var output = data.x + data.y + data.z;",
+    z: array!(array!(record!(a: record!(b: record!(c: Real))))),
+    data: record!(x: Real, y: Real, z: Real),
+    output: Real
+);
 // test_var_type!(
 //     vec_2,
 //     r#"

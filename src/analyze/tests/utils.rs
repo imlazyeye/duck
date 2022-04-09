@@ -74,6 +74,7 @@ impl Ty {
                     .get(name)
                     .map_or(false, |other_field| field.ty.loose_eq(&other_field.ty))
             }),
+            (Ty::Array(member), Ty::Array(other_member)) => member.loose_eq(other_member),
             (Ty::Record(_), _) => false,
             (Ty::Func(function), Ty::Func(other_function)) => {
                 function.return_type().loose_eq(other_function.return_type())
