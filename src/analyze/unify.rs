@@ -3,32 +3,51 @@ use crate::duck_error;
 use super::*;
 
 impl Solver {
-    pub fn unify_var(&mut self, var: &Var, ty: &mut Ty) -> Result<(), TypeError> {
-        println!("{}", Printer::var_unification(var, ty));
-        if let Some(mut sub) = self.subs.get_mut(var).cloned() {
-            self.unify_tys(&mut sub, ty)?;
-            *ty = sub;
-        }
-
-        if !self.occurs(var, ty) {
-            self.new_substitution(*var, ty.clone())
-        } else {
-            Ok(())
-        }
-    }
-
     pub fn unify_tys(&mut self, lhs: &mut Ty, rhs: &mut Ty) -> Result<(), TypeError> {
         if lhs == rhs {
             return Ok(());
         }
         println!("{}", Printer::ty_unification(lhs, rhs));
+
+        // General unification
         match (lhs, rhs) {
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var(var, other),
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => self.unify_tys(lhs_member, rhs_member),
             (Ty::Record(lhs_record), Ty::Record(rhs_record)) => rhs_record
                 .fields
                 .iter()
-                .try_for_each(|(name, rhs_field)| lhs_record.apply_field(name, rhs_field.clone())?.apply(self)),
+                .try_for_each(|(name, rhs_field)| lhs_record.apply_field(name, rhs_field.clone())?.commit(self)),
+            (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
+                (Func::Def(def), Func::Call(call)) | (Func::Call(call), Func::Def(def)) => {
+                    println!("\n--- Calling function... ---\n",);
+                    let mut solver = self.clone();
+                    let mut def = def.clone();
+                    for (i, param) in def.parameters.iter_mut().enumerate() {
+                        let arg = if let Some(arg) = call.parameters.get_mut(i) {
+                            arg
+                        } else {
+                            return duck_error!("Missing argument {i} in call.");
+                        };
+                        solver.unify_tys(param, arg)?;
+                    }
+                    solver.normalize(&mut def.return_type)?;
+                    self.unify_tys(&mut call.return_type, &mut def.return_type)?;
+                    println!("\n--- Ending call... ---\n");
+                    Ok(())
+                }
+                (Func::Def(lhs_def), Func::Def(rhs_def)) => {
+                    self.unify_tys(&mut lhs_def.return_type, &mut rhs_def.return_type)?;
+                    rhs_def
+                        .parameters
+                        .iter_mut()
+                        .enumerate()
+                        .try_for_each(|(i, rhs_param)| match lhs_def.parameters.get_mut(i) {
+                            Some(lhs_param) => self.unify_tys(lhs_param, rhs_param),
+                            None => duck_error!("Missing an argument"),
+                        })
+                }
+                (Func::Call(_), Func::Call(_)) => Ok(()),
+            },
             (lhs, rhs) => {
                 if lhs != rhs {
                     println!("Error!");
@@ -44,18 +63,26 @@ impl Solver {
         }
     }
 
+    fn unify_var(&mut self, var: &Var, ty: &mut Ty) -> Result<(), TypeError> {
+        if let Some(mut sub) = self.subs.get_mut(var).cloned() {
+            self.unify_tys(&mut sub, ty)?;
+            *ty = sub;
+        }
+
+        if !self.occurs(var, ty) {
+            self.new_substitution(*var, ty.clone())
+        } else {
+            Ok(())
+        }
+    }
+
     fn occurs(&self, var: &Var, ty: &Ty) -> bool {
         match ty {
             Ty::Var(ty_var) => ty_var == var || self.subs.get(ty_var).map_or(false, |ty| self.occurs(var, ty)),
             Ty::Array(member_ty) => self.occurs(var, member_ty),
             Ty::Record(record) => record.fields.iter().any(|(_, field)| self.occurs(var, &field.ty)),
-            Ty::Function(Function {
-                parameters,
-                return_type,
-                ..
-            }) => self.occurs(var, return_type) || parameters.iter().any(|v| self.occurs(var, v)),
-            Ty::Call(Call { target, parameters }) => {
-                self.occurs(var, target) || parameters.iter().any(|v| self.occurs(var, v))
+            Ty::Func(func) => {
+                self.occurs(var, func.return_type()) || func.parameters().iter().any(|v| self.occurs(var, v))
             }
             _ => false,
         }
@@ -76,45 +103,9 @@ impl Solver {
                 .fields
                 .iter_mut()
                 .try_for_each(|(_, field)| self.normalize(&mut field.ty)),
-            Ty::Function(super::Function {
-                parameters,
-                return_type,
-                ..
-            }) => {
-                parameters.iter_mut().try_for_each(|v| self.normalize(v))?;
-                self.normalize(return_type)
-            }
-            Ty::Call(super::Call {
-                target,
-                parameters: arguments,
-            }) => {
-                arguments.iter_mut().try_for_each(|v| self.normalize(v))?;
-                self.normalize(target)?;
-                match target.as_mut() {
-                    Ty::Var(_) => Ok(()),
-                    Ty::Function(function) => {
-                        println!(
-                            "\n--- Calling {}... ---\n",
-                            Printer::ty(&Ty::Function(function.clone()))
-                        );
-                        let mut temp_writer = self.clone();
-                        let mut temp_parameters = function.parameters.clone();
-                        let mut temp_return = function.return_type.clone();
-                        for (i, param) in temp_parameters.iter_mut().enumerate() {
-                            let arg = if let Some(arg) = arguments.get_mut(i) {
-                                arg
-                            } else {
-                                return duck_error!("Missing argument {i} in call.");
-                            };
-                            temp_writer.unify_tys(param, arg)?;
-                        }
-                        temp_writer.normalize(&mut temp_return)?;
-                        *ty = *temp_return;
-                        println!("\n--- Ending call... ---\n");
-                        Ok(())
-                    }
-                    t => duck_error!("Invalid call target: {}", Printer::ty(t)),
-                }
+            Ty::Func(func) => {
+                func.parameters_mut().iter_mut().try_for_each(|v| self.normalize(v))?;
+                self.normalize(func.return_type_mut())
             }
             _ => Ok(()),
         }
@@ -123,20 +114,8 @@ impl Solver {
     /// ### Errors
     /// shut up
     pub fn new_substitution(&mut self, var: Var, ty: Ty) -> Result<(), TypeError> {
-        // self.normalize_ty(&mut ty);
         println!("{}", Printer::substitution(&var, &ty));
         self.subs.insert(var, ty);
-        // let vars_needing_updates: Vec<Var> = self
-        //     .substitutions
-        //     .iter()
-        //     .filter(|(_, sub_ty)| self.occurs(&var, sub_ty))
-        //     .map(|(var, _)| *var)
-        //     .collect();
-        // for var in vars_needing_updates {
-        //     let mut ty = self.substitutions.remove(&var).unwrap();
-        //     // self.normalize_ty(&mut ty);
-        //     self.substitutions.insert(var, ty);
-        // }
         Ok(())
     }
 }

@@ -14,26 +14,62 @@ pub enum Ty {
     Var(Var),
     Array(Box<Ty>),
     Record(Record),
-    Function(Function),
-    Call(Call),
+    Func(Func),
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Function {
+pub enum Func {
+    Def(Def),
+    Call(Call),
+}
+impl Func {
+    pub fn parameters(&self) -> &[Ty] {
+        match self {
+            Func::Def(inner) => &inner.parameters,
+            Func::Call(inner) => &inner.parameters,
+        }
+    }
+    pub fn parameters_mut(&mut self) -> &mut [Ty] {
+        match self {
+            Func::Def(inner) => &mut inner.parameters,
+            Func::Call(inner) => &mut inner.parameters,
+        }
+    }
+    pub fn return_type(&self) -> &Ty {
+        match self {
+            Func::Def(inner) => &inner.return_type,
+            Func::Call(inner) => &inner.return_type,
+        }
+    }
+    pub fn return_type_mut(&mut self) -> &mut Ty {
+        match self {
+            Func::Def(inner) => &mut inner.return_type,
+            Func::Call(inner) => &mut inner.return_type,
+        }
+    }
+}
+#[derive(Debug, PartialEq, Clone)]
+pub struct Def {
     pub binding: Option<Binding>,
-    pub local_var: Var,
+    pub parameters: Vec<Ty>,
+    pub return_type: Box<Ty>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Call {
     pub parameters: Vec<Ty>,
     pub return_type: Box<Ty>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Binding {
-    Method(Var),
-    Constructor(Var, Option<Identifier>),
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Call {
-    pub parameters: Vec<Ty>,
-    pub target: Box<Ty>,
+    Method {
+        local_scope: Var,
+        self_scope: Var,
+    },
+    Constructor {
+        local_scope: Var,
+        self_scope: Var,
+        inheritance: Option<Identifier>,
+    },
 }

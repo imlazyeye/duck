@@ -102,19 +102,26 @@ pub enum FieldOp {
     Unification { previous: Ty, new: Ty },
 }
 impl FieldOp {
-    pub fn apply(mut self, tw: &mut Solver) -> Result<(), TypeError> {
-        match &mut self {
-            FieldOp::NewValue => {}
-            FieldOp::Unification { previous, new } => tw.unify_tys(previous, new)?,
+    pub fn commit(mut self, tw: &mut Solver) -> Result<(), TypeError> {
+        let result = match &mut self {
+            FieldOp::NewValue => Ok(()),
+            FieldOp::Unification { previous, new } => tw.unify_tys(previous, new),
         };
         std::mem::forget(self);
-        Ok(())
+        result
     }
 }
 impl std::ops::Drop for FieldOp {
     fn drop(&mut self) {
         if !std::thread::panicking() {
-            panic!("Failed to apply FieldOp to a Solver!");
+            panic!(
+                "Failed to commit {} to a Solver!",
+                match self {
+                    FieldOp::NewValue => "a new value".into(),
+                    FieldOp::Unification { previous, new } =>
+                        format!("{} ≟ {}", Printer::ty(previous), Printer::ty(new)),
+                }
+            );
         }
     }
 }

@@ -48,7 +48,7 @@ impl Solver {
                                             op: RecordOp::Write,
                                         },
                                     )?
-                                    .apply(self)?;
+                                    .commit(self)?;
                             } else {
                                 self.self_scope_mut()
                                     .apply_field(
@@ -59,7 +59,7 @@ impl Solver {
                                             op: RecordOp::Write,
                                         },
                                     )?
-                                    .apply(self)?;
+                                    .commit(self)?;
                             }
                         }
                         ExprType::Access(Access::Current { right: iden }) => {
@@ -72,7 +72,7 @@ impl Solver {
                                         op: RecordOp::Write,
                                     },
                                 )?
-                                .apply(self)?;
+                                .commit(self)?;
                         }
                         ExprType::Access(Access::Dot {
                             left: struct_expr,
@@ -89,7 +89,7 @@ impl Solver {
                                         op: RecordOp::Write,
                                     },
                                 )?
-                                .apply(self)?;
+                                .commit(self)?;
                             self.expr_eq_ty(struct_expr, Ty::Record(record))?;
                         }
                         _ => {
@@ -116,16 +116,16 @@ impl Solver {
                                 op: RecordOp::Write,
                             },
                         )?
-                        .apply(self)?;
+                        .commit(self)?;
                 }
             }
 
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
-                    let ty = self.canonize(value)?;
-                    self.var_eq_ty(Var::Return, ty)?;
+                    let mut ty = self.canonize(value)?;
+                    self.unify_tys(&mut ty, &mut Ty::Var(Var::Return))?;
                 } else {
-                    self.var_eq_ty(Var::Return, Ty::Undefined)?;
+                    self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(Var::Return))?;
                 }
             }
 
@@ -164,10 +164,9 @@ impl Solver {
                             op: RecordOp::Write,
                         },
                     )?
-                    .apply(self)?;
+                    .commit(self)?;
             }
-            functions.push(expr.clone());
-            return Ok(());
+            return self.process_function(expr, function);
         }
         expr.visit_child_stmts(|stmt| {
             if let Err(err) = self.visit_stmt(stmt, functions, errors) {
@@ -238,7 +237,7 @@ impl Solver {
                                     op: RecordOp::Read,
                                 },
                             )?
-                            .apply(self)?;
+                            .commit(self)?;
                     }
                     Access::Other { .. } => {}
                     Access::Dot { left, right } => {
@@ -253,7 +252,7 @@ impl Solver {
                                     op: RecordOp::Read,
                                 },
                             )?
-                            .apply(self)?;
+                            .commit(self)?;
                         self.expr_eq_ty(left, Ty::Record(record))?;
                     }
                     Access::Array {
@@ -280,17 +279,17 @@ impl Solver {
                 }
             }
             ExprType::Call(crate::parse::Call { left, arguments, .. }) => {
-                let left_ty = self.canonize(left)?;
+                let expr_ty = self.canonize(expr)?;
                 let mut parameters = vec![];
                 for arg in arguments.iter() {
                     parameters.push(self.canonize(arg)?);
                 }
                 self.expr_eq_ty(
-                    expr,
-                    Ty::Call(super::Call {
-                        parameters: parameters.clone(),
-                        target: Box::new(left_ty),
-                    }),
+                    left,
+                    Ty::Func(super::Func::Call(super::Call {
+                        parameters,
+                        return_type: Box::new(expr_ty),
+                    })),
                 )?;
             }
             ExprType::Grouping(Grouping { inner, .. }) => {
@@ -313,7 +312,7 @@ impl Solver {
                             op: RecordOp::Read,
                         },
                     )?
-                    .apply(self)?;
+                    .commit(self)?;
             }
             ExprType::Literal(literal) => {
                 let ty = match literal {
@@ -347,7 +346,7 @@ impl Solver {
                                         op: RecordOp::Write,
                                     },
                                 )?
-                                .apply(self)?;
+                                .commit(self)?;
                         }
                         self.expr_eq_ty(expr, Ty::Record(record))?;
                         return Ok(());
@@ -372,9 +371,10 @@ impl Solver {
             Printer::ty(&expr_ty)
         );
         let binding = if let Some(constructor) = function.constructor.as_ref() {
-            Binding::Constructor(
-                self.enter_new_self_scope(),
-                match constructor {
+            Binding::Constructor {
+                local_scope: self.enter_new_local_scope(),
+                self_scope: self.enter_new_self_scope(),
+                inheritance: match constructor {
                     Constructor::WithInheritance(call) => Some(
                         call.inner()
                             .as_call()
@@ -384,12 +384,14 @@ impl Solver {
                     ),
                     _ => None,
                 },
-            )
+            }
         } else {
-            Binding::Method(self.current_self_var())
+            Binding::Method {
+                local_scope: self.enter_new_local_scope(),
+                self_scope: self.current_self_var(),
+            }
         };
 
-        let local_var = self.enter_new_local_scope();
         let mut parameters = vec![];
         for param in function.parameters.iter() {
             let ty = match param {
@@ -405,7 +407,7 @@ impl Solver {
                         op: RecordOp::Write,
                     },
                 )?
-                .apply(self)?;
+                .commit(self)?;
             parameters.push(ty);
         }
         if let Err(errs) = &mut self.process_statements(function.body_stmts()) {
@@ -423,31 +425,25 @@ impl Solver {
         println!("\n--- Exiting function... ---\n");
         self.expr_eq_ty(
             expr,
-            Ty::Function(super::Function {
+            Ty::Func(super::Func::Def(super::Def {
                 binding: Some(binding),
-                local_var,
                 parameters,
                 return_type,
-            }),
+            })),
         )
     }
 }
 
 // Utilities
-// TODO: kill these
 impl Solver {
-    pub fn expr_eq_expr(&mut self, target: &Expr, expr: &Expr) -> Result<(), TypeError> {
-        let ty = self.canonize(expr)?;
-        self.expr_eq_ty(target, ty)
+    #[inline]
+    fn expr_eq_expr(&mut self, target: &Expr, expr: &Expr) -> Result<(), TypeError> {
+        self.unify_tys(&mut self.canonize(target)?, &mut self.canonize(expr)?)
     }
 
-    pub fn expr_eq_ty(&mut self, expr: &Expr, mut ty: Ty) -> Result<(), TypeError> {
-        let mut o_ty = self.canonize(expr)?;
-        self.unify_tys(&mut o_ty, &mut ty)
-    }
-
-    pub fn var_eq_ty(&mut self, var: Var, mut ty: Ty) -> Result<(), TypeError> {
-        self.unify_var(&var, &mut ty)
+    #[inline]
+    fn expr_eq_ty(&mut self, expr: &Expr, mut ty: Ty) -> Result<(), TypeError> {
+        self.unify_tys(&mut self.canonize(expr)?, &mut ty)
     }
 }
 

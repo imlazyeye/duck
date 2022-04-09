@@ -75,16 +75,16 @@ impl Ty {
                     .map_or(false, |other_field| field.ty.loose_eq(&other_field.ty))
             }),
             (Ty::Record(_), _) => false,
-            (Ty::Function(function), Ty::Function(other_function)) => {
-                function.return_type.loose_eq(other_function.return_type.as_ref())
-                    && function.parameters.iter().enumerate().all(|(i, param)| {
+            (Ty::Func(function), Ty::Func(other_function)) => {
+                function.return_type().loose_eq(other_function.return_type())
+                    && function.parameters().iter().enumerate().all(|(i, param)| {
                         other_function
-                            .parameters
+                            .parameters()
                             .get(i)
                             .map_or(false, |other_param| param.loose_eq(other_param))
                     })
             }
-            (Ty::Function(_), _) => false,
+            (Ty::Func(_), _) => false,
             _ => self == other,
         }
     }
@@ -172,19 +172,17 @@ macro_rules! record {
 #[macro_export]
 macro_rules! function {
     (() => $return_type:expr) => {
-        crate::analyze::Ty::Function(crate::analyze::Function {
+        crate::analyze::Ty::Func(crate::analyze::Func::Def(crate::analyze::Def {
             binding: None,
-            local_var: crate::analyze::Var::Scope(0),
             parameters: vec![],
             return_type: Box::new($return_type),
-        })
+        }))
     };
     (($($arg:expr), * $(,)?) => $return_type:expr) => {
-        crate::analyze::Ty::Function(crate::analyze::Function {
+        crate::analyze::Ty::Func(crate::analyze::Func::Def(crate::analyze::Def {
             binding: None,
-            local_var: crate::analyze::Var::Scope(0),
             parameters:  vec![$($arg)*],
             return_type: Box::new($return_type),
-        })
+        }))
     };
 }

@@ -100,20 +100,25 @@ impl Printer {
                     )
                 }
             }
-            Ty::Function(Function {
-                parameters,
-                return_type,
-                ..
-            }) => format!(
-                "fn ({}) -> {}",
-                parameters.iter().map(Printer::ty).join(", "),
-                Printer::ty(return_type)
-            ),
-            Ty::Call(Call { parameters, target }) => format!(
-                "{}({})",
-                Printer::ty(target),
-                parameters.iter().map(Printer::ty).join(", "),
-            ),
+            Ty::Func(function) => match function {
+                Func::Def(Def {
+                    parameters,
+                    return_type,
+                    ..
+                }) => format!(
+                    "fn ({}) -> {}",
+                    parameters.iter().map(Printer::ty).join(", "),
+                    Printer::ty(return_type)
+                ),
+                Func::Call(Call {
+                    parameters,
+                    return_type,
+                }) => format!(
+                    "({}) -> {}",
+                    parameters.iter().map(Printer::ty).join(", "),
+                    Printer::ty(return_type)
+                ),
+            },
         };
         s.blue().bold().to_string()
     }

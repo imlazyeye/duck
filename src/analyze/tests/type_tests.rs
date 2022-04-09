@@ -105,7 +105,7 @@ test_var_type!(
     bar: Real,
 );
 test_var_type!(
-    return_generic_value,
+    identity_function,
     "var foo = function(x) { return x; };
     var bar = foo(true);",
     bar: Bool,
@@ -145,7 +145,7 @@ test_var_type!(
     buzz: record!(a: Bool)
 );
 test_var_type!(
-    multi_use_generic_function,
+    multi_use_identity,
     "var foo = function(a) {
         return a;
     }
@@ -154,13 +154,22 @@ test_var_type!(
     bar: Bool,
     fizz: Real,
 );
+test_var_type!(
+    return_onto_known_type,
+    "var foo = function() {
+        return 0;
+    }
+    var bar = 0;
+    bar = foo();",
+    bar: Real
+);
 // This one will require traits! (Returns<T> in particular)
-// test_expr_type!(
-//     infer_function_in_parameters,
-//     "function(x) { return x() + 1; }" => function!(
-//         (function!(() => Real)) => Real
-//     )
-// );
+test_expr_type!(
+    infer_function_in_parameters,
+    "function(x) { return x() + 1; }" => function!(
+        (function!(() => Real)) => Real
+    )
+);
 test_expr_type!(
     infer_array_in_parameters,
     "function(x) { return x[0] + 1; }" => function!(
@@ -173,35 +182,35 @@ test_expr_type!(
         (record!(y: Real)) => Real
     )
 );
-// test_var_type!(
-//     mutate_struct_via_function,
-//     "var foo = function(a) {
-//         a.a = 0;
-//     }
-//     var bar = {};
-//     foo(bar);",
-//     bar: record!(a: Real)
-// );
-// test_var_type!(
-//     retain_all_fields_in_generic_call,
-//     "var foo = function(a) {
-//         a.a = 0;
-//         return a;
-//     }
-//     var bar = { a: 0, b: 0 };
-//     foo(bar);",
-//     bar: record!(a: Real, b: Real)
-// );
-// test_var_type!(
-//     retain_all_fields_in_generic_call_after_return,
-//     "var foo = function(a) {
-//         a.a = 0;
-//         return a;
-//     }
-//     var bar = { a: 0, b: 0 };
-//     bar = foo(bar);",
-//     bar: record!(a: Real, b: Real)
-// );
+test_var_type!(
+    mutate_struct_via_function,
+    "var foo = function(a) {
+        a.a = 0;
+    }
+    var bar = {};
+    foo(bar);",
+    bar: record!(a: Real)
+);
+test_var_type!(
+    retain_all_fields_in_generic_call,
+    "var foo = function(a) {
+        a.a = 0;
+        return a;
+    }
+    var bar = { a: 0, b: 0 };
+    foo(bar);",
+    bar: record!(a: Real, b: Real)
+);
+test_var_type!(
+    retain_all_fields_in_generic_call_after_return,
+    "var foo = function(a) {
+        a.a = 0;
+        return a;
+    }
+    var bar = { a: 0, b: 0 };
+    bar = foo(bar);",
+    bar: record!(a: Real, b: Real)
+);
 
 // Self
 test_var_type!(self_assignment_no_keyword, "foo = 0;", foo: Real);
@@ -244,10 +253,16 @@ test_var_type!(
     function bar() {}",
     bar: function!(() => Undefined),
 );
-test_failure!(
-    function_extention_out_of_order,
-    "self.a = self.b;
-    function foo() { self.b = 0; }"
+test_var_type!(
+    identity_after_delay,
+    "function wrapper() {
+        return identity(0);
+    }
+    function identity(x) {
+        return x;
+    }
+    var bar = wrapper();",
+    bar: Real,
 );
 // test_var_type!(
 //     bound_scope_in_struct,

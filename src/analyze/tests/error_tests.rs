@@ -11,4 +11,10 @@ test_failure!(invalid_dot_access, "var a = 0, b = a.x;");
 test_failure!(invalid_call_target, "var a = 0, b = a();");
 test_failure!(invalid_arguments, "var a = function(x) { return x + 1; }, b = a(true);");
 test_failure!(missing_arguments, "var a = function(x) {}, b = a();");
+test_failure!(contrasting_returns, "function() { return 0; return true; }");
+test_failure!(
+    function_extention_out_of_order,
+    "self.a = self.b;
+    function foo() { self.b = 0; }"
+);
 // test_failure!(extra_arguments, "var a = function() {}, b = a(0);");
