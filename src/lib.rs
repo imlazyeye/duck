@@ -46,6 +46,7 @@ pub mod parse {
         mod expressions {
             mod access;
             mod call;
+            mod r#enum;
             mod equality;
             mod evaluation;
             mod function;
@@ -68,6 +69,7 @@ pub mod parse {
             pub use logical::*;
             pub use null_coalecence::*;
             pub use postfix::*;
+            pub use r#enum::*;
             pub use ternary::*;
             pub use unary::*;
         }
@@ -76,7 +78,6 @@ pub mod parse {
             mod block;
             mod delete;
             mod do_until;
-            mod r#enum;
             mod for_loop;
             mod globalvar;
             mod r#if;
@@ -96,7 +97,6 @@ pub mod parse {
             pub use for_loop::*;
             pub use globalvar::*;
             pub use local_variable::*;
-            pub use r#enum::*;
             pub use r#if::*;
             pub use r#macro::*;
             pub use r#return::*;

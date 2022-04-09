@@ -48,6 +48,22 @@ impl Solver {
                 }
                 (Func::Call(_), Func::Call(_)) => Ok(()),
             },
+            (Ty::Enum(e), other) | (other, Ty::Enum(e)) => match other {
+                Ty::Record(Record {
+                    fields,
+                    state: State::Inferred,
+                }) => {
+                    // todo lots of concerns below
+                    assert_eq!(fields.len(), 1);
+                    let (name, field) = fields.iter_mut().next().unwrap();
+                    if e.contains(name) {
+                        self.unify_tys(&mut field.ty, &mut Ty::Real)
+                    } else {
+                        duck_error!("Enum does not contain a member named `{name}`")
+                    }
+                }
+                _ => duck_error!("Cannot reference enum types!"),
+            },
             (lhs, rhs) => {
                 if lhs != rhs {
                     println!("Error!");

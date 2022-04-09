@@ -23,9 +23,15 @@ impl Lint for InvalidAssignment {
 
 impl EarlyStmtPass for InvalidAssignment {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::Assignment(Assignment { left, op: operator, right }) = stmt.inner() {
+        if let StmtType::Assignment(Assignment {
+            left,
+            op: operator,
+            right,
+        }) = stmt.inner()
+        {
             let is_valid = match left.inner() {
-                ExprType::Function(_)
+                ExprType::Enum(_)
+                | ExprType::Function(_)
                 | ExprType::Logical(_)
                 | ExprType::Equality(_)
                 | ExprType::Evaluation(_)

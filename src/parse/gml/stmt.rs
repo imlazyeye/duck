@@ -14,8 +14,6 @@ use super::{Assignment, Return, Throw};
 pub enum StmtType {
     /// Declaration of a macro.
     MacroDeclaration(Macro),
-    /// Declaration of an enum.
-    EnumDeclaration(Enum),
     /// Declaration of a globalvar.
     GlobalvarDeclaration(Globalvar),
     /// Declaration of one or more local variables.
@@ -68,7 +66,6 @@ impl ParseVisitor for StmtType {
     {
         match self {
             StmtType::MacroDeclaration(inner) => inner.visit_child_exprs(visitor),
-            StmtType::EnumDeclaration(inner) => inner.visit_child_exprs(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_exprs(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_exprs(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_exprs(visitor),
@@ -94,7 +91,6 @@ impl ParseVisitor for StmtType {
     {
         match self {
             StmtType::MacroDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::EnumDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_exprs_mut(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_exprs_mut(visitor),
@@ -121,7 +117,6 @@ impl ParseVisitor for StmtType {
     {
         match self {
             StmtType::MacroDeclaration(inner) => inner.visit_child_stmts(visitor),
-            StmtType::EnumDeclaration(inner) => inner.visit_child_stmts(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_stmts(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_stmts(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_stmts(visitor),
@@ -148,7 +143,6 @@ impl ParseVisitor for StmtType {
     {
         match self {
             StmtType::MacroDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::EnumDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_stmts_mut(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_stmts_mut(visitor),

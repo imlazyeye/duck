@@ -92,7 +92,6 @@ impl Parser {
     pub fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         match self.peek()?.token_type {
             TokenType::Macro(name, config, body) => self.macro_declaration(name, config, body),
-            TokenType::Enum => self.enum_declaration(),
             TokenType::Try => self.try_catch(),
             TokenType::For => self.for_loop(),
             TokenType::With => self.with(),
@@ -127,42 +126,6 @@ impl Parser {
             Macro::new(name, body)
         };
         Ok(self.new_stmt(mac, start))
-    }
-
-    fn enum_declaration(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
-        let start = self.next_token_boundary();
-        self.require(TokenType::Enum)?;
-        let name = self.require_identifier()?;
-        let mut members = vec![];
-        self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
-        loop {
-            if self
-                .match_take_possibilities(&[TokenType::RightBrace, TokenType::End])
-                .is_some()
-            {
-                break;
-            } else {
-                let member_start = self.next_token_boundary();
-                let name = self.require_identifier()?;
-                let span = name.span;
-                let left = self.new_expr(name, span);
-                let enum_member = if let Some(equal) = self.match_take(TokenType::Equal) {
-                    let right = self.expr()?;
-                    OptionalInitilization::Initialized(self.new_stmt(
-                        Assignment::new(left, AssignmentOp::Identity(equal), right),
-                        member_start,
-                    ))
-                } else {
-                    OptionalInitilization::Uninitialized(left)
-                };
-                members.push(enum_member);
-                self.match_take(TokenType::Comma);
-            }
-        }
-        // GM accepts semicolons here, and as such, so do we.
-        // FIXME: create an infastrucutre such that we can lint this?
-        self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.new_stmt(Enum::new_with_members(name, members), start))
     }
 
     fn try_catch(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
@@ -443,7 +406,8 @@ impl Parser {
     fn expr_stmt(&mut self, expr: Expr) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         match expr.inner() {
-            ExprType::Function(..)
+            ExprType::Enum(..)
+            | ExprType::Function(..)
             | ExprType::Postfix(..)
             | ExprType::Unary(..) // FIXME: only some unary is valid here
             | ExprType::Grouping(..)
@@ -650,12 +614,48 @@ impl Parser {
 
     fn postfix(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expr = self.function()?;
+        let expr = self.enum_declaration()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_op()) {
             let token = self.take()?;
             Ok(self.new_expr(Postfix::new(expr, operator), Span::new(start, token.span.end())))
         } else {
             Ok(expr)
+        }
+    }
+
+    fn enum_declaration(&mut self) -> Result<Expr, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        if self.match_take(TokenType::Enum).is_some() {
+            let name = self.require_identifier()?;
+            let mut members = vec![];
+            self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
+            let end = loop {
+                if let Some(token) = self.match_take_possibilities(&[TokenType::RightBrace, TokenType::End]) {
+                    break token.span.end();
+                } else {
+                    let member_start = self.next_token_boundary();
+                    let name = self.require_identifier()?;
+                    let span = name.span;
+                    let left = self.new_expr(name, span);
+                    let enum_member = if let Some(equal) = self.match_take(TokenType::Equal) {
+                        let right = self.expr()?;
+                        OptionalInitilization::Initialized(self.new_stmt(
+                            Assignment::new(left, AssignmentOp::Identity(equal), right),
+                            member_start,
+                        ))
+                    } else {
+                        OptionalInitilization::Uninitialized(left)
+                    };
+                    members.push(enum_member);
+                    self.match_take(TokenType::Comma);
+                }
+            };
+            // GM accepts semicolons here, and as such, so do we.
+            // FIXME: create an infastrucutre such that we can lint this?
+            self.match_take_repeating(TokenType::SemiColon);
+            Ok(self.new_expr(Enum::new_with_members(name, members), Span::new(start, end)))
+        } else {
+            self.function()
         }
     }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::{analyze::*, array, function, record, test_expr_type, test_var_type};
+use crate::{analyze::*, array, enum_ty, function, record, test_expr_type, test_var_type};
 use Ty::*;
 
 // Basic expressions
@@ -81,6 +81,15 @@ test_var_type!(
     };
     var fizz = foo.bar();",
     fizz: Real
+);
+
+// Enums
+test_expr_type!(enum_declaration, "enum foo { bar }" => enum_ty!(bar));
+test_var_type!(
+    access_enum, 
+    "enum foo { bar }; 
+    var bar = foo.bar;",
+    bar: Real,
 );
 
 // Functions

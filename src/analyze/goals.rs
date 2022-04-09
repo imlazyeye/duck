@@ -119,7 +119,6 @@ impl Solver {
                         .commit(self)?;
                 }
             }
-
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
                     let mut ty = self.canonize(value)?;
@@ -128,7 +127,6 @@ impl Solver {
                     self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(Var::Return))?;
                 }
             }
-
             _ => {}
         }
 
@@ -151,12 +149,36 @@ impl Solver {
         functions: &mut Vec<Expr>,
         errors: &mut Vec<TypeError>,
     ) -> Result<(), TypeError> {
-        if let ExprType::Function(function) = expr.inner() {
-            let expr_ty = self.canonize(expr)?;
-            if let Some(name) = &function.name {
+        match expr.inner() {
+            ExprType::Function(function) => {
+                let expr_ty = self.canonize(expr)?;
+                if let Some(name) = &function.name {
+                    self.self_scope_mut()
+                        .apply_field(
+                            &name.lexeme,
+                            Field {
+                                ty: expr_ty,
+                                location: expr.location(),
+                                op: RecordOp::Write,
+                            },
+                        )?
+                        .commit(self)?;
+                }
+                return self.process_function(expr, function);
+            }
+            ExprType::Enum(e) => {
+                let mut members = vec![];
+                for init in e.members.iter() {
+                    members.push(init.name().to_string());
+                    if let Some(value) = init.assignment_value() {
+                        self.visit_expr(value, functions, errors)?;
+                        self.expr_eq_ty(value, Ty::Real)?;
+                    }
+                }
+                let expr_ty = self.canonize(expr)?;
                 self.self_scope_mut()
                     .apply_field(
-                        &name.lexeme,
+                        &e.name.lexeme,
                         Field {
                             ty: expr_ty,
                             location: expr.location(),
@@ -164,8 +186,9 @@ impl Solver {
                         },
                     )?
                     .commit(self)?;
+                return self.expr_eq_ty(expr, Ty::Enum(members));
             }
-            return self.process_function(expr, function);
+            _ => (),
         }
         expr.visit_child_stmts(|stmt| {
             if let Err(err) = self.visit_stmt(stmt, functions, errors) {
@@ -178,7 +201,7 @@ impl Solver {
             }
         });
         match expr.inner() {
-            ExprType::Function(_) => unreachable!(),
+            ExprType::Enum(_) | ExprType::Function(_) => unreachable!(),
             ExprType::Logical(Logical { left, right, .. }) => {
                 self.expr_eq_ty(left, Ty::Bool)?;
                 self.expr_eq_ty(right, Ty::Bool)?;

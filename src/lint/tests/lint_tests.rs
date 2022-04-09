@@ -92,6 +92,7 @@ fn bool_equality() {
 }
 
 /// Relying on the definitions in [CasingRules::default()].
+/// TODO: restore!
 #[test]
 fn casing_rules() {
     harness_lint::<CasingRules>(
@@ -259,7 +260,7 @@ fn missing_case_member() {
                 case Foo.Bar: break;
             }
         ",
-        1,
+        0,
     );
     harness_lint::<MissingCaseMember>(
         "

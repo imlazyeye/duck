@@ -119,6 +119,7 @@ impl Printer {
                     Printer::ty(return_type)
                 ),
             },
+            Ty::Enum(members) => format!("enum {{ {} }}", members.iter().join(", ")),
         };
         s.blue().bold().to_string()
     }

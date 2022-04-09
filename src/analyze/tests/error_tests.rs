@@ -17,4 +17,7 @@ test_failure!(
     "self.a = self.b;
     function foo() { self.b = 0; }"
 );
+// test_failure!(reference_enum_type, "enum foo {}; bar = foo;");
+test_failure!(non_real_enum_member_value, "enum foo { bar = true };");
+// test_failure!(non_constant_enum_member, "var fizz = 0; enum foo { bar = fizz };");
 // test_failure!(extra_arguments, "var a = function() {}, b = a(0);");

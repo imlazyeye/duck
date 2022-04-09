@@ -9,6 +9,80 @@ fn harness_expr(source: &'static str, expected: impl Into<ExprType>) {
 }
 
 #[test]
+fn enum_declaration() {
+    harness_expr(
+        "enum Foo { Bar, Baz }",
+        Enum::new_with_members(
+            Identifier::lazy("Foo"),
+            vec![
+                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+            ],
+        ),
+    )
+}
+
+#[test]
+fn enum_declaration_begin_end() {
+    harness_expr(
+        "enum Foo begin Bar, Baz end",
+        Enum::new_with_members(
+            Identifier::lazy("Foo"),
+            vec![
+                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+            ],
+        ),
+    )
+}
+
+#[test]
+fn enum_with_values() {
+    harness_expr(
+        "enum Foo { Bar = 20, Baz }",
+        Enum::new_with_members(
+            Identifier::lazy("Foo"),
+            vec![
+                OptionalInitilization::Initialized(
+                    Assignment::new(
+                        Identifier::lazy("Bar").into_expr_lazy(),
+                        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                        Literal::Real(20.0).into_expr_lazy(),
+                    )
+                    .into_stmt_lazy(),
+                ),
+                OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+            ],
+        ),
+    )
+}
+
+#[test]
+fn enum_with_neighbor_values() {
+    harness_expr(
+        "enum Foo { Bar, Baz = Foo.Bar }",
+        Enum::new_with_members(
+            Identifier::lazy("Foo"),
+            vec![
+                OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+                OptionalInitilization::Initialized(
+                    Assignment::new(
+                        Identifier::lazy("Baz").into_expr_lazy(),
+                        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                        Access::Dot {
+                            left: Identifier::lazy("Foo").into_expr_lazy(),
+                            right: Identifier::lazy("Bar"),
+                        }
+                        .into_expr_lazy(),
+                    )
+                    .into_stmt_lazy(),
+                ),
+            ],
+        ),
+    )
+}
+
+#[test]
 fn function() {
     harness_expr(
         "function foo() {}",

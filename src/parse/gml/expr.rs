@@ -9,6 +9,8 @@ use itertools::Itertools;
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprType {
+    /// Declaration of an enum
+    Enum(Enum),
     /// Declaration of a function.
     Function(Function),
     /// A logical comparision.
@@ -151,53 +153,12 @@ impl From<Expr> for StmtType {
 }
 impl IntoStmt for Expr {}
 impl ParseVisitor for Expr {
-    fn visit_child_stmts<S>(&self, visitor: S)
-    where
-        S: FnMut(&Stmt),
-    {
-        match self.inner() {
-            ExprType::Function(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Logical(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Equality(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Evaluation(inner) => inner.visit_child_stmts(visitor),
-            ExprType::NullCoalecence(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Ternary(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Unary(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Postfix(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Access(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Call(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Grouping(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Literal(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Identifier(inner) => inner.visit_child_stmts(visitor),
-        }
-    }
-
-    fn visit_child_stmts_mut<S>(&mut self, visitor: S)
-    where
-        S: FnMut(&mut Stmt),
-    {
-        match self.inner_mut() {
-            ExprType::Function(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Logical(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Equality(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Evaluation(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::NullCoalecence(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Ternary(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Unary(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Postfix(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Access(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Call(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Grouping(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Literal(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Identifier(inner) => inner.visit_child_stmts_mut(visitor),
-        }
-    }
-
     fn visit_child_exprs<E>(&self, visitor: E)
     where
         E: FnMut(&Expr),
     {
         match self.inner() {
+            ExprType::Enum(inner) => inner.visit_child_exprs(visitor),
             ExprType::Function(inner) => inner.visit_child_exprs(visitor),
             ExprType::Logical(inner) => inner.visit_child_exprs(visitor),
             ExprType::Equality(inner) => inner.visit_child_exprs(visitor),
@@ -219,6 +180,7 @@ impl ParseVisitor for Expr {
         E: FnMut(&mut Expr),
     {
         match self.inner_mut() {
+            ExprType::Enum(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Function(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Logical(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Equality(inner) => inner.visit_child_exprs_mut(visitor),
@@ -234,10 +196,57 @@ impl ParseVisitor for Expr {
             ExprType::Identifier(inner) => inner.visit_child_exprs_mut(visitor),
         }
     }
+
+    fn visit_child_stmts<S>(&self, visitor: S)
+    where
+        S: FnMut(&Stmt),
+    {
+        match self.inner() {
+            ExprType::Enum(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Function(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Logical(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Equality(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Evaluation(inner) => inner.visit_child_stmts(visitor),
+            ExprType::NullCoalecence(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Ternary(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Unary(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Postfix(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Access(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Call(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Grouping(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Literal(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Identifier(inner) => inner.visit_child_stmts(visitor),
+        }
+    }
+
+    fn visit_child_stmts_mut<S>(&mut self, visitor: S)
+    where
+        S: FnMut(&mut Stmt),
+    {
+        match self.inner_mut() {
+            ExprType::Enum(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Function(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Logical(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Equality(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Evaluation(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::NullCoalecence(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Ternary(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Unary(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Postfix(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Access(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Call(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Grouping(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Literal(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Identifier(inner) => inner.visit_child_stmts_mut(visitor),
+        }
+    }
 }
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.inner() {
+            ExprType::Enum(Enum { name, members }) => {
+                f.pad(&format!("enum {name} {{ {} }}", members.iter().join(", ")))
+            }
             ExprType::Function(Function {
                 name,
                 parameters,

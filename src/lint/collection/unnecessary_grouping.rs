@@ -47,7 +47,8 @@ impl EarlyExprPass for UnnecessaryGrouping {
             ExprType::Ternary(_) => {}
 
             // These should not directly own groupings
-            ExprType::Function(_)
+            ExprType::Enum(_)
+            | ExprType::Function(_)
             | ExprType::NullCoalecence(_)
             | ExprType::Postfix(_)
             | ExprType::Access(_)

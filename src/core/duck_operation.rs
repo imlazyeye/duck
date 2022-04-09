@@ -95,14 +95,6 @@ impl DuckOperation {
         Self::run_early_lint_on_stmt::<WithLoop>(stmt, config, reports);
         // @end early stmt calls. Do not remove this comment!
 
-        #[allow(clippy::single_match)]
-        match stmt.inner() {
-            StmtType::EnumDeclaration(gml_enum) => {
-                scope_builder.register_enum(gml_enum.clone(), stmt.location());
-            }
-            _ => {}
-        }
-
         // Recurse...
         let stmt = stmt.inner_mut();
         stmt.visit_child_stmts_mut(|stmt| Self::process_stmt_early(stmt, scope_builder, reports, config));
