@@ -15,7 +15,6 @@ pub enum Ty {
     Array(Box<Ty>),
     Record(Record),
     Func(Func),
-    Enum(Vec<String>),
 }
 
 #[derive(Debug, PartialEq, Clone)]

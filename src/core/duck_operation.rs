@@ -3,7 +3,7 @@ use codespan_reporting::diagnostic::Diagnostic;
 use crate::{
     analyze::{GlobalScope, GlobalScopeBuilder},
     lint::{collection::*, EarlyExprPass, EarlyStmtPass, LateExprPass, LateStmtPass, Lint, LintLevel},
-    parse::{Ast, Expr, ParseVisitor, Parser, Stmt, StmtType},
+    parse::{Ast, Expr, ParseVisitor, Parser, Stmt},
     Config, FileId,
 };
 

@@ -22,11 +22,13 @@ impl Record {
         }
     }
 
-    pub fn concrete() -> Self {
-        Self {
-            state: State::Concrete,
-            ..Default::default()
+    pub fn concrete(fields: Vec<(String, Field)>, solver: &mut Solver) -> Result<Self, TypeError> {
+        let mut record = Self::extendable();
+        for (name, field) in fields {
+            record.apply_field(&name, field)?.commit(solver)?;
         }
+        record.state = State::Concrete;
+        Ok(record)
     }
 
     pub fn contains(&self, key: &str) -> bool {

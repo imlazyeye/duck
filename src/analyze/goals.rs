@@ -167,13 +167,20 @@ impl Solver {
                 return self.process_function(expr, function);
             }
             ExprType::Enum(e) => {
-                let mut members = vec![];
+                let mut fields = vec![];
                 for init in e.members.iter() {
-                    members.push(init.name().to_string());
                     if let Some(value) = init.assignment_value() {
                         self.visit_expr(value, functions, errors)?;
                         self.expr_eq_ty(value, Ty::Real)?;
                     }
+                    fields.push((
+                        init.name().to_string(),
+                        Field {
+                            ty: Ty::Real,
+                            location: init.name_expr().location(),
+                            op: RecordOp::Write,
+                        },
+                    ))
                 }
                 let expr_ty = self.canonize(expr)?;
                 self.self_scope_mut()
@@ -186,7 +193,8 @@ impl Solver {
                         },
                     )?
                     .commit(self)?;
-                return self.expr_eq_ty(expr, Ty::Enum(members));
+                let record = Ty::Record(Record::concrete(fields, self)?);
+                return self.expr_eq_ty(expr, record);
             }
             _ => (),
         }

@@ -52,7 +52,7 @@ impl Printer {
                         entry.to_string()
                     } else {
                         let v = printer.alias_characters[printer.iter];
-                        printer.iter = if printer.iter + 1 > printer.alias_characters.len() {
+                        printer.iter = if printer.iter + 1 >= printer.alias_characters.len() {
                             0
                         } else {
                             printer.iter + 1
@@ -119,7 +119,6 @@ impl Printer {
                     Printer::ty(return_type)
                 ),
             },
-            Ty::Enum(members) => format!("enum {{ {} }}", members.iter().join(", ")),
         };
         s.blue().bold().to_string()
     }

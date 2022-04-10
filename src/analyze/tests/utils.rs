@@ -187,10 +187,3 @@ macro_rules! function {
         }))
     };
 }
-
-#[macro_export]
-macro_rules! enum_ty {
-    ($($member:expr), * $(,)?) => {
-        crate::analyze::Ty::Enum(vec![$(stringify!($member).to_string(),)*])
-    };
-}

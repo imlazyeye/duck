@@ -1,7 +1,7 @@
 use crate::{
     lint::LintTag,
     parse::{
-        Block, Delete, DoUntil, Enum, Expr, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro, ParseVisitor,
+        Block, Delete, DoUntil, Expr, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro, ParseVisitor,
         RepeatLoop, Span, Switch, TryCatch, WhileLoop, WithLoop,
     },
     FileId,

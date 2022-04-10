@@ -1,5 +1,5 @@
 use super::*;
-use crate::{analyze::*, array, enum_ty, function, record, test_expr_type, test_var_type};
+use crate::{analyze::*, array, function, record, test_expr_type, test_var_type};
 use Ty::*;
 
 // Basic expressions
@@ -84,9 +84,9 @@ test_var_type!(
 );
 
 // Enums
-test_expr_type!(enum_declaration, "enum foo { bar }" => enum_ty!(bar));
+test_expr_type!(enum_declaration, "enum foo { bar }" => record!(bar: Real));
 test_var_type!(
-    access_enum, 
+    access_enum,
     "enum foo { bar }; 
     var bar = foo.bar;",
     bar: Real,
