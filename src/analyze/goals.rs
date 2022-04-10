@@ -38,32 +38,38 @@ impl Solver {
                 if let AssignmentOp::Identity(_) = op {
                     match left.inner() {
                         ExprType::Identifier(iden) => {
-                            if self.local_scope().contains(&iden.lexeme) {
+                            let scope = if self.local_scope().contains(&iden.lexeme) {
                                 self.local_scope_mut()
-                                    .apply_field(
-                                        &iden.lexeme,
-                                        Field {
-                                            ty: right_ty,
-                                            location: stmt.location(),
-                                            op: RecordOp::Write,
-                                        },
-                                    )?
-                                    .commit(self)?;
+                            } else if self.global_scope().contains(&iden.lexeme) {
+                                self.global_scope_mut()
                             } else {
                                 self.self_scope_mut()
-                                    .apply_field(
-                                        &iden.lexeme,
-                                        Field {
-                                            ty: right_ty,
-                                            location: stmt.location(),
-                                            op: RecordOp::Write,
-                                        },
-                                    )?
-                                    .commit(self)?;
-                            }
+                            };
+                            scope
+                                .apply_field(
+                                    &iden.lexeme,
+                                    Field {
+                                        ty: right_ty,
+                                        location: stmt.location(),
+                                        op: RecordOp::Write,
+                                    },
+                                )?
+                                .commit(self)?;
                         }
                         ExprType::Access(Access::Current { right: iden }) => {
                             self.self_scope_mut()
+                                .apply_field(
+                                    &iden.lexeme,
+                                    Field {
+                                        ty: right_ty,
+                                        location: stmt.location(),
+                                        op: RecordOp::Write,
+                                    },
+                                )?
+                                .commit(self)?;
+                        }
+                        ExprType::Access(Access::Global { right: iden }) => {
+                            self.global_scope_mut()
                                 .apply_field(
                                     &iden.lexeme,
                                     Field {
@@ -118,6 +124,18 @@ impl Solver {
                         )?
                         .commit(self)?;
                 }
+            }
+            StmtType::GlobalvarDeclaration(Globalvar { name }) => {
+                self.global_scope_mut()
+                    .apply_field(
+                        &name.lexeme,
+                        Field {
+                            ty: Ty::Null,
+                            location: stmt.location(),
+                            op: RecordOp::Write,
+                        },
+                    )?
+                    .commit(self)?;
             }
             StmtType::Return(Return { value }) => {
                 if let Some(value) = value {
@@ -196,6 +214,19 @@ impl Solver {
                 let record = Ty::Record(Record::concrete(fields, self)?);
                 return self.expr_eq_ty(expr, record);
             }
+            ExprType::Macro(Macro { name, .. }) => {
+                return self
+                    .self_scope_mut()
+                    .apply_field(
+                        &name.lexeme,
+                        Field {
+                            ty: Ty::Any,
+                            location: expr.location(),
+                            op: RecordOp::Write,
+                        },
+                    )?
+                    .commit(self);
+            }
             _ => (),
         }
         expr.visit_child_stmts(|stmt| {
@@ -209,7 +240,7 @@ impl Solver {
             }
         });
         match expr.inner() {
-            ExprType::Enum(_) | ExprType::Function(_) => unreachable!(),
+            ExprType::Enum(_) | ExprType::Macro(_) | ExprType::Function(_) => unreachable!(),
             ExprType::Logical(Logical { left, right, .. }) => {
                 self.expr_eq_ty(left, Ty::Bool)?;
                 self.expr_eq_ty(right, Ty::Bool)?;
@@ -403,7 +434,7 @@ impl Solver {
         let binding = if let Some(constructor) = function.constructor.as_ref() {
             Binding::Constructor {
                 local_scope: self.enter_new_local_scope(),
-                self_scope: self.enter_new_self_scope(),
+                self_scope: self.enter_new_constructor_scope(),
                 inheritance: match constructor {
                     Constructor::WithInheritance(call) => Some(
                         call.inner()

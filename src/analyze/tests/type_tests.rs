@@ -43,7 +43,26 @@ test_expr_type!(
 test_expr_type!(logical, "true && false" => Bool);
 
 // Local variable
-test_var_type!(local_variable, "var a = 0", a: Real);
+test_var_type!(local_var, "var a = 0", a: Real);
+test_var_type!(null_local_var, "var a;", a: Null);
+test_var_type!(assign_to_null_var, "var a; a = 0;", a: Real);
+
+// Globals
+test_var_type!(globalvar, "globalvar foo;", foo: Null);
+test_var_type!(globalvar_assign, "globalvar foo; foo = 0", foo: Real);
+test_var_type!(global, "global.foo = 0;", foo: Real);
+
+// Enums
+test_expr_type!(enum_declaration, "enum foo { bar }" => record!(bar: Real));
+test_var_type!(
+    access_enum,
+    "enum foo { bar }; 
+    var bar = foo.bar;",
+    bar: Real,
+);
+
+// Macros
+test_var_type!(macro_reference, "#macro foo 0\nvar bar = foo;", bar: Any);
 
 // Arrays
 test_expr_type!(empty_array, "[]" => array!(Any));
@@ -81,15 +100,6 @@ test_var_type!(
     };
     var fizz = foo.bar();",
     fizz: Real
-);
-
-// Enums
-test_expr_type!(enum_declaration, "enum foo { bar }" => record!(bar: Real));
-test_var_type!(
-    access_enum,
-    "enum foo { bar }; 
-    var bar = foo.bar;",
-    bar: Real,
 );
 
 // Functions

@@ -91,7 +91,6 @@ impl Parser {
     /// Returns a [ParseError] if any of the source code caused an error.
     pub fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         match self.peek()?.token_type {
-            TokenType::Macro(name, config, body) => self.macro_declaration(name, config, body),
             TokenType::Try => self.try_catch(),
             TokenType::For => self.for_loop(),
             TokenType::With => self.with(),
@@ -111,21 +110,6 @@ impl Parser {
             TokenType::Var => self.local_variable_series(),
             _ => self.assignment(),
         }
-    }
-
-    fn macro_declaration(&mut self, name: &str, config: Option<&str>, body: &str) -> Result<Stmt, Diagnostic<FileId>> {
-        let start = self.next_token_boundary();
-        let _token = self.take()?;
-        // this is all strange, and is just a sign of a known fact -- our lack of proper support for macros
-        // causes weird architecture
-        let macro_length = "#macro ".len();
-        let name = Identifier::new(name, Span::new(start + macro_length, start + macro_length + name.len()));
-        let mac = if let Some(config) = config {
-            Macro::new_with_config(name, body, config)
-        } else {
-            Macro::new(name, body)
-        };
-        Ok(self.new_stmt(mac, start))
     }
 
     fn try_catch(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
@@ -407,6 +391,7 @@ impl Parser {
         let start = self.next_token_boundary();
         match expr.inner() {
             ExprType::Enum(..)
+            | ExprType::Macro(..)
             | ExprType::Function(..)
             | ExprType::Postfix(..)
             | ExprType::Unary(..) // FIXME: only some unary is valid here
@@ -654,6 +639,31 @@ impl Parser {
             // FIXME: create an infastrucutre such that we can lint this?
             self.match_take_repeating(TokenType::SemiColon);
             Ok(self.new_expr(Enum::new_with_members(name, members), Span::new(start, end)))
+        } else {
+            self.macro_declaration()
+        }
+    }
+
+    fn macro_declaration(&mut self) -> Result<Expr, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        // FIXME: borrow checker shenanigans
+        if let Ok(Token {
+            token_type: TokenType::Macro(name, config, body),
+            ..
+        }) = self.peek().cloned()
+        {
+            self.take()?;
+            // this is all strange, and is just a sign of a known fact -- our lack of proper support for macros
+            // causes weird architecture
+            let macro_length = "#macro ".len();
+            let name = Identifier::new(name, Span::new(start + macro_length, start + macro_length + name.len()));
+            let end = name.span.end() + body.len();
+            let mac = if let Some(config) = config {
+                Macro::new_with_config(name, body, config)
+            } else {
+                Macro::new(name, body)
+            };
+            Ok(self.new_expr(mac, Span::new(start, end)))
         } else {
             self.function()
         }

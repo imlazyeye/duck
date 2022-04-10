@@ -9,8 +9,10 @@ use itertools::Itertools;
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprType {
-    /// Declaration of an enum
+    /// Declaration of an enum.
     Enum(Enum),
+    /// Declaration of a macro.
+    Macro(Macro),
     /// Declaration of a function.
     Function(Function),
     /// A logical comparision.
@@ -159,6 +161,7 @@ impl ParseVisitor for Expr {
     {
         match self.inner() {
             ExprType::Enum(inner) => inner.visit_child_exprs(visitor),
+            ExprType::Macro(inner) => inner.visit_child_exprs(visitor),
             ExprType::Function(inner) => inner.visit_child_exprs(visitor),
             ExprType::Logical(inner) => inner.visit_child_exprs(visitor),
             ExprType::Equality(inner) => inner.visit_child_exprs(visitor),
@@ -181,6 +184,7 @@ impl ParseVisitor for Expr {
     {
         match self.inner_mut() {
             ExprType::Enum(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprType::Macro(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Function(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Logical(inner) => inner.visit_child_exprs_mut(visitor),
             ExprType::Equality(inner) => inner.visit_child_exprs_mut(visitor),
@@ -203,6 +207,7 @@ impl ParseVisitor for Expr {
     {
         match self.inner() {
             ExprType::Enum(inner) => inner.visit_child_stmts(visitor),
+            ExprType::Macro(inner) => inner.visit_child_stmts(visitor),
             ExprType::Function(inner) => inner.visit_child_stmts(visitor),
             ExprType::Logical(inner) => inner.visit_child_stmts(visitor),
             ExprType::Equality(inner) => inner.visit_child_stmts(visitor),
@@ -225,6 +230,7 @@ impl ParseVisitor for Expr {
     {
         match self.inner_mut() {
             ExprType::Enum(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprType::Macro(inner) => inner.visit_child_stmts_mut(visitor),
             ExprType::Function(inner) => inner.visit_child_stmts_mut(visitor),
             ExprType::Logical(inner) => inner.visit_child_stmts_mut(visitor),
             ExprType::Equality(inner) => inner.visit_child_stmts_mut(visitor),
@@ -246,6 +252,13 @@ impl std::fmt::Display for Expr {
         match self.inner() {
             ExprType::Enum(Enum { name, members }) => {
                 f.pad(&format!("enum {name} {{ {} }}", members.iter().join(", ")))
+            }
+            ExprType::Macro(Macro { name, config, body }) => {
+                if let Some(config) = config {
+                    f.pad(&format!("#macro {config}:{name} {body}"))
+                } else {
+                    f.pad(&format!("#macro {name} {body}"))
+                }
             }
             ExprType::Function(Function {
                 name,

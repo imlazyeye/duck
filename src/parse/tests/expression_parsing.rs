@@ -83,6 +83,22 @@ fn enum_with_neighbor_values() {
 }
 
 #[test]
+fn macro_declaration() {
+    harness_expr(
+        "#macro foo 0",
+        ExprType::Macro(Macro::new(Identifier::lazy("foo"), "0")),
+    )
+}
+
+#[test]
+fn config_macro() {
+    harness_expr(
+        "#macro bar:foo 0",
+        Macro::new_with_config(Identifier::lazy("foo"), "0", "bar"),
+    )
+}
+
+#[test]
 fn function() {
     harness_expr(
         "function foo() {}",

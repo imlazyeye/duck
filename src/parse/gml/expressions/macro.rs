@@ -1,11 +1,11 @@
-use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, ExprType, Identifier, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of a macro declaration in gml.
 ///
 /// We currently don't do much with these, as their bodies can be *anything*, including
 /// invalid gml. For example:
 /// ```gml
-/// #macro unsafe if true
+/// #macro public if true
 /// ```
 /// This is a perfectly valid macro in gml since their bodies are just pasted over their references
 /// early in the compilation process. In the future, we may add macro unfolding to the parsing
@@ -38,12 +38,12 @@ impl Macro {
         }
     }
 }
-impl From<Macro> for StmtType {
+impl From<Macro> for ExprType {
     fn from(mac: Macro) -> Self {
-        Self::MacroDeclaration(mac)
+        Self::Macro(mac)
     }
 }
-impl IntoStmt for Macro {}
+impl IntoExpr for Macro {}
 impl ParseVisitor for Macro {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut _visitor: E) {}
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, _visitor: E) {}

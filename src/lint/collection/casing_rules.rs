@@ -65,6 +65,9 @@ impl EarlyExprPass for CasingRules {
                     );
                 }
             }
+            ExprType::Macro(Macro { name, .. }) => {
+                Self::check_for(name, config.casing_rules.macro_rule, expr.file_id(), config, reports)
+            }
             ExprType::Function(Function {
                 name: Some(name),
                 constructor: Some(_),
@@ -107,9 +110,6 @@ impl EarlyExprPass for CasingRules {
 impl EarlyStmtPass for CasingRules {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match stmt.inner() {
-            StmtType::MacroDeclaration(Macro { name, .. }) => {
-                Self::check_for(name, config.casing_rules.macro_rule, stmt.file_id(), config, reports)
-            }
             StmtType::GlobalvarDeclaration(Globalvar { name }) => {
                 Self::check_for(name, config.casing_rules.global_rule, stmt.file_id(), config, reports)
             }

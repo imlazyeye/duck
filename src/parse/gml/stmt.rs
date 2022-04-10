@@ -1,8 +1,8 @@
 use crate::{
     lint::LintTag,
     parse::{
-        Block, Delete, DoUntil, Expr, ForLoop, Globalvar, If, LocalVariableSeries, Location, Macro, ParseVisitor,
-        RepeatLoop, Span, Switch, TryCatch, WhileLoop, WithLoop,
+        Block, Delete, DoUntil, Expr, ForLoop, Globalvar, If, LocalVariableSeries, Location, ParseVisitor, RepeatLoop,
+        Span, Switch, TryCatch, WhileLoop, WithLoop,
     },
     FileId,
 };
@@ -12,8 +12,6 @@ use super::{Assignment, Return, Throw};
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum StmtType {
-    /// Declaration of a macro.
-    MacroDeclaration(Macro),
     /// Declaration of a globalvar.
     GlobalvarDeclaration(Globalvar),
     /// Declaration of one or more local variables.
@@ -65,7 +63,6 @@ impl ParseVisitor for StmtType {
         E: FnMut(&Expr),
     {
         match self {
-            StmtType::MacroDeclaration(inner) => inner.visit_child_exprs(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_exprs(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_exprs(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_exprs(visitor),
@@ -90,7 +87,6 @@ impl ParseVisitor for StmtType {
         E: FnMut(&mut Expr),
     {
         match self {
-            StmtType::MacroDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_exprs_mut(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_exprs_mut(visitor),
@@ -116,7 +112,6 @@ impl ParseVisitor for StmtType {
         S: FnMut(&Stmt),
     {
         match self {
-            StmtType::MacroDeclaration(inner) => inner.visit_child_stmts(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_stmts(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_stmts(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_stmts(visitor),
@@ -142,7 +137,6 @@ impl ParseVisitor for StmtType {
         S: FnMut(&mut Stmt),
     {
         match self {
-            StmtType::MacroDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
             StmtType::GlobalvarDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
             StmtType::LocalVariableSeries(inner) => inner.visit_child_stmts_mut(visitor),
             StmtType::TryCatch(inner) => inner.visit_child_stmts_mut(visitor),

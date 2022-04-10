@@ -11,6 +11,10 @@ impl Solver {
 
         // General unification
         match (lhs, rhs) {
+            (ty @ Ty::Null, other) | (other, ty @ Ty::Null) => {
+                *ty = other.clone();
+                Ok(())
+            }
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var(var, other),
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => self.unify_tys(lhs_member, rhs_member),
             (Ty::Record(lhs_record), Ty::Record(rhs_record)) => rhs_record

@@ -44,11 +44,17 @@ impl Record {
     }
 
     pub fn apply_field(&mut self, name: &str, field: Field) -> Result<FieldOp, TypeError> {
-        if let Some(registration) = self.fields.get(name) {
-            Ok(FieldOp::Unification {
-                previous: registration.ty.clone(),
-                new: field.ty,
-            })
+        if let Some(registration) = self.fields.get_mut(name) {
+            // If the registration is null, we will just directly override it
+            if registration.ty == Ty::Null {
+                registration.ty = field.ty;
+                Ok(FieldOp::NewValue)
+            } else {
+                Ok(FieldOp::Unification {
+                    previous: registration.ty.clone(),
+                    new: field.ty,
+                })
+            }
         } else {
             let can_extend = match self.state {
                 State::Inferred => true,

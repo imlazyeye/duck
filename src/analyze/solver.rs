@@ -1,8 +1,8 @@
 use super::*;
 use crate::{
-    duck_bug, duck_error,
+    array, duck_bug, duck_error,
     parse::{Expr, ExprId},
-    FileId,
+    record, FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;
@@ -25,6 +25,7 @@ impl Solver {
             if let Some(field) = self
                 .local_scope()
                 .get(&iden.lexeme)
+                .or_else(|| self.global_scope().get(&iden.lexeme))
                 .or_else(|| self.self_scope().get(&iden.lexeme))
             {
                 Ok(field.ty.clone())
@@ -46,7 +47,12 @@ impl Solver {
     }
 
     pub fn resolve_name(&self, name: &str) -> Result<Ty, TypeError> {
-        let mut ty = if let Some(field) = self.local_scope().get(name).or_else(|| self.self_scope().get(name)) {
+        let mut ty = if let Some(field) = self
+            .local_scope()
+            .get(name)
+            .or_else(|| self.global_scope().get(name))
+            .or_else(|| self.self_scope().get(name))
+        {
             field.ty.clone()
         } else {
             return duck_error!("Could not resolve a type for `{name}`");
@@ -64,6 +70,26 @@ impl Solver {
 
 // Scope
 impl Solver {
+    pub fn global_scope(&self) -> &Record {
+        self.subs
+            .get(&GLOBAL_SCOPE_VAR)
+            .and_then(|ty| match ty {
+                Ty::Record(record) => Some(record),
+                _ => None,
+            })
+            .unwrap_or_else(|| unreachable!())
+    }
+
+    pub fn global_scope_mut(&mut self) -> &mut Record {
+        self.subs
+            .get_mut(&GLOBAL_SCOPE_VAR)
+            .and_then(|ty| match ty {
+                Ty::Record(record) => Some(record),
+                _ => None,
+            })
+            .unwrap_or_else(|| unreachable!())
+    }
+
     pub fn local_scope(&self) -> &Record {
         self.subs
             .get(&self.current_local_var())
@@ -104,14 +130,82 @@ impl Solver {
             .unwrap_or_else(|| unreachable!())
     }
 
-    pub fn enter_new_self_scope(&mut self) -> Var {
-        let var = self.new_scope();
+    pub fn enter_new_constructor_scope(&mut self) -> Var {
+        let var = Var::Scope(rand::random());
+        self.subs.insert(var, Ty::Record(Record::extendable()));
+        self.self_stack.push(var);
+        var
+    }
+
+    pub fn enter_new_object_scope(&mut self) -> Var {
+        let record = {
+            use Ty::*;
+            record!(
+                id: Real,
+                visible: Bool,
+                solid: Bool,
+                persistent: Bool,
+                depth: Real,
+                layer: Real,
+                alarm: array!(Real),
+                direction: Real,
+                friction: Real,
+                gravity: Real,
+                gravity_direction: Real,
+                hspeed: Real,
+                vspeed: Real,
+                speed: Real,
+                xstart: Real,
+                ystart: Real,
+                x: Real,
+                y: Real,
+                xprevious: Real,
+                yprevious: Real,
+                object_index: Real,
+                sprite_index: Real,
+                sprite_width: Real,
+                sprite_height: Real,
+                sprite_xoffset: Real,
+                sprite_yoffset: Real,
+                image_alpha: Real,
+                image_angle: Real,
+                image_blend: Real,
+                image_index: Real,
+                image_number: Real,
+                image_speed: Real,
+                image_xscale: Real,
+                image_yscale: Real,
+                mask_index: Real,
+                bbox_bottom: Real,
+                bbox_left: Real,
+                bbox_right: Real,
+                bbox_top: Real,
+                path_index: Real,
+                path_position: Real,
+                path_positionprevious: Real,
+                path_speed: Real,
+                path_scale: Real,
+                path_orientation: Real,
+                path_endaction: Real, // todo: its a collection of constants
+                timeline_index: Real,
+                timeline_running: Bool,
+                timeline_speed: Real,
+                timeline_position: Real,
+                timeline_loop: Bool,
+                in_sequence: Bool,
+                sequence_instance: Any, // it's some struct and look I just don't care
+                // todo: we don't support the physics system
+            )
+        };
+        let var = Var::Scope(rand::random());
+        self.subs.insert(var, record);
         self.self_stack.push(var);
         var
     }
 
     pub fn enter_new_local_scope(&mut self) -> Var {
-        let var = self.new_scope();
+        let var = Var::Scope(rand::random());
+        self.subs.insert(var, Ty::Record(Record::extendable()));
         self.local_stack.push(var);
         var
     }
@@ -122,12 +216,6 @@ impl Solver {
 
     pub fn depart_local_scope(&mut self) {
         self.local_stack.pop().expect("Cannot depart the root scope!");
-    }
-
-    fn new_scope(&mut self) -> Var {
-        let var = Var::Scope(rand::random());
-        self.subs.insert(var, Ty::Record(Record::extendable()));
-        var
     }
 
     pub fn current_self_var(&self) -> Var {
@@ -146,7 +234,8 @@ impl Default for Solver {
             self_stack: vec![],
             local_stack: vec![],
         };
-        solver.enter_new_self_scope();
+        solver.new_substitution(GLOBAL_SCOPE_VAR, Ty::Record(Record::extendable()));
+        solver.self_stack.push(GLOBAL_SCOPE_VAR);
         solver.enter_new_local_scope();
         solver
     }
@@ -160,3 +249,5 @@ pub enum Var {
     Scope(u64),
     Return,
 }
+
+const GLOBAL_SCOPE_VAR: Var = Var::Scope(u64::MAX);

@@ -31,6 +31,7 @@ impl EarlyStmtPass for InvalidAssignment {
         {
             let is_valid = match left.inner() {
                 ExprType::Enum(_)
+                | ExprType::Macro(_)
                 | ExprType::Function(_)
                 | ExprType::Logical(_)
                 | ExprType::Equality(_)

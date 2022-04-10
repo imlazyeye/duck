@@ -4,6 +4,50 @@ use hashbrown::HashMap;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
+#[macro_export]
+macro_rules! array {
+    ($ty:expr) => {
+        Ty::Array(Box::new($ty))
+    };
+}
+
+#[macro_export]
+macro_rules! record {
+    ($($var:ident: $should_be:expr), * $(,)?) => {
+        crate::analyze::Ty::Record(crate::analyze::Record {
+            fields: hashbrown::HashMap::from([
+                $((
+                    stringify!($var).to_string(),
+                    Field {
+                        location: crate::parse::Location::default(),
+                        ty: $should_be,
+                        op: crate::analyze::RecordOp::Write,
+                    }
+                ), )*
+            ]),
+            state: State::Extendable,
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! function {
+    (() => $return_type:expr) => {
+        crate::analyze::Ty::Func(crate::analyze::Func::Def(crate::analyze::Def {
+            binding: None,
+            parameters: vec![],
+            return_type: Box::new($return_type),
+        }))
+    };
+    (($($arg:expr), * $(,)?) => $return_type:expr) => {
+        crate::analyze::Ty::Func(crate::analyze::Func::Def(crate::analyze::Def {
+            binding: None,
+            parameters:  vec![$($arg)*],
+            return_type: Box::new($return_type),
+        }))
+    };
+}
+
 lazy_static! {
     static ref PRINTER: Mutex<Printer> = Mutex::new(Printer {
         aliases: HashMap::default(),

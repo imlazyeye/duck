@@ -9,33 +9,6 @@ fn harness_stmt(source: &'static str, expected: impl Into<StmtType>) {
 }
 
 #[test]
-fn macro_declaration() {
-    harness_stmt(
-        "#macro foo 0",
-        StmtType::MacroDeclaration(Macro::new(Identifier::lazy("foo"), "0")),
-    )
-}
-
-#[test]
-fn config_macro() {
-    harness_stmt(
-        "#macro bar:foo 0",
-        Macro::new_with_config(Identifier::lazy("foo"), "0", "bar"),
-    )
-}
-
-#[test]
-fn two_macro_declaration() {
-    harness_stmt(
-        "{ \n#macro foo 0\n#macro bar 0\n }",
-        Block::lazy(vec![
-            Macro::new(Identifier::lazy("foo"), "0").into_stmt_lazy(),
-            Macro::new(Identifier::lazy("bar"), "0").into_stmt_lazy(),
-        ]),
-    )
-}
-
-#[test]
 fn globalvar() {
     harness_stmt("globalvar foo;", Globalvar::new(Identifier::lazy("foo")))
 }
@@ -686,4 +659,19 @@ fn comment_above_statement() {
             Identifier::lazy("bar").into_expr_lazy(),
         ),
     );
+}
+
+#[test]
+fn two_macro_declaration() {
+    harness_stmt(
+        "{ \n#macro foo 0\n#macro bar 0\n }",
+        Block::lazy(vec![
+            Macro::new(Identifier::lazy("foo"), "0")
+                .into_expr_lazy()
+                .into_stmt_lazy(),
+            Macro::new(Identifier::lazy("bar"), "0")
+                .into_expr_lazy()
+                .into_stmt_lazy(),
+        ]),
+    )
 }

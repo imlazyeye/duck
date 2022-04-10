@@ -48,6 +48,7 @@ impl EarlyExprPass for UnnecessaryGrouping {
 
             // These should not directly own groupings
             ExprType::Enum(_)
+            | ExprType::Macro(_)
             | ExprType::Function(_)
             | ExprType::NullCoalecence(_)
             | ExprType::Postfix(_)

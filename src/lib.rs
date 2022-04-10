@@ -54,6 +54,7 @@ pub mod parse {
             mod identifier;
             mod literal;
             mod logical;
+            mod r#macro;
             mod null_coalecence;
             mod postfix;
             mod ternary;
@@ -70,6 +71,7 @@ pub mod parse {
             pub use null_coalecence::*;
             pub use postfix::*;
             pub use r#enum::*;
+            pub use r#macro::*;
             pub use ternary::*;
             pub use unary::*;
         }
@@ -82,7 +84,6 @@ pub mod parse {
             mod globalvar;
             mod r#if;
             mod local_variable;
-            mod r#macro;
             mod repeat_loop;
             mod r#return;
             mod switch;
@@ -98,7 +99,6 @@ pub mod parse {
             pub use globalvar::*;
             pub use local_variable::*;
             pub use r#if::*;
-            pub use r#macro::*;
             pub use r#return::*;
             pub use repeat_loop::*;
             pub use switch::*;
