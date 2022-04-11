@@ -44,14 +44,22 @@ impl Record {
     }
 
     pub fn apply_field(&mut self, name: &str, field: Field) -> Result<FieldOp, TypeError> {
-        if let Some(registration) = self.fields.get_mut(name) {
+        if let Some(registered_field) = self.fields.get_mut(name) {
+            // The registered field is now safe
+            if registered_field.promise_pending
+                && field.op == RecordOp::Write
+                && registered_field.origin != field.origin
+            {
+                registered_field.promise_pending = false;
+            }
+
             // If the registration is null, we will just directly override it
-            if registration.ty == Ty::Null {
-                registration.ty = field.ty;
+            if registered_field.ty == Ty::Null {
+                registered_field.ty = field.ty;
                 Ok(FieldOp::NewValue)
             } else {
                 Ok(FieldOp::Unification {
-                    previous: registration.ty.clone(),
+                    previous: registered_field.ty.clone(),
                     new: field.ty,
                 })
             }
@@ -79,26 +87,60 @@ impl From<HashMap<String, Field>> for Record {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum State {
-    /// A generic record inferred from context.
-    Inferred,
-    /// A record that can have new fields added to it.
-    Extendable,
-    /// A record that cannot have new fields added to it.
-    Concrete,
-}
-impl Default for State {
-    fn default() -> Self {
-        State::Concrete
-    }
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Field {
-    pub ty: Ty,
-    pub location: Location,
-    pub op: RecordOp,
+    ty: Ty,
+    location: Location,
+    op: RecordOp,
+    promise_pending: bool,
+    origin: Var,
+}
+impl Field {
+    pub fn read(ty: Ty, location: Location, origin: Var) -> Self {
+        Self {
+            ty,
+            location,
+            op: RecordOp::Read,
+            promise_pending: false,
+            origin,
+        }
+    }
+
+    pub fn write(ty: Ty, location: Location, origin: Var) -> Self {
+        Self {
+            ty,
+            location,
+            op: RecordOp::Write,
+            promise_pending: false,
+            origin,
+        }
+    }
+
+    pub fn promise(ty: Ty, location: Location, origin: Var) -> Self {
+        Self {
+            ty,
+            location,
+            op: RecordOp::Write,
+            promise_pending: true,
+            origin,
+        }
+    }
+
+    /// Get a reference to the field's ty.
+    pub fn ty(&self) -> &Ty {
+        &self.ty
+    }
+
+    /// Get a mutable reference to the field's ty.
+    #[must_use]
+    pub fn ty_mut(&mut self) -> &mut Ty {
+        &mut self.ty
+    }
+
+    /// Get the field's promise pending.
+    pub fn promise_pending(&self) -> bool {
+        self.promise_pending
+    }
 }
 
 #[must_use]
@@ -134,7 +176,25 @@ impl std::ops::Drop for FieldOp {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-pub enum RecordOp {
+enum RecordOp {
     Read,
     Write,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Promise(Var);
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum State {
+    /// A generic record inferred from context.
+    Inferred,
+    /// A record that can have new fields added to it.
+    Extendable,
+    /// A record that cannot have new fields added to it.
+    Concrete,
+}
+impl Default for State {
+    fn default() -> Self {
+        State::Concrete
+    }
 }

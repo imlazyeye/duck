@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 
 fn harness_expr(source: &'static str, expected: impl Into<ExprType>) {
     let expected = expected.into();
-    let mut parser = Parser::new_no_markers(source, 0);
+    let mut parser = Parser::new_with_default_ids(source, 0);
     let outputed = parser.expr().unwrap();
     assert_eq!(*outputed.inner(), expected, "`{}` failed!", source)
 }

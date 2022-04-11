@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    array, duck_bug, duck_error,
+    array, duck_bug, duck_error, duck_error_unwrapped,
     parse::{Expr, ExprId},
     record, FileId,
 };
@@ -16,7 +16,7 @@ pub struct Solver {
 
 // General
 impl Solver {
-    pub fn canonize(&self, expr: &Expr) -> Result<Ty, TypeError> {
+    pub fn canonize(&mut self, expr: &Expr) -> Result<Ty, TypeError> {
         if let Some(iden) = expr
             .inner()
             .as_identifier()
@@ -28,9 +28,17 @@ impl Solver {
                 .or_else(|| self.global_scope().get(&iden.lexeme))
                 .or_else(|| self.self_scope().get(&iden.lexeme))
             {
-                Ok(field.ty.clone())
+                Ok(field.ty().clone())
             } else {
-                duck_error!("Unrecognized variable: {iden}")
+                let var = self.var_for_expr(expr);
+                let local_scope_var = self.local_var();
+                self.self_scope_mut()
+                    .apply_field(
+                        &iden.lexeme,
+                        Field::promise(Ty::Var(var), expr.location(), local_scope_var),
+                    )?
+                    .commit(self)?;
+                Ok(Ty::Var(var))
             }
         } else {
             Ok(Ty::Var(self.var_for_expr(expr)))
@@ -53,7 +61,7 @@ impl Solver {
             .or_else(|| self.global_scope().get(name))
             .or_else(|| self.self_scope().get(name))
         {
-            field.ty.clone()
+            field.ty().clone()
         } else {
             return duck_error!("Could not resolve a type for `{name}`");
         };
@@ -65,6 +73,24 @@ impl Solver {
         let var = Var::Expr(expr.id());
         Printer::give_expr_alias(var, expr.to_string());
         var
+    }
+
+    pub fn check_promises(&self) -> Result<(), Vec<TypeError>> {
+        let errors: Vec<TypeError> = self
+            .subs
+            .iter()
+            .filter_map(|(_, ty)| if let Ty::Record(r) = ty { Some(r) } else { None })
+            .flat_map(|v| {
+                v.fields.iter().filter_map(|(name, field)| {
+                    if field.promise_pending() {
+                        Some(duck_error_unwrapped!("Unrecognized variable: {name}"))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+        if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
 }
 
@@ -92,7 +118,7 @@ impl Solver {
 
     pub fn local_scope(&self) -> &Record {
         self.subs
-            .get(&self.current_local_var())
+            .get(&self.local_var())
             .and_then(|ty| match ty {
                 Ty::Record(record) => Some(record),
                 _ => None,
@@ -102,7 +128,7 @@ impl Solver {
 
     pub fn local_scope_mut(&mut self) -> &mut Record {
         self.subs
-            .get_mut(&self.current_local_var())
+            .get_mut(&self.local_var())
             .and_then(|ty| match ty {
                 Ty::Record(record) => Some(record),
                 _ => None,
@@ -193,8 +219,8 @@ impl Solver {
                 timeline_position: Real,
                 timeline_loop: Bool,
                 in_sequence: Bool,
-                sequence_instance: Any, // it's some struct and look I just don't care
-                // todo: we don't support the physics system
+                sequence_instance: Any, /* it's some struct and look I just don't care
+                                         * todo: we don't support the physics system */
             )
         };
         let var = Var::Scope(rand::random());
@@ -222,7 +248,7 @@ impl Solver {
         *self.self_stack.last().unwrap()
     }
 
-    pub fn current_local_var(&self) -> Var {
+    pub fn local_var(&self) -> Var {
         *self.local_stack.last().unwrap()
     }
 }

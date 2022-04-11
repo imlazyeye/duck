@@ -34,9 +34,9 @@ impl Parser {
         }
     }
 
-    /// Creates a new parser that will use `0` for all identifiers on expressions. Useful for
+    /// Creates a new parser that will use `0` for all id's on expressions. Useful for
     /// testing when you want to not deal with the random ids.
-    pub fn new_no_markers(source_code: &'static str, file_id: FileId) -> Self {
+    pub fn new_with_default_ids(source_code: &'static str, file_id: FileId) -> Self {
         let mut parser = Self::new(source_code, file_id);
         parser.use_default_ids = true;
         parser
@@ -72,7 +72,16 @@ impl Parser {
 
     /// Creates a new statement.
     fn new_stmt(&mut self, stmt: impl IntoStmt, start_position: usize) -> Stmt {
-        stmt.into_stmt(self.span(start_position), self.file_id, self.lint_tag_slot.take())
+        stmt.into_stmt(
+            if self.use_default_ids {
+                StmtId::default()
+            } else {
+                StmtId::new()
+            },
+            self.span(start_position),
+            self.file_id,
+            self.lint_tag_slot.take(),
+        )
     }
 
     /// Creates a [Span] from the given position up until the pilot's current

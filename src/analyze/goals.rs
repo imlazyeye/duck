@@ -35,6 +35,7 @@ impl Solver {
             StmtType::Assignment(Assignment { left, right, op }) => {
                 self.visit_expr(right, functions, errors)?;
                 let right_ty = self.canonize(right)?;
+                let origin = self.local_var();
                 if let AssignmentOp::Identity(_) = op {
                     match left.inner() {
                         ExprType::Identifier(iden) => {
@@ -46,38 +47,17 @@ impl Solver {
                                 self.self_scope_mut()
                             };
                             scope
-                                .apply_field(
-                                    &iden.lexeme,
-                                    Field {
-                                        ty: right_ty,
-                                        location: stmt.location(),
-                                        op: RecordOp::Write,
-                                    },
-                                )?
+                                .apply_field(&iden.lexeme, Field::write(right_ty, stmt.location(), origin))?
                                 .commit(self)?;
                         }
                         ExprType::Access(Access::Current { right: iden }) => {
                             self.self_scope_mut()
-                                .apply_field(
-                                    &iden.lexeme,
-                                    Field {
-                                        ty: right_ty,
-                                        location: stmt.location(),
-                                        op: RecordOp::Write,
-                                    },
-                                )?
+                                .apply_field(&iden.lexeme, Field::write(right_ty, stmt.location(), origin))?
                                 .commit(self)?;
                         }
                         ExprType::Access(Access::Global { right: iden }) => {
                             self.global_scope_mut()
-                                .apply_field(
-                                    &iden.lexeme,
-                                    Field {
-                                        ty: right_ty,
-                                        location: stmt.location(),
-                                        op: RecordOp::Write,
-                                    },
-                                )?
+                                .apply_field(&iden.lexeme, Field::write(right_ty, stmt.location(), origin))?
                                 .commit(self)?;
                         }
                         ExprType::Access(Access::Dot {
@@ -87,14 +67,7 @@ impl Solver {
                             let mut record = Record::inferred();
                             let right_ty = self.canonize(right)?;
                             record
-                                .apply_field(
-                                    &iden.lexeme,
-                                    Field {
-                                        ty: right_ty,
-                                        location: stmt.location(),
-                                        op: RecordOp::Write,
-                                    },
-                                )?
+                                .apply_field(&iden.lexeme, Field::write(right_ty, stmt.location(), self.local_var()))?
                                 .commit(self)?;
                             self.expr_eq_ty(struct_expr, Ty::Record(record))?;
                         }
@@ -113,28 +86,16 @@ impl Solver {
                             self.canonize(initializer.assignment_value().unwrap())?
                         }
                     };
+                    let origin = self.local_var();
                     self.local_scope_mut()
-                        .apply_field(
-                            initializer.name(),
-                            Field {
-                                ty,
-                                location: stmt.location(),
-                                op: RecordOp::Write,
-                            },
-                        )?
+                        .apply_field(initializer.name(), Field::write(ty, stmt.location(), origin))?
                         .commit(self)?;
                 }
             }
             StmtType::GlobalvarDeclaration(Globalvar { name }) => {
+                let origin = self.local_var();
                 self.global_scope_mut()
-                    .apply_field(
-                        &name.lexeme,
-                        Field {
-                            ty: Ty::Null,
-                            location: stmt.location(),
-                            op: RecordOp::Write,
-                        },
-                    )?
+                    .apply_field(&name.lexeme, Field::write(Ty::Null, stmt.location(), origin))?
                     .commit(self)?;
             }
             StmtType::Return(Return { value }) => {
@@ -171,15 +132,9 @@ impl Solver {
             ExprType::Function(function) => {
                 let expr_ty = self.canonize(expr)?;
                 if let Some(name) = &function.name {
+                    let origin = self.local_var();
                     self.self_scope_mut()
-                        .apply_field(
-                            &name.lexeme,
-                            Field {
-                                ty: expr_ty,
-                                location: expr.location(),
-                                op: RecordOp::Write,
-                            },
-                        )?
+                        .apply_field(&name.lexeme, Field::write(expr_ty, expr.location(), origin))?
                         .commit(self)?;
                 }
                 return self.process_function(expr, function);
@@ -193,38 +148,22 @@ impl Solver {
                     }
                     fields.push((
                         init.name().to_string(),
-                        Field {
-                            ty: Ty::Real,
-                            location: init.name_expr().location(),
-                            op: RecordOp::Write,
-                        },
+                        Field::write(Ty::Real, init.name_expr().location(), self.local_var()),
                     ))
                 }
                 let expr_ty = self.canonize(expr)?;
+                let origin = self.local_var();
                 self.self_scope_mut()
-                    .apply_field(
-                        &e.name.lexeme,
-                        Field {
-                            ty: expr_ty,
-                            location: expr.location(),
-                            op: RecordOp::Write,
-                        },
-                    )?
+                    .apply_field(&e.name.lexeme, Field::write(expr_ty, expr.location(), origin))?
                     .commit(self)?;
                 let record = Ty::Record(Record::concrete(fields, self)?);
                 return self.expr_eq_ty(expr, record);
             }
             ExprType::Macro(Macro { name, .. }) => {
+                let origin = self.local_var();
                 return self
                     .self_scope_mut()
-                    .apply_field(
-                        &name.lexeme,
-                        Field {
-                            ty: Ty::Any,
-                            location: expr.location(),
-                            op: RecordOp::Write,
-                        },
-                    )?
+                    .apply_field(&name.lexeme, Field::write(Ty::Any, expr.location(), origin))?
                     .commit(self);
             }
             _ => (),
@@ -289,30 +228,18 @@ impl Solver {
                     Access::Global { .. } => {}
                     Access::Current { right } => {
                         let ty = self.canonize(expr)?;
+                        let origin = self.local_var();
                         self.self_scope_mut()
-                            .apply_field(
-                                &right.lexeme,
-                                Field {
-                                    ty,
-                                    location: expr.location(),
-                                    op: RecordOp::Read,
-                                },
-                            )?
+                            .apply_field(&right.lexeme, Field::read(ty, expr.location(), origin))?
                             .commit(self)?;
                     }
                     Access::Other { .. } => {}
                     Access::Dot { left, right } => {
                         let mut record = Record::inferred();
                         let ty = self.canonize(expr)?;
+                        let origin = self.local_var();
                         record
-                            .apply_field(
-                                &right.lexeme,
-                                Field {
-                                    ty,
-                                    location: expr.location(),
-                                    op: RecordOp::Read,
-                                },
-                            )?
+                            .apply_field(&right.lexeme, Field::read(ty, expr.location(), origin))?
                             .commit(self)?;
                         self.expr_eq_ty(left, Ty::Record(record))?;
                     }
@@ -359,20 +286,14 @@ impl Solver {
 
             ExprType::Identifier(iden) => {
                 let ty = self.canonize(expr)?;
+                let origin = self.local_var();
                 let scope = if self.local_scope().contains(&iden.lexeme) {
                     self.local_scope_mut()
                 } else {
                     self.self_scope_mut()
                 };
                 scope
-                    .apply_field(
-                        &iden.lexeme,
-                        Field {
-                            ty,
-                            location: expr.location(),
-                            op: RecordOp::Read,
-                        },
-                    )?
+                    .apply_field(&iden.lexeme, Field::read(ty, expr.location(), origin))?
                     .commit(self)?;
             }
             ExprType::Literal(literal) => {
@@ -401,11 +322,7 @@ impl Solver {
                             record
                                 .apply_field(
                                     &declaration.0.lexeme,
-                                    Field {
-                                        ty,
-                                        location: expr.location(),
-                                        op: RecordOp::Write,
-                                    },
+                                    Field::write(ty, expr.location(), self.local_var()),
                                 )?
                                 .commit(self)?;
                         }
@@ -459,14 +376,12 @@ impl Solver {
                 OptionalInitilization::Uninitialized(_) => Ty::Var(self.var_for_expr(param.name_expr())),
                 OptionalInitilization::Initialized(_) => self.canonize(param.assignment_value().unwrap())?,
             };
+            let origin = self.local_var();
+
             self.local_scope_mut()
                 .apply_field(
                     param.name(),
-                    Field {
-                        ty: ty.clone(),
-                        location: param.name_expr().location(),
-                        op: RecordOp::Write,
-                    },
+                    Field::write(ty.clone(), param.name_expr().location(), origin),
                 )?
                 .commit(self)?;
             parameters.push(ty);
@@ -509,12 +424,15 @@ impl Solver {
 impl Solver {
     #[inline]
     fn expr_eq_expr(&mut self, target: &Expr, expr: &Expr) -> Result<(), TypeError> {
-        self.unify_tys(&mut self.canonize(target)?, &mut self.canonize(expr)?)
+        let mut lhs = self.canonize(target)?;
+        let mut rhs = self.canonize(expr)?;
+        self.unify_tys(&mut lhs, &mut rhs)
     }
 
     #[inline]
     fn expr_eq_ty(&mut self, expr: &Expr, mut ty: Ty) -> Result<(), TypeError> {
-        self.unify_tys(&mut self.canonize(expr)?, &mut ty)
+        let mut expr_ty = self.canonize(expr)?;
+        self.unify_tys(&mut expr_ty, &mut ty)
     }
 }
 

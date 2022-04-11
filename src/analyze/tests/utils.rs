@@ -27,15 +27,9 @@ pub fn harness_solver(source: &str) -> Result<TestTypeWriter, Vec<TypeError>> {
     if let Err(e) = &mut solver.process_statements(ast.stmts_mut()) {
         errors.append(e);
     }
-    for (name, _) in solver
-        .self_scope()
-        .fields
-        .iter()
-        .chain(solver.local_scope().fields.iter())
-    {
-        let _ = solver.resolve_name(name).map_err(|e| errors.push(e));
+    if let Err(e) = &mut solver.check_promises() {
+        errors.append(e)
     }
-
     if errors.is_empty() {
         Ok(TestTypeWriter(solver))
     } else {
@@ -46,7 +40,11 @@ pub fn harness_solver(source: &str) -> Result<TestTypeWriter, Vec<TypeError>> {
 pub fn get_type(source: &'static str) -> Ty {
     let source = Box::leak(Box::new(format!("var a = {source}")));
     match harness_solver(source) {
-        Ok(solver) => solver.resolve_name("a").unwrap(),
+        Ok(solver) => {
+            let ty = solver.resolve_name("a").unwrap();
+            solver.check_promises().unwrap();
+            ty
+        }
         Err(e) => panic!("{}", e[0].message),
     }
 }
@@ -72,7 +70,7 @@ impl Ty {
             (Ty::Record(record), Ty::Record(other_record)) => record.fields.iter().all(|(name, field)| {
                 other_record
                     .get(name)
-                    .map_or(false, |other_field| field.ty.loose_eq(&other_field.ty))
+                    .map_or(false, |other_field| field.ty().loose_eq(other_field.ty()))
             }),
             (Ty::Array(member), Ty::Array(other_member)) => member.loose_eq(other_member),
             (Ty::Record(_), _) => false,

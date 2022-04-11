@@ -8,7 +8,7 @@ use crate::{
 };
 
 fn harness_valid(source: &'static str) {
-    let parser = Parser::new_no_markers(source, 0).into_ast();
+    let parser = Parser::new_with_default_ids(source, 0).into_ast();
     assert!(
         parser.map_or(false, |v| v.stmts().len() == 1),
         "`{}` was invalid!",
@@ -17,7 +17,7 @@ fn harness_valid(source: &'static str) {
 }
 
 fn harness_valid_but_linted<T: Lint>(source: &'static str) {
-    let parser = Parser::new_no_markers(source, 0).into_ast();
+    let parser = Parser::new_with_default_ids(source, 0).into_ast();
     assert!(
         parser.map_or(false, |v| v.stmts().len() == 1),
         "`{}` was invalid!",
@@ -27,7 +27,7 @@ fn harness_valid_but_linted<T: Lint>(source: &'static str) {
 }
 
 fn harness_invalid(source: &'static str) {
-    let parser = Parser::new_no_markers(source, 0).into_ast();
+    let parser = Parser::new_with_default_ids(source, 0).into_ast();
     assert!(parser.map_or(true, |v| v.stmts().len() != 1), "`{}` was valid!", source)
 }
 

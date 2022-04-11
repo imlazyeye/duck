@@ -18,7 +18,7 @@ pub(super) fn harness_lint<T: Lint>(source: &'static str, expected_number: usize
     let config = config_for_lint::<T>();
     let mut library = GmlLibrary::new();
     let file_id = library.add("test.gml".into(), source);
-    let mut ast = Parser::new_no_markers(source, file_id).into_ast().unwrap();
+    let mut ast = Parser::new_with_default_ids(source, file_id).into_ast().unwrap();
     let mut reports = vec![];
     let mut scope_builder = GlobalScopeBuilder::new();
     for stmt in ast.stmts_mut() {

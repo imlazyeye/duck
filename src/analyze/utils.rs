@@ -18,11 +18,7 @@ macro_rules! record {
             fields: hashbrown::HashMap::from([
                 $((
                     stringify!($var).to_string(),
-                    Field {
-                        location: crate::parse::Location::default(),
-                        ty: $should_be,
-                        op: crate::analyze::RecordOp::Write,
-                    }
+                    Field::write($should_be, crate::parse::Location::default(), crate::analyze::Var::Scope(0))
                 ), )*
             ]),
             state: State::Extendable,
@@ -139,7 +135,7 @@ impl Printer {
                         record
                             .fields
                             .iter()
-                            .map(|(name, field)| format!("{}: {}", name, Printer::ty(&field.ty)))
+                            .map(|(name, field)| format!("{}: {}", name, Printer::ty(field.ty())))
                             .join(", ")
                     )
                 }
@@ -213,7 +209,14 @@ impl Printer {
 #[macro_export]
 macro_rules! duck_error {
     ($($arg:tt)*) => {
-        Err(codespan_reporting::diagnostic::Diagnostic::error().with_message(format!($($arg)*)))
+        Err(crate::duck_error_unwrapped!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! duck_error_unwrapped {
+    ($($arg:tt)*) => {
+        codespan_reporting::diagnostic::Diagnostic::error().with_message(format!($($arg)*))
     };
 }
 

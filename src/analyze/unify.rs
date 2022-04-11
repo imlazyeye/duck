@@ -84,7 +84,7 @@ impl Solver {
         match ty {
             Ty::Var(ty_var) => ty_var == var || self.subs.get(ty_var).map_or(false, |ty| self.occurs(var, ty)),
             Ty::Array(member_ty) => self.occurs(var, member_ty),
-            Ty::Record(record) => record.fields.iter().any(|(_, field)| self.occurs(var, &field.ty)),
+            Ty::Record(record) => record.fields.iter().any(|(_, field)| self.occurs(var, field.ty())),
             Ty::Func(func) => {
                 self.occurs(var, func.return_type()) || func.parameters().iter().any(|v| self.occurs(var, v))
             }
@@ -104,7 +104,7 @@ impl Solver {
             Ty::Record(record) => record
                 .fields
                 .iter_mut()
-                .for_each(|(_, field)| self.normalize(&mut field.ty)),
+                .for_each(|(_, field)| self.normalize(field.ty_mut())),
             Ty::Func(func) => {
                 func.parameters_mut().iter_mut().for_each(|v| self.normalize(v));
                 self.normalize(func.return_type_mut())

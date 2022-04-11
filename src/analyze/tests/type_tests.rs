@@ -358,35 +358,35 @@ test_var_type!(
 // );
 
 // Out of order
-// test_var_type!(
-//     function_read_self_out_of_order,
-//     "function bar() { return self.a; }
-//     self.a = 0;",
-//     bar: function!(() => Real),
-// );
-// test_var_type!(
-//     function_write_self_out_of_order,
-//     "function bar(x) { self.a = x; }
-//     self.a = 0;",
-//     bar: function!((Real) => Undefined),
-// );
-// test_var_type!(
-//     function_calls_out_of_order,
-//     "function foo() { self.bar();}
-//     function bar() {}",
-//     bar: function!(() => Undefined),
-// );
-// test_var_type!(
-//     identity_out_of_order,
-//     "function wrapper() {
-//         return identity(0);
-//     }
-//     function identity(x) {
-//         return x;
-//     }
-//     var bar = wrapper();",
-//     bar: Real,
-// );
+test_var_type!(
+    function_read_self_out_of_order,
+    "function bar() { return self.a; }
+    self.a = 0;",
+    bar: function!(() => Real),
+);
+test_var_type!(
+    function_write_self_out_of_order,
+    "function bar(x) { self.a = x; }
+    self.a = 0;",
+    bar: function!((Real) => Undefined),
+);
+test_var_type!(
+    function_calls_out_of_order,
+    "function foo() { self.bar();}
+    function bar() {}",
+    bar: function!(() => Undefined),
+);
+test_var_type!(
+    identity_out_of_order,
+    "function wrapper() {
+        return identity(0);
+    }
+    function identity(x) {
+        return x;
+    }
+    var bar = wrapper();",
+    bar: Real,
+);
 
 // Stress tests
 test_var_type!(

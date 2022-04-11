@@ -13,9 +13,9 @@ test_failure!(invalid_arguments, "var a = function(x) { return x + 1; }, b = a(t
 test_failure!(missing_arguments, "var a = function(x) {}, b = a();");
 test_failure!(contrasting_returns, "function() { return 0; return true; }");
 test_failure!(
-    function_extention_out_of_order,
-    "self.a = self.b;
-    function foo() { self.b = 0; }"
+    undefined_variable_later_defined,
+    "self.b = self.a;
+    self.a = 0;"
 );
 // test_failure!(reference_enum_type, "enum foo {}; bar = foo;");
 test_failure!(non_real_enum_member_value, "enum foo { bar = true };");

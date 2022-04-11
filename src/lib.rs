@@ -138,7 +138,6 @@ pub mod analyze {
     mod global_scope;
     mod goals;
     mod record;
-    mod scope;
     mod solver;
     mod ty;
     mod unify;
@@ -146,7 +145,6 @@ pub mod analyze {
     pub use global_scope::*;
     pub use goals::*;
     pub use record::*;
-    pub use scope::*;
     pub use solver::*;
     pub use ty::*;
     pub use unify::*;

@@ -186,6 +186,7 @@ impl StmtType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stmt {
     stmt_type: Box<StmtType>,
+    id: StmtId,
     location: Location,
     lint_tag: Option<LintTag>,
 }
@@ -214,6 +215,11 @@ impl Stmt {
     pub fn lint_tag(&self) -> Option<&LintTag> {
         self.lint_tag.as_ref()
     }
+
+    /// Get the stmt's id.
+    pub fn id(&self) -> StmtId {
+        self.id
+    }
 }
 impl ParseVisitor for Stmt {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, visitor: E) {
@@ -234,9 +240,10 @@ impl ParseVisitor for Stmt {
 /// `into_stmt` method, and a `into_stmt_lazy` for tests.
 pub trait IntoStmt: Sized + Into<StmtType> {
     /// Converts self into an statement box.
-    fn into_stmt(self, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Stmt {
+    fn into_stmt(self, id: StmtId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Stmt {
         Stmt {
             stmt_type: Box::new(self.into()),
+            id,
             location: Location(file_id, span),
             lint_tag,
         }
@@ -248,6 +255,16 @@ pub trait IntoStmt: Sized + Into<StmtType> {
     where
         Self: Sized,
     {
-        self.into_stmt(Default::default(), 0, None)
+        self.into_stmt(Default::default(), Default::default(), 0, None)
+    }
+}
+
+/// A unique id that each [Stmt] has.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
+pub struct StmtId(u64);
+impl StmtId {
+    /// Creates a new, random StmtId.
+    pub fn new() -> Self {
+        Self(rand::random())
     }
 }
