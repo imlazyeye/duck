@@ -4,18 +4,8 @@ use crate::parse::*;
 impl Solver {
     pub fn process_statements(&mut self, stmts: &[Stmt]) -> Result<(), Vec<TypeError>> {
         let mut errors = vec![];
-        let mut functions = vec![];
         for stmt in stmts.iter() {
-            if let Err(e) = self.visit_stmt(stmt, &mut functions, &mut errors) {
-                errors.push(e);
-            }
-        }
-        for expr in functions {
-            let function = match expr.inner() {
-                ExprType::Function(function) => function,
-                _ => unreachable!(),
-            };
-            if let Err(e) = self.process_function(&expr, function) {
+            if let Err(e) = self.visit_stmt(stmt, &mut errors, &mut None) {
                 errors.push(e);
             }
         }
@@ -28,12 +18,12 @@ impl Solver {
     fn visit_stmt(
         &mut self,
         stmt: &Stmt,
-        functions: &mut Vec<Expr>,
         errors: &mut Vec<TypeError>,
+        struct_literal_override: &mut Option<Var>,
     ) -> Result<(), TypeError> {
         match stmt.inner() {
             StmtType::Assignment(Assignment { left, right, op }) => {
-                self.visit_expr(right, functions, errors)?;
+                self.visit_expr(right, errors, struct_literal_override)?;
                 let right_ty = self.canonize(right)?;
                 let origin = self.local_var();
                 if let AssignmentOp::Identity(_) = op {
@@ -72,7 +62,7 @@ impl Solver {
                             self.expr_eq_ty(struct_expr, Ty::Record(record))?;
                         }
                         _ => {
-                            self.visit_expr(left, functions, errors)?;
+                            self.visit_expr(left, errors, struct_literal_override)?;
                         }
                     }
                 }
@@ -110,12 +100,12 @@ impl Solver {
         }
 
         stmt.visit_child_stmts(|stmt| {
-            if let Err(err) = self.visit_stmt(stmt, functions, errors) {
+            if let Err(err) = self.visit_stmt(stmt, errors, struct_literal_override) {
                 errors.push(err);
             }
         });
         stmt.visit_child_exprs(|expr| {
-            if let Err(err) = self.visit_expr(expr, functions, errors) {
+            if let Err(err) = self.visit_expr(expr, errors, struct_literal_override) {
                 errors.push(err);
             }
         });
@@ -125,25 +115,32 @@ impl Solver {
     fn visit_expr(
         &mut self,
         expr: &Expr,
-        functions: &mut Vec<Expr>,
         errors: &mut Vec<TypeError>,
+        struct_literal_override: &mut Option<Var>,
     ) -> Result<(), TypeError> {
         match expr.inner() {
             ExprType::Function(function) => {
                 let expr_ty = self.canonize(expr)?;
+                if let Some(struct_literal_override) = struct_literal_override {
+                    self.enter_self_scope(*struct_literal_override)
+                }
                 if let Some(name) = &function.name {
                     let origin = self.local_var();
                     self.self_scope_mut()
                         .apply_field(&name.lexeme, Field::write(expr_ty, expr.location(), origin))?
                         .commit(self)?;
                 }
-                return self.process_function(expr, function);
+                self.process_function(expr, function)?;
+                if struct_literal_override.is_some() {
+                    self.depart_self_scope();
+                }
+                return Ok(());
             }
             ExprType::Enum(e) => {
                 let mut fields = vec![];
                 for init in e.members.iter() {
                     if let Some(value) = init.assignment_value() {
-                        self.visit_expr(value, functions, errors)?;
+                        self.visit_expr(value, errors, struct_literal_override)?;
                         self.expr_eq_ty(value, Ty::Real)?;
                     }
                     fields.push((
@@ -153,8 +150,8 @@ impl Solver {
                 }
                 let expr_ty = self.canonize(expr)?;
                 let origin = self.local_var();
-                self.self_scope_mut()
-                    .apply_field(&e.name.lexeme, Field::write(expr_ty, expr.location(), origin))?
+                self.global_scope_mut()
+                    .apply_field(&e.name.lexeme, Field::constant(expr_ty, expr.location(), origin))?
                     .commit(self)?;
                 let record = Ty::Record(Record::concrete(fields, self)?);
                 return self.expr_eq_ty(expr, record);
@@ -162,19 +159,39 @@ impl Solver {
             ExprType::Macro(Macro { name, .. }) => {
                 let origin = self.local_var();
                 return self
-                    .self_scope_mut()
-                    .apply_field(&name.lexeme, Field::write(Ty::Any, expr.location(), origin))?
+                    .global_scope_mut()
+                    .apply_field(&name.lexeme, Field::constant(Ty::Any, expr.location(), origin))?
                     .commit(self);
+            }
+            ExprType::Literal(Literal::Struct(declarations)) => {
+                let mut record = Record::extendable();
+                for declaration in declarations {
+                    let ty = self.canonize(&declaration.1)?;
+                    record
+                        .apply_field(
+                            &declaration.0.lexeme,
+                            Field::write(ty, expr.location(), self.local_var()),
+                        )?
+                        .commit(self)?;
+                }
+                self.expr_eq_ty(expr, Ty::Record(record))?;
+                let expr_var = self.var_for_expr(expr);
+                *struct_literal_override = Some(expr_var);
+                for declaration in declarations {
+                    self.visit_expr(&declaration.1, errors, struct_literal_override)?;
+                }
+                *struct_literal_override = None;
+                return Ok(());
             }
             _ => (),
         }
         expr.visit_child_stmts(|stmt| {
-            if let Err(err) = self.visit_stmt(stmt, functions, errors) {
+            if let Err(err) = self.visit_stmt(stmt, errors, struct_literal_override) {
                 errors.push(err);
             }
         });
         expr.visit_child_exprs(|expr| {
-            if let Err(err) = self.visit_expr(expr, functions, errors) {
+            if let Err(err) = self.visit_expr(expr, errors, struct_literal_override) {
                 errors.push(err);
             }
         });
@@ -315,20 +332,7 @@ impl Solver {
                         self.expr_eq_ty(expr, app)?;
                         return Ok(());
                     }
-                    Literal::Struct(declarations) => {
-                        let mut record = Record::extendable();
-                        for declaration in declarations {
-                            let ty = self.canonize(&declaration.1)?;
-                            record
-                                .apply_field(
-                                    &declaration.0.lexeme,
-                                    Field::write(ty, expr.location(), self.local_var()),
-                                )?
-                                .commit(self)?;
-                        }
-                        self.expr_eq_ty(expr, Ty::Record(record))?;
-                        return Ok(());
-                    }
+                    Literal::Struct(_) => unreachable!(),
                 };
                 self.expr_eq_ty(expr, ty)?;
             }

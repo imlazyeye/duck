@@ -45,6 +45,11 @@ impl Record {
 
     pub fn apply_field(&mut self, name: &str, field: Field) -> Result<FieldOp, TypeError> {
         if let Some(registered_field) = self.fields.get_mut(name) {
+            // Ensure the registered field is mutable
+            if !registered_field.mutable && field.op == RecordOp::Write {
+                return duck_error!("Attempted to write to an immutable value: {name}");
+            }
+
             // The registered field is now safe
             if registered_field.promise_pending
                 && field.op == RecordOp::Write
@@ -94,6 +99,7 @@ pub struct Field {
     op: RecordOp,
     promise_pending: bool,
     origin: Var,
+    mutable: bool,
 }
 impl Field {
     pub fn read(ty: Ty, location: Location, origin: Var) -> Self {
@@ -103,6 +109,7 @@ impl Field {
             op: RecordOp::Read,
             promise_pending: false,
             origin,
+            mutable: true,
         }
     }
 
@@ -113,6 +120,18 @@ impl Field {
             op: RecordOp::Write,
             promise_pending: false,
             origin,
+            mutable: true,
+        }
+    }
+
+    pub fn constant(ty: Ty, location: Location, origin: Var) -> Self {
+        Self {
+            ty,
+            location,
+            op: RecordOp::Write,
+            promise_pending: false,
+            origin,
+            mutable: false,
         }
     }
 
@@ -123,6 +142,7 @@ impl Field {
             op: RecordOp::Write,
             promise_pending: true,
             origin,
+            mutable: true,
         }
     }
 

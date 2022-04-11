@@ -159,7 +159,7 @@ impl Solver {
     pub fn enter_new_constructor_scope(&mut self) -> Var {
         let var = Var::Scope(rand::random());
         self.subs.insert(var, Ty::Record(Record::extendable()));
-        self.self_stack.push(var);
+        self.enter_self_scope(var);
         var
     }
 
@@ -225,8 +225,12 @@ impl Solver {
         };
         let var = Var::Scope(rand::random());
         self.subs.insert(var, record);
-        self.self_stack.push(var);
+        self.enter_self_scope(var);
         var
+    }
+
+    pub fn enter_self_scope(&mut self, var: Var) {
+        self.self_stack.push(var);
     }
 
     pub fn enter_new_local_scope(&mut self) -> Var {

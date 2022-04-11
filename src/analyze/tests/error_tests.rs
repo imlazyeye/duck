@@ -22,3 +22,5 @@ test_failure!(non_real_enum_member_value, "enum foo { bar = true };");
 // test_failure!(illegal_macro_declaration_location, "foo = #macro bar 0");
 // test_failure!(non_constant_enum_member, "var fizz = 0; enum foo { bar = fizz };");
 // test_failure!(extra_arguments, "var a = function() {}, b = a(0);");
+test_failure!(double_enum_declaration, "enum foo {}; enum foo {};");
+test_failure!(double_macro_declaration, "#macro foo 0\n#macro foo 0;");

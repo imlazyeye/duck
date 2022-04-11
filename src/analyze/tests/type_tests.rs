@@ -254,17 +254,17 @@ test_var_type!(
     }",
     a: Real,
 );
-// test_var_type!(
-//     bound_scope_in_struct,
-//     "var foo = {
-//         bar: 0,
-//         fizz: function() {
-//             return self.bar;
-//         }
-//     };
-//     var buzz = foo.fizz();",
-//     buzz: Real,
-// );
+test_var_type!(
+    bound_scope_in_struct,
+    "var foo = {
+        bar: 0,
+        fizz: function() {
+            return self.bar;
+        }
+    };
+    var buzz = foo.fizz();",
+    buzz: Real,
+);
 test_var_type!(
     obj_setter,
     "self.x = 0;
