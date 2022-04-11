@@ -1,3 +1,3 @@
-mod expression_parsing;
-mod statement_parsing;
+mod expr_tests;
+mod stmt_tests;
 mod token_parsing;

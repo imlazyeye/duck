@@ -782,7 +782,11 @@ impl Parser {
                     let name = self.require_identifier()?;
                     self.require(TokenType::Colon)?;
                     elements.push((name, self.expr()?));
-                    self.match_take(TokenType::Comma);
+                    if self.match_take(TokenType::Comma).is_none() {
+                        let token = self.require_possibilities(&[TokenType::RightBrace, TokenType::End])?;
+                        let literal = Literal::Struct(elements);
+                        break Ok(self.new_expr(literal, Span::new(start, token.span.end())));
+                    }
                 }
             }
         } else {
