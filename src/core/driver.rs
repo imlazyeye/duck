@@ -2,7 +2,7 @@ use crate::{
     analyze::*,
     lint::{collection::*, *},
     parse::{Ast, Expr, ParseVisitor, Parser, Stmt},
-    Config, GmlLibrary, FileId,
+    Config, FileId, GmlLibrary,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
 use codespan_reporting::diagnostic::Diagnostic;

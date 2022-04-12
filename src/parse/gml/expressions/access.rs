@@ -88,7 +88,7 @@ impl IntoExpr for Access {}
 impl ParseVisitor for Access {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         match self {
-            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {},
+            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {}
             Access::Dot { left, .. } => visitor(left),
             Access::Map { left, key: right }
             | Access::List { left, index: right }
@@ -121,7 +121,7 @@ impl ParseVisitor for Access {
     }
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         match self {
-            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {},
+            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {}
             Access::Dot { left, .. } => visitor(left),
             Access::Map { left, key: right }
             | Access::List { left, index: right }

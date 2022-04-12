@@ -77,7 +77,7 @@ with open('src/lint/collection.rs', 'w') as f:
     f.write(new_mods)
 
 # Gather the old calls
-driver = open('src/core/duck_operation.rs', "r").read()
+driver = open('src/core/driver.rs', "r").read()
 
 opreations = [
     {
