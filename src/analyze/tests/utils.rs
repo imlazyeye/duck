@@ -132,6 +132,17 @@ macro_rules! test_var_type {
 }
 
 #[macro_export]
+macro_rules! test_success {
+    ($name:ident, $src:expr) => {
+        #[cfg(test)]
+        #[test]
+        fn $name() {
+            assert!(harness_solver($src).is_ok());
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! test_failure {
     ($name:ident, $src:expr) => {
         #[cfg(test)]

@@ -96,6 +96,29 @@ impl Solver {
                     self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(Var::Return))?;
                 }
             }
+            StmtType::WithLoop(WithLoop { .. }) => {
+                // TODO: Instance ID / Object ID!
+            }
+            StmtType::RepeatLoop(RepeatLoop { tick_counts, .. }) => {
+                self.expr_eq_ty(tick_counts, Ty::Real)?;
+            }
+            StmtType::ForLoop(ForLoop { condition, .. })
+            | StmtType::DoUntil(DoUntil { condition, .. })
+            | StmtType::WhileLoop(WhileLoop { condition, .. }) => {
+                self.expr_eq_ty(condition, Ty::Bool)?;
+            }
+            StmtType::If(If { condition, .. }) => {
+                self.expr_eq_ty(condition, Ty::Bool)?;
+            }
+            StmtType::Switch(Switch {
+                matching_value, cases, ..
+            }) => {
+                let mut identity = self.canonize(matching_value)?;
+                for case in cases {
+                    let mut case_identity = self.canonize(case.identity())?;
+                    self.unify_tys(&mut identity, &mut case_identity)?;
+                }
+            }
             _ => {}
         }
 

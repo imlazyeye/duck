@@ -1,5 +1,5 @@
 use super::*;
-use crate::{analyze::*, array, function, record, test_expr_type, test_var_type};
+use crate::{analyze::*, array, function, record, test_expr_type, test_success, test_var_type};
 use Ty::*;
 
 // Basic expressions
@@ -41,6 +41,14 @@ test_expr_type!(
     "1 div 1" => Real,
 );
 test_expr_type!(logical, "true && false" => Bool);
+
+// Basic statements
+test_success!(repeat_loop, "repeat 1 {}");
+test_success!(for_loop, "for (var i = 0; i < 0; i++) {}");
+test_success!(do_until_loop, "do {} until true;");
+test_success!(while_loop, "while true {}");
+test_success!(if_stmt, "if true {}");
+test_success!(switch, "switch true { case true: break; case false: break; }");
 
 // Local variable
 test_var_type!(local_var, "var a = 0", a: Real);
