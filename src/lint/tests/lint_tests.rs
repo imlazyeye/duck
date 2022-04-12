@@ -1,8 +1,9 @@
 use crate::{
     analyze::{GlobalScope, GlobalScopeBuilder},
+    driver,
     lint::{collection::*, Lint, LintLevel},
     parse::*,
-    Config, DuckOperation, GmlLibrary,
+    Config, GmlLibrary,
 };
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use pretty_assertions::assert_eq;
@@ -22,12 +23,12 @@ pub(super) fn harness_lint<T: Lint>(source: &'static str, expected_number: usize
     let mut reports = vec![];
     let mut scope_builder = GlobalScopeBuilder::new();
     for stmt in ast.stmts_mut() {
-        DuckOperation::process_stmt_early(stmt, &mut scope_builder, &mut reports, &config);
+        driver::process_stmt_early(stmt, &mut scope_builder, &mut reports, &config);
     }
     let mut global_scope = GlobalScope::new();
     global_scope.drain(scope_builder);
     for stmt in ast.stmts() {
-        DuckOperation::process_stmt_late(stmt, &global_scope, &mut reports, &config);
+        driver::process_stmt_late(stmt, &global_scope, &mut reports, &config);
     }
     let writer = StandardStream::stdout(ColorChoice::Always);
     let config = codespan_reporting::term::Config::default();

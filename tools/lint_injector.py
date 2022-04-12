@@ -77,7 +77,7 @@ with open('src/lint/collection.rs', 'w') as f:
     f.write(new_mods)
 
 # Gather the old calls
-duck_operation = open('src/core/duck_operation.rs', "r").read()
+driver = open('src/core/duck_operation.rs', "r").read()
 
 opreations = [
     {
@@ -113,7 +113,7 @@ for operation in opreations:
     args = operation['args']
 
     search = re.search(
-        r'( +)// @{name} calls.+\n((\n|.)+?) +// @end {name} calls.+'.format(name=name), duck_operation)
+        r'( +)// @{name} calls.+\n((\n|.)+?) +// @end {name} calls.+'.format(name=name), driver)
     tabs = search.group(1)
     old_call = search.group(2)
 
@@ -138,7 +138,7 @@ for operation in opreations:
     new_call = ''
     for lint in lints:
         if lint[tag]:
-            new_call += '{tabs}Self::{function_name}::<{lint}>({args});\n'.format(
+            new_call += '{tabs}{function_name}::<{lint}>({args});\n'.format(
                 tabs=tabs,
                 function_name=function_name,
                 lint=lint['name'],
@@ -148,10 +148,10 @@ for operation in opreations:
         new_call = '{tabs}// currently empty!\n'.format(tabs=tabs)
 
     # Replace the calls in the file
-    duck_operation = duck_operation.replace(old_call, new_call)
+    driver = driver.replace(old_call, new_call)
 
 # Flush to the file
-open('src/core/duck_operation.rs', 'w').write(duck_operation)
+open('src/core/driver.rs', 'w').write(driver)
 
 # Now update the full config template...
 template = open('src/core/config.rs', 'r').read()

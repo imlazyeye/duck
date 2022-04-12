@@ -1,7 +1,7 @@
 #![warn(missing_docs)]
 #![warn(clippy::dbg_macro)]
 #![warn(clippy::print_stdout)]
-#![warn(clippy::map_unwrap_or)] // gabe this was a mistake
+#![warn(clippy::map_unwrap_or)]
 #![warn(clippy::similar_names)]
 #![warn(clippy::todo)]
 #![warn(clippy::unimplemented)]
@@ -13,12 +13,10 @@
 extern crate lazy_static;
 
 mod core {
+    /// The core operations duck executes to process a project.
+    pub mod driver;
     mod duck;
-    mod duck_operation;
-    mod duck_task;
     pub use crate::core::duck::*;
-    pub use duck_operation::*;
-    pub use duck_task::*;
     mod config;
     pub use config::*;
 }

@@ -1,10 +1,12 @@
-use crate::{lint::LintLevel, Config, DuckTask, FileId};
+use crate::{lint::LintLevel, Config};
 use codespan_reporting::{
     diagnostic::Diagnostic,
     files::{Error, Files, SimpleFile},
 };
 use enum_map::EnumMap;
 use std::{ops::Range, path::Path, sync::Arc};
+
+use super::driver;
 
 /// ## Duck
 /// The primary point of control for all of duck. For general usage, this is all
@@ -58,14 +60,14 @@ impl Duck {
     pub async fn run(&self, project_directory: &Path) -> Result<RunSummary, tokio::task::JoinError> {
         // Load everything in and await through the early pass...
         let config_arc = Arc::new(self.config.clone()); // TODO: this clone sucks
-        let (path_receiver, walker_handle) = DuckTask::start_gml_discovery(project_directory);
-        let (file_receiver, file_handle) = DuckTask::start_file_load(path_receiver);
-        let (parse_receiver, parse_handle) = DuckTask::start_parse(file_receiver);
-        let (early_receiever, _) = DuckTask::start_early_pass(config_arc.clone(), parse_receiver);
-        let (iterations, global_environment) = DuckTask::start_environment_assembly(early_receiever).await?;
+        let (path_receiver, walker_handle) = driver::start_gml_discovery(project_directory);
+        let (file_receiver, file_handle) = driver::start_file_load(path_receiver);
+        let (parse_receiver, parse_handle) = driver::start_parse(file_receiver);
+        let (early_receiever, _) = driver::start_early_pass(config_arc.clone(), parse_receiver);
+        let (iterations, global_environment) = driver::start_environment_assembly(early_receiever).await?;
 
         // Run the final pass...
-        let mut diagnostics = DuckTask::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
+        let mut diagnostics = driver::start_late_pass(config_arc.clone(), iterations, global_environment).await?;
 
         // Extract any errors that were found...
         let (line_count, library, mut io_errors) = file_handle.await?;
@@ -216,3 +218,7 @@ impl Drop for GmlLibrary {
         }
     }
 }
+
+/// A wrapper around `usize`, which `codespan-reporting` uses as an id for files. Just used to help
+/// with readability. The returned data from successful parses.
+pub type FileId = usize;
