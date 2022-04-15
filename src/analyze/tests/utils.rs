@@ -40,7 +40,7 @@ pub fn harness_solver(source: &str) -> Result<TestTypeWriter, Vec<TypeError>> {
 pub fn get_type(source: &'static str) -> Ty {
     let source = Box::leak(Box::new(format!("var a = {source}")));
     match harness_solver(source) {
-        Ok(solver) => {
+        Ok(mut solver) => {
             let ty = solver.resolve_name("a").unwrap();
             solver.check_promises().unwrap();
             ty

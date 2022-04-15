@@ -18,7 +18,7 @@ macro_rules! record {
             fields: hashbrown::HashMap::from([
                 $((
                     stringify!($var).to_string(),
-                    Field::write($should_be, crate::parse::Location::default(), crate::analyze::Var::Scope(0))
+                    Field::write($should_be, crate::parse::Location::default(), crate::analyze::Var::Generated(0))
                 ), )*
             ]),
             state: State::Extendable,
@@ -74,6 +74,7 @@ impl Printer {
 
     pub fn give_expr_alias(var: Var, name: String) {
         if !PRINTER.lock().aliases.contains_key(&var) {
+            #[cfg(test)]
             println!("{}        {}   :   {}", "ALIAS".bright_red(), Printer::var(&var), name);
             // PRINTER.lock().expr_strings.insert(var, name);
         }
@@ -82,27 +83,23 @@ impl Printer {
     #[must_use]
     pub fn var(var: &Var) -> String {
         let mut printer = PRINTER.lock();
-        match *var {
-            Var::Return => "<R>".into(),
-            var => {
-                if let Some(expr_string) = printer.expr_strings.get(&var) {
-                    expr_string.clone()
+        let var = *var;
+        if let Some(expr_string) = printer.expr_strings.get(&var) {
+            expr_string.clone()
+        } else {
+            let entry = if let Some(entry) = printer.aliases.get(&var) {
+                entry.to_string()
+            } else {
+                let v = printer.alias_characters[printer.iter];
+                printer.iter = if printer.iter + 1 >= printer.alias_characters.len() {
+                    0
                 } else {
-                    let entry = if let Some(entry) = printer.aliases.get(&var) {
-                        entry.to_string()
-                    } else {
-                        let v = printer.alias_characters[printer.iter];
-                        printer.iter = if printer.iter + 1 >= printer.alias_characters.len() {
-                            0
-                        } else {
-                            printer.iter + 1
-                        };
-                        printer.aliases.insert(var, v);
-                        v.to_string()
-                    };
-                    entry
-                }
-            }
+                    printer.iter + 1
+                };
+                printer.aliases.insert(var, v);
+                v.to_string()
+            };
+            entry
         }
         .bright_black()
         .bold()
@@ -135,7 +132,12 @@ impl Printer {
                         record
                             .fields
                             .iter()
-                            .map(|(name, field)| format!("{}: {}", name, Printer::ty(field.ty())))
+                            .map(|(name, field)| format!(
+                                "{}{}: {}",
+                                if field.promise_pending() { "promise: " } else { "" },
+                                name,
+                                Printer::ty(field.ty())
+                            ))
                             .join(", ")
                     )
                 }

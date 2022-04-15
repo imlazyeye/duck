@@ -7,9 +7,8 @@ impl Solver {
         if lhs == rhs {
             return Ok(());
         }
+        #[cfg(test)]
         println!("{}", Printer::ty_unification(lhs, rhs));
-
-        // General unification
         match (lhs, rhs) {
             (ty @ Ty::Null, other) | (other, ty @ Ty::Null) => {
                 *ty = other.clone();
@@ -23,6 +22,7 @@ impl Solver {
                 .try_for_each(|(name, rhs_field)| lhs_record.apply_field(name, rhs_field.clone())?.commit(self)),
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
                 (Func::Def(def), Func::Call(call)) | (Func::Call(call), Func::Def(def)) => {
+                    #[cfg(test)]
                     println!("\n--- Calling function... ---\n",);
                     let mut solver = self.clone();
                     let mut def = def.clone();
@@ -36,6 +36,7 @@ impl Solver {
                     }
                     solver.normalize(&mut def.return_type);
                     self.unify_tys(&mut call.return_type, &mut def.return_type)?;
+                    #[cfg(test)]
                     println!("\n--- Ending call... ---\n");
                     Ok(())
                 }
@@ -54,6 +55,7 @@ impl Solver {
             },
             (lhs, rhs) => {
                 if lhs != rhs {
+                    #[cfg(test)]
                     println!("Error!");
                     duck_error!(
                         "Attempted to equate two incompatible types: {} and {}",
@@ -114,6 +116,7 @@ impl Solver {
     }
 
     pub fn new_substitution(&mut self, var: Var, ty: Ty) {
+        #[cfg(test)]
         println!("{}", Printer::substitution(&var, &ty));
         self.subs.insert(var, ty);
     }

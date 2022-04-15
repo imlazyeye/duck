@@ -1,9 +1,8 @@
-use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::diagnostic::Diagnostic;
 
 use crate::{
-    analyze::GlobalScope,
     lint::{LateExprPass, Lint, LintLevel},
-    parse::{Access, Evaluation, Expr, ExprType, Function, Unary, UnaryOp},
+    parse::Expr,
     FileId,
 };
 
@@ -24,52 +23,48 @@ impl Lint for NonConstantDefaultParameter {
 }
 
 impl NonConstantDefaultParameter {
-    fn is_constant(expresion_box: &Expr, global_scope: &GlobalScope) -> bool {
-        match expresion_box.inner() {
-            ExprType::Access(Access::Dot { left, .. }) => left
-                .inner()
-                .as_identifier()
-                .map_or(false, |iden| global_scope.find_enum(&iden.lexeme).is_some()),
-            ExprType::Unary(Unary {
-                op: UnaryOp::Positive(_),
-                right,
-            })
-            | ExprType::Unary(Unary {
-                op: UnaryOp::Negative(_),
-                right,
-            }) => Self::is_constant(right, global_scope),
-            ExprType::Evaluation(Evaluation { left, right, .. }) => {
-                Self::is_constant(left, global_scope) && Self::is_constant(right, global_scope)
-            }
-            ExprType::Literal(_) | ExprType::Identifier(_) => true,
-            _ => false,
-        }
+    fn _is_constant(_expresion_box: &Expr) -> bool {
+        // match expresion_box.inner() {
+        //     ExprType::Access(Access::Dot { left, .. }) => left
+        //         .inner()
+        //         .as_identifier()
+        //         .map_or(false, |iden| global_scope.find_enum(&iden.lexeme).is_some()),
+        //     ExprType::Unary(Unary {
+        //         op: UnaryOp::Positive(_),
+        //         right,
+        //     })
+        //     | ExprType::Unary(Unary {
+        //         op: UnaryOp::Negative(_),
+        //         right,
+        //     }) => Self::is_constant(right, global_scope),
+        //     ExprType::Evaluation(Evaluation { left, right, .. }) => {
+        //         Self::is_constant(left, global_scope) && Self::is_constant(right, global_scope)
+        //     }
+        //     ExprType::Literal(_) | ExprType::Identifier(_) => true,
+        //     _ => false,
+        // }
+        false
     }
 }
 
 impl LateExprPass for NonConstantDefaultParameter {
-    fn visit_expr_late(
-        expr: &Expr,
-        config: &crate::Config,
-        reports: &mut Vec<Diagnostic<FileId>>,
-        global_scope: &GlobalScope,
-    ) {
-        if let ExprType::Function(Function { parameters, .. }) = expr.inner() {
-            for param in parameters {
-                if let Some(default_expr) = param.assignment_value() {
-                    let constant = Self::is_constant(default_expr, global_scope);
-                    if !constant {
-                        reports.push(
-                            Self::diagnostic(config)
-                                .with_message("Non constant default parameter")
-                                .with_labels(vec![
-                                    Label::primary(default_expr.file_id(), default_expr.span())
-                                        .with_message("this parameter's default value is not constant"),
-                                ]),
-                        );
-                    }
-                }
-            }
-        }
+    fn visit_expr_late(_expr: &Expr, _config: &crate::Config, _reports: &mut Vec<Diagnostic<FileId>>) {
+        // if let ExprType::Function(Function { parameters, .. }) = expr.inner() {
+        //     for param in parameters {
+        //         if let Some(default_expr) = param.assignment_value() {
+        //             let constant = Self::is_constant(default_expr, global_scope);
+        //             if !constant {
+        //                 reports.push(
+        //                     Self::diagnostic(config)
+        //                         .with_message("Non constant default parameter")
+        //                         .with_labels(vec![
+        //                             Label::primary(default_expr.file_id(), default_expr.span())
+        //                                 .with_message("this parameter's default value is not
+        // constant"),                         ]),
+        //                 );
+        //             }
+        //         }
+        //     }
+        // }
     }
 }

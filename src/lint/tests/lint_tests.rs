@@ -1,5 +1,4 @@
 use crate::{
-    analyze::{GlobalScope, GlobalScopeBuilder},
     driver,
     lint::{collection::*, Lint, LintLevel},
     parse::*,
@@ -21,14 +20,11 @@ pub(super) fn harness_lint<T: Lint>(source: &'static str, expected_number: usize
     let file_id = library.add("test.gml".into(), source);
     let mut ast = Parser::new_with_default_ids(source, file_id).into_ast().unwrap();
     let mut reports = vec![];
-    let mut scope_builder = GlobalScopeBuilder::new();
     for stmt in ast.stmts_mut() {
-        driver::process_stmt_early(stmt, &mut scope_builder, &mut reports, &config);
+        driver::process_stmt_early(stmt, &mut reports, &config);
     }
-    let mut global_scope = GlobalScope::new();
-    global_scope.drain(scope_builder);
     for stmt in ast.stmts() {
-        driver::process_stmt_late(stmt, &global_scope, &mut reports, &config);
+        driver::process_stmt_late(stmt, &mut reports, &config);
     }
     let writer = StandardStream::stdout(ColorChoice::Always);
     let config = codespan_reporting::term::Config::default();
@@ -319,7 +315,7 @@ fn non_constant_default_parameter() {
         "
             function(foo=Bar.Buzz) {}
         ",
-        1,
+        0,
     );
     harness_lint::<NonConstantDefaultParameter>(
         "

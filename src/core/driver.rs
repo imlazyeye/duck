@@ -12,7 +12,10 @@ use std::{
     sync::Arc,
 };
 use tokio::{
-    sync::mpsc::{channel, Receiver},
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Mutex,
+    },
     task::JoinHandle,
 };
 
@@ -32,12 +35,7 @@ pub fn parse_gml(source_code: &'static str, file_id: &FileId) -> Result<Ast, Dia
 ///
 /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
 /// more information.
-pub fn process_stmt_early(
-    stmt: &mut Stmt,
-    scope_builder: &mut GlobalScopeBuilder,
-    reports: &mut Vec<Diagnostic<FileId>>,
-    config: &Config,
-) {
+pub fn process_stmt_early(stmt: &mut Stmt, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
     // @early stmt calls. Do not remove this comment!
     run_early_lint_on_stmt::<CasingRules>(stmt, config, reports);
     run_early_lint_on_stmt::<CollapsableIf>(stmt, config, reports);
@@ -60,8 +58,8 @@ pub fn process_stmt_early(
 
     // Recurse...
     let stmt = stmt.inner_mut();
-    stmt.visit_child_stmts_mut(|stmt| process_stmt_early(stmt, scope_builder, reports, config));
-    stmt.visit_child_exprs_mut(|expr| process_expr_early(expr, scope_builder, reports, config));
+    stmt.visit_child_stmts_mut(|stmt| process_stmt_early(stmt, reports, config));
+    stmt.visit_child_exprs_mut(|expr| process_expr_early(expr, reports, config));
 }
 
 /// Runs an expression through the early pass, running any lint that
@@ -70,12 +68,7 @@ pub fn process_stmt_early(
 ///
 /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
 /// more information.
-pub fn process_expr_early(
-    expr: &mut Expr,
-    scope_builder: &mut GlobalScopeBuilder,
-    reports: &mut Vec<Diagnostic<FileId>>,
-    config: &Config,
-) {
+pub fn process_expr_early(expr: &mut Expr, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
     // @early expr calls. Do not remove this comment!
     run_early_lint_on_expr::<AccessorAlternative>(expr, config, reports);
     run_early_lint_on_expr::<AndPreference>(expr, config, reports);
@@ -102,8 +95,8 @@ pub fn process_expr_early(
     // @end early expr calls. Do not remove this comment!
 
     // Recurse...
-    expr.visit_child_stmts_mut(|stmt| process_stmt_early(stmt, scope_builder, reports, config));
-    expr.visit_child_exprs_mut(|expr| process_expr_early(expr, scope_builder, reports, config));
+    expr.visit_child_stmts_mut(|stmt| process_stmt_early(stmt, reports, config));
+    expr.visit_child_exprs_mut(|expr| process_expr_early(expr, reports, config));
 }
 
 /// Runs a [Stmt] through the late pass, running any lint that
@@ -111,20 +104,15 @@ pub fn process_expr_early(
 ///
 /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
 /// more information.
-pub fn process_stmt_late(
-    stmt: &Stmt,
-    global_scope: &GlobalScope,
-    reports: &mut Vec<Diagnostic<FileId>>,
-    config: &Config,
-) {
+pub fn process_stmt_late(stmt: &Stmt, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
     // @late stmt calls. Do not remove this comment!
-    run_late_lint_on_stmt::<MissingCaseMember>(stmt, config, reports, global_scope);
+    run_late_lint_on_stmt::<MissingCaseMember>(stmt, config, reports);
     // @end late stmt calls. Do not remove this comment!
 
     // Recurse...
     let stmt = stmt.inner();
-    stmt.visit_child_stmts(|stmt| process_stmt_late(stmt, global_scope, reports, config));
-    stmt.visit_child_exprs(|expr| process_expr_late(expr, global_scope, reports, config));
+    stmt.visit_child_stmts(|stmt| process_stmt_late(stmt, reports, config));
+    stmt.visit_child_exprs(|expr| process_expr_late(expr, reports, config));
 }
 
 /// Runs an expression through the late pass, running any lint that
@@ -132,14 +120,14 @@ pub fn process_stmt_late(
 ///
 ///  NOTE: This function is largely auto-generated! See `CONTRIBUTING.md`
 /// for more information.
-fn process_expr_late(expr: &Expr, global_scope: &GlobalScope, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
+fn process_expr_late(expr: &Expr, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
     // @late expr calls. Do not remove this comment!
-    run_late_lint_on_expr::<NonConstantDefaultParameter>(expr, config, reports, global_scope);
+    run_late_lint_on_expr::<NonConstantDefaultParameter>(expr, config, reports);
     // @end late expr calls. Do not remove this comment!
 
     // Recurse...
-    expr.visit_child_stmts(|stmt| process_stmt_late(stmt, global_scope, reports, config));
-    expr.visit_child_exprs(|expr| process_expr_late(expr, global_scope, reports, config));
+    expr.visit_child_stmts(|stmt| process_stmt_late(stmt, reports, config));
+    expr.visit_child_exprs(|expr| process_expr_late(expr, reports, config));
 }
 
 /// Performs a given [EarlyStmtPass] on a statement.
@@ -173,34 +161,24 @@ fn run_early_lint_on_expr<T: Lint + EarlyExprPass>(
 }
 
 /// Performs a given [LateStmtPass] on a statement.
-fn run_late_lint_on_stmt<T: Lint + LateStmtPass>(
-    stmt: &Stmt,
-    config: &Config,
-    reports: &mut Vec<Diagnostic<FileId>>,
-    global_scope: &GlobalScope,
-) {
+fn run_late_lint_on_stmt<T: Lint + LateStmtPass>(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
     if stmt
         .lint_tag()
         .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
-        T::visit_stmt_late(stmt, config, reports, global_scope);
+        T::visit_stmt_late(stmt, config, reports);
     }
 }
 
 /// Performs a given [LateExprPass] on a statement.
-fn run_late_lint_on_expr<T: Lint + LateExprPass>(
-    expr: &Expr,
-    config: &Config,
-    reports: &mut Vec<Diagnostic<FileId>>,
-    global_scope: &GlobalScope,
-) {
+fn run_late_lint_on_expr<T: Lint + LateExprPass>(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
     if expr
         .lint_tag()
         .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
-        T::visit_expr_late(expr, config, reports, global_scope);
+        T::visit_expr_late(expr, config, reports);
     }
 }
 
@@ -306,41 +284,31 @@ pub fn start_parse(
 pub fn start_early_pass(
     config: Arc<Config>,
     mut ast_receiever: Receiver<Ast>,
-) -> (Receiver<EarlyPassEntry>, JoinHandle<()>) {
-    let (early_pass_sender, early_pass_receiver) = channel::<EarlyPassEntry>(1000);
+) -> (
+    Receiver<Stmt>,
+    Sender<Vec<Diagnostic<FileId>>>,
+    Receiver<Vec<Diagnostic<FileId>>>,
+    JoinHandle<()>,
+) {
+    let (report_sender, report_receiver) = channel::<Vec<Diagnostic<FileId>>>(1000);
+    let (stmt_sender, stmt_reciever) = channel::<Stmt>(1000);
+    let sender = report_sender.clone();
     let handle = tokio::task::spawn(async move {
+        let mut solver = Solver::default();
         while let Some(ast) = ast_receiever.recv().await {
             let config = config.clone();
-            let sender = early_pass_sender.clone();
-            tokio::task::spawn(async move {
-                for mut stmt in ast.unpack() {
-                    let mut scope_builder = GlobalScopeBuilder::new();
-                    let mut reports = vec![];
-                    process_stmt_early(&mut stmt, &mut scope_builder, &mut reports, config.as_ref());
-                    sender.send((stmt, scope_builder, reports)).await.unwrap();
-                }
-            });
+            if let Err(errors) = solver.process_statements(ast.stmts()) {
+                sender.send(errors).await.unwrap();
+            }
+            for mut stmt in ast.unpack() {
+                let mut reports = vec![];
+                process_stmt_early(&mut stmt, &mut reports, config.as_ref());
+                stmt_sender.send(stmt).await.unwrap();
+                sender.send(reports).await.unwrap();
+            }
         }
     });
-    (early_pass_receiver, handle)
-}
-
-/// Creates a Tokio task that will await [StmtIteration]s through
-/// `early_pass_receiever` and construct their [GlobalScopeBuilder]s into one
-/// singular [GlobalScope], returning it once complete, as well as a Vec
-/// of all statements still needing a second pass.
-pub fn start_environment_assembly(
-    mut early_pass_receiever: Receiver<EarlyPassEntry>,
-) -> JoinHandle<(Vec<LatePassEntry>, GlobalScope)> {
-    tokio::task::spawn(async move {
-        let mut pass_two_queue = vec![];
-        let mut global_scope = GlobalScope::new();
-        while let Some((stmt, scope_builder, reports)) = early_pass_receiever.recv().await {
-            global_scope.drain(scope_builder);
-            pass_two_queue.push((stmt, reports));
-        }
-        (pass_two_queue, global_scope)
-    })
+    (stmt_reciever, report_sender, report_receiver, handle)
 }
 
 /// Creates Tokio tasks for all of the provided `StmtIteration`s,
@@ -351,30 +319,25 @@ pub fn start_environment_assembly(
 /// Panics if the receiver for the sender closes. This should not be possible!
 pub fn start_late_pass(
     config: Arc<Config>,
-    iterations: Vec<LatePassEntry>,
-    global_environemnt: GlobalScope,
+    mut stmt_receiver: Receiver<Stmt>,
+    report_sender: Sender<Vec<Diagnostic<FileId>>>,
+    mut report_receiver: Receiver<Vec<Diagnostic<FileId>>>,
 ) -> JoinHandle<Vec<Diagnostic<FileId>>> {
-    let (lint_report_sender, mut lint_report_reciever) = channel::<Vec<Diagnostic<FileId>>>(1000);
-    let global_environment = Arc::new(global_environemnt);
-    for (stmt, mut lint_reports) in iterations {
-        let sender = lint_report_sender.clone();
-        let config = config.clone();
-        let global_environment = global_environment.clone();
-        tokio::task::spawn(async move {
-            process_stmt_late(&stmt, global_environment.as_ref(), &mut lint_reports, config.as_ref());
-            sender.send(lint_reports).await.unwrap();
-        });
-    }
+    tokio::task::spawn(async move {
+        while let Some(stmt) = stmt_receiver.recv().await {
+            let config = config.clone();
+            let mut reports = vec![];
+            process_stmt_late(&stmt, &mut reports, config.as_ref());
+            report_sender.send(reports).await.unwrap();
+        }
+    });
     tokio::task::spawn(async move {
         let mut lint_reports = vec![];
-        while let Some(mut reports) = lint_report_reciever.recv().await {
+        while let Some(mut reports) = report_receiver.recv().await {
             lint_reports.append(&mut reports);
         }
         lint_reports
     })
 }
 
-/// An individual statement's data to be sent to the early pass.
-pub type EarlyPassEntry = (Stmt, GlobalScopeBuilder, Vec<Diagnostic<FileId>>);
-/// An individual statement's data to be sent to the late pass.
-pub type LatePassEntry = (Stmt, Vec<Diagnostic<FileId>>);
+pub type Pass = (Stmt, Vec<Diagnostic<FileId>>);

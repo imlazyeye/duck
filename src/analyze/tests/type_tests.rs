@@ -190,6 +190,16 @@ test_var_type!(
     bar = foo();",
     bar: Real
 );
+test_var_type!(
+    return_nested_return,
+    "function foo() {
+        return function bar() {
+            return 0;
+        }
+    }",
+    foo: function!(() => function!(() => Real))
+);
+
 // This one will require traits! (Returns<T> in particular)
 test_expr_type!(
     infer_function_in_parameters,
@@ -394,6 +404,12 @@ test_var_type!(
     }
     var bar = wrapper();",
     bar: Real,
+);
+test_var_type!(
+    enum_promise,
+    "self.foo = Fizz.Buzz;
+    enum Fizz { Buzz }",
+    foo: Real,
 );
 
 // Stress tests

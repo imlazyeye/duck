@@ -12,6 +12,7 @@ pub struct Solver {
     pub subs: HashMap<Var, Ty>,
     self_stack: Vec<Var>,
     local_stack: Vec<Var>,
+    return_stack: Vec<Var>,
 }
 
 // General
@@ -75,21 +76,31 @@ impl Solver {
         var
     }
 
-    pub fn check_promises(&self) -> Result<(), Vec<TypeError>> {
-        let errors: Vec<TypeError> = self
+    pub fn check_promises(&mut self) -> Result<(), Vec<TypeError>> {
+        let mut errors: Vec<TypeError> = vec![];
+        for record in self
             .subs
-            .iter()
+            .clone() // UH OH
+            .iter_mut()
             .filter_map(|(_, ty)| if let Ty::Record(r) = ty { Some(r) } else { None })
-            .flat_map(|v| {
-                v.fields.iter().filter_map(|(name, field)| {
-                    if field.promise_pending() {
-                        Some(duck_error_unwrapped!("Unrecognized variable: {name}"))
-                    } else {
-                        None
+        {
+            for (name, field) in record.fields.iter_mut() {
+                if field.promise_pending() {
+                    // If this promise is still pending, it means the record never recieved a definition. It's
+                    // possible that the global scope contains a value though...
+                    // lol but what if this is FROM the global scope dummy
+                    if let Some(global_field) = self.global_scope().clone().get_mut(&name) {
+                        if !global_field.promise_pending() {
+                            if let Err(e) = self.unify_tys(field.ty_mut(), global_field.ty_mut()) {
+                                errors.push(e);
+                            }
+                            continue;
+                        }
                     }
-                })
-            })
-            .collect();
+                    errors.push(duck_error_unwrapped!("Unrecognized variable: {name}"))
+                }
+            }
+        }
         if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
 }
@@ -138,7 +149,7 @@ impl Solver {
 
     pub fn self_scope(&self) -> &Record {
         self.subs
-            .get(&self.current_self_var())
+            .get(&self.self_var())
             .and_then(|ty| match ty {
                 Ty::Record(record) => Some(record),
                 _ => None,
@@ -148,16 +159,19 @@ impl Solver {
 
     pub fn self_scope_mut(&mut self) -> &mut Record {
         self.subs
-            .get_mut(&self.current_self_var())
+            .get_mut(&self.self_var())
             .and_then(|ty| match ty {
                 Ty::Record(record) => Some(record),
-                _ => None,
+                ty => {
+                    println!("foo: {}", Printer::ty(&ty));
+                    None
+                }
             })
             .unwrap_or_else(|| unreachable!())
     }
 
     pub fn enter_new_constructor_scope(&mut self) -> Var {
-        let var = Var::Scope(rand::random());
+        let var = Var::Generated(rand::random());
         self.subs.insert(var, Ty::Record(Record::extendable()));
         self.enter_self_scope(var);
         var
@@ -223,7 +237,7 @@ impl Solver {
                                          * todo: we don't support the physics system */
             )
         };
-        let var = Var::Scope(rand::random());
+        let var = Var::Generated(rand::random());
         self.subs.insert(var, record);
         self.enter_self_scope(var);
         var
@@ -234,26 +248,44 @@ impl Solver {
     }
 
     pub fn enter_new_local_scope(&mut self) -> Var {
-        let var = Var::Scope(rand::random());
+        let var = Var::Generated(rand::random());
         self.subs.insert(var, Ty::Record(Record::extendable()));
         self.local_stack.push(var);
         var
     }
 
+    pub fn enter_new_return_body(&mut self) -> Var {
+        let var = Var::Generated(rand::random());
+        self.subs.insert(var, Ty::Null);
+        self.return_stack.push(var);
+        var
+    }
+
     pub fn depart_self_scope(&mut self) {
-        self.self_stack.pop().expect("Cannot depart the root scope!");
+        self.self_stack.pop();
+        assert!(!self.self_stack.is_empty(), "Cannot depart the root scope!");
     }
 
     pub fn depart_local_scope(&mut self) {
-        self.local_stack.pop().expect("Cannot depart the root scope!");
+        self.local_stack.pop();
+        assert!(!self.self_stack.is_empty(), "Cannot depart the root scope!");
     }
 
-    pub fn current_self_var(&self) -> Var {
+    pub fn retrieve_return_value(&mut self) -> Result<Ty, TypeError> {
+        let var = self.return_stack.pop().unwrap_or_else(|| unreachable!());
+        self.resolve_var(&var)
+    }
+
+    pub fn self_var(&self) -> Var {
         *self.self_stack.last().unwrap()
     }
 
     pub fn local_var(&self) -> Var {
         *self.local_stack.last().unwrap()
+    }
+
+    pub fn return_var(&self) -> Var {
+        *self.return_stack.last().unwrap()
     }
 }
 
@@ -263,10 +295,12 @@ impl Default for Solver {
             subs: HashMap::default(),
             self_stack: vec![],
             local_stack: vec![],
+            return_stack: vec![],
         };
         solver.new_substitution(GLOBAL_SCOPE_VAR, Ty::Record(Record::extendable()));
         solver.self_stack.push(GLOBAL_SCOPE_VAR);
         solver.enter_new_local_scope();
+        solver.enter_new_return_body();
         solver
     }
 }
@@ -276,8 +310,7 @@ pub type TypeError = Diagnostic<FileId>;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum Var {
     Expr(ExprId),
-    Scope(u64),
-    Return,
+    Generated(u64),
 }
 
-const GLOBAL_SCOPE_VAR: Var = Var::Scope(u64::MAX);
+const GLOBAL_SCOPE_VAR: Var = Var::Generated(u64::MAX);

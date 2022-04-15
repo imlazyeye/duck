@@ -1,4 +1,4 @@
-use crate::test_failure;
+use crate::{test_failure, test_success};
 
 pub use super::*;
 

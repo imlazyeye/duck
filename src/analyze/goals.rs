@@ -89,11 +89,12 @@ impl Solver {
                     .commit(self)?;
             }
             StmtType::Return(Return { value }) => {
+                let return_var = self.return_var();
                 if let Some(value) = value {
                     let mut ty = self.canonize(value)?;
-                    self.unify_tys(&mut ty, &mut Ty::Var(Var::Return))?;
+                    self.unify_tys(&mut ty, &mut Ty::Var(return_var))?;
                 } else {
-                    self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(Var::Return))?;
+                    self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(return_var))?;
                 }
             }
             StmtType::WithLoop(WithLoop { .. }) => {
@@ -324,17 +325,8 @@ impl Solver {
                 self.expr_eq_expr(expr, inner)?;
             }
 
-            ExprType::Identifier(iden) => {
-                let ty = self.canonize(expr)?;
-                let origin = self.local_var();
-                let scope = if self.local_scope().contains(&iden.lexeme) {
-                    self.local_scope_mut()
-                } else {
-                    self.self_scope_mut()
-                };
-                scope
-                    .apply_field(&iden.lexeme, Field::read(ty, expr.location(), origin))?
-                    .commit(self)?;
+            ExprType::Identifier(_) => {
+                self.canonize(expr)?;
             }
             ExprType::Literal(literal) => {
                 let ty = match literal {
@@ -365,16 +357,19 @@ impl Solver {
     }
 
     fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<(), TypeError> {
-        let expr_ty = self.canonize(expr)?;
-        println!(
-            "\n--- Entering function ({}: {})... ---\n",
-            if let Some(name) = &function.name {
-                &name.lexeme
-            } else {
-                "anon"
-            },
-            Printer::ty(&expr_ty)
-        );
+        #[cfg(test)]
+        {
+            let expr_ty = self.canonize(expr)?;
+            println!(
+                "\n--- Entering function ({}: {})... ---\n",
+                if let Some(name) = &function.name {
+                    &name.lexeme
+                } else {
+                    "anon"
+                },
+                Printer::ty(&expr_ty)
+            );
+        }
         let binding = if let Some(constructor) = function.constructor.as_ref() {
             Binding::Constructor {
                 local_scope: self.enter_new_local_scope(),
@@ -393,7 +388,7 @@ impl Solver {
         } else {
             Binding::Method {
                 local_scope: self.enter_new_local_scope(),
-                self_scope: self.current_self_var(),
+                self_scope: self.self_var(),
             }
         };
 
@@ -413,18 +408,26 @@ impl Solver {
                 .commit(self)?;
             parameters.push(ty);
         }
+        self.enter_new_return_body();
         if let Err(errs) = &mut self.process_statements(function.body_stmts()) {
             return Err(errs.pop().unwrap()); // todo
         }
 
         self.depart_local_scope();
         let return_type = if function.constructor.is_some() {
-            let ret = self.resolve_var(&self.current_self_var())?;
+            let _ = self.retrieve_return_value()?;
+            let ret = self.resolve_var(&self.self_var())?;
             self.depart_self_scope();
             Box::new(ret)
         } else {
-            Box::new(self.subs.remove(&Var::Return).unwrap_or(Ty::Undefined))
+            let ty = self.retrieve_return_value()?;
+            if ty == Ty::Null {
+                Box::new(Ty::Undefined)
+            } else {
+                Box::new(ty)
+            }
         };
+        #[cfg(test)]
         println!("\n--- Exiting function... ---\n");
 
         // Create the new definition
@@ -437,6 +440,7 @@ impl Solver {
         // Do we already have a call placed on us?
         let expr_var = self.var_for_expr(expr);
         if let Ok(mut expr_ty) = self.resolve_var(&expr_var) {
+            #[cfg(test)]
             println!("--- Resolving a previous definition... ---\n");
             self.unify_tys(&mut ty, &mut expr_ty)?;
         }

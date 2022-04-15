@@ -39,21 +39,27 @@ impl Record {
         self.fields.get(key)
     }
 
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut Field> {
+        self.fields.get_mut(key)
+    }
+
     pub fn set_state(&mut self, state: State) {
         self.state = state;
     }
 
-    pub fn apply_field(&mut self, name: &str, field: Field) -> Result<FieldOp, TypeError> {
+    pub fn apply_field(&mut self, name: &str, mut field: Field) -> Result<FieldOp, TypeError> {
         if let Some(registered_field) = self.fields.get_mut(name) {
             // Ensure the registered field is mutable
             if !registered_field.mutable && field.op == RecordOp::Write {
                 return duck_error!("Attempted to write to an immutable value: {name}");
             }
 
-            // The registered field is now safe
+            // If the registered field has a pending promise, we can fulfill it on the following conditions
+            // 1. The incoming field is a write operation
+            // 2. The incoming field comes from a different origin, UNLESS the incoming field is a constant
             if registered_field.promise_pending
                 && field.op == RecordOp::Write
-                && registered_field.origin != field.origin
+                && (registered_field.origin != field.origin || !field.mutable)
             {
                 registered_field.promise_pending = false;
             }
@@ -69,16 +75,30 @@ impl Record {
                 })
             }
         } else {
-            let can_extend = match self.state {
-                State::Inferred => true,
-                State::Extendable => field.op == RecordOp::Write,
-                State::Concrete => false,
+            match self.state {
+                State::Inferred => {
+                    self.fields.insert(name.into(), field);
+                }
+                State::Extendable => {
+                    if field.op == RecordOp::Read {
+                        field.promise_pending = true;
+                    }
+                    self.fields.insert(name.into(), field);
+                }
+                _ => {
+                    return Err(codespan_reporting::diagnostic::Diagnostic::error()
+                        .with_message(format!(
+                            "Attempted to declare {name} into the registry after it had been locked.",
+                        ))
+                        .with_labels(vec![codespan_reporting::diagnostic::Label::primary(
+                            field.location.0,
+                            field.location.1,
+                        )]));
+                }
             };
-            if can_extend {
-                self.fields.insert(name.into(), field);
-            } else {
-                return duck_error!("Attempted to declare `{name}` into the registry after it had been locked.");
-            }
+
+            // return duck_error!("Attempted to declare `{name}` into the registry after it had
+            // been locked.");
             Ok(FieldOp::NewValue)
         }
     }
@@ -161,6 +181,11 @@ impl Field {
     pub fn promise_pending(&self) -> bool {
         self.promise_pending
     }
+
+    /// Get the field's origin.
+    pub fn origin(&self) -> Var {
+        self.origin
+    }
 }
 
 #[must_use]
@@ -206,7 +231,7 @@ pub struct Promise(Var);
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum State {
-    /// A generic record inferred from context.
+    /// A generic recred from context.
     Inferred,
     /// A record that can have new fields added to it.
     Extendable,
