@@ -3,7 +3,7 @@ use colored::Colorize;
 
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{ExprType, Function, Stmt, StmtType},
+    parse::{ExprKind, Function, Stmt, StmtKind},
     Config, FileId,
 };
 
@@ -25,8 +25,8 @@ impl Lint for UselessFunction {
 
 impl EarlyStmtPass for UselessFunction {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::Expr(expr) = stmt.inner() {
-            if let ExprType::Function(Function { name: None, .. }) = expr.inner() {
+        if let StmtKind::Expr(expr) = stmt.inner() {
+            if let ExprKind::Function(Function { name: None, .. }) = expr.inner() {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Useless function")

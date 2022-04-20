@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Equality, EqualityOp, Expr, ExprType, Literal},
+    parse::{Equality, EqualityOp, Expr, ExprKind, Literal},
     Config, FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for BoolEquality {
 
 impl EarlyExprPass for BoolEquality {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Equality(Equality {
+        if let ExprKind::Equality(Equality {
             left,
             op: EqualityOp::Equal(token),
             right,

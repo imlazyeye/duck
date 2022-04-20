@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{Stmt, StmtType, Switch},
+    parse::{Stmt, StmtKind, Switch},
     FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for SingleSwitchCase {
 
 impl EarlyStmtPass for SingleSwitchCase {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::Switch(Switch {
+        if let StmtKind::Switch(Switch {
             cases, default_case, ..
         }) = stmt.inner()
         {

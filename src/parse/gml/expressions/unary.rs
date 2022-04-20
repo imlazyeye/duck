@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of a unary operation in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -14,7 +14,7 @@ impl Unary {
         Self { op, right }
     }
 }
-impl From<Unary> for ExprType {
+impl From<Unary> for ExprKind {
     fn from(unary: Unary) -> Self {
         Self::Unary(unary)
     }

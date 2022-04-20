@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, OptionalInitilization, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, OptionalInitilization, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a local variable declaration.
 ///
@@ -15,7 +15,7 @@ impl LocalVariableSeries {
         Self { declarations }
     }
 }
-impl From<LocalVariableSeries> for StmtType {
+impl From<LocalVariableSeries> for StmtKind {
     fn from(series: LocalVariableSeries) -> Self {
         Self::LocalVariableSeries(series)
     }

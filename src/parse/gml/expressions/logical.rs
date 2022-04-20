@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of an logical expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -16,7 +16,7 @@ impl Logical {
         Self { left, op, right }
     }
 }
-impl From<Logical> for ExprType {
+impl From<Logical> for ExprKind {
     fn from(logical: Logical) -> Self {
         Self::Logical(logical)
     }

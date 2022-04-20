@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{Access, Assignment, ExprType, Globalvar, Stmt, StmtType},
+    parse::{Access, Assignment, ExprKind, Globalvar, Stmt, StmtKind},
     FileId,
 };
 
@@ -25,8 +25,8 @@ impl Lint for Global {
 impl EarlyStmtPass for Global {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match stmt.inner() {
-            StmtType::Assignment(Assignment { left, .. }) => {
-                if let ExprType::Access(Access::Global { .. }) = left.inner() {
+            StmtKind::Assignment(Assignment { left, .. }) => {
+                if let ExprKind::Access(Access::Global { .. }) = left.inner() {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Use of global variable")
@@ -37,7 +37,7 @@ impl EarlyStmtPass for Global {
                     );
                 }
             }
-            StmtType::GlobalvarDeclaration(Globalvar { .. }) => {
+            StmtKind::GlobalvarDeclaration(Globalvar { .. }) => {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Use of global variable")

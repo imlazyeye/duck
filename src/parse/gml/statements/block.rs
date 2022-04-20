@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType, Token};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind, Token};
 
 /// Representation of a block (group of statements) in gml.
 ///
@@ -27,7 +27,7 @@ impl Block {
         )
     }
 }
-impl From<Block> for StmtType {
+impl From<Block> for StmtKind {
     fn from(block: Block) -> Self {
         Self::Block(block)
     }

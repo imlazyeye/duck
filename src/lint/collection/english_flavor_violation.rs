@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Call, Expr, ExprType},
+    parse::{Call, Expr, ExprKind},
     EnglishFlavor, FileId,
 };
 
@@ -27,8 +27,8 @@ impl Lint for EnglishFlavorViolation {
 impl EarlyExprPass for EnglishFlavorViolation {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         let english_flavor = &config.english_flavor;
-        if let ExprType::Call(Call { left, .. }) = expr.inner() {
-            if let ExprType::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
+            if let ExprKind::Identifier(identifier) = left.inner() {
                 match english_flavor {
                     EnglishFlavor::American => {
                         if let Some(american_spelling) =

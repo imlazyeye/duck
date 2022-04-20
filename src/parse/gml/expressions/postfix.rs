@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of a postfix operation in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -14,7 +14,7 @@ impl Postfix {
         Self { op, left }
     }
 }
-impl From<Postfix> for ExprType {
+impl From<Postfix> for ExprKind {
     fn from(postfix: Postfix) -> Self {
         Self::Postfix(postfix)
     }

@@ -6,7 +6,7 @@ macro_rules! stmt_test {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let expected: StmtType = $expected.into();
+            let expected: StmtKind = $expected.into();
             let mut parser = Parser::new_with_default_ids($source, 0);
             let outputed = parser.stmt().unwrap();
             assert_eq!(*outputed.inner(), expected, "`{}` failed!", $source)
@@ -129,7 +129,7 @@ stmt_test!(
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
-        StmtType::Expr(
+        StmtKind::Expr(
             Postfix::new(
                 Identifier::lazy("i").into_expr_lazy(),
                 PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
@@ -259,7 +259,7 @@ stmt_test!(
         Identifier::lazy("foo").into_expr_lazy(),
         vec![SwitchCase::new(
             Identifier::lazy("bar").into_expr_lazy(),
-            vec![StmtType::Break.into_stmt_lazy()],
+            vec![StmtKind::Break.into_stmt_lazy()],
         )],
         None,
     )
@@ -274,7 +274,7 @@ stmt_test!(
             SwitchCase::new(Identifier::lazy("bar").into_expr_lazy(), vec![]),
             SwitchCase::new(
                 Identifier::lazy("baz").into_expr_lazy(),
-                vec![StmtType::Break.into_stmt_lazy()],
+                vec![StmtKind::Break.into_stmt_lazy()],
             ),
         ],
         None,
@@ -287,7 +287,7 @@ stmt_test!(
     Switch::new(
         Identifier::lazy("foo").into_expr_lazy(),
         vec![],
-        Some(vec![StmtType::Break.into_stmt_lazy()]),
+        Some(vec![StmtKind::Break.into_stmt_lazy()]),
     )
 );
 
@@ -322,11 +322,11 @@ stmt_test!(
     Delete::new(Identifier::lazy("foo").into_expr_lazy())
 );
 
-stmt_test!(break_stmt, "break;", StmtType::Break);
+stmt_test!(break_stmt, "break;", StmtKind::Break);
 
-stmt_test!(exit, "exit;", StmtType::Exit);
+stmt_test!(exit, "exit;", StmtKind::Exit);
 
-stmt_test!(excess_semicolons, "exit;;;", StmtType::Exit);
+stmt_test!(excess_semicolons, "exit;;;", StmtKind::Exit);
 
 stmt_test!(
     assign,
@@ -411,7 +411,7 @@ stmt_test!(
     dot_assign,
     "self.foo = 1",
     Assignment::new(
-        Access::Current {
+        Access::Identity {
             right: Identifier::lazy("foo"),
         }
         .into_expr_lazy(),

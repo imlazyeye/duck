@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Span, Stmt, Token, TokenType};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Span, Stmt, Token, TokenType};
 
 /// Representation of a grouping in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -28,7 +28,7 @@ impl Grouping {
         &self.tokens
     }
 }
-impl From<Grouping> for ExprType {
+impl From<Grouping> for ExprKind {
     fn from(grouping: Grouping) -> Self {
         Self::Grouping(grouping)
     }

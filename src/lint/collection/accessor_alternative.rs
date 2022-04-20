@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Call, Expr, ExprType, Literal},
+    parse::{Call, Expr, ExprKind, Literal},
     Config, FileId,
 };
 
@@ -24,8 +24,8 @@ impl Lint for AccessorAlternative {
 
 impl EarlyExprPass for AccessorAlternative {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Call(Call { left, arguments, .. }) = expr.inner() {
-            if let ExprType::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, arguments, .. }) = expr.inner() {
+            if let ExprKind::Identifier(identifier) = left.inner() {
                 reports.push(match identifier.lexeme.as_ref() {
                     "ds_list_find_value" => Self::diagnostic(config)
                         .with_message("Use of `ds_list_find_value`")
@@ -58,7 +58,7 @@ impl EarlyExprPass for AccessorAlternative {
                             Some(arg_one_box) => {
                                 match arg_one_box.inner() {
                                     // If the string literal contains a valid lexeme, then they could use dot access
-                                    ExprType::Literal(Literal::String(string))
+                                    ExprKind::Literal(Literal::String(string))
                                         if string.chars().all(|v| v.is_alphanumeric() || v == '_') =>
                                     {
                                         Self::diagnostic(config)

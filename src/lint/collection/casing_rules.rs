@@ -1,7 +1,7 @@
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
-        Access, Expr, ExprType, Function, Globalvar, Identifier, Literal, LocalVariableSeries, Macro, Stmt, StmtType,
+        Access, Expr, ExprKind, Function, Globalvar, Identifier, Literal, LocalVariableSeries, Macro, Stmt, StmtKind,
     },
     Casing, Config, FileId,
 };
@@ -47,7 +47,7 @@ impl CasingRules {
 impl EarlyExprPass for CasingRules {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<crate::FileId>>) {
         match expr.inner() {
-            ExprType::Enum(gml_enum) => {
+            ExprKind::Enum(gml_enum) => {
                 Self::check_for(
                     &gml_enum.name,
                     config.casing_rules.enum_rule,
@@ -65,10 +65,10 @@ impl EarlyExprPass for CasingRules {
                     );
                 }
             }
-            ExprType::Macro(Macro { name, .. }) => {
+            ExprKind::Macro(Macro { name, .. }) => {
                 Self::check_for(name, config.casing_rules.macro_rule, expr.file_id(), config, reports)
             }
-            ExprType::Function(Function {
+            ExprKind::Function(Function {
                 name: Some(name),
                 constructor: Some(_),
                 ..
@@ -79,12 +79,12 @@ impl EarlyExprPass for CasingRules {
                 config,
                 reports,
             ),
-            ExprType::Function(Function {
+            ExprKind::Function(Function {
                 name: Some(name),
                 constructor: None,
                 ..
             }) => Self::check_for(name, config.casing_rules.function_rule, expr.file_id(), config, reports),
-            ExprType::Literal(Literal::Struct(members)) => {
+            ExprKind::Literal(Literal::Struct(members)) => {
                 for member in members {
                     // an infuriating exception because gm itself is not consistent
                     if member.0.lexeme == "toString" {
@@ -99,7 +99,7 @@ impl EarlyExprPass for CasingRules {
                     );
                 }
             }
-            ExprType::Access(Access::Global { right, .. }) => {
+            ExprKind::Access(Access::Global { right, .. }) => {
                 Self::check_for(right, config.casing_rules.global_rule, expr.file_id(), config, reports);
             }
             _ => {}
@@ -110,10 +110,10 @@ impl EarlyExprPass for CasingRules {
 impl EarlyStmtPass for CasingRules {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match stmt.inner() {
-            StmtType::GlobalvarDeclaration(Globalvar { name }) => {
+            StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
                 Self::check_for(name, config.casing_rules.global_rule, stmt.file_id(), config, reports)
             }
-            StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) => {
+            StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for member in declarations.iter() {
                     Self::check_for(
                         member.name_identifier(),

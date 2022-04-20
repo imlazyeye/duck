@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Expr, ExprType, TokenType, Unary, UnaryOp},
+    parse::{Expr, ExprKind, TokenType, Unary, UnaryOp},
     Config, FileId,
 };
 
@@ -23,7 +23,7 @@ impl Lint for NotPreference {
 }
 impl EarlyExprPass for NotPreference {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Unary(Unary {
+        if let ExprKind::Unary(Unary {
             op: UnaryOp::Not(token),
             ..
         }) = expr.inner()

@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 
 use super::Identifier;
 
@@ -27,7 +27,7 @@ pub enum Literal {
     Misc(String),
 }
 
-impl From<Literal> for ExprType {
+impl From<Literal> for ExprKind {
     fn from(literal: Literal) -> Self {
         Self::Literal(literal)
     }

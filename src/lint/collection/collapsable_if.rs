@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{If, Stmt, StmtType},
+    parse::{If, Stmt, StmtKind},
     Config, FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for CollapsableIf {
 
 impl EarlyStmtPass for CollapsableIf {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::If(If {
+        if let StmtKind::If(If {
             body: first_body,
             else_stmt: None,
             ..
@@ -32,7 +32,7 @@ impl EarlyStmtPass for CollapsableIf {
         {
             if let Some(block) = first_body.inner().as_block().filter(|block| block.body.len() == 1) {
                 let nested_stmt = block.body.first().unwrap();
-                if let StmtType::If(If { else_stmt: None, .. }) = nested_stmt.inner() {
+                if let StmtKind::If(If { else_stmt: None, .. }) = nested_stmt.inner() {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Collapsable if statement")

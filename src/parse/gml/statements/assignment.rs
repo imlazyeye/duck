@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType, Token};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind, Token};
 
 /// Representation of an assignment statement in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -16,7 +16,7 @@ impl Assignment {
         Self { left, op, right }
     }
 }
-impl From<Assignment> for StmtType {
+impl From<Assignment> for StmtKind {
     fn from(assignment: Assignment) -> Self {
         Self::Assignment(assignment)
     }

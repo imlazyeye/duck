@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of a equality expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -16,7 +16,7 @@ impl Equality {
         Self { left, op, right }
     }
 }
-impl From<Equality> for ExprType {
+impl From<Equality> for ExprKind {
     fn from(equality: Equality) -> Self {
         Self::Equality(equality)
     }

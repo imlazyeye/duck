@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a with loop in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -14,7 +14,7 @@ impl WithLoop {
         Self { identity, body }
     }
 }
-impl From<WithLoop> for StmtType {
+impl From<WithLoop> for StmtKind {
     fn from(with_loop: WithLoop) -> Self {
         Self::WithLoop(with_loop)
     }

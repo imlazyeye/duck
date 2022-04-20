@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of a null coalecence evaluation in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -14,7 +14,7 @@ impl NullCoalecence {
         Self { left, right }
     }
 }
-impl From<NullCoalecence> for ExprType {
+impl From<NullCoalecence> for ExprKind {
     fn from(null: NullCoalecence) -> Self {
         Self::NullCoalecence(null)
     }

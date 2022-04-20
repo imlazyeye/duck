@@ -1,4 +1,4 @@
-use crate::parse::{Access, Expr, ExprType, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Access, Expr, ExprKind, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a gml switch statement.
 #[derive(Debug, PartialEq, Clone)]
@@ -26,7 +26,7 @@ impl Switch {
         !self
             .cases
             .iter()
-            .any(|case| !matches!(case.identity().inner(), ExprType::Access(Access::Dot { .. },)))
+            .any(|case| !matches!(case.identity().inner(), ExprKind::Access(Access::Dot { .. },)))
     }
 
     /// Returns the name of the enum this switch statement matches over, if any.
@@ -64,7 +64,7 @@ impl Switch {
         self.default_case.as_ref()
     }
 }
-impl From<Switch> for StmtType {
+impl From<Switch> for StmtKind {
     fn from(switch: Switch) -> Self {
         Self::Switch(switch)
     }

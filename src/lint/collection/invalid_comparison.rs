@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Expr, ExprType, Logical},
+    parse::{Expr, ExprKind, Logical},
     Config, FileId,
 };
 
@@ -23,7 +23,7 @@ impl Lint for InvalidComparison {
 }
 impl InvalidComparison {
     fn test_expr(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        let is_valid = !matches!(expr.inner(), ExprType::Function(_));
+        let is_valid = !matches!(expr.inner(), ExprKind::Function(_));
         if !is_valid {
             reports.push(
                 Self::diagnostic(config)
@@ -39,7 +39,7 @@ impl InvalidComparison {
 
 impl EarlyExprPass for InvalidComparison {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Logical(Logical { left, right, .. }) = expr.inner() {
+        if let ExprKind::Logical(Logical { left, right, .. }) = expr.inner() {
             Self::test_expr(left, config, reports);
             Self::test_expr(right, config, reports);
         }

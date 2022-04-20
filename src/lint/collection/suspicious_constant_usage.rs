@@ -3,8 +3,8 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
-        Assignment, AssignmentOp, Equality, EqualityOp, Evaluation, EvaluationOp, Expr, ExprType, Literal, Logical,
-        LogicalOp, Stmt, StmtType,
+        Assignment, AssignmentOp, Equality, EqualityOp, Evaluation, EvaluationOp, Expr, ExprKind, Literal, Logical,
+        LogicalOp, Stmt, StmtKind,
     },
     FileId,
 };
@@ -42,7 +42,7 @@ impl SuspicousConstantUsage {
 impl EarlyExprPass for SuspicousConstantUsage {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match expr.inner() {
-            ExprType::Evaluation(Evaluation {
+            ExprKind::Evaluation(Evaluation {
                 op: operator, right, ..
             }) => {
                 if let Some(literal) = right.inner().as_literal() {
@@ -51,7 +51,7 @@ impl EarlyExprPass for SuspicousConstantUsage {
                     }
                 }
             }
-            ExprType::Logical(Logical {
+            ExprKind::Logical(Logical {
                 op: operator, right, ..
             }) => {
                 if let Some(literal) = right.inner().as_literal() {
@@ -60,7 +60,7 @@ impl EarlyExprPass for SuspicousConstantUsage {
                     }
                 }
             }
-            ExprType::Equality(Equality {
+            ExprKind::Equality(Equality {
                 op: operator, right, ..
             }) => {
                 if let Some(literal) = right.inner().as_literal() {
@@ -75,7 +75,7 @@ impl EarlyExprPass for SuspicousConstantUsage {
 }
 impl EarlyStmtPass for SuspicousConstantUsage {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::Assignment(Assignment {
+        if let StmtKind::Assignment(Assignment {
             op: operator, right, ..
         }) = stmt.inner()
         {

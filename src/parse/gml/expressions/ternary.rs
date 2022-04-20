@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of a ternary evaluation in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -20,7 +20,7 @@ impl Ternary {
         }
     }
 }
-impl From<Ternary> for ExprType {
+impl From<Ternary> for ExprKind {
     fn from(ternary: Ternary) -> Self {
         Self::Ternary(ternary)
     }

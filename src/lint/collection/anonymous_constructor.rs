@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Expr, ExprType, Function},
+    parse::{Expr, ExprKind, Function},
     Config, FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for AnonymousConstructor {
 
 impl EarlyExprPass for AnonymousConstructor {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Function(Function {
+        if let ExprKind::Function(Function {
             name: None,
             constructor: Some(_),
             ..

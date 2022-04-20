@@ -4,7 +4,7 @@ use super::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Ty {
-    Null,
+    Uninitialized,
     Any,
     Undefined,
     Noone,
@@ -13,7 +13,7 @@ pub enum Ty {
     Str,
     Var(Var),
     Array(Box<Ty>),
-    Record(Record),
+    Adt(AdtId),
     Func(Func),
 }
 
@@ -64,12 +64,12 @@ pub struct Call {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Binding {
     Method {
-        local_scope: Var,
-        self_scope: Var,
+        local_scope: AdtId,
+        self_scope: AdtId,
     },
     Constructor {
-        local_scope: Var,
-        self_scope: Var,
+        local_scope: AdtId,
+        self_scope: AdtId,
         inheritance: Option<Identifier>,
     },
 }

@@ -1,4 +1,4 @@
-use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a globalvar in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -12,7 +12,7 @@ impl Globalvar {
         Self { name }
     }
 }
-impl From<Globalvar> for StmtType {
+impl From<Globalvar> for StmtKind {
     fn from(glob: Globalvar) -> Self {
         Self::GlobalvarDeclaration(glob)
     }

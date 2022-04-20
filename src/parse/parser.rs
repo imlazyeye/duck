@@ -301,21 +301,21 @@ impl Parser {
         let start = self.next_token_boundary();
         self.require(TokenType::Break)?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.new_stmt(StmtType::Break, start))
+        Ok(self.new_stmt(StmtKind::Break, start))
     }
 
     fn continue_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Continue)?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.new_stmt(StmtType::Continue, start))
+        Ok(self.new_stmt(StmtKind::Continue, start))
     }
 
     fn exit(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         self.require(TokenType::Exit)?;
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.new_stmt(StmtType::Exit, start))
+        Ok(self.new_stmt(StmtKind::Exit, start))
     }
 
     fn globalvar_declaration(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
@@ -399,20 +399,20 @@ impl Parser {
     fn expr_stmt(&mut self, expr: Expr) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         match expr.inner() {
-            ExprType::Enum(..)
-            | ExprType::Macro(..)
-            | ExprType::Function(..)
-            | ExprType::Postfix(..)
-            | ExprType::Unary(..) // FIXME: only some unary is valid here
-            | ExprType::Grouping(..)
-            | ExprType::Call(..) => {}
+            ExprKind::Enum(..)
+            | ExprKind::Macro(..)
+            | ExprKind::Function(..)
+            | ExprKind::Postfix(..)
+            | ExprKind::Unary(..) // FIXME: only some unary is valid here
+            | ExprKind::Grouping(..)
+            | ExprKind::Call(..) => {}
 
             // Unfortunately, we can't (currently) understand if this is
             // actually a mistake or is a macro.
             // In the future, we may unfold code in an early pass that will
             // help with this.
             // FIXME: maybe an allow by default lint for this?
-            ExprType::Identifier(..) => {}
+            ExprKind::Identifier(..) => {}
 
             // Anything else is invalid.
             _ => {
@@ -429,7 +429,7 @@ impl Parser {
             }
         }
         self.match_take_repeating(TokenType::SemiColon);
-        Ok(self.new_stmt(StmtType::Expr(expr), start))
+        Ok(self.new_stmt(StmtKind::Expr(expr), start))
     }
 
     /// Parses the source gml for a new expression.
@@ -894,7 +894,7 @@ impl Parser {
                     if self.match_take(TokenType::Dot).is_some() {
                         let right = self.require_identifier()?;
                         let end = right.span.end();
-                        (Access::Current { right }, end)
+                        (Access::Identity { right }, end)
                     } else {
                         // Using self as a referencce!
                         return Ok(

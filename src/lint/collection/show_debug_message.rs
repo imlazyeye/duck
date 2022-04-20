@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Call, Expr, ExprType},
+    parse::{Call, Expr, ExprKind},
     FileId,
 };
 
@@ -24,8 +24,8 @@ impl Lint for ShowDebugMessage {
 
 impl EarlyExprPass for ShowDebugMessage {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Call(Call { left, .. }) = expr.inner() {
-            if let ExprType::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
+            if let ExprKind::Identifier(identifier) = left.inner() {
                 if identifier.lexeme == "show_debug_message" {
                     reports.push(
                         Self::diagnostic(config)

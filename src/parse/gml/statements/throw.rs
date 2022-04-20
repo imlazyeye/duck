@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// A throw statement, contianing the value thrown.
 #[derive(Debug, PartialEq, Clone)]
@@ -12,7 +12,7 @@ impl Throw {
         Self { value }
     }
 }
-impl From<Throw> for StmtType {
+impl From<Throw> for StmtKind {
     fn from(ret: Throw) -> Self {
         Self::Throw(ret)
     }

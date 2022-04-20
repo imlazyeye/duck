@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a while loop in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -14,7 +14,7 @@ impl WhileLoop {
         Self { condition, body }
     }
 }
-impl From<WhileLoop> for StmtType {
+impl From<WhileLoop> for StmtKind {
     fn from(while_loop: WhileLoop) -> Self {
         Self::WhileLoop(while_loop)
     }

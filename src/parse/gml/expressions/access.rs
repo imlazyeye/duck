@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 
 use super::Identifier;
 
@@ -12,7 +12,7 @@ pub enum Access {
     },
     /// Accessing the current scope via `self`. (This would be called `Self`, but its reserved by
     /// rust.)
-    Current {
+    Identity {
         /// The value being extracted from the local scope.
         right: Identifier,
     },
@@ -79,7 +79,7 @@ pub enum Access {
         key: Expr,
     },
 }
-impl From<Access> for ExprType {
+impl From<Access> for ExprKind {
     fn from(access: Access) -> Self {
         Self::Access(access)
     }
@@ -88,7 +88,7 @@ impl IntoExpr for Access {}
 impl ParseVisitor for Access {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         match self {
-            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {}
+            Access::Global { .. } | Access::Identity { .. } | Access::Other { .. } => {}
             Access::Dot { left, .. } => visitor(left),
             Access::Map { left, key: right }
             | Access::List { left, index: right }
@@ -121,7 +121,7 @@ impl ParseVisitor for Access {
     }
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         match self {
-            Access::Global { .. } | Access::Current { .. } | Access::Other { .. } => {}
+            Access::Global { .. } | Access::Identity { .. } | Access::Other { .. } => {}
             Access::Dot { left, .. } => visitor(left),
             Access::Map { left, key: right }
             | Access::List { left, index: right }

@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a try/catch/finally block in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -33,7 +33,7 @@ impl TryCatch {
         }
     }
 }
-impl From<TryCatch> for StmtType {
+impl From<TryCatch> for StmtKind {
     fn from(try_catch: TryCatch) -> Self {
         Self::TryCatch(try_catch)
     }

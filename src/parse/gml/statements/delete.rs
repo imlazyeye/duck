@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// A delete statement, used to manually free memory.
 #[derive(Debug, PartialEq, Clone)]
@@ -12,7 +12,7 @@ impl Delete {
         Self { value }
     }
 }
-impl From<Delete> for StmtType {
+impl From<Delete> for StmtKind {
     fn from(ret: Delete) -> Self {
         Self::Delete(ret)
     }

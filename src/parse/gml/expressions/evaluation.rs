@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt, Token};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// A mathmatical evaluation.
 #[derive(Debug, PartialEq, Clone)]
@@ -16,7 +16,7 @@ impl Evaluation {
         Self { left, op, right }
     }
 }
-impl From<Evaluation> for ExprType {
+impl From<Evaluation> for ExprKind {
     fn from(evaluation: Evaluation) -> Self {
         Self::Evaluation(evaluation)
     }

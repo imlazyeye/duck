@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, Identifier, IntoExpr, ParseVisitor, Stmt};
+use crate::parse::{Expr, ExprKind, Identifier, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of a macro declaration in gml.
 ///
@@ -38,7 +38,7 @@ impl Macro {
         }
     }
 }
-impl From<Macro> for ExprType {
+impl From<Macro> for ExprKind {
     fn from(mac: Macro) -> Self {
         Self::Macro(mac)
     }

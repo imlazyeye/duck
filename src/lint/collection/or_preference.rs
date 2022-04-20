@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Expr, ExprType, Logical, LogicalOp, TokenType},
+    parse::{Expr, ExprKind, Logical, LogicalOp, TokenType},
     Config, FileId,
 };
 
@@ -23,7 +23,7 @@ impl Lint for OrPreference {
 }
 impl EarlyExprPass for OrPreference {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Logical(Logical {
+        if let ExprKind::Logical(Logical {
             op: LogicalOp::Or(token),
             ..
         }) = expr.inner()

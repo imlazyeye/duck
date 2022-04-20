@@ -11,7 +11,7 @@ use super::{Assignment, Return, Throw};
 
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
-pub enum StmtType {
+pub enum StmtKind {
     /// Declaration of a globalvar.
     GlobalvarDeclaration(Globalvar),
     /// Declaration of one or more local variables.
@@ -56,30 +56,30 @@ pub enum StmtType {
     /// ```
     Expr(Expr),
 }
-impl IntoStmt for StmtType {}
-impl ParseVisitor for StmtType {
+impl IntoStmt for StmtKind {}
+impl ParseVisitor for StmtKind {
     fn visit_child_exprs<E>(&self, mut visitor: E)
     where
         E: FnMut(&Expr),
     {
         match self {
-            StmtType::GlobalvarDeclaration(inner) => inner.visit_child_exprs(visitor),
-            StmtType::LocalVariableSeries(inner) => inner.visit_child_exprs(visitor),
-            StmtType::TryCatch(inner) => inner.visit_child_exprs(visitor),
-            StmtType::ForLoop(inner) => inner.visit_child_exprs(visitor),
-            StmtType::WithLoop(inner) => inner.visit_child_exprs(visitor),
-            StmtType::RepeatLoop(inner) => inner.visit_child_exprs(visitor),
-            StmtType::DoUntil(inner) => inner.visit_child_exprs(visitor),
-            StmtType::WhileLoop(inner) => inner.visit_child_exprs(visitor),
-            StmtType::If(inner) => inner.visit_child_exprs(visitor),
-            StmtType::Switch(inner) => inner.visit_child_exprs(visitor),
-            StmtType::Block(inner) => inner.visit_child_exprs(visitor),
-            StmtType::Return(inner) => inner.visit_child_exprs(visitor),
-            StmtType::Throw(inner) => inner.visit_child_exprs(visitor),
-            StmtType::Delete(inner) => inner.visit_child_exprs(visitor),
-            StmtType::Assignment(inner) => inner.visit_child_exprs(visitor),
-            StmtType::Expr(inner) => visitor(inner),
-            StmtType::Break | StmtType::Continue | StmtType::Exit => {}
+            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::LocalVariableSeries(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::TryCatch(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::ForLoop(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::WithLoop(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::RepeatLoop(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::DoUntil(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::WhileLoop(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::If(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Switch(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Block(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Return(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Throw(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Delete(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Assignment(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Expr(inner) => visitor(inner),
+            StmtKind::Break | StmtKind::Continue | StmtKind::Exit => {}
         }
     }
     fn visit_child_exprs_mut<E>(&mut self, mut visitor: E)
@@ -87,23 +87,23 @@ impl ParseVisitor for StmtType {
         E: FnMut(&mut Expr),
     {
         match self {
-            StmtType::GlobalvarDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::LocalVariableSeries(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::TryCatch(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::ForLoop(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::WithLoop(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::RepeatLoop(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::DoUntil(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::WhileLoop(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::If(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::Switch(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::Block(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::Return(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::Throw(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::Delete(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::Assignment(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtType::Expr(inner) => visitor(inner),
-            StmtType::Break | StmtType::Continue | StmtType::Exit => {}
+            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::LocalVariableSeries(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::TryCatch(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::ForLoop(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::WithLoop(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::RepeatLoop(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::DoUntil(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::WhileLoop(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::If(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Switch(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Block(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Return(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Throw(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Delete(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Assignment(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Expr(inner) => visitor(inner),
+            StmtKind::Break | StmtKind::Continue | StmtKind::Exit => {}
         }
     }
 
@@ -112,23 +112,23 @@ impl ParseVisitor for StmtType {
         S: FnMut(&Stmt),
     {
         match self {
-            StmtType::GlobalvarDeclaration(inner) => inner.visit_child_stmts(visitor),
-            StmtType::LocalVariableSeries(inner) => inner.visit_child_stmts(visitor),
-            StmtType::TryCatch(inner) => inner.visit_child_stmts(visitor),
-            StmtType::ForLoop(inner) => inner.visit_child_stmts(visitor),
-            StmtType::WithLoop(inner) => inner.visit_child_stmts(visitor),
-            StmtType::RepeatLoop(inner) => inner.visit_child_stmts(visitor),
-            StmtType::DoUntil(inner) => inner.visit_child_stmts(visitor),
-            StmtType::WhileLoop(inner) => inner.visit_child_stmts(visitor),
-            StmtType::If(inner) => inner.visit_child_stmts(visitor),
-            StmtType::Switch(inner) => inner.visit_child_stmts(visitor),
-            StmtType::Block(inner) => inner.visit_child_stmts(visitor),
-            StmtType::Return(inner) => inner.visit_child_stmts(visitor),
-            StmtType::Throw(inner) => inner.visit_child_stmts(visitor),
-            StmtType::Delete(inner) => inner.visit_child_stmts(visitor),
-            StmtType::Assignment(inner) => inner.visit_child_stmts(visitor),
-            StmtType::Expr(_) => {}
-            StmtType::Break | StmtType::Continue | StmtType::Exit => {}
+            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::LocalVariableSeries(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::TryCatch(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::ForLoop(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::WithLoop(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::RepeatLoop(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::DoUntil(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::WhileLoop(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::If(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Switch(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Block(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Return(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Throw(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Delete(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Assignment(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Expr(_) => {}
+            StmtKind::Break | StmtKind::Continue | StmtKind::Exit => {}
         }
     }
 
@@ -137,38 +137,38 @@ impl ParseVisitor for StmtType {
         S: FnMut(&mut Stmt),
     {
         match self {
-            StmtType::GlobalvarDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::LocalVariableSeries(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::TryCatch(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::ForLoop(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::WithLoop(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::RepeatLoop(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::DoUntil(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::WhileLoop(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::If(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::Switch(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::Block(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::Return(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::Throw(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::Delete(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::Assignment(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtType::Expr(_) => {}
-            StmtType::Break | StmtType::Continue | StmtType::Exit => {}
+            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::LocalVariableSeries(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::TryCatch(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::ForLoop(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::WithLoop(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::RepeatLoop(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::DoUntil(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::WhileLoop(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::If(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Switch(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Block(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Return(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Throw(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Delete(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Assignment(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Expr(_) => {}
+            StmtKind::Break | StmtKind::Continue | StmtKind::Exit => {}
         }
     }
 }
-impl StmtType {
+impl StmtKind {
     /// Returns the statement as a [Block] if it is a block.
     pub fn as_block(&self) -> Option<&Block> {
         match self {
-            StmtType::Block(block) => Some(block),
+            StmtKind::Block(block) => Some(block),
             _ => None,
         }
     }
     /// Returns the statement as an [Expr] if it is an expression statement.
     pub fn as_expr_stmt(&self) -> Option<&Expr> {
         match self {
-            StmtType::Expr(expr) => Some(expr),
+            StmtKind::Expr(expr) => Some(expr),
             _ => None,
         }
     }
@@ -176,7 +176,7 @@ impl StmtType {
     /// Returns the statement as an [Assignment] if it is an assignment statement.
     pub fn as_assignment(&self) -> Option<&Assignment> {
         match self {
-            StmtType::Assignment(assignment) => Some(assignment),
+            StmtKind::Assignment(assignment) => Some(assignment),
             _ => None,
         }
     }
@@ -185,18 +185,18 @@ impl StmtType {
 /// A wrapper around a Stmt, containing additional information discovered while parsing.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Stmt {
-    stmt_type: Box<StmtType>,
+    stmt_type: Box<StmtKind>,
     id: StmtId,
     location: Location,
     lint_tag: Option<LintTag>,
 }
 impl Stmt {
     /// Returns a reference to the inner stmt type.
-    pub fn inner(&self) -> &StmtType {
+    pub fn inner(&self) -> &StmtKind {
         self.stmt_type.as_ref()
     }
     /// Returns a mutable reference to the inner stmt type.
-    pub fn inner_mut(&mut self) -> &mut StmtType {
+    pub fn inner_mut(&mut self) -> &mut StmtKind {
         self.stmt_type.as_mut()
     }
     /// Returns the Location this statement is from.
@@ -238,7 +238,7 @@ impl ParseVisitor for Stmt {
 
 /// Derives two methods to convert the T into an [Stmt], supporting both a standard
 /// `into_stmt` method, and a `into_stmt_lazy` for tests.
-pub trait IntoStmt: Sized + Into<StmtType> {
+pub trait IntoStmt: Sized + Into<StmtKind> {
     /// Converts self into an statement box.
     fn into_stmt(self, id: StmtId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Stmt {
         Stmt {

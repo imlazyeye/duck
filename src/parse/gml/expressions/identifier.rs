@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Span, Stmt};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Span, Stmt};
 
 /// Representation of an identifier in gml, which could be any variable.
 #[derive(Debug, PartialEq, Clone)]
@@ -17,12 +17,12 @@ impl Identifier {
         }
     }
 
-    /// Creates a new identifier with a default span.
+    /// Creates a new identifier with default properties.
     pub fn lazy(lexeme: impl Into<String>) -> Self {
         Self::new(lexeme, Span::default())
     }
 }
-impl From<Identifier> for ExprType {
+impl From<Identifier> for ExprKind {
     fn from(iden: Identifier) -> Self {
         Self::Identifier(iden)
     }

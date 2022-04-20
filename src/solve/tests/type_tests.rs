@@ -1,5 +1,5 @@
 use super::*;
-use crate::{analyze::*, array, function, record, test_expr_type, test_success, test_var_type};
+use crate::{adt, array, function, solve::*, test_expr_type, test_success, test_var_type};
 use Ty::*;
 
 // Basic expressions
@@ -52,16 +52,16 @@ test_success!(switch, "switch true { case true: break; case false: break; }");
 
 // Local variable
 test_var_type!(local_var, "var a = 0", a: Real);
-test_var_type!(null_local_var, "var a;", a: Null);
+test_var_type!(null_local_var, "var a;", a: Uninitialized);
 test_var_type!(assign_to_null_var, "var a; a = 0;", a: Real);
 
 // Globals
-test_var_type!(globalvar, "globalvar foo;", foo: Null);
+test_var_type!(globalvar, "globalvar foo;", foo: Uninitialized);
 test_var_type!(globalvar_assign, "globalvar foo; foo = 0", foo: Real);
 test_var_type!(global, "global.foo = 0;", foo: Real);
 
 // Enums
-test_expr_type!(enum_declaration, "enum foo { bar }" => record!(bar: Real));
+test_expr_type!(enum_declaration, "enum foo { bar }" => adt!(bar: Real));
 test_var_type!(
     access_enum,
     "enum foo { bar }; 
@@ -79,14 +79,14 @@ test_expr_type!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
 test_var_type!(array_access, "var x = [0], y = x[0];", y: Real);
 
 // Structs
-test_expr_type!(empty_struct, "{}" => record!());
-test_expr_type!(populated_struct, "{ x: 0 }" => record!(x: Real));
+test_expr_type!(empty_struct, "{}" => adt!());
+test_expr_type!(populated_struct, "{ x: 0 }" => adt!(x: Real));
 test_var_type!(struct_access, "var foo = { x: 0 }, bar = foo.x;", bar: Real,);
 test_var_type!(
     struct_extention,
     "var foo = { x: 0 };
     foo.y = 0;",
-    foo: record!(x: Real, y: Real),
+    foo: adt!(x: Real, y: Real),
 );
 test_var_type!(
     nested_structs,
@@ -99,7 +99,7 @@ test_var_type!(
     "var foo = { x: 0 };
     var bar = { y: 0 };
     foo.x = bar.y;",
-    foo: record!(x: Real),
+    foo: adt!(x: Real),
 );
 test_var_type!(
     function_on_struct,
@@ -169,11 +169,11 @@ test_var_type!(
     var fizz = foo(["hello"], 0);
     var buzz = foo([ { a: true } ], bar(1, 2));"#,
     fizz: Str,
-    buzz: record!(a: Bool)
+    buzz: adt!(a: Bool)
 );
 test_var_type!(
     multi_use_identity,
-    "var foo = function(a) {
+    "function foo(a) {
         return a;
     }
     var bar = foo(true);
@@ -199,8 +199,6 @@ test_var_type!(
     }",
     foo: function!(() => function!(() => Real))
 );
-
-// This one will require traits! (Returns<T> in particular)
 test_expr_type!(
     infer_function_in_parameters,
     "function(x) { return x() + 1; }" => function!(
@@ -216,7 +214,7 @@ test_expr_type!(
 test_expr_type!(
     infer_struct_in_parameters,
     "function(x) { return x.y + 1; }" => function!(
-        (record!(y: Real)) => Real
+        (adt!(y: Real)) => Real
     )
 );
 test_var_type!(
@@ -226,7 +224,7 @@ test_var_type!(
     }
     var bar = {};
     foo(bar);",
-    bar: record!(a: Real)
+    bar: adt!(a: Real)
 );
 test_var_type!(
     retain_all_fields_in_generic_call,
@@ -236,7 +234,7 @@ test_var_type!(
     }
     var bar = { a: 0, b: 0 };
     foo(bar);",
-    bar: record!(a: Real, b: Real)
+    bar: adt!(a: Real, b: Real)
 );
 test_var_type!(
     retain_all_fields_in_generic_call_after_return,
@@ -246,7 +244,7 @@ test_var_type!(
     }
     var bar = { a: 0, b: 0 };
     bar = foo(bar);",
-    bar: record!(a: Real, b: Real)
+    bar: adt!(a: Real, b: Real)
 );
 
 // Self
@@ -291,7 +289,7 @@ test_var_type!(
         self.x = obj.x;
         self.y = obj.y;
     }",
-    set: function!((record!(x: Real, y: Real)) => Undefined),
+    set: function!((adt!(x: Real, y: Real)) => Undefined),
 );
 
 // Constructors
@@ -301,7 +299,7 @@ test_var_type!(
         self.a = 0;
     }
     var bar = new foo();",
-    bar: record!(a: Real)
+    bar: adt!(a: Real)
 );
 test_var_type!(
     constructor_with_parameter,
@@ -309,7 +307,7 @@ test_var_type!(
         self.x = y;
     }
     var bar = foo(0);",
-    bar: record!(x: Real)
+    bar: adt!(x: Real)
 );
 test_var_type!(
     constructor_getter,
@@ -330,7 +328,7 @@ test_var_type!(
     }
     var bar = function() : foo() constructor {}
     var fizz = new bar();",
-    fizz: record!(a: Real)
+    fizz: adt!(a: Real)
 );
 test_var_type!(
     inheritance_passing_arguments,
@@ -339,7 +337,7 @@ test_var_type!(
     }
     var bar = function(x) : foo(x) constructor {}
     var fizz = new bar(0);",
-    fizz: record!(a: Real)
+    fizz: adt!(a: Real)
 );
 test_var_type!(
     multi_inheritance,
@@ -351,7 +349,7 @@ test_var_type!(
     }
     var fizz = function() : bar() constructor {}
     var buzz = new fizz();",
-    buzz: record!(a: Real, b: Real)
+    buzz: adt!(a: Real, b: Real)
 );
 test_var_type!(
     alias_function,
@@ -363,17 +361,17 @@ test_var_type!(
         return new_struct;
     }
     var fizz = bar();",
-    fizz: record!(x: Real)
+    fizz: adt!(x: Real)
 );
-// test_var_type!(
-//     constructor_clone,
-//     "function foo() constructor {
-//         function clone() { return new foo(); }
-//     }
-//     var bar = new foo();
-//     var fizz = bar.clone();",
-//     fizz: record!()
-// );
+test_var_type!(
+    constructor_clone,
+    "function foo() constructor {
+        function clone() { return new foo(); }
+    }
+    var bar = new foo();
+    var fizz = bar.clone();",
+    fizz: adt!()
+);
 
 // Out of order
 test_var_type!(
@@ -427,8 +425,8 @@ test_var_type!(
     var z = [[{ a: { b: { c: 0 }}}]];
     var data = build_data(build_x(0), y_fn, z);
     var output = data.x + data.y + data.z;",
-    z: array!(array!(record!(a: record!(b: record!(c: Real))))),
-    data: record!(x: Real, y: Real, z: Real),
+    z: array!(array!(adt!(a: adt!(b: adt!(c: Real))))),
+    data: adt!(x: Real, y: Real, z: Real),
     output: Real
 );
 test_var_type!(
@@ -459,9 +457,5 @@ test_var_type!(
 
     var a = Vec2(0, 0);
     "#,
-    a: record!(
-        x: Real,
-        y: Real,
-        set: function!((record!(x: Real, y: Real)) => Undefined),
-    )
+    a: adt!(x: Real, y: Real, set: function!((adt!(x: Real, y: Real)) => Undefined),)
 );

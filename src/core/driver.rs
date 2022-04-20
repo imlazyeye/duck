@@ -1,7 +1,7 @@
 use crate::{
-    analyze::*,
     lint::{collection::*, *},
     parse::{Ast, Expr, ParseVisitor, Parser, Stmt},
+    solve::*,
     Config, FileId, GmlLibrary,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
@@ -12,10 +12,7 @@ use std::{
     sync::Arc,
 };
 use tokio::{
-    sync::{
-        mpsc::{channel, Receiver, Sender},
-        Mutex,
-    },
+    sync::mpsc::{channel, Receiver, Sender},
     task::JoinHandle,
 };
 
@@ -281,6 +278,7 @@ pub fn start_parse(
 ///
 /// ### Panics
 /// Panics if the receiver for the sender closes. This should not be possible!
+#[allow(clippy::type_complexity)]
 pub fn start_early_pass(
     config: Arc<Config>,
     mut ast_receiever: Receiver<Ast>,
@@ -340,4 +338,5 @@ pub fn start_late_pass(
     })
 }
 
+/// TODO
 pub type Pass = (Stmt, Vec<Diagnostic<FileId>>);

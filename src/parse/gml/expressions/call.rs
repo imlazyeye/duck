@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, ParseVisitor, Stmt};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of an assignment expression in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -29,7 +29,7 @@ impl Call {
         }
     }
 }
-impl From<Call> for ExprType {
+impl From<Call> for ExprKind {
     fn from(call: Call) -> Self {
         Self::Call(call)
     }

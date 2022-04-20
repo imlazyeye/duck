@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
-    parse::{Access, Call, Expr, ExprType, Globalvar, Stmt, StmtType},
+    parse::{Access, Call, Expr, ExprKind, Globalvar, Stmt, StmtKind},
     FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for Deprecated {
 
 impl EarlyStmtPass for Deprecated {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::GlobalvarDeclaration(Globalvar { name }) = stmt.inner() {
+        if let StmtKind::GlobalvarDeclaration(Globalvar { name }) = stmt.inner() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of `globalvar`")
@@ -39,8 +39,8 @@ impl EarlyStmtPass for Deprecated {
 
 impl EarlyExprPass for Deprecated {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Call(Call { left, .. }) = expr.inner() {
-            if let ExprType::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
+            if let ExprKind::Identifier(identifier) = left.inner() {
                 if gm_deprecated_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)
@@ -51,7 +51,7 @@ impl EarlyExprPass for Deprecated {
                     );
                 }
             }
-        } else if let ExprType::Access(Access::Array { index_two: Some(_), .. }) = expr.inner() {
+        } else if let ExprKind::Access(Access::Array { index_two: Some(_), .. }) = expr.inner() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of 2d array")

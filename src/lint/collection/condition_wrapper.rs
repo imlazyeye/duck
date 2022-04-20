@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
-    parse::{DoUntil, Expr, ExprType, If, RepeatLoop, Stmt, StmtType, Switch, Ternary, WhileLoop, WithLoop},
+    parse::{DoUntil, Expr, ExprKind, If, RepeatLoop, Stmt, StmtKind, Switch, Ternary, WhileLoop, WithLoop},
     Config, FileId,
 };
 
@@ -50,7 +50,7 @@ impl ConditionWrapper {
 
 impl EarlyExprPass for ConditionWrapper {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Ternary(Ternary { condition, .. }) = expr.inner() {
+        if let ExprKind::Ternary(Ternary { condition, .. }) = expr.inner() {
             Self::test(condition, config, reports)
         }
     }
@@ -59,14 +59,14 @@ impl EarlyExprPass for ConditionWrapper {
 impl EarlyStmtPass for ConditionWrapper {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match stmt.inner() {
-            StmtType::Switch(Switch {
+            StmtKind::Switch(Switch {
                 matching_value: expr, ..
             })
-            | StmtType::If(If { condition: expr, .. })
-            | StmtType::DoUntil(DoUntil { condition: expr, .. })
-            | StmtType::WhileLoop(WhileLoop { condition: expr, .. })
-            | StmtType::WithLoop(WithLoop { identity: expr, .. })
-            | StmtType::RepeatLoop(RepeatLoop { tick_counts: expr, .. }) => Self::test(expr, config, reports),
+            | StmtKind::If(If { condition: expr, .. })
+            | StmtKind::DoUntil(DoUntil { condition: expr, .. })
+            | StmtKind::WhileLoop(WhileLoop { condition: expr, .. })
+            | StmtKind::WithLoop(WithLoop { identity: expr, .. })
+            | StmtKind::RepeatLoop(RepeatLoop { tick_counts: expr, .. }) => Self::test(expr, config, reports),
             _ => {}
         };
     }

@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{Stmt, StmtType},
+    parse::{Stmt, StmtKind},
     FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for WithLoop {
 
 impl EarlyStmtPass for WithLoop {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::WithLoop(..) = stmt.inner() {
+        if let StmtKind::WithLoop(..) = stmt.inner() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of `with`")

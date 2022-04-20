@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a for loop in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -23,7 +23,7 @@ impl ForLoop {
         }
     }
 }
-impl From<ForLoop> for StmtType {
+impl From<ForLoop> for StmtKind {
     fn from(for_loop: ForLoop) -> Self {
         Self::ForLoop(for_loop)
     }

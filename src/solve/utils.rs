@@ -12,31 +12,39 @@ macro_rules! array {
 }
 
 #[macro_export]
-macro_rules! record {
+macro_rules! adt {
+    ($solver:expr => { $($var:ident: $should_be:expr), * $(,)? }) => {
+        $solver.new_adt(AdtState::Extendable, vec![
+            $((
+                crate::parse::Identifier::lazy(stringify!($var).to_string()),
+                $should_be,
+            ), )*
+        ])
+    };
     ($($var:ident: $should_be:expr), * $(,)?) => {
-        crate::analyze::Ty::Record(crate::analyze::Record {
-            fields: hashbrown::HashMap::from([
+        {
+            let fields = vec![
                 $((
-                    stringify!($var).to_string(),
-                    Field::write($should_be, crate::parse::Location::default(), crate::analyze::Var::Generated(0))
+                    crate::parse::Identifier::lazy(stringify!($var).to_string()),
+                    $should_be,
                 ), )*
-            ]),
-            state: State::Extendable,
-        })
+            ];
+            Ty::Adt(SOLVER.lock().new_adt(AdtState::Extendable, fields))
+        }
     };
 }
 
 #[macro_export]
 macro_rules! function {
     (() => $return_type:expr) => {
-        crate::analyze::Ty::Func(crate::analyze::Func::Def(crate::analyze::Def {
+        crate::solve::Ty::Func(crate::solve::Func::Def(crate::solve::Def {
             binding: None,
             parameters: vec![],
             return_type: Box::new($return_type),
         }))
     };
     (($($arg:expr), * $(,)?) => $return_type:expr) => {
-        crate::analyze::Ty::Func(crate::analyze::Func::Def(crate::analyze::Def {
+        crate::solve::Ty::Func(crate::solve::Func::Def(crate::solve::Def {
             binding: None,
             parameters:  vec![$($arg)*],
             return_type: Box::new($return_type),
@@ -74,7 +82,6 @@ impl Printer {
 
     pub fn give_expr_alias(var: Var, name: String) {
         if !PRINTER.lock().aliases.contains_key(&var) {
-            #[cfg(test)]
             println!("{}        {}   :   {}", "ALIAS".bright_red(), Printer::var(&var), name);
             // PRINTER.lock().expr_strings.insert(var, name);
         }
@@ -107,37 +114,32 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn ty(ty: &Ty) -> String {
+    pub fn ty(ty: &Ty, solver: &Solver) -> String {
         let s = match ty {
-            Ty::Null => "<null>".into(),
+            Ty::Uninitialized => "<null>".into(),
             Ty::Any => "any".into(),
             Ty::Undefined => "undefined".into(),
             Ty::Noone => "noone".into(),
             Ty::Bool => "bool".into(),
             Ty::Real => "real".into(),
             Ty::Str => "string".into(),
-            Ty::Array(inner) => format!("[{}]", Self::ty(inner)),
+            Ty::Array(inner) => format!("[{}]", Self::ty(inner, solver)),
             Ty::Var(var) => Self::var(var),
-            Ty::Record(record) => {
-                if record.fields.is_empty() {
+            Ty::Adt(adt_id) => {
+                let adt = solver.get_adt(*adt_id);
+                if adt.fields.is_empty() {
                     "{}".into()
                 } else {
                     format!(
                         "{}{{ {} }}",
-                        match record.state {
-                            State::Inferred => "?",
-                            State::Extendable => "mut ",
-                            State::Concrete => "",
+                        match adt.state {
+                            AdtState::Inferred => "?",
+                            AdtState::Extendable => "mut ",
+                            AdtState::Concrete => "",
                         },
-                        record
-                            .fields
+                        adt.fields
                             .iter()
-                            .map(|(name, field)| format!(
-                                "{}{}: {}",
-                                if field.promise_pending() { "promise: " } else { "" },
-                                name,
-                                Printer::ty(field.ty())
-                            ))
+                            .map(|(name, field)| format!("{}: {}", name, Printer::ty(&field.ty, solver)))
                             .join(", ")
                     )
                 }
@@ -149,16 +151,16 @@ impl Printer {
                     ..
                 }) => format!(
                     "fn ({}) -> {}",
-                    parameters.iter().map(Printer::ty).join(", "),
-                    Printer::ty(return_type)
+                    parameters.iter().map(|ty| Printer::ty(ty, solver)).join(", "),
+                    Printer::ty(return_type, solver)
                 ),
                 Func::Call(Call {
                     parameters,
                     return_type,
                 }) => format!(
                     "({}) -> {}",
-                    parameters.iter().map(Printer::ty).join(", "),
-                    Printer::ty(return_type)
+                    parameters.iter().map(|ty| Printer::ty(ty, solver)).join(", "),
+                    Printer::ty(return_type, solver)
                 ),
             },
         };
@@ -166,45 +168,38 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn ty_unification(a: &Ty, b: &Ty) -> String {
+    pub fn query(a: &crate::parse::Expr) -> String {
+        format!("{}        {a}: {}", "QUERY".bright_red(), Printer::var(&a.var()))
+    }
+
+    #[must_use]
+    pub fn ty_unification(a: &Ty, b: &Ty, solver: &Solver) -> String {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY T".bright_yellow(),
-            Printer::ty(a),
-            Printer::ty(b),
+            Printer::ty(a, solver),
+            Printer::ty(b, solver),
         )
     }
 
     #[must_use]
-    pub fn var_unification(var: &Var, ty: &Ty) -> String {
+    pub fn var_unification(var: &Var, ty: &Ty, solver: &Solver) -> String {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY M".bright_yellow(),
             Printer::var(var),
-            Printer::ty(ty),
+            Printer::ty(ty, solver),
         )
     }
 
     #[must_use]
-    pub fn substitution(var: &Var, ty: &Ty) -> String {
+    pub fn substitution(var: &Var, ty: &Ty, solver: &Solver) -> String {
         format!(
             "{}          {}   →   {}",
             "SUB".bright_green(),
             Printer::var(var),
-            Printer::ty(ty),
+            Printer::ty(ty, solver),
         )
-    }
-
-    #[must_use]
-    pub fn goal(goal: &Goal) -> String {
-        match goal {
-            Goal::Eq(var, ty) => format!(
-                "{}          {}   =   {}",
-                "CON".bright_magenta(),
-                Self::var(var),
-                Self::ty(ty),
-            ),
-        }
     }
 }
 

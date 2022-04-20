@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprType, IntoExpr, OptionalInitilization, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, ExprKind, IntoExpr, OptionalInitilization, ParseVisitor, Stmt, StmtKind};
 
 use super::Identifier;
 
@@ -53,12 +53,12 @@ impl Function {
     /// Returns the list of statements in this function's body
     pub fn body_stmts(&self) -> &Vec<Stmt> {
         match self.body.inner() {
-            StmtType::Block(body) => &body.body,
+            StmtKind::Block(body) => &body.body,
             _ => unreachable!(),
         }
     }
 }
-impl From<Function> for ExprType {
+impl From<Function> for ExprKind {
     fn from(function: Function) -> Self {
         Self::Function(function)
     }

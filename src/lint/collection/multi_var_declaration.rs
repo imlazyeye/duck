@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{LocalVariableSeries, Stmt, StmtType},
+    parse::{LocalVariableSeries, Stmt, StmtKind},
     FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for MultiVarDeclaration {
 
 impl EarlyStmtPass for MultiVarDeclaration {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.inner() {
+        if let StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.inner() {
             if declarations.len() > 1 {
                 reports.push(
                     Self::diagnostic(config)

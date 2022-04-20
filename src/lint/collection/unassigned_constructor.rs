@@ -1,6 +1,6 @@
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{Call, ExprType, Stmt, StmtType},
+    parse::{Call, ExprKind, Stmt, StmtKind},
     Config, FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -23,8 +23,8 @@ impl Lint for UnassignedConstructor {
 
 impl EarlyStmtPass for UnassignedConstructor {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::Expr(expr) = stmt.inner() {
-            if let ExprType::Call(Call { uses_new: true, .. }) = expr.inner() {
+        if let StmtKind::Expr(expr) = stmt.inner() {
+            if let ExprKind::Call(Call { uses_new: true, .. }) = expr.inner() {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Unassigned constructor")

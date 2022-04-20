@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{LocalVariableSeries, Stmt, StmtType},
+    parse::{LocalVariableSeries, Stmt, StmtKind},
     Config, FileId,
 };
 
@@ -24,7 +24,7 @@ impl Lint for VarPrefixViolation {
 
 impl EarlyStmtPass for VarPrefixViolation {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.inner() {
+        if let StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.inner() {
             for local_variable in declarations.iter() {
                 let name = local_variable.name();
                 if config.var_prefixes && name.len() > 1 && !name.starts_with('_') {

@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// A return statement, with an optional return value.
 #[derive(Debug, PartialEq, Clone)]
@@ -12,7 +12,7 @@ impl Return {
         Self { value }
     }
 }
-impl From<Return> for StmtType {
+impl From<Return> for StmtKind {
     fn from(ret: Return) -> Self {
         Self::Return(ret)
     }

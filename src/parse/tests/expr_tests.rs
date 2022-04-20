@@ -6,7 +6,7 @@ macro_rules! expr_test {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let expected: ExprType = $expected.into();
+            let expected: ExprKind = $expected.into();
             let mut parser = Parser::new_with_default_ids($source, 0);
             let outputed = parser.expr().unwrap();
             assert_eq!(*outputed.inner(), expected, "`{}` failed!", $source)
@@ -83,7 +83,7 @@ expr_test!(
 expr_test!(
     macro_declaration,
     "#macro foo 0",
-    ExprType::Macro(Macro::new(Identifier::lazy("foo"), "0"))
+    ExprKind::Macro(Macro::new(Identifier::lazy("foo"), "0"))
 );
 
 expr_test!(
@@ -563,7 +563,7 @@ expr_test!(
     "!self.foo",
     Unary::new(
         UnaryOp::Not(Token::lazy(TokenType::Bang)),
-        Access::Current {
+        Access::Identity {
             right: Identifier::lazy("foo"),
         }
         .into_expr_lazy(),
@@ -634,7 +634,7 @@ expr_test!(
     dot_postfix,
     "self.foo++",
     Postfix::new(
-        Access::Current {
+        Access::Identity {
             right: Identifier::lazy("foo"),
         }
         .into_expr_lazy(),
@@ -695,30 +695,30 @@ expr_test!(
     Call::new_with_new_operator(Identifier::lazy("foo").into_expr_lazy(), vec![])
 );
 
-expr_test!(empty_array, "[]", ExprType::Literal(Literal::Array(vec![])));
+expr_test!(empty_array, "[]", ExprKind::Literal(Literal::Array(vec![])));
 
 expr_test!(
     simple_array,
     "[0, 1, 2]",
-    ExprType::Literal(Literal::Array(vec![
+    ExprKind::Literal(Literal::Array(vec![
         Literal::Real(0.0).into_expr_lazy(),
         Literal::Real(1.0).into_expr_lazy(),
         Literal::Real(2.0).into_expr_lazy(),
     ]))
 );
 
-expr_test!(empty_struct, "{}", ExprType::Literal(Literal::Struct(vec![])));
+expr_test!(empty_struct, "{}", ExprKind::Literal(Literal::Struct(vec![])));
 
 expr_test!(
     struct_begin_end,
     "begin end",
-    ExprType::Literal(Literal::Struct(vec![]))
+    ExprKind::Literal(Literal::Struct(vec![]))
 );
 
 expr_test!(
     simple_struct,
     "{ foo: bar, fizz: buzz }",
-    ExprType::Literal(Literal::Struct(vec![
+    ExprKind::Literal(Literal::Struct(vec![
         (Identifier::lazy("foo"), Identifier::lazy("bar").into_expr_lazy()),
         (Identifier::lazy("fizz"), Identifier::lazy("buzz").into_expr_lazy()),
     ]))
@@ -932,7 +932,7 @@ expr_test!(
 expr_test!(
     self_dot_access,
     "self.bar",
-    Access::Current {
+    Access::Identity {
         right: Identifier::lazy("bar"),
     }
 );
@@ -983,42 +983,42 @@ expr_test!(float, "0.01", Literal::Real(0.01));
 
 expr_test!(float_no_prefix, ".01", Literal::Real(0.01));
 
-expr_test!(constant, "true", ExprType::Literal(Literal::True));
-expr_test!(constant_bool, "false", ExprType::Literal(Literal::False));
-expr_test!(undefined, "undefined", ExprType::Literal(Literal::Undefined));
-expr_test!(noone, "noone", ExprType::Literal(Literal::Noone));
+expr_test!(constant, "true", ExprKind::Literal(Literal::True));
+expr_test!(constant_bool, "false", ExprKind::Literal(Literal::False));
+expr_test!(undefined, "undefined", ExprKind::Literal(Literal::Undefined));
+expr_test!(noone, "noone", ExprKind::Literal(Literal::Noone));
 expr_test!(
     misc_literal,
     "browser_not_a_browser",
-    ExprType::Literal(Literal::Misc("browser_not_a_browser".into()))
+    ExprKind::Literal(Literal::Misc("browser_not_a_browser".into()))
 );
 
-expr_test!(string, "\"foo\"", ExprType::Literal(Literal::String("foo".into())));
+expr_test!(string, "\"foo\"", ExprKind::Literal(Literal::String("foo".into())));
 
 expr_test!(
     multi_line_string,
     "@\"\nfoo\nfoo\"",
-    ExprType::Literal(Literal::String("\nfoo\nfoo".into()))
+    ExprKind::Literal(Literal::String("\nfoo\nfoo".into()))
 );
 
 expr_test!(
     multi_line_string_single_quote,
     "@'\nfoo\nfoo'",
-    ExprType::Literal(Literal::String("\nfoo\nfoo".into()))
+    ExprKind::Literal(Literal::String("\nfoo\nfoo".into()))
 );
 
 // I hate gamemaker.
 expr_test!(
     multi_line_string_single_quote_with_inner_double_quote,
     "@'\nfoo\"\nfoo'",
-    ExprType::Literal(Literal::String("\nfoo\"\nfoo".into()))
+    ExprKind::Literal(Literal::String("\nfoo\"\nfoo".into()))
 );
 
-expr_test!(dollar_hex, "$a0f9a0", ExprType::Literal(Literal::Hex("a0f9a0".into())));
+expr_test!(dollar_hex, "$a0f9a0", ExprKind::Literal(Literal::Hex("a0f9a0".into())));
 
-expr_test!(short_hex, "$20", ExprType::Literal(Literal::Hex("20".into())));
+expr_test!(short_hex, "$20", ExprKind::Literal(Literal::Hex("20".into())));
 
-expr_test!(oh_x_hex, "0xa0f9a0", ExprType::Literal(Literal::Hex("a0f9a0".into())));
+expr_test!(oh_x_hex, "0xa0f9a0", ExprKind::Literal(Literal::Hex("a0f9a0".into())));
 
 expr_test!(
     logically_joined_expressions,

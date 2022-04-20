@@ -1,6 +1,6 @@
 use crate::{
     lint::{EarlyStmtPass, Lint, LintLevel},
-    parse::{Assignment, ExprType, Stmt, StmtType},
+    parse::{Assignment, ExprKind, Stmt, StmtKind},
     Config, FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
@@ -23,27 +23,27 @@ impl Lint for InvalidAssignment {
 
 impl EarlyStmtPass for InvalidAssignment {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtType::Assignment(Assignment {
+        if let StmtKind::Assignment(Assignment {
             left,
             op: operator,
             right,
         }) = stmt.inner()
         {
             let is_valid = match left.inner() {
-                ExprType::Enum(_)
-                | ExprType::Macro(_)
-                | ExprType::Function(_)
-                | ExprType::Logical(_)
-                | ExprType::Equality(_)
-                | ExprType::Evaluation(_)
-                | ExprType::NullCoalecence(_)
-                | ExprType::Ternary(_)
-                | ExprType::Unary(_)
-                | ExprType::Postfix(_)
-                | ExprType::Grouping(_)
-                | ExprType::Call(_)
-                | ExprType::Literal(_) => false,
-                ExprType::Access(_) | ExprType::Identifier(_) => true,
+                ExprKind::Enum(_)
+                | ExprKind::Macro(_)
+                | ExprKind::Function(_)
+                | ExprKind::Logical(_)
+                | ExprKind::Equality(_)
+                | ExprKind::Evaluation(_)
+                | ExprKind::NullCoalecence(_)
+                | ExprKind::Ternary(_)
+                | ExprKind::Unary(_)
+                | ExprKind::Postfix(_)
+                | ExprKind::Grouping(_)
+                | ExprKind::Call(_)
+                | ExprKind::Literal(_) => false,
+                ExprKind::Access(_) | ExprKind::Identifier(_) => true,
             };
             if !is_valid {
                 reports.push(

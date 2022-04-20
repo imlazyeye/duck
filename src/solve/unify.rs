@@ -8,18 +8,22 @@ impl Solver {
             return Ok(());
         }
         #[cfg(test)]
-        println!("{}", Printer::ty_unification(lhs, rhs));
+        println!("{}", Printer::ty_unification(lhs, rhs, self));
         match (lhs, rhs) {
-            (ty @ Ty::Null, other) | (other, ty @ Ty::Null) => {
+            (ty @ Ty::Uninitialized, other) | (other, ty @ Ty::Uninitialized) => {
                 *ty = other.clone();
                 Ok(())
             }
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var(var, other),
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => self.unify_tys(lhs_member, rhs_member),
-            (Ty::Record(lhs_record), Ty::Record(rhs_record)) => rhs_record
-                .fields
-                .iter()
-                .try_for_each(|(name, rhs_field)| lhs_record.apply_field(name, rhs_field.clone())?.commit(self)),
+            (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
+                let rhs = self.adts.remove(rhs_adt).unwrap(); // yikes
+                for (name, rhs_field) in rhs.fields.iter() {
+                    self.write_adt(*lhs_adt, &crate::parse::Identifier::lazy(name), rhs_field.ty.clone())?;
+                }
+                self.adts.insert(*rhs_adt, rhs);
+                Ok(())
+            }
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
                 (Func::Def(def), Func::Call(call)) | (Func::Call(call), Func::Def(def)) => {
                     #[cfg(test)]
@@ -59,8 +63,8 @@ impl Solver {
                     println!("Error!");
                     duck_error!(
                         "Attempted to equate two incompatible types: {} and {}",
-                        Printer::ty(lhs),
-                        Printer::ty(rhs)
+                        Printer::ty(lhs, self),
+                        Printer::ty(rhs, self)
                     )
                 } else {
                     Ok(())
@@ -76,7 +80,7 @@ impl Solver {
         }
 
         if !self.occurs(var, ty) {
-            self.new_substitution(*var, ty.clone());
+            self.sub(*var, ty.clone());
         }
 
         Ok(())
@@ -86,7 +90,11 @@ impl Solver {
         match ty {
             Ty::Var(ty_var) => ty_var == var || self.subs.get(ty_var).map_or(false, |ty| self.occurs(var, ty)),
             Ty::Array(member_ty) => self.occurs(var, member_ty),
-            Ty::Record(record) => record.fields.iter().any(|(_, field)| self.occurs(var, field.ty())),
+            Ty::Adt(adt) => self
+                .get_adt(*adt)
+                .fields
+                .iter()
+                .any(|(_, field)| self.occurs(var, &field.ty)),
             Ty::Func(func) => {
                 self.occurs(var, func.return_type()) || func.parameters().iter().any(|v| self.occurs(var, v))
             }
@@ -94,7 +102,7 @@ impl Solver {
         }
     }
 
-    pub fn normalize(&self, ty: &mut Ty) {
+    pub fn normalize(&mut self, ty: &mut Ty) {
         match ty {
             Ty::Var(var) => {
                 if let Some(sub) = self.subs.get(var) {
@@ -103,10 +111,14 @@ impl Solver {
                 }
             }
             Ty::Array(member_ty) => self.normalize(member_ty),
-            Ty::Record(record) => record
-                .fields
-                .iter_mut()
-                .for_each(|(_, field)| self.normalize(field.ty_mut())),
+            Ty::Adt(adt_id) => {
+                // TODO bad
+                let mut adt = self.adts.remove(adt_id).unwrap();
+                for (_, field) in adt.fields.iter_mut() {
+                    self.normalize(&mut field.ty);
+                }
+                self.adts.insert(*adt_id, adt);
+            }
             Ty::Func(func) => {
                 func.parameters_mut().iter_mut().for_each(|v| self.normalize(v));
                 self.normalize(func.return_type_mut())
@@ -115,9 +127,11 @@ impl Solver {
         }
     }
 
-    pub fn new_substitution(&mut self, var: Var, ty: Ty) {
+    pub fn sub(&mut self, var: Var, mut ty: Ty) -> Ty {
+        self.normalize(&mut ty); // todo: unsure if needed
         #[cfg(test)]
-        println!("{}", Printer::substitution(&var, &ty));
+        println!("{}", Printer::substitution(&var, &ty, self));
         self.subs.insert(var, ty);
+        self.subs.get(&var).unwrap().clone() // hot af clone
     }
 }

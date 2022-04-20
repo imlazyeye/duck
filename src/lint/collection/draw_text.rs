@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Call, Expr, ExprType},
+    parse::{Call, Expr, ExprKind},
     Config, FileId,
 };
 
@@ -24,8 +24,8 @@ impl Lint for DrawText {
 
 impl EarlyExprPass for DrawText {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprType::Call(Call { left, .. }) = expr.inner() {
-            if let ExprType::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
+            if let ExprKind::Identifier(identifier) = left.inner() {
                 if gm_draw_text_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)

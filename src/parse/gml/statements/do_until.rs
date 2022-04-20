@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a do/until loop in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -14,7 +14,7 @@ impl DoUntil {
         Self { condition, body }
     }
 }
-impl From<DoUntil> for StmtType {
+impl From<DoUntil> for StmtKind {
     fn from(do_until: DoUntil) -> Self {
         Self::DoUntil(do_until)
     }

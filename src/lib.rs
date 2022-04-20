@@ -132,15 +132,17 @@ pub mod parse {
 
 /// The future home of static-analysis features, but currently just home to [GlobalScope].
 #[allow(missing_docs)]
-pub mod analyze {
+pub mod solve {
+    mod adt;
     mod goals;
-    mod record;
+    mod query;
     mod solver;
     mod ty;
     mod unify;
     mod utils;
+    pub use adt::*;
     pub use goals::*;
-    pub use record::*;
+    pub use query::*;
     pub use solver::*;
     pub use ty::*;
     pub use unify::*;

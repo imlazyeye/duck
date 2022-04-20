@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of an if statement in gml.
 ///
@@ -53,7 +53,7 @@ impl If {
         }
     }
 }
-impl From<If> for StmtType {
+impl From<If> for StmtKind {
     fn from(if_stmt: If) -> Self {
         Self::If(if_stmt)
     }

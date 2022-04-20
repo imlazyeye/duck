@@ -1,4 +1,4 @@
-use super::{IntoStmt, StmtType};
+use super::{IntoStmt, StmtKind};
 use crate::{
     lint::LintTag,
     parse::{Span, *},
@@ -8,7 +8,7 @@ use itertools::Itertools;
 
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
-pub enum ExprType {
+pub enum ExprKind {
     /// Declaration of an enum.
     Enum(Enum),
     /// Declaration of a macro.
@@ -40,11 +40,11 @@ pub enum ExprType {
     /// An identifier (any floating lexeme, most often variables).
     Identifier(Identifier),
 }
-impl ExprType {
+impl ExprKind {
     /// Returns the expression as an Identifier or None.
     pub fn as_identifier(&self) -> Option<&Identifier> {
         match self {
-            ExprType::Identifier(identifier) => Some(identifier),
+            ExprKind::Identifier(identifier) => Some(identifier),
             _ => None,
         }
     }
@@ -52,15 +52,15 @@ impl ExprType {
     /// Returns the expression a the interior fields of a Access::Dot, or None.
     pub fn as_dot_access(&self) -> Option<(&Self, &Identifier)> {
         match self {
-            ExprType::Access(Access::Dot { left, right }) => Some((left.inner(), right)),
+            ExprKind::Access(Access::Dot { left, right }) => Some((left.inner(), right)),
             _ => None,
         }
     }
 
-    /// Returns the expression a the interior fields of a Access::Current, or None.
-    pub fn as_current_access(&self) -> Option<&Identifier> {
+    /// Returns the expression a the interior fields of a Access::Identity, or None.
+    pub fn as_identity_access(&self) -> Option<&Identifier> {
         match self {
-            ExprType::Access(Access::Current { right }) => Some(right),
+            ExprKind::Access(Access::Identity { right }) => Some(right),
             _ => None,
         }
     }
@@ -68,7 +68,7 @@ impl ExprType {
     /// Returns the expression as an Literal or None.
     pub fn as_literal(&self) -> Option<&Literal> {
         match self {
-            ExprType::Literal(literal) => Some(literal),
+            ExprKind::Literal(literal) => Some(literal),
             _ => None,
         }
     }
@@ -76,7 +76,7 @@ impl ExprType {
     /// Returns the expression as a Grouping or None.
     pub fn as_grouping(&self) -> Option<&Grouping> {
         match self {
-            ExprType::Grouping(inner) => Some(inner),
+            ExprKind::Grouping(inner) => Some(inner),
             _ => None,
         }
     }
@@ -84,7 +84,7 @@ impl ExprType {
     /// Returns the expression as a Equality or None.
     pub fn as_equality(&self) -> Option<&Equality> {
         match self {
-            ExprType::Equality(inner) => Some(inner),
+            ExprKind::Equality(inner) => Some(inner),
             _ => None,
         }
     }
@@ -92,7 +92,7 @@ impl ExprType {
     /// Returns the expression as a function or None.
     pub fn as_function(&self) -> Option<&Function> {
         match self {
-            ExprType::Function(inner) => Some(inner),
+            ExprKind::Function(inner) => Some(inner),
             _ => None,
         }
     }
@@ -100,29 +100,29 @@ impl ExprType {
     /// Returns the expression as a Call or None.
     pub fn as_call(&self) -> Option<&Call> {
         match self {
-            ExprType::Call(inner) => Some(inner),
+            ExprKind::Call(inner) => Some(inner),
             _ => None,
         }
     }
 }
-impl IntoExpr for ExprType {}
+impl IntoExpr for ExprKind {}
 
 /// A wrapper around an [ExprType], containing additional information discovered while parsing.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Expr {
-    expr_type: Box<ExprType>,
+    expr_type: Box<ExprKind>,
     id: ExprId,
     location: Location,
     lint_tag: Option<LintTag>,
 }
 impl Expr {
     /// Get a reference to the expression box's expr type.
-    pub fn inner(&self) -> &ExprType {
+    pub fn inner(&self) -> &ExprKind {
         self.expr_type.as_ref()
     }
 
     /// Get a mutable reference to the expression box's expr type.
-    pub fn inner_mut(&mut self) -> &mut ExprType {
+    pub fn inner_mut(&mut self) -> &mut ExprKind {
         &mut self.expr_type
     }
 
@@ -148,7 +148,7 @@ impl Expr {
         self.id
     }
 }
-impl From<Expr> for StmtType {
+impl From<Expr> for StmtKind {
     fn from(expr: Expr) -> Self {
         Self::Expr(expr)
     }
@@ -160,21 +160,21 @@ impl ParseVisitor for Expr {
         E: FnMut(&Expr),
     {
         match self.inner() {
-            ExprType::Enum(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Macro(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Function(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Logical(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Equality(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Evaluation(inner) => inner.visit_child_exprs(visitor),
-            ExprType::NullCoalecence(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Ternary(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Unary(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Postfix(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Access(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Call(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Grouping(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Literal(inner) => inner.visit_child_exprs(visitor),
-            ExprType::Identifier(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Enum(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Macro(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Function(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Logical(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Equality(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Evaluation(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::NullCoalecence(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Ternary(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Unary(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Postfix(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Access(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Call(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Grouping(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Literal(inner) => inner.visit_child_exprs(visitor),
+            ExprKind::Identifier(inner) => inner.visit_child_exprs(visitor),
         }
     }
 
@@ -183,21 +183,21 @@ impl ParseVisitor for Expr {
         E: FnMut(&mut Expr),
     {
         match self.inner_mut() {
-            ExprType::Enum(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Macro(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Function(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Logical(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Equality(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Evaluation(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::NullCoalecence(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Ternary(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Unary(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Postfix(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Access(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Call(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Grouping(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Literal(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprType::Identifier(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Enum(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Macro(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Function(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Logical(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Equality(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Evaluation(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::NullCoalecence(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Ternary(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Unary(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Postfix(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Access(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Call(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Grouping(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Literal(inner) => inner.visit_child_exprs_mut(visitor),
+            ExprKind::Identifier(inner) => inner.visit_child_exprs_mut(visitor),
         }
     }
 
@@ -206,21 +206,21 @@ impl ParseVisitor for Expr {
         S: FnMut(&Stmt),
     {
         match self.inner() {
-            ExprType::Enum(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Macro(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Function(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Logical(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Equality(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Evaluation(inner) => inner.visit_child_stmts(visitor),
-            ExprType::NullCoalecence(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Ternary(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Unary(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Postfix(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Access(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Call(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Grouping(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Literal(inner) => inner.visit_child_stmts(visitor),
-            ExprType::Identifier(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Enum(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Macro(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Function(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Logical(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Equality(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Evaluation(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::NullCoalecence(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Ternary(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Unary(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Postfix(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Access(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Call(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Grouping(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Literal(inner) => inner.visit_child_stmts(visitor),
+            ExprKind::Identifier(inner) => inner.visit_child_stmts(visitor),
         }
     }
 
@@ -229,38 +229,38 @@ impl ParseVisitor for Expr {
         S: FnMut(&mut Stmt),
     {
         match self.inner_mut() {
-            ExprType::Enum(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Macro(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Function(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Logical(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Equality(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Evaluation(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::NullCoalecence(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Ternary(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Unary(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Postfix(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Access(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Call(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Grouping(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Literal(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprType::Identifier(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Enum(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Macro(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Function(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Logical(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Equality(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Evaluation(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::NullCoalecence(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Ternary(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Unary(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Postfix(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Access(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Call(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Grouping(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Literal(inner) => inner.visit_child_stmts_mut(visitor),
+            ExprKind::Identifier(inner) => inner.visit_child_stmts_mut(visitor),
         }
     }
 }
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.inner() {
-            ExprType::Enum(Enum { name, members }) => {
+            ExprKind::Enum(Enum { name, members }) => {
                 f.pad(&format!("enum {name} {{ {} }}", members.iter().join(", ")))
             }
-            ExprType::Macro(Macro { name, config, body }) => {
+            ExprKind::Macro(Macro { name, config, body }) => {
                 if let Some(config) = config {
                     f.pad(&format!("#macro {config}:{name} {body}"))
                 } else {
                     f.pad(&format!("#macro {name} {body}"))
                 }
             }
-            ExprType::Function(Function {
+            ExprKind::Function(Function {
                 name,
                 parameters,
                 constructor,
@@ -278,20 +278,20 @@ impl std::fmt::Display for Expr {
                     f.pad(&format!("function({param_str}) {constructor_str} {{ ... }}"))
                 }
             }
-            ExprType::Logical(Logical { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
-            ExprType::Equality(Equality { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
-            ExprType::Evaluation(Evaluation { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
-            ExprType::NullCoalecence(NullCoalecence { left, right }) => f.pad(&format!("{left} ?? {right}")),
-            ExprType::Ternary(Ternary {
+            ExprKind::Logical(Logical { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
+            ExprKind::Equality(Equality { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
+            ExprKind::Evaluation(Evaluation { left, op, right }) => f.pad(&format!("{left} {op} {right}")),
+            ExprKind::NullCoalecence(NullCoalecence { left, right }) => f.pad(&format!("{left} ?? {right}")),
+            ExprKind::Ternary(Ternary {
                 condition,
                 true_value,
                 false_value,
             }) => f.pad(&format!("{condition} ? {true_value} : {false_value}")),
-            ExprType::Unary(Unary { op, right }) => f.pad(&format!("{op}{right}")),
-            ExprType::Postfix(Postfix { left, op }) => f.pad(&format!("{left}{op}")),
-            ExprType::Access(access) => match access {
+            ExprKind::Unary(Unary { op, right }) => f.pad(&format!("{op}{right}")),
+            ExprKind::Postfix(Postfix { left, op }) => f.pad(&format!("{left}{op}")),
+            ExprKind::Access(access) => match access {
                 Access::Global { right } => f.pad(&format!("global.{right}")),
-                Access::Current { right } => f.pad(&format!("self.{right}")),
+                Access::Identity { right } => f.pad(&format!("self.{right}")),
                 Access::Other { right } => f.pad(&format!("other.{right}")),
                 Access::Dot { left, right } => f.pad(&format!("{left}.{right}")),
                 Access::Array {
@@ -316,7 +316,7 @@ impl std::fmt::Display for Expr {
                 Access::List { left, index } => f.pad(&format!("{left}[| {index}]")),
                 Access::Struct { left, key } => f.pad(&format!("{left}[$ {key}]")),
             },
-            ExprType::Call(Call {
+            ExprKind::Call(Call {
                 left,
                 arguments,
                 uses_new,
@@ -326,8 +326,8 @@ impl std::fmt::Display for Expr {
                 left,
                 arguments.iter().join(", "),
             )),
-            ExprType::Grouping(Grouping { inner, .. }) => f.pad(&format!("({inner})",)),
-            ExprType::Literal(literal) => match literal {
+            ExprKind::Grouping(Grouping { inner, .. }) => f.pad(&format!("({inner})",)),
+            ExprKind::Literal(literal) => match literal {
                 Literal::True => f.pad("true"),
                 Literal::False => f.pad("false"),
                 Literal::Undefined => f.pad("undefined"),
@@ -348,14 +348,14 @@ impl std::fmt::Display for Expr {
                 )),
                 Literal::Misc(lexeme) => f.pad(lexeme),
             },
-            ExprType::Identifier(iden) => f.pad(&iden.lexeme),
+            ExprKind::Identifier(iden) => f.pad(&iden.lexeme),
         }
     }
 }
 
 /// Derives two methods to convert the T into an [Expr], supporting both a standard
 /// `into_expr` method, and a `into_expr_lazy` for tests.
-pub trait IntoExpr: Sized + Into<ExprType> {
+pub trait IntoExpr: Sized + Into<ExprKind> {
     /// Converts self into an Expr.
     fn into_expr(self, id: ExprId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
         Expr {

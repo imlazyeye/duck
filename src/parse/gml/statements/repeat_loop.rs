@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtType};
+use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a repeat loop in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -14,7 +14,7 @@ impl RepeatLoop {
         Self { tick_counts, body }
     }
 }
-impl From<RepeatLoop> for StmtType {
+impl From<RepeatLoop> for StmtKind {
     fn from(repeat_loop: RepeatLoop) -> Self {
         Self::RepeatLoop(repeat_loop)
     }
