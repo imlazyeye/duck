@@ -20,10 +20,10 @@ impl Block {
     /// Creates a new block with lazy, curly brace delimiters.
     #[cfg(test)]
     pub fn lazy(body: impl Into<Vec<Stmt>>) -> Self {
-        use crate::parse::TokenType;
+        use crate::parse::TokenKind;
         Self::new(
             body.into(),
-            Some((Token::lazy(TokenType::LeftBrace), Token::lazy(TokenType::RightBrace))),
+            Some((Token::lazy(TokenKind::LeftBrace), Token::lazy(TokenKind::RightBrace))),
         )
     }
 }

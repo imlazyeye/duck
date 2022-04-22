@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Evaluation, EvaluationOp, Expr, ExprKind, TokenType},
+    parse::{Evaluation, EvaluationOp, Expr, ExprKind, TokenKind},
     Config, FileId,
 };
 
@@ -28,11 +28,11 @@ impl EarlyExprPass for ModPreference {
             ..
         }) = expr.inner()
         {
-            if config.prefer_mod_keyword() && token.token_type != TokenType::Mod {
+            if config.prefer_mod_keyword() && token.token_type != TokenKind::Mod {
                 reports.push(Self::diagnostic(config).with_message("Use of `%`").with_labels(vec![
                     Label::primary(expr.file_id(), token.span).with_message("use the `mod` keyword instead of `%`"),
                 ]));
-            } else if token.token_type == TokenType::Mod {
+            } else if token.token_type == TokenKind::Mod {
                 reports.push(Self::diagnostic(config).with_message("Use of `mod`").with_labels(vec![
                     Label::primary(expr.file_id(), token.span).with_message("use the `%` operator instead of `mod`"),
                 ]));

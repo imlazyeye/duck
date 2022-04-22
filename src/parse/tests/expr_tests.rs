@@ -47,7 +47,7 @@ expr_test!(
             OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::lazy("Bar").into_expr_lazy(),
-                    AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                    AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
                     Literal::Real(20.0).into_expr_lazy(),
                 )
                 .into_stmt_lazy(),
@@ -67,7 +67,7 @@ expr_test!(
             OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::lazy("Baz").into_expr_lazy(),
-                    AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                    AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
                     Access::Dot {
                         left: Identifier::lazy("Foo").into_expr_lazy(),
                         right: Identifier::lazy("Bar"),
@@ -126,7 +126,7 @@ expr_test!(
             OptionalInitilization::Initialized(
                 Assignment::new(
                     Identifier::lazy("bar").into_expr_lazy(),
-                    AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                    AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
                     Literal::Real(1.0).into_expr_lazy(),
                 )
                 .into_stmt_lazy(),
@@ -180,7 +180,7 @@ expr_test!(
     "1 && 1",
     Logical::new(
         Literal::Real(1.0).into_expr_lazy(),
-        LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
+        LogicalOp::And(Token::lazy(TokenKind::DoubleAmpersand)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -190,7 +190,7 @@ expr_test!(
     "1 and 1",
     Logical::new(
         Literal::Real(1.0).into_expr_lazy(),
-        LogicalOp::And(Token::lazy(TokenType::And)),
+        LogicalOp::And(Token::lazy(TokenKind::And)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -200,7 +200,7 @@ expr_test!(
     "1 || 1",
     Logical::new(
         Literal::Real(1.0).into_expr_lazy(),
-        LogicalOp::Or(Token::lazy(TokenType::DoublePipe)),
+        LogicalOp::Or(Token::lazy(TokenKind::DoublePipe)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -210,7 +210,7 @@ expr_test!(
     "1 or 1",
     Logical::new(
         Literal::Real(1.0).into_expr_lazy(),
-        LogicalOp::Or(Token::lazy(TokenType::Or)),
+        LogicalOp::Or(Token::lazy(TokenKind::Or)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -220,7 +220,7 @@ expr_test!(
     "1 xor 1",
     Logical::new(
         Literal::Real(1.0).into_expr_lazy(),
-        LogicalOp::Xor(Token::lazy(TokenType::Xor)),
+        LogicalOp::Xor(Token::lazy(TokenKind::Xor)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -230,7 +230,7 @@ expr_test!(
     "1 + 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Plus(Token::lazy(TokenType::Plus)),
+        EvaluationOp::Plus(Token::lazy(TokenKind::Plus)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -240,7 +240,7 @@ expr_test!(
     "1 - 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Minus(Token::lazy(TokenType::Minus)),
+        EvaluationOp::Minus(Token::lazy(TokenKind::Minus)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -250,7 +250,7 @@ expr_test!(
     "1 * 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Star(Token::lazy(TokenType::Star)),
+        EvaluationOp::Star(Token::lazy(TokenKind::Star)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -260,7 +260,7 @@ expr_test!(
     "1 / 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Slash(Token::lazy(TokenType::Slash)),
+        EvaluationOp::Slash(Token::lazy(TokenKind::Slash)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -270,7 +270,7 @@ expr_test!(
     "1 mod 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Modulo(Token::lazy(TokenType::Mod)),
+        EvaluationOp::Modulo(Token::lazy(TokenKind::Mod)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -280,7 +280,7 @@ expr_test!(
     "1 % 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Modulo(Token::lazy(TokenType::Percent)),
+        EvaluationOp::Modulo(Token::lazy(TokenKind::Percent)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -290,7 +290,7 @@ expr_test!(
     "1 div 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Div(Token::lazy(TokenType::Div)),
+        EvaluationOp::Div(Token::lazy(TokenKind::Div)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -300,7 +300,7 @@ expr_test!(
     "1 & 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::And(Token::lazy(TokenType::Ampersand)),
+        EvaluationOp::And(Token::lazy(TokenKind::Ampersand)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -310,7 +310,7 @@ expr_test!(
     "1 | 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
+        EvaluationOp::Or(Token::lazy(TokenKind::Pipe)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -320,10 +320,10 @@ expr_test!(
     "1 | 1 | 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
+        EvaluationOp::Or(Token::lazy(TokenKind::Pipe)),
         Evaluation::new(
             Literal::Real(1.0).into_expr_lazy(),
-            EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
+            EvaluationOp::Or(Token::lazy(TokenKind::Pipe)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -335,7 +335,7 @@ expr_test!(
     "1 ^ 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::Xor(Token::lazy(TokenType::Caret)),
+        EvaluationOp::Xor(Token::lazy(TokenKind::Caret)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -349,7 +349,7 @@ expr_test!(
             right: Identifier::lazy("bar"),
         }
         .into_expr_lazy(),
-        EvaluationOp::Or(Token::lazy(TokenType::Pipe)),
+        EvaluationOp::Or(Token::lazy(TokenKind::Pipe)),
         Access::Dot {
             left: Identifier::lazy("foo").into_expr_lazy(),
             right: Identifier::lazy("bar"),
@@ -363,7 +363,7 @@ expr_test!(
     "1 << 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::BitShiftLeft(Token::lazy(TokenType::BitShiftLeft)),
+        EvaluationOp::BitShiftLeft(Token::lazy(TokenKind::BitShiftLeft)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -373,7 +373,7 @@ expr_test!(
     "1 >> 1",
     Evaluation::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EvaluationOp::BitShiftRight(Token::lazy(TokenType::BitShiftRight)),
+        EvaluationOp::BitShiftRight(Token::lazy(TokenKind::BitShiftRight)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -383,7 +383,7 @@ expr_test!(
     "1 < 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::LessThan(Token::lazy(TokenType::LessThan)),
+        EqualityOp::LessThan(Token::lazy(TokenKind::LessThan)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -397,23 +397,23 @@ expr_test!(
                 Evaluation::new(
                     Evaluation::new(
                         Literal::Real(1.0).into_expr_lazy(),
-                        EvaluationOp::Star(Token::lazy(TokenType::Star)),
+                        EvaluationOp::Star(Token::lazy(TokenKind::Star)),
                         Literal::Real(1.0).into_expr_lazy(),
                     )
                     .into_expr_lazy(),
-                    EvaluationOp::Plus(Token::lazy(TokenType::Plus)),
+                    EvaluationOp::Plus(Token::lazy(TokenKind::Plus)),
                     Literal::Real(1.0).into_expr_lazy(),
                 )
                 .into_expr_lazy(),
-                EvaluationOp::BitShiftRight(Token::lazy(TokenType::BitShiftRight)),
+                EvaluationOp::BitShiftRight(Token::lazy(TokenKind::BitShiftRight)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
-            EvaluationOp::And(Token::lazy(TokenType::Ampersand)),
+            EvaluationOp::And(Token::lazy(TokenKind::Ampersand)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
-        EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+        EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -423,7 +423,7 @@ expr_test!(
     "1 <= 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::LessThanOrEqual(Token::lazy(TokenType::LessThanOrEqual)),
+        EqualityOp::LessThanOrEqual(Token::lazy(TokenKind::LessThanOrEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -433,7 +433,7 @@ expr_test!(
     "1 > 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::GreaterThan(Token::lazy(TokenType::GreaterThan)),
+        EqualityOp::GreaterThan(Token::lazy(TokenKind::GreaterThan)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -443,7 +443,7 @@ expr_test!(
     "1 >= 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::GreaterThanOrEqual(Token::lazy(TokenType::GreaterThanOrEqual)),
+        EqualityOp::GreaterThanOrEqual(Token::lazy(TokenKind::GreaterThanOrEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -453,7 +453,7 @@ expr_test!(
     "1 == 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+        EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -463,7 +463,7 @@ expr_test!(
     "1 := 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::Equal(Token::lazy(TokenType::ColonEqual)),
+        EqualityOp::Equal(Token::lazy(TokenKind::ColonEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -473,7 +473,7 @@ expr_test!(
     "1 != 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::NotEqual(Token::lazy(TokenType::BangEqual)),
+        EqualityOp::NotEqual(Token::lazy(TokenKind::BangEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -483,7 +483,7 @@ expr_test!(
     "1 <> 1",
     Equality::new(
         Literal::Real(1.0).into_expr_lazy(),
-        EqualityOp::NotEqual(Token::lazy(TokenType::LessThanGreaterThan)),
+        EqualityOp::NotEqual(Token::lazy(TokenKind::LessThanGreaterThan)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -513,7 +513,7 @@ expr_test!(
     Ternary::new(
         Logical::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
+            LogicalOp::And(Token::lazy(TokenKind::DoubleAmpersand)),
             Identifier::lazy("bar").into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -526,7 +526,7 @@ expr_test!(
     not,
     "!foo",
     Unary::new(
-        UnaryOp::Not(Token::lazy(TokenType::Bang)),
+        UnaryOp::Not(Token::lazy(TokenKind::Bang)),
         Identifier::lazy("foo").into_expr_lazy(),
     )
 );
@@ -535,7 +535,7 @@ expr_test!(
     not_keyword,
     "not foo",
     Unary::new(
-        UnaryOp::Not(Token::lazy(TokenType::Not)),
+        UnaryOp::Not(Token::lazy(TokenKind::Not)),
         Identifier::lazy("foo").into_expr_lazy(),
     )
 );
@@ -544,7 +544,7 @@ expr_test!(
     positive,
     "+1",
     Unary::new(
-        UnaryOp::Positive(Token::lazy(TokenType::Plus)),
+        UnaryOp::Positive(Token::lazy(TokenKind::Plus)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -553,7 +553,7 @@ expr_test!(
     neagtive,
     "-1",
     Unary::new(
-        UnaryOp::Negative(Token::lazy(TokenType::Minus)),
+        UnaryOp::Negative(Token::lazy(TokenKind::Minus)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -562,7 +562,7 @@ expr_test!(
     dot_unary,
     "!self.foo",
     Unary::new(
-        UnaryOp::Not(Token::lazy(TokenType::Bang)),
+        UnaryOp::Not(Token::lazy(TokenKind::Bang)),
         Access::Identity {
             right: Identifier::lazy("foo"),
         }
@@ -574,7 +574,7 @@ expr_test!(
     ds_unary,
     "!foo[bar]",
     Unary::new(
-        UnaryOp::Not(Token::lazy(TokenType::Bang)),
+        UnaryOp::Not(Token::lazy(TokenKind::Bang)),
         Access::Array {
             left: Identifier::lazy("foo").into_expr_lazy(),
             index_one: Identifier::lazy("bar").into_expr_lazy(),
@@ -589,7 +589,7 @@ expr_test!(
     prefix_increment,
     "++1",
     Unary::new(
-        UnaryOp::Increment(Token::lazy(TokenType::DoublePlus)),
+        UnaryOp::Increment(Token::lazy(TokenKind::DoublePlus)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -598,7 +598,7 @@ expr_test!(
     prefix_decrement,
     "--1",
     Unary::new(
-        UnaryOp::Decrement(Token::lazy(TokenType::DoubleMinus)),
+        UnaryOp::Decrement(Token::lazy(TokenKind::DoubleMinus)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -607,7 +607,7 @@ expr_test!(
     bitwise_not,
     "~1",
     Unary::new(
-        UnaryOp::BitwiseNot(Token::lazy(TokenType::Tilde)),
+        UnaryOp::BitwiseNot(Token::lazy(TokenKind::Tilde)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -617,7 +617,7 @@ expr_test!(
     "1++",
     Postfix::new(
         Literal::Real(1.0).into_expr_lazy(),
-        PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
+        PostfixOp::Increment(Token::lazy(TokenKind::DoublePlus)),
     )
 );
 
@@ -626,7 +626,7 @@ expr_test!(
     "1--",
     Postfix::new(
         Literal::Real(1.0).into_expr_lazy(),
-        PostfixOp::Decrement(Token::lazy(TokenType::DoubleMinus)),
+        PostfixOp::Decrement(Token::lazy(TokenKind::DoubleMinus)),
     )
 );
 
@@ -638,7 +638,7 @@ expr_test!(
             right: Identifier::lazy("foo"),
         }
         .into_expr_lazy(),
-        PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
+        PostfixOp::Increment(Token::lazy(TokenKind::DoublePlus)),
     )
 );
 
@@ -653,7 +653,7 @@ expr_test!(
             using_accessor: false,
         }
         .into_expr_lazy(),
-        PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
+        PostfixOp::Increment(Token::lazy(TokenKind::DoublePlus)),
     )
 );
 
@@ -968,7 +968,7 @@ expr_test!(
     Grouping::lazy(
         Evaluation::new(
             Grouping::lazy(Literal::Real(0.0).into_expr_lazy()).into_expr_lazy(),
-            EvaluationOp::Star(Token::lazy(TokenType::Star)),
+            EvaluationOp::Star(Token::lazy(TokenKind::Star)),
             Literal::Real(0.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -1026,22 +1026,22 @@ expr_test!(
     Logical::new(
         Equality::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
-        LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
+        LogicalOp::And(Token::lazy(TokenKind::DoubleAmpersand)),
         Logical::new(
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),
-            LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
+            LogicalOp::And(Token::lazy(TokenKind::DoubleAmpersand)),
             Equality::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+                EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_expr_lazy(),

@@ -30,7 +30,7 @@ stmt_test!(
     LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
         Assignment::new(
             Identifier::lazy("i").into_expr_lazy(),
-            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
             Literal::Real(0.0).into_expr_lazy(),
         )
         .into_stmt_lazy(),
@@ -45,7 +45,7 @@ stmt_test!(
         OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::lazy("j").into_expr_lazy(),
-                AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
                 Literal::Real(0.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -60,7 +60,7 @@ stmt_test!(
     LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
         Assignment::new(
             Identifier::lazy("i").into_expr_lazy(),
-            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
             Literal::Real(0.0).into_expr_lazy(),
         )
         .into_stmt_lazy(),
@@ -74,7 +74,7 @@ stmt_test!(
         LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
-                AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
                 Literal::Real(0.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -82,7 +82,7 @@ stmt_test!(
         .into_stmt_lazy(),
         Assignment::new(
             Identifier::lazy("j").into_expr_lazy(),
-            AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+            AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
             Literal::Real(0.0).into_expr_lazy(),
         )
         .into_stmt_lazy(),
@@ -117,7 +117,7 @@ stmt_test!(
         LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
-                AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+                AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
                 Literal::Real(0.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -125,14 +125,14 @@ stmt_test!(
         .into_stmt_lazy(),
         Equality::new(
             Identifier::lazy("i").into_expr_lazy(),
-            EqualityOp::LessThan(Token::lazy(TokenType::LessThan)),
+            EqualityOp::LessThan(Token::lazy(TokenKind::LessThan)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
         StmtKind::Expr(
             Postfix::new(
                 Identifier::lazy("i").into_expr_lazy(),
-                PostfixOp::Increment(Token::lazy(TokenType::DoublePlus)),
+                PostfixOp::Increment(Token::lazy(TokenKind::DoublePlus)),
             )
             .into_expr_lazy(),
         )
@@ -166,7 +166,7 @@ stmt_test!(
         Block::lazy(vec![
             Assignment::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                AssignmentOp::PlusEqual(Token::lazy(TokenType::PlusEqual)),
+                AssignmentOp::PlusEqual(Token::lazy(TokenKind::PlusEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -174,7 +174,7 @@ stmt_test!(
         .into_stmt_lazy(),
         Equality::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -186,14 +186,14 @@ stmt_test!(
     If::new(
         Equality::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
         Block::lazy(vec![
             Assignment::new(
                 Identifier::lazy("foo").into_expr_lazy(),
-                AssignmentOp::PlusEqual(Token::lazy(TokenType::PlusEqual)),
+                AssignmentOp::PlusEqual(Token::lazy(TokenKind::PlusEqual)),
                 Literal::Real(1.0).into_expr_lazy(),
             )
             .into_stmt_lazy(),
@@ -208,7 +208,7 @@ stmt_test!(
     If::new(
         Equality::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -222,7 +222,7 @@ stmt_test!(
     If::new_with_then_keyword(
         Equality::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -237,7 +237,7 @@ stmt_test!(
     If::new_with_else(
         Equality::new(
             Identifier::lazy("foo").into_expr_lazy(),
-            EqualityOp::Equal(Token::lazy(TokenType::DoubleEqual)),
+            EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -298,7 +298,7 @@ stmt_test!(
     "begin end",
     Block::new(
         vec![],
-        Some((Token::lazy(TokenType::Begin), Token::lazy(TokenType::End))),
+        Some((Token::lazy(TokenKind::Begin), Token::lazy(TokenKind::End))),
     )
 );
 
@@ -333,7 +333,7 @@ stmt_test!(
     "foo = 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -343,10 +343,10 @@ stmt_test!(
     "foo = bar = 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Equality::new(
             Identifier::lazy("bar").into_expr_lazy(),
-            EqualityOp::Equal(Token::lazy(TokenType::Equal)),
+            EqualityOp::Equal(Token::lazy(TokenKind::Equal)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -358,7 +358,7 @@ stmt_test!(
     "foo = function() {}",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Function::new_anonymous(vec![], Block::lazy(vec![]).into_stmt_lazy()).into_expr_lazy(),
     )
 );
@@ -368,10 +368,10 @@ stmt_test!(
     "foo = 1 && 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Logical::new(
             Literal::Real(1.0).into_expr_lazy(),
-            LogicalOp::And(Token::lazy(TokenType::DoubleAmpersand)),
+            LogicalOp::And(Token::lazy(TokenKind::DoubleAmpersand)),
             Literal::Real(1.0).into_expr_lazy(),
         )
         .into_expr_lazy(),
@@ -383,7 +383,7 @@ stmt_test!(
     "foo = bar ? 1 : 2;",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Ternary::new(
             Identifier::lazy("bar").into_expr_lazy(),
             Literal::Real(1.0).into_expr_lazy(),
@@ -398,7 +398,7 @@ stmt_test!(
     "foo = bar ?? 0;",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         NullCoalecence::new(
             Identifier::lazy("bar").into_expr_lazy(),
             Literal::Real(0.0).into_expr_lazy(),
@@ -415,7 +415,7 @@ stmt_test!(
             right: Identifier::lazy("foo"),
         }
         .into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -431,7 +431,7 @@ stmt_test!(
             using_accessor: false,
         }
         .into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -442,7 +442,7 @@ stmt_test!(
     "foo() = 1",
     Assignment::new(
         Call::new(Identifier::lazy("foo").into_expr_lazy(), vec![]).into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -452,7 +452,7 @@ stmt_test!(
     "static foo = 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -462,7 +462,7 @@ stmt_test!(
     "foo += 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::PlusEqual(Token::lazy(TokenType::PlusEqual)),
+        AssignmentOp::PlusEqual(Token::lazy(TokenKind::PlusEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -472,7 +472,7 @@ stmt_test!(
     "foo -= 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::MinusEqual(Token::lazy(TokenType::MinusEqual)),
+        AssignmentOp::MinusEqual(Token::lazy(TokenKind::MinusEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -482,7 +482,7 @@ stmt_test!(
     "foo *= 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::StarEqual(Token::lazy(TokenType::StarEqual)),
+        AssignmentOp::StarEqual(Token::lazy(TokenKind::StarEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -492,7 +492,7 @@ stmt_test!(
     "foo /= 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::SlashEqual(Token::lazy(TokenType::SlashEqual)),
+        AssignmentOp::SlashEqual(Token::lazy(TokenKind::SlashEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -502,7 +502,7 @@ stmt_test!(
     "foo &= 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::AndEqual(Token::lazy(TokenType::AmpersandEqual)),
+        AssignmentOp::AndEqual(Token::lazy(TokenKind::AmpersandEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -512,7 +512,7 @@ stmt_test!(
     "foo |= 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::OrEqual(Token::lazy(TokenType::PipeEqual)),
+        AssignmentOp::OrEqual(Token::lazy(TokenKind::PipeEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -522,7 +522,7 @@ stmt_test!(
     "foo ^= 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::XorEqual(Token::lazy(TokenType::CaretEquals)),
+        AssignmentOp::XorEqual(Token::lazy(TokenKind::CaretEquals)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -532,7 +532,7 @@ stmt_test!(
     "foo %= 1",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::ModEqual(Token::lazy(TokenType::PercentEqual)),
+        AssignmentOp::ModEqual(Token::lazy(TokenKind::PercentEqual)),
         Literal::Real(1.0).into_expr_lazy(),
     )
 );
@@ -542,7 +542,7 @@ stmt_test!(
     "foo = self",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Identifier::lazy("self").into_expr_lazy(),
     )
 );
@@ -552,7 +552,7 @@ stmt_test!(
     "foo = other",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Identifier::lazy("other").into_expr_lazy(),
     )
 );
@@ -565,7 +565,7 @@ stmt_test!(
         ",
     Assignment::new(
         Identifier::lazy("foo").into_expr_lazy(),
-        AssignmentOp::Identity(Token::lazy(TokenType::Equal)),
+        AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
         Identifier::lazy("bar").into_expr_lazy(),
     )
 );

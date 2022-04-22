@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Equality, EqualityOp, Expr, ExprKind, Token, TokenType},
+    parse::{Equality, EqualityOp, Expr, ExprKind, Token, TokenKind},
     Config, FileId,
 };
 
@@ -27,7 +27,7 @@ impl EarlyExprPass for SingleEqualsComparison {
         if let ExprKind::Equality(Equality {
             op:
                 EqualityOp::Equal(Token {
-                    token_type: TokenType::Equal,
+                    token_type: TokenKind::Equal,
                     span,
                 }),
             ..

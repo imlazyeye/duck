@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Span, Stmt, Token, TokenType};
+use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Span, Stmt, Token, TokenKind};
 
 /// Representation of a grouping in gml.
 #[derive(Debug, PartialEq, Clone)]
@@ -18,8 +18,8 @@ impl Grouping {
         Self {
             inner,
             tokens: (
-                Token::new(TokenType::LeftParenthesis, Span::default()),
-                Token::new(TokenType::RightParenthesis, Span::default()),
+                Token::new(TokenKind::LeftParenthesis, Span::default()),
+                Token::new(TokenKind::RightParenthesis, Span::default()),
             ),
         }
     }

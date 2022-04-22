@@ -96,35 +96,35 @@ impl Parser {
     /// Returns a [ParseError] if any of the source code caused an error.
     pub fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         match self.peek()?.token_type {
-            TokenType::Try => self.try_catch(),
-            TokenType::For => self.for_loop(),
-            TokenType::With => self.with(),
-            TokenType::Repeat => self.repeat(),
-            TokenType::Do => self.do_until(),
-            TokenType::While => self.while_loop(),
-            TokenType::If => self.if_stmt(),
-            TokenType::Switch => self.switch(),
-            TokenType::LeftBrace | TokenType::Begin => self.block(),
-            TokenType::Return => self.return_stmt(),
-            TokenType::Throw => self.throw(),
-            TokenType::Delete => self.delete(),
-            TokenType::Break => self.break_stmt(),
-            TokenType::Continue => self.continue_stmt(),
-            TokenType::Exit => self.exit(),
-            TokenType::Globalvar => self.globalvar_declaration(),
-            TokenType::Var => self.local_variable_series(),
+            TokenKind::Try => self.try_catch(),
+            TokenKind::For => self.for_loop(),
+            TokenKind::With => self.with(),
+            TokenKind::Repeat => self.repeat(),
+            TokenKind::Do => self.do_until(),
+            TokenKind::While => self.while_loop(),
+            TokenKind::If => self.if_stmt(),
+            TokenKind::Switch => self.switch(),
+            TokenKind::LeftBrace | TokenKind::Begin => self.block(),
+            TokenKind::Return => self.return_stmt(),
+            TokenKind::Throw => self.throw(),
+            TokenKind::Delete => self.delete(),
+            TokenKind::Break => self.break_stmt(),
+            TokenKind::Continue => self.continue_stmt(),
+            TokenKind::Exit => self.exit(),
+            TokenKind::Globalvar => self.globalvar_declaration(),
+            TokenKind::Var => self.local_variable_series(),
             _ => self.assignment(),
         }
     }
 
     fn try_catch(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Try)?;
+        self.require(TokenKind::Try)?;
         let try_body = self.block()?;
-        self.require(TokenType::Catch)?;
+        self.require(TokenKind::Catch)?;
         let catch_expr = self.expr()?;
         let catch_body = self.block()?;
-        let try_catch = if self.match_take(TokenType::Finally).is_some() {
+        let try_catch = if self.match_take(TokenKind::Finally).is_some() {
             TryCatch::new_with_finally(try_body, catch_expr, catch_body, self.block()?)
         } else {
             TryCatch::new(try_body, catch_expr, catch_body)
@@ -134,20 +134,20 @@ impl Parser {
 
     fn for_loop(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::For)?;
-        self.match_take(TokenType::LeftParenthesis);
+        self.require(TokenKind::For)?;
+        self.match_take(TokenKind::LeftParenthesis);
         let initializer = self.stmt()?;
         let condition = self.expr()?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         let tick = self.stmt()?;
-        self.match_take(TokenType::RightParenthesis);
+        self.match_take(TokenKind::RightParenthesis);
         let body = self.stmt()?;
         Ok(self.new_stmt(ForLoop::new(initializer, condition, tick, body), start))
     }
 
     fn with(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::With)?;
+        self.require(TokenKind::With)?;
         let condition = self.expr()?;
         let body = self.stmt()?;
         Ok(self.new_stmt(WithLoop::new(condition, body), start))
@@ -155,7 +155,7 @@ impl Parser {
 
     fn repeat(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Repeat)?;
+        self.require(TokenKind::Repeat)?;
         let condition = self.expr()?;
         let body = self.stmt()?;
         Ok(self.new_stmt(RepeatLoop::new(condition, body), start))
@@ -163,17 +163,17 @@ impl Parser {
 
     fn do_until(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Do)?;
+        self.require(TokenKind::Do)?;
         let body = self.stmt()?;
-        self.require(TokenType::Until)?;
+        self.require(TokenKind::Until)?;
         let condition = self.expr()?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(DoUntil::new(body, condition), start))
     }
 
     fn while_loop(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::While)?;
+        self.require(TokenKind::While)?;
         let condition = self.expr()?;
         let body = self.stmt()?;
         Ok(self.new_stmt(If::new(condition, body), start))
@@ -181,11 +181,11 @@ impl Parser {
 
     fn if_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::If)?;
+        self.require(TokenKind::If)?;
         let condition = self.expr()?;
-        let then = self.match_take(TokenType::Then);
+        let then = self.match_take(TokenKind::Then);
         let body = self.stmt()?;
-        let else_stmt = if self.match_take(TokenType::Else).is_some() {
+        let else_stmt = if self.match_take(TokenKind::Else).is_some() {
             Some(self.stmt()?)
         } else {
             None
@@ -207,32 +207,32 @@ impl Parser {
             let mut body = vec![];
             loop {
                 match parser.peek()?.token_type {
-                    TokenType::Case | TokenType::Default | TokenType::RightBrace | TokenType::End => break,
+                    TokenKind::Case | TokenKind::Default | TokenKind::RightBrace | TokenKind::End => break,
                     _ => body.push(parser.stmt()?),
                 }
             }
             Ok(body)
         }
-        self.require(TokenType::Switch)?;
+        self.require(TokenKind::Switch)?;
         let expr = self.expr()?;
-        self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
+        self.require_possibilities(&[TokenKind::LeftBrace, TokenKind::Begin])?;
         let mut members = vec![];
         let mut default = None;
         loop {
             match self.peek()?.token_type {
-                TokenType::Case => {
+                TokenKind::Case => {
                     self.take()?;
                     let identity = self.expr()?;
-                    self.require(TokenType::Colon)?;
+                    self.require(TokenKind::Colon)?;
                     let body = case_body(self)?;
                     members.push(SwitchCase::new(identity, body))
                 }
-                TokenType::Default => {
+                TokenKind::Default => {
                     self.take()?;
-                    self.require(TokenType::Colon)?;
+                    self.require(TokenKind::Colon)?;
                     default = Some(case_body(self)?);
                 }
-                TokenType::RightBrace | TokenType::End => {
+                TokenKind::RightBrace | TokenKind::End => {
                     self.take()?;
                     break;
                 }
@@ -253,16 +253,16 @@ impl Parser {
 
     fn block(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let opening_delimeter = self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
+        let opening_delimeter = self.require_possibilities(&[TokenKind::LeftBrace, TokenKind::Begin])?;
         let mut statements: Vec<Stmt> = vec![];
         let closing_delimiter = loop {
-            if let Some(token) = self.match_take_possibilities(&[TokenType::RightBrace, TokenType::End]) {
+            if let Some(token) = self.match_take_possibilities(&[TokenKind::RightBrace, TokenKind::End]) {
                 break token;
             } else {
                 statements.push(self.stmt()?);
             }
         };
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(
             Block::new(statements, Some((opening_delimeter, closing_delimiter))),
             start,
@@ -271,66 +271,66 @@ impl Parser {
 
     fn return_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Return)?;
+        self.require(TokenKind::Return)?;
         let expr = self.expr().ok();
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(Return::new(expr), start))
     }
 
     fn throw(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Throw)?;
+        self.require(TokenKind::Throw)?;
         let expr = self.expr()?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(Throw::new(expr), start))
     }
 
     fn delete(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Delete)?;
+        self.require(TokenKind::Delete)?;
         let expr = self.expr()?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(Delete::new(expr), start))
     }
 
     fn break_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Break)?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.require(TokenKind::Break)?;
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(StmtKind::Break, start))
     }
 
     fn continue_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Continue)?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.require(TokenKind::Continue)?;
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(StmtKind::Continue, start))
     }
 
     fn exit(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Exit)?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.require(TokenKind::Exit)?;
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(StmtKind::Exit, start))
     }
 
     fn globalvar_declaration(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Globalvar)?;
+        self.require(TokenKind::Globalvar)?;
         let name = self.require_identifier()?;
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(Globalvar::new(name), start))
     }
 
     fn local_variable_series(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        self.require(TokenType::Var)?;
+        self.require(TokenKind::Var)?;
         let mut declarations = vec![];
         loop {
             let name = self.require_identifier()?;
             let span = name.span;
             let left = self.new_expr(name, span);
-            let local_variable = if let Some(equal) = self.match_take(TokenType::Equal) {
+            let local_variable = if let Some(equal) = self.match_take(TokenKind::Equal) {
                 let right = self.expr()?;
                 OptionalInitilization::Initialized(
                     self.new_stmt(Assignment::new(left, AssignmentOp::Identity(equal), right), start),
@@ -339,13 +339,13 @@ impl Parser {
                 OptionalInitilization::Uninitialized(left)
             };
             declarations.push(local_variable);
-            if self.match_take(TokenType::Comma).is_none() {
+            if self.match_take(TokenKind::Comma).is_none() {
                 break;
             }
             if !matches!(
                 self.soft_peek(),
                 Some(Token {
-                    token_type: TokenType::Identifier(..),
+                    token_type: TokenKind::Identifier(..),
                     ..
                 })
             ) {
@@ -357,7 +357,7 @@ impl Parser {
                 break;
             }
         }
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(LocalVariableSeries::new(declarations), start))
     }
 
@@ -373,7 +373,7 @@ impl Parser {
             left,
             op:
                 EqualityOp::Equal(Token {
-                    token_type: TokenType::Equal,
+                    token_type: TokenKind::Equal,
                     span,
                 }),
             right,
@@ -381,14 +381,14 @@ impl Parser {
         {
             Assignment::new(
                 left.clone(),
-                AssignmentOp::Identity(Token::new(TokenType::Equal, *span)),
+                AssignmentOp::Identity(Token::new(TokenKind::Equal, *span)),
                 right.clone(),
             )
         } else {
             // We can't make an assignment out of this -- create an expression statement instead.
             return self.expr_stmt(expr);
         };
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(assignment, start))
     }
 
@@ -424,7 +424,7 @@ impl Parser {
                     )]));
             }
         }
-        self.match_take_repeating(TokenType::SemiColon);
+        self.match_take_repeating(TokenKind::SemiColon);
         Ok(self.new_stmt(StmtKind::Expr(expr), start))
     }
 
@@ -440,7 +440,7 @@ impl Parser {
     fn null_coalecence(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expr = self.ternary()?;
-        if self.match_take(TokenType::DoubleHook).is_some() {
+        if self.match_take(TokenKind::DoubleHook).is_some() {
             let value = self.expr()?;
             let end = value.span().end();
             Ok(self.new_expr(NullCoalecence::new(expr, value), Span::new(start, end)))
@@ -452,9 +452,9 @@ impl Parser {
     fn ternary(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         let expr = self.logical()?;
-        if self.match_take(TokenType::Hook).is_some() {
+        if self.match_take(TokenKind::Hook).is_some() {
             let true_value = self.expr()?;
-            self.require(TokenType::Colon)?;
+            self.require(TokenKind::Colon)?;
             let false_value = self.expr()?;
             let end = false_value.span().end();
             Ok(self.new_expr(Ternary::new(expr, true_value, false_value), Span::new(start, end)))
@@ -545,10 +545,10 @@ impl Parser {
                 matches!(
                     operator,
                     Some(EvaluationOp::Plus(Token {
-                        token_type: TokenType::Plus,
+                        token_type: TokenKind::Plus,
                         ..
                     })) | Some(EvaluationOp::Minus(Token {
-                        token_type: TokenType::Minus,
+                        token_type: TokenKind::Minus,
                         ..
                     }))
                 )
@@ -615,19 +615,19 @@ impl Parser {
 
     fn enum_declaration(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        if self.match_take(TokenType::Enum).is_some() {
+        if self.match_take(TokenKind::Enum).is_some() {
             let name = self.require_identifier()?;
             let mut members = vec![];
-            self.require_possibilities(&[TokenType::LeftBrace, TokenType::Begin])?;
+            self.require_possibilities(&[TokenKind::LeftBrace, TokenKind::Begin])?;
             let end = loop {
-                if let Some(token) = self.match_take_possibilities(&[TokenType::RightBrace, TokenType::End]) {
+                if let Some(token) = self.match_take_possibilities(&[TokenKind::RightBrace, TokenKind::End]) {
                     break token.span.end();
                 } else {
                     let member_start = self.next_token_boundary();
                     let name = self.require_identifier()?;
                     let span = name.span;
                     let left = self.new_expr(name, span);
-                    let enum_member = if let Some(equal) = self.match_take(TokenType::Equal) {
+                    let enum_member = if let Some(equal) = self.match_take(TokenKind::Equal) {
                         let right = self.expr()?;
                         OptionalInitilization::Initialized(self.new_stmt(
                             Assignment::new(left, AssignmentOp::Identity(equal), right),
@@ -637,12 +637,12 @@ impl Parser {
                         OptionalInitilization::Uninitialized(left)
                     };
                     members.push(enum_member);
-                    self.match_take(TokenType::Comma);
+                    self.match_take(TokenKind::Comma);
                 }
             };
             // GM accepts semicolons here, and as such, so do we.
             // FIXME: create an infastrucutre such that we can lint this?
-            self.match_take_repeating(TokenType::SemiColon);
+            self.match_take_repeating(TokenKind::SemiColon);
             Ok(self.new_expr(Enum::new_with_members(name, members), Span::new(start, end)))
         } else {
             self.macro_declaration()
@@ -653,7 +653,7 @@ impl Parser {
         let start = self.next_token_boundary();
         // FIXME: borrow checker shenanigans
         if let Ok(Token {
-            token_type: TokenType::Macro(name, config, body),
+            token_type: TokenKind::Macro(name, config, body),
             ..
         }) = self.peek().cloned()
         {
@@ -677,14 +677,14 @@ impl Parser {
     fn function(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
         // TODO: when we do static-analysis, this will be used
-        let _static_token = self.match_take(TokenType::Static);
-        if self.match_take(TokenType::Function).is_some() {
+        let _static_token = self.match_take(TokenKind::Static);
+        if self.match_take(TokenKind::Function).is_some() {
             let name = self.match_take_identifier()?;
-            self.require(TokenType::LeftParenthesis)?;
+            self.require(TokenKind::LeftParenthesis)?;
             let mut parameters = vec![];
             let right_parenthesis = loop {
                 match self.peek()?.token_type {
-                    TokenType::RightParenthesis => {
+                    TokenKind::RightParenthesis => {
                         break self.take()?;
                     }
                     _ => {
@@ -692,7 +692,7 @@ impl Parser {
                         let name = self.require_identifier()?;
                         let end = name.span.end();
                         let name = self.new_expr(name, Span::new(parameter_start, end));
-                        if let Some(token) = self.match_take(TokenType::Equal) {
+                        if let Some(token) = self.match_take(TokenKind::Equal) {
                             let assignment = Assignment::new(name, AssignmentOp::Identity(token), self.expr()?);
                             parameters.push(OptionalInitilization::Initialized(
                                 self.new_stmt(assignment, parameter_start),
@@ -700,18 +700,18 @@ impl Parser {
                         } else {
                             parameters.push(OptionalInitilization::Uninitialized(name));
                         };
-                        self.match_take(TokenType::Comma);
+                        self.match_take(TokenKind::Comma);
                     }
                 }
             };
-            let inheritance = if self.peek()?.token_type == TokenType::Colon {
+            let inheritance = if self.peek()?.token_type == TokenKind::Colon {
                 let colon = self.take()?;
                 let name = self.identifier()?;
                 Some((colon, self.call(Some(name), false)?))
             } else {
                 None
             };
-            let constructor = if self.match_take(TokenType::Constructor).is_some() {
+            let constructor = if self.match_take(TokenKind::Constructor).is_some() {
                 match inheritance {
                     Some((_, inheritance)) => Some(Constructor::WithInheritance(inheritance)),
                     None => Some(Constructor::WithoutInheritance),
@@ -754,32 +754,32 @@ impl Parser {
         if let Some(literal) = self.peek()?.to_literal() {
             let token = self.take()?;
             Ok(self.new_expr(literal, Span::new(start, token.span.end())))
-        } else if self.match_take(TokenType::LeftSquareBracket).is_some() {
+        } else if self.match_take(TokenKind::LeftSquareBracket).is_some() {
             let mut elements = vec![];
             loop {
-                if let Some(token) = self.match_take(TokenType::RightSquareBracket) {
+                if let Some(token) = self.match_take(TokenKind::RightSquareBracket) {
                     let literal = Literal::Array(elements);
                     break Ok(self.new_expr(literal, Span::new(start, token.span.end())));
                 } else {
                     elements.push(self.expr()?);
-                    self.match_take(TokenType::Comma);
+                    self.match_take(TokenKind::Comma);
                 }
             }
         } else if self
-            .match_take_possibilities(&[TokenType::LeftBrace, TokenType::Begin])
+            .match_take_possibilities(&[TokenKind::LeftBrace, TokenKind::Begin])
             .is_some()
         {
             let mut elements = vec![];
             loop {
-                if let Some(token) = self.match_take_possibilities(&[TokenType::RightBrace, TokenType::End]) {
+                if let Some(token) = self.match_take_possibilities(&[TokenKind::RightBrace, TokenKind::End]) {
                     let literal = Literal::Struct(elements);
                     break Ok(self.new_expr(literal, Span::new(start, token.span.end())));
                 } else {
                     let name = self.require_identifier()?;
-                    self.require(TokenType::Colon)?;
+                    self.require(TokenKind::Colon)?;
                     elements.push((name, self.expr()?));
-                    if self.match_take(TokenType::Comma).is_none() {
-                        let token = self.require_possibilities(&[TokenType::RightBrace, TokenType::End])?;
+                    if self.match_take(TokenKind::Comma).is_none() {
+                        let token = self.require_possibilities(&[TokenKind::RightBrace, TokenKind::End])?;
                         let literal = Literal::Struct(elements);
                         break Ok(self.new_expr(literal, Span::new(start, token.span.end())));
                     }
@@ -791,20 +791,20 @@ impl Parser {
     }
 
     fn supreme(&mut self) -> Result<Expr, Diagnostic<FileId>> {
-        let mut has_new = self.match_take(TokenType::New);
+        let mut has_new = self.match_take(TokenKind::New);
         let mut expr = Some(self.call(None, has_new.take().is_some())?);
         loop {
             expr = match self.soft_peek() {
                 Some(Token {
-                    token_type: TokenType::LeftParenthesis,
+                    token_type: TokenKind::LeftParenthesis,
                     ..
                 }) => Some(self.call(expr, has_new.take().is_some())?),
                 Some(Token {
-                    token_type: TokenType::LeftSquareBracket,
+                    token_type: TokenKind::LeftSquareBracket,
                     ..
                 }) => Some(self.ds_access(expr)?),
                 Some(Token {
-                    token_type: TokenType::Dot,
+                    token_type: TokenKind::Dot,
                     ..
                 }) => Some(self.dot_access(expr)?),
                 _ => break Ok(expr.unwrap()),
@@ -823,7 +823,7 @@ impl Parser {
             if !matches!(
                 self.soft_peek(),
                 Some(Token {
-                    token_type: TokenType::LeftParenthesis,
+                    token_type: TokenKind::LeftParenthesis,
                     ..
                 })
             ) {
@@ -831,21 +831,21 @@ impl Parser {
             }
             (start, dot)
         };
-        self.require(TokenType::LeftParenthesis)?;
+        self.require(TokenKind::LeftParenthesis)?;
         let mut arguments = vec![];
-        let end = if let Some(token) = self.match_take(TokenType::RightParenthesis) {
+        let end = if let Some(token) = self.match_take(TokenKind::RightParenthesis) {
             token.span.end()
         } else {
             loop {
                 arguments.push(self.expr()?);
                 let token = self.take()?;
                 match token.token_type {
-                    TokenType::Comma => {
-                        if let Some(token) = self.match_take(TokenType::RightParenthesis) {
+                    TokenKind::Comma => {
+                        if let Some(token) = self.match_take(TokenKind::RightParenthesis) {
                             break token.span.end();
                         }
                     }
-                    TokenType::RightParenthesis => break token.span.end(),
+                    TokenKind::RightParenthesis => break token.span.end(),
                     _ => {
                         return Err(Diagnostic::error()
                             .with_message("Unexpected token in call arguments")
@@ -871,23 +871,23 @@ impl Parser {
     fn dot_access(&mut self, expr: Option<Expr>) -> Result<Expr, Diagnostic<FileId>> {
         let mut start = self.next_token_boundary();
         let (access, end) = if let Some(expr) = expr {
-            self.require(TokenType::Dot)?;
+            self.require(TokenKind::Dot)?;
             start = expr.span().0;
             let right = self.require_identifier()?;
             let end = right.span.end();
             (Access::Dot { left: expr, right }, end)
         } else {
             match self.peek()?.token_type {
-                TokenType::Global => {
+                TokenKind::Global => {
                     self.take()?;
-                    self.require(TokenType::Dot)?;
+                    self.require(TokenKind::Dot)?;
                     let right = self.require_identifier()?;
                     let end = right.span.end();
                     (Access::Global { right }, end)
                 }
-                TokenType::SelfKeyword => {
+                TokenKind::SelfKeyword => {
                     let token = self.take()?;
-                    if self.match_take(TokenType::Dot).is_some() {
+                    if self.match_take(TokenKind::Dot).is_some() {
                         let right = self.require_identifier()?;
                         let end = right.span.end();
                         (Access::Identity { right }, end)
@@ -898,9 +898,9 @@ impl Parser {
                         );
                     }
                 }
-                TokenType::Other => {
+                TokenKind::Other => {
                     let token = self.take()?;
-                    if self.match_take(TokenType::Dot).is_some() {
+                    if self.match_take(TokenKind::Dot).is_some() {
                         let right = self.require_identifier()?;
                         let end = right.span.end();
                         (Access::Other { right }, end)
@@ -913,7 +913,7 @@ impl Parser {
                 }
                 _ => {
                     let left = self.ds_access(None)?;
-                    if self.match_take(TokenType::Dot).is_some() {
+                    if self.match_take(TokenKind::Dot).is_some() {
                         let right = self.require_identifier()?;
                         let end = right.span.end();
                         (Access::Dot { left, right }, end)
@@ -934,7 +934,7 @@ impl Parser {
             if !matches!(
                 self.soft_peek(),
                 Some(&Token {
-                    token_type: TokenType::LeftSquareBracket,
+                    token_type: TokenKind::LeftSquareBracket,
                     ..
                 })
             ) {
@@ -942,33 +942,33 @@ impl Parser {
             }
             (self.next_token_boundary(), left)
         };
-        self.require(TokenType::LeftSquareBracket)?;
+        self.require(TokenKind::LeftSquareBracket)?;
         let access = match self.peek()?.token_type {
-            TokenType::DollarSign => {
+            TokenKind::DollarSign => {
                 self.take()?;
                 Access::Struct {
                     left,
                     key: self.expr()?,
                 }
             }
-            TokenType::Hook => {
+            TokenKind::Hook => {
                 self.take()?;
                 Access::Map {
                     left,
                     key: self.expr()?,
                 }
             }
-            TokenType::Pipe => {
+            TokenKind::Pipe => {
                 self.take()?;
                 Access::List {
                     left,
                     index: self.expr()?,
                 }
             }
-            TokenType::Hash => {
+            TokenKind::Hash => {
                 self.take()?;
                 let index_one = self.expr()?;
-                self.require(TokenType::Comma)?;
+                self.require(TokenKind::Comma)?;
                 let index_two = self.expr()?;
                 Access::Grid {
                     left,
@@ -977,9 +977,9 @@ impl Parser {
                 }
             }
             _ => {
-                let using_accessor = self.match_take(TokenType::AtSign).is_some();
+                let using_accessor = self.match_take(TokenKind::AtSign).is_some();
                 let index_one = self.expr()?;
-                let index_two = if self.match_take(TokenType::Comma).is_some() {
+                let index_two = if self.match_take(TokenKind::Comma).is_some() {
                     Some(self.expr()?)
                 } else {
                     None
@@ -992,15 +992,15 @@ impl Parser {
                 }
             }
         };
-        let token = self.require(TokenType::RightSquareBracket)?;
+        let token = self.require(TokenKind::RightSquareBracket)?;
         Ok(self.new_expr(access, Span::new(start, token.span.end())))
     }
 
     fn grouping(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        if let Some(left_token) = self.match_take(TokenType::LeftParenthesis) {
+        if let Some(left_token) = self.match_take(TokenKind::LeftParenthesis) {
             let expr = self.expr()?;
-            let right_token = self.require(TokenType::RightParenthesis)?;
+            let right_token = self.require(TokenKind::RightParenthesis)?;
             Ok(self.new_expr(
                 Grouping::new(expr, (left_token, right_token)),
                 Span::new(start, right_token.span.end()),
@@ -1013,7 +1013,7 @@ impl Parser {
     fn identifier(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         // FIXME: This is our slightly ludicrous and temporary solution to the static keyword -- we just eat
         // it. Until we have static analysis, it means nothing to us!
-        self.match_take(TokenType::Static);
+        self.match_take(TokenKind::Static);
         if let Some(identifier) = self.match_take_identifier()? {
             let span = identifier.span;
             Ok(self.new_expr(identifier, span))
@@ -1034,7 +1034,7 @@ impl Parser {
 // Lexing tools
 impl Parser {
     /// Consumes and returns the next token if it is the given type.
-    fn match_take(&mut self, token_type: TokenType) -> Option<Token> {
+    fn match_take(&mut self, token_type: TokenKind) -> Option<Token> {
         match self.peek() {
             Ok(peek) if peek.token_type == token_type => Some(self.take().unwrap()),
             Err(_) => None,
@@ -1043,7 +1043,7 @@ impl Parser {
     }
 
     /// Consumes and returns the next token if it is within the array of types.
-    fn match_take_possibilities(&mut self, token_types: &[TokenType]) -> Option<Token> {
+    fn match_take_possibilities(&mut self, token_types: &[TokenKind]) -> Option<Token> {
         if self
             .peek()
             .map(|token| token_types.contains(&token.token_type))
@@ -1056,7 +1056,7 @@ impl Parser {
     }
 
     /// Continously eats next token if it is the given type.
-    fn match_take_repeating(&mut self, token_type: TokenType) {
+    fn match_take_repeating(&mut self, token_type: TokenKind) {
         loop {
             match self.peek() {
                 Ok(peek) if peek.token_type != token_type => break,
@@ -1070,7 +1070,7 @@ impl Parser {
 
     /// Returns the next Token, returning an error if there is none, or if it is
     /// not of the required type.
-    fn require(&mut self, expected_type: TokenType) -> Result<Token, Diagnostic<FileId>> {
+    fn require(&mut self, expected_type: TokenKind) -> Result<Token, Diagnostic<FileId>> {
         let found_token = self.take()?;
         if found_token.token_type == expected_type {
             Ok(found_token)
@@ -1084,7 +1084,7 @@ impl Parser {
 
     /// Returns the next Token, returning an error if there is none, or if it is
     /// not within the provided array of required types.
-    fn require_possibilities(&mut self, tokens: &[TokenType]) -> Result<Token, Diagnostic<FileId>> {
+    fn require_possibilities(&mut self, tokens: &[TokenKind]) -> Result<Token, Diagnostic<FileId>> {
         let found_token = self.take()?;
         if tokens.contains(&found_token.token_type) {
             Ok(found_token)
@@ -1103,7 +1103,7 @@ impl Parser {
     fn require_identifier(&mut self) -> Result<Identifier, Diagnostic<FileId>> {
         let next = self.take()?;
         if let Token {
-            token_type: TokenType::Identifier(v),
+            token_type: TokenKind::Identifier(v),
             span,
         } = next
         {
@@ -1122,7 +1122,7 @@ impl Parser {
         if matches!(
             self.peek()?,
             Token {
-                token_type: TokenType::Identifier(_),
+                token_type: TokenKind::Identifier(_),
                 ..
             }
         ) {
@@ -1187,11 +1187,11 @@ impl Parser {
         loop {
             match self.lexer.peek() {
                 Some(Token {
-                    token_type: TokenType::Comment(_),
+                    token_type: TokenKind::Comment(_),
                     ..
                 }) => self.comments.push(self.lexer.next().unwrap()),
                 Some(Token {
-                    token_type: TokenType::Tag(label, parameter),
+                    token_type: TokenKind::Tag(label, parameter),
                     ..
                 }) => {
                     self.tag_slot = Some(Tag(label.to_string(), parameter.map(|v| v.to_string())));

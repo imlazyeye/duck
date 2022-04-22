@@ -9,18 +9,18 @@ use super::{AssignmentOp, EqualityOp, EvaluationOp, Literal, LogicalOp, PostfixO
 /// A combination of a TokenType and the Span it originates from.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Token {
-    pub token_type: TokenType,
+    pub token_type: TokenKind,
     pub span: Span,
 }
 impl Token {
     /// Creates a new token.
-    pub fn new(token_type: TokenType, span: Span) -> Self {
+    pub fn new(token_type: TokenKind, span: Span) -> Self {
         Self { token_type, span }
     }
 
     /// Creates a new token with a default span.
     #[cfg(test)]
-    pub fn lazy(token_type: TokenType) -> Self {
+    pub fn lazy(token_type: TokenKind) -> Self {
         Self::new(token_type, Span::default())
     }
 }
@@ -29,14 +29,14 @@ impl Token {
     /// Returns a [Literal] corresponding to this Token, if possible.
     pub fn to_literal(&self) -> Option<Literal> {
         match self.token_type {
-            TokenType::True => Some(Literal::True),
-            TokenType::False => Some(Literal::False),
-            TokenType::Undefined => Some(Literal::Undefined),
-            TokenType::Noone => Some(Literal::Noone),
-            TokenType::StringLiteral(lexeme) => Some(Literal::String(lexeme.to_string())),
-            TokenType::Real(value) => Some(Literal::Real(value)),
-            TokenType::Hex(lexeme) => Some(Literal::Hex(lexeme.to_string())),
-            TokenType::MiscConstant(lexeme) => Some(Literal::Misc(lexeme.to_string())),
+            TokenKind::True => Some(Literal::True),
+            TokenKind::False => Some(Literal::False),
+            TokenKind::Undefined => Some(Literal::Undefined),
+            TokenKind::Noone => Some(Literal::Noone),
+            TokenKind::StringLiteral(lexeme) => Some(Literal::String(lexeme.to_string())),
+            TokenKind::Real(value) => Some(Literal::Real(value)),
+            TokenKind::Hex(lexeme) => Some(Literal::Hex(lexeme.to_string())),
+            TokenKind::MiscConstant(lexeme) => Some(Literal::Misc(lexeme.to_string())),
             _ => None,
         }
     }
@@ -44,17 +44,17 @@ impl Token {
     /// Returns a [EvaluationOp] corresponding to this Token, if possible.
     pub fn as_evaluation_op(&self) -> Option<EvaluationOp> {
         match self.token_type {
-            TokenType::Plus => Some(EvaluationOp::Plus(*self)),
-            TokenType::Minus => Some(EvaluationOp::Minus(*self)),
-            TokenType::Slash => Some(EvaluationOp::Slash(*self)),
-            TokenType::Star => Some(EvaluationOp::Star(*self)),
-            TokenType::Div => Some(EvaluationOp::Div(*self)),
-            TokenType::Mod | TokenType::Percent => Some(EvaluationOp::Modulo(*self)),
-            TokenType::Ampersand => Some(EvaluationOp::And(*self)),
-            TokenType::Pipe => Some(EvaluationOp::Or(*self)),
-            TokenType::Caret => Some(EvaluationOp::Xor(*self)),
-            TokenType::BitShiftLeft => Some(EvaluationOp::BitShiftLeft(*self)),
-            TokenType::BitShiftRight => Some(EvaluationOp::BitShiftRight(*self)),
+            TokenKind::Plus => Some(EvaluationOp::Plus(*self)),
+            TokenKind::Minus => Some(EvaluationOp::Minus(*self)),
+            TokenKind::Slash => Some(EvaluationOp::Slash(*self)),
+            TokenKind::Star => Some(EvaluationOp::Star(*self)),
+            TokenKind::Div => Some(EvaluationOp::Div(*self)),
+            TokenKind::Mod | TokenKind::Percent => Some(EvaluationOp::Modulo(*self)),
+            TokenKind::Ampersand => Some(EvaluationOp::And(*self)),
+            TokenKind::Pipe => Some(EvaluationOp::Or(*self)),
+            TokenKind::Caret => Some(EvaluationOp::Xor(*self)),
+            TokenKind::BitShiftLeft => Some(EvaluationOp::BitShiftLeft(*self)),
+            TokenKind::BitShiftRight => Some(EvaluationOp::BitShiftRight(*self)),
             _ => None,
         }
     }
@@ -62,12 +62,12 @@ impl Token {
     /// Returns a [EqualityOp] corresponding to this Token, if possible.
     pub fn as_equality_op(&self) -> Option<EqualityOp> {
         match self.token_type {
-            TokenType::Equal | TokenType::DoubleEqual | TokenType::ColonEqual => Some(EqualityOp::Equal(*self)),
-            TokenType::BangEqual | TokenType::LessThanGreaterThan => Some(EqualityOp::NotEqual(*self)),
-            TokenType::GreaterThan => Some(EqualityOp::GreaterThan(*self)),
-            TokenType::GreaterThanOrEqual => Some(EqualityOp::GreaterThanOrEqual(*self)),
-            TokenType::LessThan => Some(EqualityOp::LessThan(*self)),
-            TokenType::LessThanOrEqual => Some(EqualityOp::LessThanOrEqual(*self)),
+            TokenKind::Equal | TokenKind::DoubleEqual | TokenKind::ColonEqual => Some(EqualityOp::Equal(*self)),
+            TokenKind::BangEqual | TokenKind::LessThanGreaterThan => Some(EqualityOp::NotEqual(*self)),
+            TokenKind::GreaterThan => Some(EqualityOp::GreaterThan(*self)),
+            TokenKind::GreaterThanOrEqual => Some(EqualityOp::GreaterThanOrEqual(*self)),
+            TokenKind::LessThan => Some(EqualityOp::LessThan(*self)),
+            TokenKind::LessThanOrEqual => Some(EqualityOp::LessThanOrEqual(*self)),
             _ => None,
         }
     }
@@ -75,16 +75,16 @@ impl Token {
     /// Returns a [AssignmentOp] corresponding to this Token, if possible.
     pub fn as_assignment_op(&self) -> Option<AssignmentOp> {
         match self.token_type {
-            TokenType::Equal => Some(AssignmentOp::Identity(*self)),
-            TokenType::PlusEqual => Some(AssignmentOp::PlusEqual(*self)),
-            TokenType::MinusEqual => Some(AssignmentOp::MinusEqual(*self)),
-            TokenType::StarEqual => Some(AssignmentOp::StarEqual(*self)),
-            TokenType::SlashEqual => Some(AssignmentOp::SlashEqual(*self)),
-            TokenType::PipeEqual => Some(AssignmentOp::OrEqual(*self)),
-            TokenType::AmpersandEqual => Some(AssignmentOp::AndEqual(*self)),
-            TokenType::CaretEquals => Some(AssignmentOp::XorEqual(*self)),
-            TokenType::DoubleHookEquals => Some(AssignmentOp::NullCoalecenceEqual(*self)),
-            TokenType::PercentEqual => Some(AssignmentOp::ModEqual(*self)),
+            TokenKind::Equal => Some(AssignmentOp::Identity(*self)),
+            TokenKind::PlusEqual => Some(AssignmentOp::PlusEqual(*self)),
+            TokenKind::MinusEqual => Some(AssignmentOp::MinusEqual(*self)),
+            TokenKind::StarEqual => Some(AssignmentOp::StarEqual(*self)),
+            TokenKind::SlashEqual => Some(AssignmentOp::SlashEqual(*self)),
+            TokenKind::PipeEqual => Some(AssignmentOp::OrEqual(*self)),
+            TokenKind::AmpersandEqual => Some(AssignmentOp::AndEqual(*self)),
+            TokenKind::CaretEquals => Some(AssignmentOp::XorEqual(*self)),
+            TokenKind::DoubleHookEquals => Some(AssignmentOp::NullCoalecenceEqual(*self)),
+            TokenKind::PercentEqual => Some(AssignmentOp::ModEqual(*self)),
             _ => None,
         }
     }
@@ -92,12 +92,12 @@ impl Token {
     /// Returns a [UnaryOp] corresponding to this Token, if possible.
     pub fn as_unary_op(&self) -> Option<UnaryOp> {
         match self.token_type {
-            TokenType::DoublePlus => Some(UnaryOp::Increment(*self)),
-            TokenType::DoubleMinus => Some(UnaryOp::Decrement(*self)),
-            TokenType::Bang | TokenType::Not => Some(UnaryOp::Not(*self)),
-            TokenType::Plus => Some(UnaryOp::Positive(*self)),
-            TokenType::Minus => Some(UnaryOp::Negative(*self)),
-            TokenType::Tilde => Some(UnaryOp::BitwiseNot(*self)),
+            TokenKind::DoublePlus => Some(UnaryOp::Increment(*self)),
+            TokenKind::DoubleMinus => Some(UnaryOp::Decrement(*self)),
+            TokenKind::Bang | TokenKind::Not => Some(UnaryOp::Not(*self)),
+            TokenKind::Plus => Some(UnaryOp::Positive(*self)),
+            TokenKind::Minus => Some(UnaryOp::Negative(*self)),
+            TokenKind::Tilde => Some(UnaryOp::BitwiseNot(*self)),
             _ => None,
         }
     }
@@ -105,8 +105,8 @@ impl Token {
     /// Returns a [PostfixOp] corresponding to this Token, if possible.
     pub fn as_postfix_op(&self) -> Option<PostfixOp> {
         match self.token_type {
-            TokenType::DoublePlus => Some(PostfixOp::Increment(*self)),
-            TokenType::DoubleMinus => Some(PostfixOp::Decrement(*self)),
+            TokenKind::DoublePlus => Some(PostfixOp::Increment(*self)),
+            TokenKind::DoubleMinus => Some(PostfixOp::Decrement(*self)),
             _ => None,
         }
     }
@@ -114,9 +114,9 @@ impl Token {
     /// Returns a [LogicalOp] corresponding to this Token, if possible.
     pub fn as_logical_op(&self) -> Option<LogicalOp> {
         match self.token_type {
-            TokenType::And | TokenType::DoubleAmpersand => Some(LogicalOp::And(*self)),
-            TokenType::Or | TokenType::DoublePipe => Some(LogicalOp::Or(*self)),
-            TokenType::Xor => Some(LogicalOp::Xor(*self)),
+            TokenKind::And | TokenKind::DoubleAmpersand => Some(LogicalOp::And(*self)),
+            TokenKind::Or | TokenKind::DoublePipe => Some(LogicalOp::Or(*self)),
+            TokenKind::Xor => Some(LogicalOp::Xor(*self)),
             _ => None,
         }
     }
@@ -130,7 +130,7 @@ impl Display for Token {
 
 /// An individual token of gml.
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum TokenType {
+pub enum TokenKind {
     Switch,
     Case,
     Break,
@@ -235,123 +235,123 @@ pub enum TokenType {
     Eof,
 }
 
-impl Display for TokenType {
+impl Display for TokenKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            TokenType::Switch => "switch",
-            TokenType::Case => "case",
-            TokenType::Break => "break",
-            TokenType::Return => "return",
-            TokenType::Colon => ":",
-            TokenType::Dot => ".",
-            TokenType::Enum => "enum",
-            TokenType::LeftBrace => "{",
-            TokenType::RightBrace => "}",
-            TokenType::LeftParenthesis => "(",
-            TokenType::RightParenthesis => ")",
-            TokenType::LeftSquareBracket => "[",
-            TokenType::RightSquareBracket => "]",
-            TokenType::Default => "default",
-            TokenType::Comma => ",",
-            TokenType::Ampersand => "&",
-            TokenType::And => "and",
-            TokenType::DoubleAmpersand => "&&",
-            TokenType::Or => "or",
-            TokenType::DoublePipe => "||",
-            TokenType::Xor => "xor",
-            TokenType::Caret => "^",
-            TokenType::Equal => "=",
-            TokenType::DoubleEqual => "==",
-            TokenType::BangEqual => "!=",
-            TokenType::Function => "function",
-            TokenType::Constructor => "constructor",
-            TokenType::Exit => "exit",
-            TokenType::New => "new",
-            TokenType::Global => "global",
-            TokenType::Globalvar => "globalvar",
-            TokenType::SelfKeyword => "self",
-            TokenType::Mod => "mod",
-            TokenType::Percent => "%",
-            TokenType::PercentEqual => "%=",
-            TokenType::Div => "div",
-            TokenType::Slash => "/",
-            TokenType::Star => "*",
-            TokenType::Try => "try",
-            TokenType::Catch => "catch",
-            TokenType::With => "with",
-            TokenType::True => "true",
-            TokenType::False => "false",
-            TokenType::Plus => "+",
-            TokenType::Minus => "-",
-            TokenType::Bang => "!",
-            TokenType::Hook => "?",
-            TokenType::DoubleHook => "??",
-            TokenType::DoubleHookEquals => "??=",
-            TokenType::GreaterThan => ">",
-            TokenType::GreaterThanOrEqual => ">=",
-            TokenType::LessThan => "<",
-            TokenType::LessThanOrEqual => "<=",
-            TokenType::Pipe => "|",
-            TokenType::SemiColon => ";",
-            TokenType::Hash => "#",
-            TokenType::If => "if",
-            TokenType::Else => "else",
-            TokenType::While => "while",
-            TokenType::For => "for",
-            TokenType::Do => "do",
-            TokenType::Until => "until",
-            TokenType::Repeat => "repeat",
-            TokenType::Var => "var",
-            TokenType::PlusEqual => "+=",
-            TokenType::MinusEqual => "-=",
-            TokenType::StarEqual => "*=",
-            TokenType::SlashEqual => "/=",
-            TokenType::DoublePlus => "++",
-            TokenType::DoubleMinus => "--",
-            TokenType::DollarSign => "$",
-            TokenType::PipeEqual => "|=",
-            TokenType::AmpersandEqual => "&=",
-            TokenType::CaretEquals => "^=",
-            TokenType::Tilde => "~",
-            TokenType::BitShiftLeft => "<<",
-            TokenType::BitShiftRight => ">>",
-            TokenType::AtSign => "@",
-            TokenType::Continue => "continue",
-            TokenType::Static => "static",
-            TokenType::Then => "then",
-            TokenType::Finally => "finally",
-            TokenType::Undefined => "undefined",
-            TokenType::Noone => "noone",
-            TokenType::Not => "not",
-            TokenType::Other => "other",
-            TokenType::Delete => "delete",
-            TokenType::Begin => "begin",
-            TokenType::End => "end",
-            TokenType::Throw => "throw",
-            TokenType::ColonEqual => ":=",
-            TokenType::LessThanGreaterThan => "<>",
-            TokenType::Macro(name, config, body) => {
+            TokenKind::Switch => "switch",
+            TokenKind::Case => "case",
+            TokenKind::Break => "break",
+            TokenKind::Return => "return",
+            TokenKind::Colon => ":",
+            TokenKind::Dot => ".",
+            TokenKind::Enum => "enum",
+            TokenKind::LeftBrace => "{",
+            TokenKind::RightBrace => "}",
+            TokenKind::LeftParenthesis => "(",
+            TokenKind::RightParenthesis => ")",
+            TokenKind::LeftSquareBracket => "[",
+            TokenKind::RightSquareBracket => "]",
+            TokenKind::Default => "default",
+            TokenKind::Comma => ",",
+            TokenKind::Ampersand => "&",
+            TokenKind::And => "and",
+            TokenKind::DoubleAmpersand => "&&",
+            TokenKind::Or => "or",
+            TokenKind::DoublePipe => "||",
+            TokenKind::Xor => "xor",
+            TokenKind::Caret => "^",
+            TokenKind::Equal => "=",
+            TokenKind::DoubleEqual => "==",
+            TokenKind::BangEqual => "!=",
+            TokenKind::Function => "function",
+            TokenKind::Constructor => "constructor",
+            TokenKind::Exit => "exit",
+            TokenKind::New => "new",
+            TokenKind::Global => "global",
+            TokenKind::Globalvar => "globalvar",
+            TokenKind::SelfKeyword => "self",
+            TokenKind::Mod => "mod",
+            TokenKind::Percent => "%",
+            TokenKind::PercentEqual => "%=",
+            TokenKind::Div => "div",
+            TokenKind::Slash => "/",
+            TokenKind::Star => "*",
+            TokenKind::Try => "try",
+            TokenKind::Catch => "catch",
+            TokenKind::With => "with",
+            TokenKind::True => "true",
+            TokenKind::False => "false",
+            TokenKind::Plus => "+",
+            TokenKind::Minus => "-",
+            TokenKind::Bang => "!",
+            TokenKind::Hook => "?",
+            TokenKind::DoubleHook => "??",
+            TokenKind::DoubleHookEquals => "??=",
+            TokenKind::GreaterThan => ">",
+            TokenKind::GreaterThanOrEqual => ">=",
+            TokenKind::LessThan => "<",
+            TokenKind::LessThanOrEqual => "<=",
+            TokenKind::Pipe => "|",
+            TokenKind::SemiColon => ";",
+            TokenKind::Hash => "#",
+            TokenKind::If => "if",
+            TokenKind::Else => "else",
+            TokenKind::While => "while",
+            TokenKind::For => "for",
+            TokenKind::Do => "do",
+            TokenKind::Until => "until",
+            TokenKind::Repeat => "repeat",
+            TokenKind::Var => "var",
+            TokenKind::PlusEqual => "+=",
+            TokenKind::MinusEqual => "-=",
+            TokenKind::StarEqual => "*=",
+            TokenKind::SlashEqual => "/=",
+            TokenKind::DoublePlus => "++",
+            TokenKind::DoubleMinus => "--",
+            TokenKind::DollarSign => "$",
+            TokenKind::PipeEqual => "|=",
+            TokenKind::AmpersandEqual => "&=",
+            TokenKind::CaretEquals => "^=",
+            TokenKind::Tilde => "~",
+            TokenKind::BitShiftLeft => "<<",
+            TokenKind::BitShiftRight => ">>",
+            TokenKind::AtSign => "@",
+            TokenKind::Continue => "continue",
+            TokenKind::Static => "static",
+            TokenKind::Then => "then",
+            TokenKind::Finally => "finally",
+            TokenKind::Undefined => "undefined",
+            TokenKind::Noone => "noone",
+            TokenKind::Not => "not",
+            TokenKind::Other => "other",
+            TokenKind::Delete => "delete",
+            TokenKind::Begin => "begin",
+            TokenKind::End => "end",
+            TokenKind::Throw => "throw",
+            TokenKind::ColonEqual => ":=",
+            TokenKind::LessThanGreaterThan => "<>",
+            TokenKind::Macro(name, config, body) => {
                 return if let Some(config) = config {
                     f.pad(&format!("#macro {config}:{name} {body}"))
                 } else {
                     f.pad(&format!("#macro {name} {body}"))
                 };
             }
-            TokenType::Comment(body) => return f.pad(&format!("// {body}")),
-            TokenType::Identifier(iden) => iden,
-            TokenType::Real(r) => return f.pad(&r.to_string()),
-            TokenType::StringLiteral(s) => return f.pad(&format!("\"{s}\"")),
-            TokenType::Tag(label, param) => {
+            TokenKind::Comment(body) => return f.pad(&format!("// {body}")),
+            TokenKind::Identifier(iden) => iden,
+            TokenKind::Real(r) => return f.pad(&r.to_string()),
+            TokenKind::StringLiteral(s) => return f.pad(&format!("\"{s}\"")),
+            TokenKind::Tag(label, param) => {
                 if let Some(param) = param {
                     return f.pad(&format!("// #[{label}({param})]"));
                 } else {
                     return f.pad(&format!("// #[{label}]"));
                 }
             }
-            TokenType::Hex(hex) => hex,
-            TokenType::MiscConstant(con) => con,
-            TokenType::Invalid(_) => "INVALID_TOKEN",
-            TokenType::Eof => "",
+            TokenKind::Hex(hex) => hex,
+            TokenKind::MiscConstant(con) => con,
+            TokenKind::Invalid(_) => "INVALID_TOKEN",
+            TokenKind::Eof => "",
         };
         f.pad(s)
     }

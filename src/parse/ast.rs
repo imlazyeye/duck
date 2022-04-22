@@ -61,13 +61,15 @@ pub struct AstId(u64);
 pub struct Tag(pub String, pub Option<String>);
 impl PartialEq<(&str, Option<&str>)> for Tag {
     fn eq(&self, other: &(&str, Option<&str>)) -> bool {
-        self.0 == other.0 && self.1.as_ref().map(|v| v.as_str()) == other.1
+        self.0 == other.0 && self.1.as_deref() == other.1
     }
 }
 
 /// A container for both expressions and statements.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Node {
+    /// Contains a [Stmt].
     Stmt(Stmt),
+    /// Contains an [Expr].
     Expr(Expr),
 }
