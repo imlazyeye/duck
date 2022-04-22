@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    adt, array, duck_bug, duck_error,
+    adt, array, duck_error,
     parse::{Access, Expr, ExprId, ExprKind, Identifier},
     FileId,
 };

@@ -130,7 +130,3 @@ impl core::ops::Deref for LintLevelSetting {
         }
     }
 }
-
-/// The data from a user-written tag (ie: #[allow(draw_text)])
-#[derive(Debug, Clone, PartialEq)]
-pub struct LintTag(pub String, pub LintLevel);

@@ -267,20 +267,18 @@ impl Lexer {
                         self.consume_whitespace_on_line(start_index);
 
                         // See if this is an lint tag...
-                        //
-                        // FIXME: The parsing of lint tags is pretty gnarly. It should relaly be throwing errors when it
-                        // doesn't find the things it wants, but for now it just discards everything.
                         if self.match_take('#') && self.match_take('[') {
-                            // Looking promising!!
-                            let level = self.construct_word(self.next_char_boundary);
-                            if self.match_take('(') {
-                                let tag = self.construct_word(self.next_char_boundary);
-                                if self.match_take(')') && self.match_take(']') {
-                                    self.consume_rest_of_line(self.next_char_boundary);
-                                    Some(TokenType::LintTag(level, tag))
-                                } else {
-                                    return self.lex();
-                                }
+                            let tag = self.construct_word(self.next_char_boundary);
+                            let parameter = if self.match_take('(') {
+                                let parameter = self.construct_word(self.next_char_boundary);
+                                self.match_take(')');
+                                Some(parameter)
+                            } else {
+                                None
+                            };
+                            if self.match_take(']') {
+                                self.consume_rest_of_line(self.next_char_boundary);
+                                Some(TokenType::Tag(tag, parameter))
                             } else {
                                 return self.lex();
                             }

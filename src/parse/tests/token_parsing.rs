@@ -92,9 +92,9 @@ fn comments() {
 
 #[test]
 fn lint_tags() {
-    harness_single("// #[allow(and_keyword)]", TokenType::LintTag("allow", "and_keyword"));
-    harness_single("// #[warn(and_keyword)]", TokenType::LintTag("warn", "and_keyword"));
-    harness_single("// #[deny(and_keyword)]", TokenType::LintTag("deny", "and_keyword"));
+    harness_single("// #[allow(and_keyword)]", TokenType::Tag("allow", Some("and_keyword")));
+    harness_single("// #[warn(and_keyword)]", TokenType::Tag("warn", Some("and_keyword")));
+    harness_single("// #[deny(and_keyword)]", TokenType::Tag("deny", Some("and_keyword")));
 }
 
 #[test]

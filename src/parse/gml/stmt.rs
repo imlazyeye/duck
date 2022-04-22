@@ -1,8 +1,7 @@
 use crate::{
-    lint::LintTag,
     parse::{
         Block, Delete, DoUntil, Expr, ForLoop, Globalvar, If, LocalVariableSeries, Location, ParseVisitor, RepeatLoop,
-        Span, Switch, TryCatch, WhileLoop, WithLoop,
+        Span, Switch, Tag, TryCatch, WhileLoop, WithLoop,
     },
     FileId,
 };
@@ -188,7 +187,7 @@ pub struct Stmt {
     stmt_type: Box<StmtKind>,
     id: StmtId,
     location: Location,
-    lint_tag: Option<LintTag>,
+    tag: Option<Tag>,
 }
 impl Stmt {
     /// Returns a reference to the inner stmt type.
@@ -211,9 +210,9 @@ impl Stmt {
     pub fn file_id(&self) -> FileId {
         self.location().0
     }
-    /// Returns the lint tag attached to this statement, if any.
-    pub fn lint_tag(&self) -> Option<&LintTag> {
-        self.lint_tag.as_ref()
+    /// Returns the tag attached to this statement, if any.
+    pub fn tag(&self) -> Option<&Tag> {
+        self.tag.as_ref()
     }
 
     /// Get the stmt's id.
@@ -240,12 +239,12 @@ impl ParseVisitor for Stmt {
 /// `into_stmt` method, and a `into_stmt_lazy` for tests.
 pub trait IntoStmt: Sized + Into<StmtKind> {
     /// Converts self into an statement box.
-    fn into_stmt(self, id: StmtId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Stmt {
+    fn into_stmt(self, id: StmtId, span: Span, file_id: FileId, tag: Option<Tag>) -> Stmt {
         Stmt {
             stmt_type: Box::new(self.into()),
             id,
             location: Location(file_id, span),
-            lint_tag,
+            tag,
         }
     }
 

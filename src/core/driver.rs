@@ -133,9 +133,7 @@ fn run_early_lint_on_stmt<T: Lint + EarlyStmtPass>(
     config: &Config,
     reports: &mut Vec<Diagnostic<FileId>>,
 ) {
-    if stmt
-        .lint_tag()
-        .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+    if stmt.tag().map_or(false, |tag| tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_stmt_early(stmt, config, reports);
@@ -148,9 +146,7 @@ fn run_early_lint_on_expr<T: Lint + EarlyExprPass>(
     config: &Config,
     reports: &mut Vec<Diagnostic<FileId>>,
 ) {
-    if expr
-        .lint_tag()
-        .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+    if expr.tag().map_or(false, |tag| tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_expr_early(expr, config, reports);
@@ -159,9 +155,7 @@ fn run_early_lint_on_expr<T: Lint + EarlyExprPass>(
 
 /// Performs a given [LateStmtPass] on a statement.
 fn run_late_lint_on_stmt<T: Lint + LateStmtPass>(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-    if stmt
-        .lint_tag()
-        .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+    if stmt.tag().map_or(false, |tag| tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_stmt_late(stmt, config, reports);
@@ -170,9 +164,7 @@ fn run_late_lint_on_stmt<T: Lint + LateStmtPass>(stmt: &Stmt, config: &Config, r
 
 /// Performs a given [LateExprPass] on a statement.
 fn run_late_lint_on_expr<T: Lint + LateExprPass>(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-    if expr
-        .lint_tag()
-        .map_or(true, |tag| tag.0 == T::tag() && tag.1 != LintLevel::Allow)
+    if expr.tag().map_or(false, |tag| tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_expr_late(expr, config, reports);

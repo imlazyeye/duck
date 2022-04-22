@@ -228,7 +228,7 @@ pub enum TokenType {
     Identifier(&'static str),
     Real(f64),
     StringLiteral(&'static str),
-    LintTag(&'static str, &'static str),
+    Tag(&'static str, Option<&'static str>),
     Hex(&'static str),
     MiscConstant(&'static str),
     Invalid(&'static str),
@@ -341,7 +341,13 @@ impl Display for TokenType {
             TokenType::Identifier(iden) => iden,
             TokenType::Real(r) => return f.pad(&r.to_string()),
             TokenType::StringLiteral(s) => return f.pad(&format!("\"{s}\"")),
-            TokenType::LintTag(level, tag) => return f.pad(&format!("// #[{level}({tag})]")),
+            TokenType::Tag(label, param) => {
+                if let Some(param) = param {
+                    return f.pad(&format!("// #[{label}({param})]"));
+                } else {
+                    return f.pad(&format!("// #[{label}]"));
+                }
+            }
             TokenType::Hex(hex) => hex,
             TokenType::MiscConstant(con) => con,
             TokenType::Invalid(_) => "INVALID_TOKEN",

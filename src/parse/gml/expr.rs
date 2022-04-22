@@ -1,7 +1,6 @@
 use super::{IntoStmt, StmtKind};
 use crate::{
-    lint::LintTag,
-    parse::{Span, *},
+    parse::{Span, Tag, *},
     FileId,
 };
 use itertools::Itertools;
@@ -113,7 +112,7 @@ pub struct Expr {
     expr_type: Box<ExprKind>,
     id: ExprId,
     location: Location,
-    lint_tag: Option<LintTag>,
+    tag: Option<Tag>,
 }
 impl Expr {
     /// Get a reference to the expression box's expr type.
@@ -138,9 +137,9 @@ impl Expr {
     pub fn file_id(&self) -> FileId {
         self.location().0
     }
-    /// Returns the lint tag attached to this statement, if any.
-    pub fn lint_tag(&self) -> Option<&LintTag> {
-        self.lint_tag.as_ref()
+    /// Returns the tag attached to this statement, if any.
+    pub fn tag(&self) -> Option<&Tag> {
+        self.tag.as_ref()
     }
 
     /// Get the expr's id.
@@ -357,12 +356,12 @@ impl std::fmt::Display for Expr {
 /// `into_expr` method, and a `into_expr_lazy` for tests.
 pub trait IntoExpr: Sized + Into<ExprKind> {
     /// Converts self into an Expr.
-    fn into_expr(self, id: ExprId, span: Span, file_id: FileId, lint_tag: Option<LintTag>) -> Expr {
+    fn into_expr(self, id: ExprId, span: Span, file_id: FileId, tag: Option<Tag>) -> Expr {
         Expr {
             expr_type: Box::new(self.into()),
             id,
             location: Location(file_id, span),
-            lint_tag,
+            tag,
         }
     }
 
