@@ -1,53 +1,35 @@
 use crate::{parse::*, solve::*};
 use parking_lot::Mutex;
 
-pub struct TestToken;
-impl Drop for TestToken {
-    fn drop(&mut self) {
-        *SOLVER.lock() = Solver::default();
-        Printer::flush()
-    }
-}
-
 lazy_static! {
-    pub(super) static ref SOLVER: Mutex<Solver> = Mutex::new(Solver::default());
+    pub(super) static ref SOLVER: Mutex<Solver> = Mutex::new(create_test_solver());
 }
 
-pub fn harness_solver(source: &str) -> Result<TestToken, Vec<TypeError>> {
+fn create_test_solver() -> Solver {
+    let mut solver = Solver::default();
+    solver.adts.remove(&AdtId::GLOBAL);
+    solver
+}
+
+pub fn harness_solver(source: &str) -> Result<Solver, Vec<TypeError>> {
+    let mut solver = Solver::default();
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
     let mut errors = vec![];
     let mut ast = parser.into_ast().unwrap();
-    let mut solver = SOLVER.lock();
     if let Err(e) = &mut solver.process_statements(ast.stmts_mut()) {
         errors.append(e);
     }
-    // if let Err(e) = &mut solver.check_promises() {
-    //     errors.append(e)
-    // }
-    if errors.is_empty() { Ok(TestToken) } else { Err(errors) }
+    if errors.is_empty() { Ok(solver) } else { Err(errors) }
 }
 
-pub fn get_type(source: &'static str) -> (Ty, TestToken) {
-    let source = Box::leak(Box::new(format!("var a = {source}")));
-    match harness_solver(source) {
-        Ok(token) => {
-            let ty = SOLVER.lock().resolve_name("a").unwrap();
-            // solver.check_promises().unwrap();
-            (ty, token)
-        }
-        Err(e) => panic!("{}", e[0].message),
-    }
-}
-
-pub fn assert_var_type(name: &'static str, should_be: Ty) {
-    let mut solver = SOLVER.lock();
+pub fn assert_var_type(name: &'static str, should_be: Ty, solver: &mut Solver) {
     let ty = solver.resolve_name(name).unwrap();
     assert!(
-        ty.loose_eq(&should_be, &solver),
+        ty.loose_eq(&should_be, solver),
         "{name} was the wrong type! Expected {}, got {}",
-        Printer::ty(&should_be, &solver),
-        Printer::ty(&ty, &solver)
+        Printer::ty(&should_be, solver),
+        Printer::ty(&ty, solver)
     );
 }
 
@@ -87,15 +69,11 @@ macro_rules! test_expr_type {
         #[test]
         fn $name() {
             $({
+                let source = Box::leak(Box::new(format!("var a = {}", $src)));
+                let mut solver = harness_solver(source).unwrap();
                 let should_be = $should_be;
-                let (ty, _) = &get_type($src);
-                let solver = SOLVER.lock();
-                assert!(
-                    ty.loose_eq(&should_be, &solver),
-                    "Expected {}, got {}",
-                    Printer::ty(&should_be, &solver),
-                    Printer::ty(&ty, &solver)
-                );
+                solver.adts.extend(SOLVER.lock().adts.clone());
+                assert_var_type("a", should_be, &mut solver);
             })*
         }
     };
@@ -107,10 +85,11 @@ macro_rules! test_var_type {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let _token = harness_solver($src).unwrap();
+            let mut solver = harness_solver($src).unwrap();
             $(
                 let should_be = $should_be;
-                assert_var_type(stringify!($var), should_be);
+                solver.adts.extend(SOLVER.lock().adts.clone());
+                assert_var_type(stringify!($var), should_be, &mut solver);
             )*
         }
     };
