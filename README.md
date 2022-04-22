@@ -14,8 +14,8 @@ duck is also extremely fast. It currently can fully process a 250,000 line proje
 ## Table of Contents
 
 - [Features](#features)
-  - [Linting](#examples)
-  - [Validating GML](#validating-gml)
+  - [Type Checking](#type-checking)
+  - [Lints](#lints)
   - [Customization](#customization)
 - [Usage Guide](#usage-guide)
   - [Installation](#instalation)
