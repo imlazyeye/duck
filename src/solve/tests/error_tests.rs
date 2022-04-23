@@ -5,6 +5,7 @@ pub use super::*;
 // Violations
 test_failure!(invalid_equality, "var a = 0 == true;");
 test_failure!(undefined_variable, "var a = b;");
+test_failure!(read_variable_before_declaration, "var a = b, b = 0;");
 test_failure!(undefined_field, "var a = {}, b = a.x;");
 test_failure!(invalid_array_access, "var a = 0, b = a[0];");
 test_failure!(invalid_dot_access, "var a = 0, b = a.x;");

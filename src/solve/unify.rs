@@ -19,7 +19,7 @@ impl Solver {
             (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
                 let rhs = self.adts.remove(rhs_adt).unwrap(); // yikes
                 for (name, rhs_field) in rhs.fields.iter() {
-                    self.write_adt(*lhs_adt, &crate::parse::Identifier::lazy(name), rhs_field.ty.clone())?;
+                    self.write_adt(*lhs_adt, &crate::parse::Identifier::lazy(name), rhs_field.clone())?;
                 }
                 self.adts.insert(*rhs_adt, rhs);
                 Ok(())
@@ -94,7 +94,7 @@ impl Solver {
                 .get_adt(*adt)
                 .fields
                 .iter()
-                .any(|(_, field)| self.occurs(var, &field.ty)),
+                .any(|(_, field)| self.occurs(var, field)),
             Ty::Func(func) => {
                 self.occurs(var, func.return_type()) || func.parameters().iter().any(|v| self.occurs(var, v))
             }
@@ -115,7 +115,7 @@ impl Solver {
                 // TODO bad
                 let mut adt = self.adts.remove(adt_id).unwrap();
                 for (_, field) in adt.fields.iter_mut() {
-                    self.normalize(&mut field.ty);
+                    self.normalize(field);
                 }
                 self.adts.insert(*adt_id, adt);
             }

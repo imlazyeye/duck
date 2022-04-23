@@ -56,25 +56,28 @@ impl Solver {
 
     fn update_adt(&mut self, adt_id: AdtId, iden: &Identifier, mut ty: Ty, is_write: bool) -> Result<(), TypeError> {
         let origin = self.local_id();
-        if let Some(field) = self.get_adt_mut(adt_id).fields.get_mut(&iden.lexeme) {
-            if !field.safe && is_write && field.origin != origin {
-                field.safe = true;
+        let self_id = self.self_id();
+        let adt = self.get_adt_mut(adt_id);
+        if let Some(field) = adt.fields.get_mut(&iden.lexeme) {
+            if is_write
+                && adt
+                    .bounties
+                    .get(&iden.lexeme)
+                    .map_or(false, |bounty| bounty.origin != origin)
+            {
+                adt.bounties.remove(&iden.lexeme);
             }
             let mut field = field.clone(); // hot clone, hack
-            self.unify_tys(&mut field.ty, &mut ty)?;
+            self.unify_tys(&mut field, &mut ty)?;
             self.get_adt_mut(adt_id).fields.insert(iden.lexeme.clone(), field);
             Ok(())
         } else {
-            let field = Field {
-                ty,
-                safe: is_write,
-                origin,
-            };
-            let adt = self.get_adt_mut(adt_id);
-
+            if !is_write {
+                adt.bounties.insert(iden.lexeme.clone(), Bounty { self_id, origin });
+            }
             match adt.state {
-                AdtState::Inferred => adt.fields.insert(iden.lexeme.clone(), field),
-                AdtState::Extendable => adt.fields.insert(iden.lexeme.clone(), field),
+                AdtState::Inferred => adt.fields.insert(iden.lexeme.clone(), ty),
+                AdtState::Extendable => adt.fields.insert(iden.lexeme.clone(), ty),
                 _ => {
                     return duck_error!("No field found for {}", &iden.lexeme,);
                 }
@@ -90,12 +93,27 @@ impl Solver {
             .or_else(|| self.get_adt(AdtId::GLOBAL).get(name))
             .or_else(|| self.get_adt(self.self_id()).get(name))
         {
-            field.ty.clone()
+            field.clone()
         } else {
             return duck_error!("Could not resolve a type for `{name}`");
         };
         self.normalize(&mut ty);
         Ok(ty)
+    }
+
+    pub fn check_promises(&mut self) -> Result<(), Vec<TypeError>> {
+        let mut errors = vec![];
+        self.adts.iter().for_each(|(_, adt)| {
+            adt.bounties.iter().for_each(|(name, bounty)| {
+                if !self.get_adt(bounty.self_id).contains(name) && !self.get_adt(AdtId::GLOBAL).contains(name) {
+                } else {
+                    errors.push(
+                        Diagnostic::error().with_message(format!("cannot find a value for `{name}` in this scope")),
+                    );
+                }
+            })
+        });
+        if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
 }
 
@@ -105,19 +123,8 @@ impl Solver {
         let id = AdtId::new();
         let adt = Adt {
             id,
-            fields: fields
-                .into_iter()
-                .map(|(iden, ty)| {
-                    (
-                        iden.lexeme,
-                        Field {
-                            ty,
-                            safe: true,
-                            origin: self.local_id(),
-                        },
-                    )
-                })
-                .collect(),
+            fields: fields.into_iter().map(|(iden, ty)| (iden.lexeme, ty)).collect(),
+            bounties: HashMap::default(),
             state,
         };
         self.adts.insert(id, adt);
@@ -261,6 +268,7 @@ impl Default for Solver {
             Adt {
                 id: AdtId::GLOBAL,
                 fields: HashMap::default(),
+                bounties: HashMap::default(),
                 state: AdtState::Extendable,
             },
         );

@@ -9,7 +9,6 @@
 
 //! Utilities for parsing and linting Gml.
 
-#[cfg(features = "solve")]
 #[macro_use]
 extern crate lazy_static;
 
@@ -133,7 +132,6 @@ pub mod parse {
 
 /// Operations to perform static analysis on GML.
 #[allow(missing_docs)]
-#[cfg(features = "solve")]
 pub mod solve {
     mod adt;
     mod goals;

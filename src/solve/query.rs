@@ -249,7 +249,7 @@ impl Solver {
 fn handle_adt(expr: &Expr, solver: &mut Solver, id: AdtId, iden: &Identifier) -> Result<Ty, TypeError> {
     let var = expr.var();
     let ty = if let Some(field) = solver.get_adt(id).get(&iden.lexeme) {
-        field.ty.clone()
+        field.clone()
     } else {
         solver.read_adt(id, iden, Ty::Var(var))?;
         Ty::Var(var)

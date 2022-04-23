@@ -4,7 +4,8 @@ use hashbrown::HashMap;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Adt {
     pub id: AdtId,
-    pub fields: HashMap<String, Field>,
+    pub fields: HashMap<String, Ty>,
+    pub bounties: HashMap<String, Bounty>,
     pub state: AdtState,
 }
 impl Adt {
@@ -12,11 +13,11 @@ impl Adt {
         self.fields.contains_key(key)
     }
 
-    pub fn get(&self, key: &str) -> Option<&Field> {
+    pub fn get(&self, key: &str) -> Option<&Ty> {
         self.fields.get(key)
     }
 
-    pub fn get_mut(&mut self, key: &str) -> Option<&mut Field> {
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut Ty> {
         self.fields.get_mut(key)
     }
 
@@ -24,20 +25,20 @@ impl Adt {
         self.state = state;
     }
 }
-impl From<HashMap<String, Field>> for Adt {
-    fn from(fields: HashMap<String, Field>) -> Self {
+impl From<HashMap<String, Ty>> for Adt {
+    fn from(fields: HashMap<String, Ty>) -> Self {
         Self {
             id: AdtId::new(),
             fields,
+            bounties: HashMap::default(),
             state: AdtState::Concrete,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Field {
-    pub ty: Ty,
-    pub safe: bool,
+pub struct Bounty {
+    pub self_id: AdtId,
     pub origin: Rib,
 }
 

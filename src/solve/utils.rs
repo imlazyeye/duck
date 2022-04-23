@@ -139,7 +139,7 @@ impl Printer {
                         },
                         adt.fields
                             .iter()
-                            .map(|(name, field)| format!("{}: {}", name, Printer::ty(&field.ty, solver)))
+                            .map(|(name, field)| format!("{}: {}", name, Printer::ty(field, solver)))
                             .join(", ")
                     )
                 }
