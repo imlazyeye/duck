@@ -26,7 +26,7 @@ impl EarlyExprPass for NotPreference {
         if let ExprKind::Unary(Unary {
             op: UnaryOp::Not(token),
             ..
-        }) = expr.inner()
+        }) = expr.kind()
         {
             if config.prefer_not_keyword() && token.token_type != TokenKind::Not {
                 reports.push(Self::diagnostic(config).with_message("Use of `!`").with_labels(vec![

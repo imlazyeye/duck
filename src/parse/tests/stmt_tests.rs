@@ -9,10 +9,88 @@ macro_rules! stmt_test {
             let expected: StmtKind = $expected.into();
             let mut parser = Parser::new_with_default_ids($source, 0);
             let outputed = parser.stmt().unwrap();
-            assert_eq!(*outputed.inner(), expected, "`{}` failed!", $source)
+            assert_eq!(*outputed.kind(), expected, "`{}` failed!", $source)
         }
     };
 }
+
+stmt_test!(
+    enum_declaration,
+    "enum Foo { Bar, Baz }",
+    Enum::new_with_members(
+        Identifier::lazy("Foo"),
+        vec![
+            OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+            OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+        ],
+    )
+);
+
+stmt_test!(
+    enum_declaration_begin_end,
+    "enum Foo begin Bar, Baz end",
+    Enum::new_with_members(
+        Identifier::lazy("Foo"),
+        vec![
+            OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+            OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+        ],
+    )
+);
+
+stmt_test!(
+    enum_with_values,
+    "enum Foo { Bar = 20, Baz }",
+    Enum::new_with_members(
+        Identifier::lazy("Foo"),
+        vec![
+            OptionalInitilization::Initialized(
+                Assignment::new(
+                    Identifier::lazy("Bar").into_expr_lazy(),
+                    AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
+                    Literal::Real(20.0).into_expr_lazy(),
+                )
+                .into_stmt_lazy(),
+            ),
+            OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+        ],
+    )
+);
+
+stmt_test!(
+    enum_with_neighbor_values,
+    "enum Foo { Bar, Baz = Foo.Bar }",
+    Enum::new_with_members(
+        Identifier::lazy("Foo"),
+        vec![
+            OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+            OptionalInitilization::Initialized(
+                Assignment::new(
+                    Identifier::lazy("Baz").into_expr_lazy(),
+                    AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
+                    Access::Dot {
+                        left: Identifier::lazy("Foo").into_expr_lazy(),
+                        right: Identifier::lazy("Bar"),
+                    }
+                    .into_expr_lazy(),
+                )
+                .into_stmt_lazy(),
+            ),
+        ],
+    )
+);
+
+stmt_test!(
+    macro_declaration,
+    "#macro foo 0",
+    StmtKind::Macro(Macro::new(Identifier::lazy("foo"), "0"))
+);
+
+stmt_test!(
+    config_macro,
+    "#macro bar:foo 0",
+    Macro::new_with_config(Identifier::lazy("foo"), "0", "bar")
+);
 
 stmt_test!(globalvar, "globalvar foo;", Globalvar::new(Identifier::lazy("foo")));
 
@@ -574,11 +652,7 @@ stmt_test!(
     two_macro_declaration,
     "{ \n#macro foo 0\n#macro bar 0\n }",
     Block::lazy(vec![
-        Macro::new(Identifier::lazy("foo"), "0")
-            .into_expr_lazy()
-            .into_stmt_lazy(),
-        Macro::new(Identifier::lazy("bar"), "0")
-            .into_expr_lazy()
-            .into_stmt_lazy(),
+        Macro::new(Identifier::lazy("foo"), "0").into_stmt_lazy(),
+        Macro::new(Identifier::lazy("bar"), "0").into_stmt_lazy(),
     ])
 );

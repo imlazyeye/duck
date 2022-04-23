@@ -26,7 +26,7 @@ impl Switch {
         !self
             .cases
             .iter()
-            .any(|case| !matches!(case.identity().inner(), ExprKind::Access(Access::Dot { .. },)))
+            .any(|case| !matches!(case.identity().kind(), ExprKind::Access(Access::Dot { .. },)))
     }
 
     /// Returns the name of the enum this switch statement matches over, if any.
@@ -42,7 +42,7 @@ impl Switch {
     pub fn potential_enum_type(&self) -> Option<&str> {
         self.cases.first().and_then(|case| {
             case.identity()
-                .inner()
+                .kind()
                 .as_dot_access()
                 .and_then(|(left, _)| left.as_identifier())
                 .map(|iden| iden.lexeme.as_ref())

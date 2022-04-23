@@ -31,7 +31,7 @@ impl EarlyExprPass for SingleEqualsComparison {
                     span,
                 }),
             ..
-        }) = expr.inner()
+        }) = expr.kind()
         {
             reports.push(
                 Self::diagnostic(config)

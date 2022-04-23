@@ -24,7 +24,7 @@ impl Lint for MultiVarDeclaration {
 
 impl EarlyStmtPass for MultiVarDeclaration {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.inner() {
+        if let StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.kind() {
             if declarations.len() > 1 {
                 reports.push(
                     Self::diagnostic(config)

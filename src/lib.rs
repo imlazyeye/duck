@@ -44,7 +44,6 @@ pub mod parse {
         mod expressions {
             mod access;
             mod call;
-            mod r#enum;
             mod equality;
             mod evaluation;
             mod function;
@@ -52,7 +51,6 @@ pub mod parse {
             mod identifier;
             mod literal;
             mod logical;
-            mod r#macro;
             mod null_coalecence;
             mod postfix;
             mod ternary;
@@ -68,8 +66,6 @@ pub mod parse {
             pub use logical::*;
             pub use null_coalecence::*;
             pub use postfix::*;
-            pub use r#enum::*;
-            pub use r#macro::*;
             pub use ternary::*;
             pub use unary::*;
         }
@@ -78,10 +74,12 @@ pub mod parse {
             mod block;
             mod delete;
             mod do_until;
+            mod r#enum;
             mod for_loop;
             mod globalvar;
             mod r#if;
             mod local_variable;
+            mod r#macro;
             mod repeat_loop;
             mod r#return;
             mod switch;
@@ -96,7 +94,9 @@ pub mod parse {
             pub use for_loop::*;
             pub use globalvar::*;
             pub use local_variable::*;
+            pub use r#enum::*;
             pub use r#if::*;
+            pub use r#macro::*;
             pub use r#return::*;
             pub use repeat_loop::*;
             pub use switch::*;
@@ -134,14 +134,12 @@ pub mod parse {
 #[allow(missing_docs)]
 pub mod solve {
     mod adt;
-    mod goals;
     mod query;
     mod solver;
     mod ty;
     mod unify;
     mod utils;
     pub use adt::*;
-    pub use goals::*;
     pub use query::*;
     pub use solver::*;
     pub use ty::*;

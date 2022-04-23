@@ -24,8 +24,8 @@ impl Lint for DrawText {
 
 impl EarlyExprPass for DrawText {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
-            if let ExprKind::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.kind() {
+            if let ExprKind::Identifier(identifier) = left.kind() {
                 if gm_draw_text_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)

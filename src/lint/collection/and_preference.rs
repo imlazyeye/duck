@@ -26,7 +26,7 @@ impl EarlyExprPass for AndPreference {
         if let ExprKind::Logical(Logical {
             op: LogicalOp::And(token),
             ..
-        }) = expr.inner()
+        }) = expr.kind()
         {
             if config.prefer_and_keyword() && token.token_type != TokenKind::And {
                 reports.push(Self::diagnostic(config).with_message("Use of `&&`").with_labels(vec![

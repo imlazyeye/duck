@@ -24,8 +24,8 @@ impl Lint for Todo {
 
 impl EarlyExprPass for Todo {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
-            if let ExprKind::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.kind() {
+            if let ExprKind::Identifier(identifier) = left.kind() {
                 if identifier.lexeme == config.todo_keyword {
                     reports.push(
                         Self::diagnostic(config)

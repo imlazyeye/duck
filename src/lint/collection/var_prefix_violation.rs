@@ -24,7 +24,7 @@ impl Lint for VarPrefixViolation {
 
 impl EarlyStmtPass for VarPrefixViolation {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.inner() {
+        if let StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) = stmt.kind() {
             for local_variable in declarations.iter() {
                 let name = local_variable.name();
                 if config.var_prefixes && name.len() > 1 && !name.starts_with('_') {

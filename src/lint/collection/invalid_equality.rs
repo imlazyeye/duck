@@ -24,7 +24,7 @@ impl Lint for InvalidEquality {
 
 impl InvalidEquality {
     fn test_expr(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        let is_valid = !matches!(expr.inner(), ExprKind::Function(_));
+        let is_valid = !matches!(expr.kind(), ExprKind::Function(_));
         if !is_valid {
             reports.push(
                 Self::diagnostic(config)
@@ -40,7 +40,7 @@ impl InvalidEquality {
 
 impl EarlyExprPass for InvalidEquality {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Equality(Equality { left, right, .. }) = expr.inner() {
+        if let ExprKind::Equality(Equality { left, right, .. }) = expr.kind() {
             Self::test_expr(left, config, reports);
             Self::test_expr(right, config, reports);
         }

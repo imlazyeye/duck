@@ -24,8 +24,8 @@ impl Lint for ShowDebugMessage {
 
 impl EarlyExprPass for ShowDebugMessage {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
-            if let ExprKind::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.kind() {
+            if let ExprKind::Identifier(identifier) = left.kind() {
                 if identifier.lexeme == "show_debug_message" {
                     reports.push(
                         Self::diagnostic(config)

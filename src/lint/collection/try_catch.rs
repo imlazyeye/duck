@@ -24,7 +24,7 @@ impl Lint for TryCatch {
 
 impl EarlyStmtPass for TryCatch {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::TryCatch(..) = stmt.inner() {
+        if let StmtKind::TryCatch(..) = stmt.kind() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of `try` / `catch`")

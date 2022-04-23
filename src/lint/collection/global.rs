@@ -24,9 +24,9 @@ impl Lint for Global {
 
 impl EarlyStmtPass for Global {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match stmt.inner() {
+        match stmt.kind() {
             StmtKind::Assignment(Assignment { left, .. }) => {
-                if let ExprKind::Access(Access::Global { .. }) = left.inner() {
+                if let ExprKind::Access(Access::Global { .. }) = left.kind() {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Use of global variable")

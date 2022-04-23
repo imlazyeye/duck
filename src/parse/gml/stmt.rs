@@ -1,16 +1,14 @@
-use crate::{
-    parse::{
-        Block, Delete, DoUntil, Expr, ForLoop, Globalvar, If, LocalVariableSeries, Location, ParseVisitor, RepeatLoop,
-        Span, Switch, Tag, TryCatch, WhileLoop, WithLoop,
-    },
-    FileId,
-};
+use crate::{parse::*, FileId};
 
 use super::{Assignment, Return, Throw};
 
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum StmtKind {
+    /// Declaration of an enum.
+    Enum(Enum),
+    /// Declaration of a macro.
+    Macro(Macro),
     /// Declaration of a globalvar.
     GlobalvarDeclaration(Globalvar),
     /// Declaration of one or more local variables.
@@ -62,6 +60,8 @@ impl ParseVisitor for StmtKind {
         E: FnMut(&Expr),
     {
         match self {
+            StmtKind::Enum(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Macro(inner) => inner.visit_child_exprs(visitor),
             StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_exprs(visitor),
             StmtKind::LocalVariableSeries(inner) => inner.visit_child_exprs(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_exprs(visitor),
@@ -86,6 +86,8 @@ impl ParseVisitor for StmtKind {
         E: FnMut(&mut Expr),
     {
         match self {
+            StmtKind::Enum(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Macro(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::LocalVariableSeries(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_exprs_mut(visitor),
@@ -111,6 +113,8 @@ impl ParseVisitor for StmtKind {
         S: FnMut(&Stmt),
     {
         match self {
+            StmtKind::Enum(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Macro(inner) => inner.visit_child_stmts(visitor),
             StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_stmts(visitor),
             StmtKind::LocalVariableSeries(inner) => inner.visit_child_stmts(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_stmts(visitor),
@@ -136,6 +140,8 @@ impl ParseVisitor for StmtKind {
         S: FnMut(&mut Stmt),
     {
         match self {
+            StmtKind::Enum(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Macro(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::LocalVariableSeries(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_stmts_mut(visitor),
@@ -190,12 +196,12 @@ pub struct Stmt {
     tag: Option<Tag>,
 }
 impl Stmt {
-    /// Returns a reference to the inner stmt type.
-    pub fn inner(&self) -> &StmtKind {
+    /// Returns a reference to the inner StmtKind.
+    pub fn kind(&self) -> &StmtKind {
         self.stmt_type.as_ref()
     }
-    /// Returns a mutable reference to the inner stmt type.
-    pub fn inner_mut(&mut self) -> &mut StmtKind {
+    /// Returns a mutable reference to the inner StmtKind.
+    pub fn kind_mut(&mut self) -> &mut StmtKind {
         self.stmt_type.as_mut()
     }
     /// Returns the Location this statement is from.
@@ -222,16 +228,16 @@ impl Stmt {
 }
 impl ParseVisitor for Stmt {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, visitor: E) {
-        self.inner().visit_child_exprs(visitor)
+        self.kind().visit_child_exprs(visitor)
     }
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, visitor: E) {
-        self.inner_mut().visit_child_exprs_mut(visitor)
+        self.kind_mut().visit_child_exprs_mut(visitor)
     }
     fn visit_child_stmts<S: FnMut(&Stmt)>(&self, visitor: S) {
-        self.inner().visit_child_stmts(visitor)
+        self.kind().visit_child_stmts(visitor)
     }
     fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, visitor: S) {
-        self.inner_mut().visit_child_stmts_mut(visitor)
+        self.kind_mut().visit_child_stmts_mut(visitor)
     }
 }
 

@@ -26,7 +26,7 @@ impl EarlyStmtPass for SingleSwitchCase {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let StmtKind::Switch(Switch {
             cases, default_case, ..
-        }) = stmt.inner()
+        }) = stmt.kind()
         {
             if cases.len() == 1 {
                 if default_case.is_some() {

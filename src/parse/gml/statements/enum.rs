@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprKind, Identifier, IntoExpr, OptionalInitilization, ParseVisitor, Stmt};
+use crate::parse::{Expr, Identifier, IntoStmt, OptionalInitilization, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of an enum.
 #[derive(Debug, PartialEq, Clone)]
@@ -28,12 +28,12 @@ impl Enum {
             .map(|v| format!("{}.{}", self.name.lexeme, v.name()))
     }
 }
-impl From<Enum> for ExprKind {
+impl From<Enum> for StmtKind {
     fn from(e: Enum) -> Self {
         Self::Enum(e)
     }
 }
-impl IntoExpr for Enum {}
+impl IntoStmt for Enum {}
 impl ParseVisitor for Enum {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         for member in self.members.iter() {

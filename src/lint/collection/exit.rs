@@ -24,7 +24,7 @@ impl Lint for Exit {
 
 impl EarlyStmtPass for Exit {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::Exit = stmt.inner() {
+        if let StmtKind::Exit = stmt.kind() {
             reports.push(Self::diagnostic(config).with_message("Use of `exit`").with_labels(vec![
                 Label::primary(stmt.file_id(), stmt.span()).with_message("replace this with `return`"),
             ]));

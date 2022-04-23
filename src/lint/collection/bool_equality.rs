@@ -28,9 +28,9 @@ impl EarlyExprPass for BoolEquality {
             left,
             op: EqualityOp::Equal(token),
             right,
-        }) = expr.inner()
+        }) = expr.kind()
         {
-            if let Some(literal) = right.inner().as_literal() {
+            if let Some(literal) = right.kind().as_literal() {
                 reports.push(match literal {
                     Literal::True => Self::diagnostic(config)
                         .with_message("Equality check with `true`")

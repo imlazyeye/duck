@@ -41,11 +41,11 @@ impl SuspicousConstantUsage {
 
 impl EarlyExprPass for SuspicousConstantUsage {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match expr.inner() {
+        match expr.kind() {
             ExprKind::Evaluation(Evaluation {
                 op: operator, right, ..
             }) => {
-                if let Some(literal) = right.inner().as_literal() {
+                if let Some(literal) = right.kind().as_literal() {
                     if literal_is_suspicous(literal, OpWrapper::Evaluation(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
@@ -54,7 +54,7 @@ impl EarlyExprPass for SuspicousConstantUsage {
             ExprKind::Logical(Logical {
                 op: operator, right, ..
             }) => {
-                if let Some(literal) = right.inner().as_literal() {
+                if let Some(literal) = right.kind().as_literal() {
                     if literal_is_suspicous(literal, OpWrapper::Logical(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
@@ -63,7 +63,7 @@ impl EarlyExprPass for SuspicousConstantUsage {
             ExprKind::Equality(Equality {
                 op: operator, right, ..
             }) => {
-                if let Some(literal) = right.inner().as_literal() {
+                if let Some(literal) = right.kind().as_literal() {
                     if literal_is_suspicous(literal, OpWrapper::Equality(*operator)) {
                         Self::report_expr(right, config, reports);
                     }
@@ -77,13 +77,13 @@ impl EarlyStmtPass for SuspicousConstantUsage {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let StmtKind::Assignment(Assignment {
             op: operator, right, ..
-        }) = stmt.inner()
+        }) = stmt.kind()
         {
             if !matches!(
                 *operator,
                 AssignmentOp::Identity(_) | AssignmentOp::NullCoalecenceEqual(_)
             ) {
-                if let Some(literal) = right.inner().as_literal() {
+                if let Some(literal) = right.kind().as_literal() {
                     if literal_is_suspicous(literal, OpWrapper::Assignment(*operator)) {
                         Self::report_expr(right, config, reports);
                     }

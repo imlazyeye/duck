@@ -27,12 +27,10 @@ impl EarlyStmtPass for InvalidAssignment {
             left,
             op: operator,
             right,
-        }) = stmt.inner()
+        }) = stmt.kind()
         {
-            let is_valid = match left.inner() {
-                ExprKind::Enum(_)
-                | ExprKind::Macro(_)
-                | ExprKind::Function(_)
+            let is_valid = match left.kind() {
+                ExprKind::Function(_)
                 | ExprKind::Logical(_)
                 | ExprKind::Equality(_)
                 | ExprKind::Evaluation(_)

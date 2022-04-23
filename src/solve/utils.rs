@@ -40,6 +40,7 @@ macro_rules! function {
         crate::solve::Ty::Func(crate::solve::Func::Def(crate::solve::Def {
             binding: None,
             parameters: vec![],
+            minimum_arguments: 0,
             return_type: Box::new($return_type),
         }))
     };
@@ -47,6 +48,7 @@ macro_rules! function {
         crate::solve::Ty::Func(crate::solve::Func::Def(crate::solve::Def {
             binding: None,
             parameters:  vec![$($arg)*],
+            minimum_arguments: 0, // we don't check this, so we're just gonna yolo it
             return_type: Box::new($return_type),
         }))
     };
@@ -131,12 +133,7 @@ impl Printer {
                     "{}".into()
                 } else {
                     format!(
-                        "{}{{ {} }}",
-                        match adt.state {
-                            AdtState::Inferred => "?",
-                            AdtState::Extendable => "mut ",
-                            AdtState::Concrete => "",
-                        },
+                        "{{ {} }}",
                         adt.fields
                             .iter()
                             .map(|(name, field)| format!("{}: {}", name, Printer::ty(field, solver)))
@@ -170,6 +167,11 @@ impl Printer {
     #[must_use]
     pub fn query(a: &crate::parse::Expr) -> String {
         format!("{}        {a}: {}", "QUERY".bright_red(), Printer::var(&a.var()))
+    }
+
+    #[must_use]
+    pub fn write(name: &crate::parse::Identifier, ty: &Ty, solver: &Solver) -> String {
+        format!("{}        {name}: {}", "WRITE".bright_cyan(), Printer::ty(ty, solver))
     }
 
     #[must_use]

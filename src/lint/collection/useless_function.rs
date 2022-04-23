@@ -25,8 +25,8 @@ impl Lint for UselessFunction {
 
 impl EarlyStmtPass for UselessFunction {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::Expr(expr) = stmt.inner() {
-            if let ExprKind::Function(Function { name: None, .. }) = expr.inner() {
+        if let StmtKind::Expr(expr) = stmt.kind() {
+            if let ExprKind::Function(Function { name: None, .. }) = expr.kind() {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Useless function")

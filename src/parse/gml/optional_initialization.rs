@@ -17,7 +17,7 @@ impl OptionalInitilization {
         match self {
             OptionalInitilization::Uninitialized(expr) => expr,
             OptionalInitilization::Initialized(stmt) => {
-                &stmt.inner().as_assignment().unwrap_or_else(|| unreachable!()).left
+                &stmt.kind().as_assignment().unwrap_or_else(|| unreachable!()).left
             }
         }
     }
@@ -25,14 +25,14 @@ impl OptionalInitilization {
     pub fn name_identifier(&self) -> &Identifier {
         match self {
             OptionalInitilization::Uninitialized(expr) => {
-                expr.inner().as_identifier().unwrap_or_else(|| unreachable!())
+                expr.kind().as_identifier().unwrap_or_else(|| unreachable!())
             }
             OptionalInitilization::Initialized(stmt) => stmt
-                .inner()
+                .kind()
                 .as_assignment()
                 .unwrap_or_else(|| unreachable!())
                 .left
-                .inner()
+                .kind()
                 .as_identifier()
                 .unwrap_or_else(|| unreachable!()),
         }
@@ -46,7 +46,7 @@ impl OptionalInitilization {
         match self {
             OptionalInitilization::Uninitialized(_) => None,
             OptionalInitilization::Initialized(stmt) => {
-                Some(&stmt.inner().as_assignment().unwrap_or_else(|| unreachable!()).right)
+                Some(&stmt.kind().as_assignment().unwrap_or_else(|| unreachable!()).right)
             }
         }
     }

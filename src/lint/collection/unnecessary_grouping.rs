@@ -23,7 +23,7 @@ impl Lint for UnnecessaryGrouping {
 
 impl UnnecessaryGrouping {
     fn test(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Grouping(grouping) = expr.inner() {
+        if let ExprKind::Grouping(grouping) = expr.kind() {
             let (left_token, right_token) = grouping.parenthesis();
             reports.push(
                 Self::diagnostic(config)
@@ -39,7 +39,7 @@ impl UnnecessaryGrouping {
 
 impl EarlyExprPass for UnnecessaryGrouping {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match expr.inner() {
+        match expr.kind() {
             // These are the blessed expressions that utilize groupings in meaningful ways
             ExprKind::Logical(_) | ExprKind::Equality(_) | ExprKind::Evaluation(_) | ExprKind::Unary(_) => {}
 
@@ -47,9 +47,7 @@ impl EarlyExprPass for UnnecessaryGrouping {
             ExprKind::Ternary(_) => {}
 
             // These should not directly own groupings
-            ExprKind::Enum(_)
-            | ExprKind::Macro(_)
-            | ExprKind::Function(_)
+            ExprKind::Function(_)
             | ExprKind::NullCoalecence(_)
             | ExprKind::Postfix(_)
             | ExprKind::Access(_)
@@ -63,7 +61,7 @@ impl EarlyExprPass for UnnecessaryGrouping {
 
 impl EarlyStmtPass for UnnecessaryGrouping {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match stmt.inner() {
+        match stmt.kind() {
             // These are a style preference, which instead is linted by `condition_wrapper`.
             StmtKind::TryCatch(_)
             | StmtKind::ForLoop(_)

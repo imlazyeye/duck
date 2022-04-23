@@ -24,8 +24,8 @@ impl Lint for AccessorAlternative {
 
 impl EarlyExprPass for AccessorAlternative {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Call(Call { left, arguments, .. }) = expr.inner() {
-            if let ExprKind::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, arguments, .. }) = expr.kind() {
+            if let ExprKind::Identifier(identifier) = left.kind() {
                 reports.push(match identifier.lexeme.as_ref() {
                     "ds_list_find_value" => Self::diagnostic(config)
                         .with_message("Use of `ds_list_find_value`")
@@ -56,7 +56,7 @@ impl EarlyExprPass for AccessorAlternative {
                         let argument_one = arguments.get(1);
                         match argument_one {
                             Some(arg_one_box) => {
-                                match arg_one_box.inner() {
+                                match arg_one_box.kind() {
                                     // If the string literal contains a valid lexeme, then they could use dot access
                                     ExprKind::Literal(Literal::String(string))
                                         if string.chars().all(|v| v.is_alphanumeric() || v == '_') =>

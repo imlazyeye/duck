@@ -24,7 +24,7 @@ impl Lint for WithLoop {
 
 impl EarlyStmtPass for WithLoop {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::WithLoop(..) = stmt.inner() {
+        if let StmtKind::WithLoop(..) = stmt.kind() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of `with`")

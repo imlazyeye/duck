@@ -96,6 +96,8 @@ impl Parser {
     /// Returns a [ParseError] if any of the source code caused an error.
     pub fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
         match self.peek()?.token_type {
+            TokenKind::Macro(name, config, body) => self.macro_declaration(name, config, body),
+            TokenKind::Enum => self.enum_declaration(),
             TokenKind::Try => self.try_catch(),
             TokenKind::For => self.for_loop(),
             TokenKind::With => self.with(),
@@ -115,6 +117,54 @@ impl Parser {
             TokenKind::Var => self.local_variable_series(),
             _ => self.assignment(),
         }
+    }
+
+    fn macro_declaration(&mut self, name: &str, config: Option<&str>, body: &str) -> Result<Stmt, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        let _token = self.take()?;
+        // this is all strange, and is just a sign of a known fact -- our lack of proper support for macros
+        // causes weird architecture
+        let macro_length = "#macro ".len();
+        let name = Identifier::new(name, Span::new(start + macro_length, start + macro_length + name.len()));
+        let mac = if let Some(config) = config {
+            Macro::new_with_config(name, body, config)
+        } else {
+            Macro::new(name, body)
+        };
+        Ok(self.new_stmt(mac, start))
+    }
+
+    fn enum_declaration(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
+        let start = self.next_token_boundary();
+        self.require(TokenKind::Enum)?;
+        let name = self.require_identifier()?;
+        let mut members = vec![];
+        self.require_possibilities(&[TokenKind::LeftBrace, TokenKind::Begin])?;
+        loop {
+            if self
+                .match_take_possibilities(&[TokenKind::RightBrace, TokenKind::End])
+                .is_some()
+            {
+                break;
+            } else {
+                let member_start = self.next_token_boundary();
+                let name = self.require_identifier()?;
+                let span = name.span;
+                let left = self.new_expr(name, span);
+                let enum_member = if let Some(equal) = self.match_take(TokenKind::Equal) {
+                    let right = self.expr()?;
+                    OptionalInitilization::Initialized(self.new_stmt(
+                        Assignment::new(left, AssignmentOp::Identity(equal), right),
+                        member_start,
+                    ))
+                } else {
+                    OptionalInitilization::Uninitialized(left)
+                };
+                members.push(enum_member);
+                self.match_take(TokenKind::Comma);
+            }
+        }
+        Ok(self.new_stmt(Enum::new_with_members(name, members), start))
     }
 
     fn try_catch(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
@@ -377,7 +427,7 @@ impl Parser {
                     span,
                 }),
             right,
-        }) = expr.inner().as_equality()
+        }) = expr.kind().as_equality()
         {
             Assignment::new(
                 left.clone(),
@@ -394,10 +444,8 @@ impl Parser {
 
     fn expr_stmt(&mut self, expr: Expr) -> Result<Stmt, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        match expr.inner() {
-            ExprKind::Enum(..)
-            | ExprKind::Macro(..)
-            | ExprKind::Function(..)
+        match expr.kind() {
+            ExprKind::Function(..)
             | ExprKind::Postfix(..)
             | ExprKind::Unary(..) // FIXME: only some unary is valid here
             | ExprKind::Grouping(..)
@@ -604,70 +652,12 @@ impl Parser {
 
     fn postfix(&mut self) -> Result<Expr, Diagnostic<FileId>> {
         let start = self.next_token_boundary();
-        let expr = self.enum_declaration()?;
+        let expr = self.function()?;
         if let Some(operator) = self.soft_peek().and_then(|token| token.as_postfix_op()) {
             let token = self.take()?;
             Ok(self.new_expr(Postfix::new(expr, operator), Span::new(start, token.span.end())))
         } else {
             Ok(expr)
-        }
-    }
-
-    fn enum_declaration(&mut self) -> Result<Expr, Diagnostic<FileId>> {
-        let start = self.next_token_boundary();
-        if self.match_take(TokenKind::Enum).is_some() {
-            let name = self.require_identifier()?;
-            let mut members = vec![];
-            self.require_possibilities(&[TokenKind::LeftBrace, TokenKind::Begin])?;
-            let end = loop {
-                if let Some(token) = self.match_take_possibilities(&[TokenKind::RightBrace, TokenKind::End]) {
-                    break token.span.end();
-                } else {
-                    let member_start = self.next_token_boundary();
-                    let name = self.require_identifier()?;
-                    let span = name.span;
-                    let left = self.new_expr(name, span);
-                    let enum_member = if let Some(equal) = self.match_take(TokenKind::Equal) {
-                        let right = self.expr()?;
-                        OptionalInitilization::Initialized(self.new_stmt(
-                            Assignment::new(left, AssignmentOp::Identity(equal), right),
-                            member_start,
-                        ))
-                    } else {
-                        OptionalInitilization::Uninitialized(left)
-                    };
-                    members.push(enum_member);
-                    self.match_take(TokenKind::Comma);
-                }
-            };
-            Ok(self.new_expr(Enum::new_with_members(name, members), Span::new(start, end)))
-        } else {
-            self.macro_declaration()
-        }
-    }
-
-    fn macro_declaration(&mut self) -> Result<Expr, Diagnostic<FileId>> {
-        let start = self.next_token_boundary();
-        // FIXME: borrow checker shenanigans
-        if let Ok(Token {
-            token_type: TokenKind::Macro(name, config, body),
-            ..
-        }) = self.peek().cloned()
-        {
-            self.take()?;
-            // this is all strange, and is just a sign of a known fact -- our lack of proper support for macros
-            // causes weird architecture
-            let macro_length = "#macro ".len();
-            let name = Identifier::new(name, Span::new(start + macro_length, start + macro_length + name.len()));
-            let end = name.span.end() + body.len();
-            let mac = if let Some(config) = config {
-                Macro::new_with_config(name, body, config)
-            } else {
-                Macro::new(name, body)
-            };
-            Ok(self.new_expr(mac, Span::new(start, end)))
-        } else {
-            self.function()
         }
     }
 
@@ -1096,7 +1086,7 @@ impl Parser {
         }
     }
 
-    /// Returns the next token as an Identifier if it is of TokenType::Identifier.
+    /// Returns the next token as an Identifier if it is of TokenKind::Identifier.
     fn require_identifier(&mut self) -> Result<Identifier, Diagnostic<FileId>> {
         let next = self.take()?;
         if let Token {

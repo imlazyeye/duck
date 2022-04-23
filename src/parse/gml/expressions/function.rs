@@ -52,7 +52,7 @@ impl Function {
 
     /// Returns the list of statements in this function's body
     pub fn body_stmts(&self) -> &Vec<Stmt> {
-        match self.body.inner() {
+        match self.body.kind() {
             StmtKind::Block(body) => &body.body,
             _ => unreachable!(),
         }

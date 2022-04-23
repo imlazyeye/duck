@@ -28,11 +28,11 @@ impl EarlyStmtPass for CollapsableIf {
             body: first_body,
             else_stmt: None,
             ..
-        }) = stmt.inner()
+        }) = stmt.kind()
         {
-            if let Some(block) = first_body.inner().as_block().filter(|block| block.body.len() == 1) {
+            if let Some(block) = first_body.kind().as_block().filter(|block| block.body.len() == 1) {
                 let nested_stmt = block.body.first().unwrap();
-                if let StmtKind::If(If { else_stmt: None, .. }) = nested_stmt.inner() {
+                if let StmtKind::If(If { else_stmt: None, .. }) = nested_stmt.kind() {
                     reports.push(
                         Self::diagnostic(config)
                             .with_message("Collapsable if statement")

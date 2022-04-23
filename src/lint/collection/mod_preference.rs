@@ -26,7 +26,7 @@ impl EarlyExprPass for ModPreference {
         if let ExprKind::Evaluation(Evaluation {
             op: EvaluationOp::Modulo(token),
             ..
-        }) = expr.inner()
+        }) = expr.kind()
         {
             if config.prefer_mod_keyword() && token.token_type != TokenKind::Mod {
                 reports.push(Self::diagnostic(config).with_message("Use of `%`").with_labels(vec![

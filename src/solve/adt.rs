@@ -5,7 +5,7 @@ use hashbrown::HashMap;
 pub struct Adt {
     pub id: AdtId,
     pub fields: HashMap<String, Ty>,
-    pub bounties: HashMap<String, Bounty>,
+    pub promises: HashMap<String, Promise>,
     pub state: AdtState,
 }
 impl Adt {
@@ -30,15 +30,22 @@ impl From<HashMap<String, Ty>> for Adt {
         Self {
             id: AdtId::new(),
             fields,
-            bounties: HashMap::default(),
+            promises: HashMap::default(),
             state: AdtState::Concrete,
         }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Bounty {
-    pub self_id: AdtId,
+pub struct Promise {
+    /// The Adts capable of fulfilling this promise.
+    pub fulfillers: Vec<AdtId>,
+    /// The place this promise was formed. This is used to ensure that we don't accept a fulfilment
+    /// from code guarenteed to execute after the initial read, like the following:
+    /// ```
+    /// var a = b; // promise created here
+    /// b = 0; // this cannot fulfill the promise, as this write occurs in the same rib the promise was formed in
+    /// ```
     pub origin: Rib,
 }
 

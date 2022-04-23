@@ -24,8 +24,8 @@ impl Lint for RoomGoto {
 
 impl EarlyExprPass for RoomGoto {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Call(Call { left, .. }) = expr.inner() {
-            if let ExprKind::Identifier(identifier) = left.inner() {
+        if let ExprKind::Call(Call { left, .. }) = expr.kind() {
+            if let ExprKind::Identifier(identifier) = left.kind() {
                 if gm_room_goto_functions().contains(&identifier.lexeme.as_str()) {
                     reports.push(
                         Self::diagnostic(config)

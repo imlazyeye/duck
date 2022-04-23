@@ -24,9 +24,9 @@ impl Lint for NonConstantDefaultParameter {
 
 impl NonConstantDefaultParameter {
     fn _is_constant(_expresion_box: &Expr) -> bool {
-        // match expresion_box.inner() {
+        // match expresion_box.kind() {
         //     ExprType::Access(Access::Dot { left, .. }) => left
-        //         .inner()
+        //         .kind()
         //         .as_identifier()
         //         .map_or(false, |iden| global_scope.find_enum(&iden.lexeme).is_some()),
         //     ExprType::Unary(Unary {
@@ -49,7 +49,7 @@ impl NonConstantDefaultParameter {
 
 impl LateExprPass for NonConstantDefaultParameter {
     fn visit_expr_late(_expr: &Expr, _config: &crate::Config, _reports: &mut Vec<Diagnostic<FileId>>) {
-        // if let ExprType::Function(Function { parameters, .. }) = expr.inner() {
+        // if let ExprType::Function(Function { parameters, .. }) = expr.kind() {
         //     for param in parameters {
         //         if let Some(default_expr) = param.assignment_value() {
         //             let constant = Self::is_constant(default_expr, global_scope);

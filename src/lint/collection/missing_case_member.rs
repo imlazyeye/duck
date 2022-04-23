@@ -23,7 +23,7 @@ impl Lint for MissingCaseMember {
 
 impl LateStmtPass for MissingCaseMember {
     fn visit_stmt_late(_stmt: &Stmt, _config: &crate::Config, _reports: &mut Vec<Diagnostic<FileId>>) {
-        // if let StmtType::Switch(switch) = stmt.inner() {
+        // if let StmtType::Switch(switch) = stmt.kind() {
         //     // Ignore switches that don't pertain to this lint
         //     // TODO: Check for user supplied crash calls here, and enable the lint if they're in
         // the default     // body!
@@ -52,7 +52,7 @@ impl LateStmtPass for MissingCaseMember {
         //     for case in switch.cases().iter() {
         //         // Retrieve the dot access (we made sure this `unwrap` is safe with
         //         // `all_case_members_dot_access` earlier!)
-        //         let (left, right) = case.identity().inner().as_dot_access().unwrap();
+        //         let (left, right) = case.identity().kind().as_dot_access().unwrap();
 
         //         // We are not safe to assume that the left and right are identifiers.
         //         if let Some(this_identity_enum) = left.as_identifier() {

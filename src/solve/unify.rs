@@ -7,8 +7,7 @@ impl Solver {
         if lhs == rhs {
             return Ok(());
         }
-        #[cfg(test)]
-        println!("{}", Printer::ty_unification(lhs, rhs, self));
+        // println!("{}", Printer::ty_unification(lhs, rhs, self));
         match (lhs, rhs) {
             (ty @ Ty::Uninitialized, other) | (other, ty @ Ty::Uninitialized) => {
                 *ty = other.clone();
@@ -31,15 +30,24 @@ impl Solver {
                     let mut solver = self.clone();
                     let mut def = def.clone();
                     for (i, param) in def.parameters.iter_mut().enumerate() {
-                        let arg = if let Some(arg) = call.parameters.get_mut(i) {
-                            arg
-                        } else {
-                            return duck_error!("Missing argument {i} in call.");
+                        if let Some(arg) = call.parameters.get_mut(i) {
+                            solver.unify_tys(param, arg)?;
+                        } else if i < def.minimum_arguments {
+                            return duck_error!("missing argument {i} in call");
                         };
-                        solver.unify_tys(param, arg)?;
+                    }
+                    if call.parameters.len() > def.parameters.len() {
+                        return duck_error!("extra arguments provided to call");
                     }
                     solver.normalize(&mut def.return_type);
+                    // HACK: bit of a bodge here, but since the Adt's actual data is stored on the solver, not in these
+                    // types, we need to do the following to transfer that data back to the real solver
+                    if let &Ty::Adt(id) = def.return_type.as_ref() {
+                        let adt = solver.get_adt(id);
+                        self.adts.insert(id, adt.clone());
+                    }
                     self.unify_tys(&mut call.return_type, &mut def.return_type)?;
+
                     #[cfg(test)]
                     println!("\n--- Ending call... ---\n");
                     Ok(())

@@ -26,7 +26,7 @@ impl EarlyExprPass for OrPreference {
         if let ExprKind::Logical(Logical {
             op: LogicalOp::Or(token),
             ..
-        }) = expr.inner()
+        }) = expr.kind()
         {
             if config.prefer_or_keyword() && token.token_type != TokenKind::Or {
                 reports.push(Self::diagnostic(config).with_message("Use of `||`").with_labels(vec![

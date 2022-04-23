@@ -1,17 +1,10 @@
 use super::{IntoStmt, StmtKind};
-use crate::{
-    parse::{Span, Tag, *},
-    FileId,
-};
+use crate::{parse::*, FileId};
 use itertools::Itertools;
 
 /// A singular gml statement.
 #[derive(Debug, PartialEq, Clone)]
 pub enum ExprKind {
-    /// Declaration of an enum.
-    Enum(Enum),
-    /// Declaration of a macro.
-    Macro(Macro),
     /// Declaration of a function.
     Function(Function),
     /// A logical comparision.
@@ -51,7 +44,7 @@ impl ExprKind {
     /// Returns the expression a the interior fields of a Access::Dot, or None.
     pub fn as_dot_access(&self) -> Option<(&Self, &Identifier)> {
         match self {
-            ExprKind::Access(Access::Dot { left, right }) => Some((left.inner(), right)),
+            ExprKind::Access(Access::Dot { left, right }) => Some((left.kind(), right)),
             _ => None,
         }
     }
@@ -103,6 +96,20 @@ impl ExprKind {
             _ => None,
         }
     }
+
+    /// Returns if the Expr can be simplified down into a single, constant numerical value.
+    pub fn is_numerical_constant(&self) -> bool {
+        match self {
+            ExprKind::Logical(Logical { left, right, .. })
+            | ExprKind::Equality(Equality { left, right, .. })
+            | ExprKind::Evaluation(Evaluation { left, right, .. }) => {
+                left.kind().is_numerical_constant() && right.kind().is_numerical_constant()
+            }
+            ExprKind::Unary(Unary { right, .. }) => right.kind().is_numerical_constant(),
+            ExprKind::Literal(Literal::Hex(_)) | ExprKind::Literal(Literal::Real(_)) => true,
+            _ => false,
+        }
+    }
 }
 impl IntoExpr for ExprKind {}
 
@@ -115,13 +122,13 @@ pub struct Expr {
     tag: Option<Tag>,
 }
 impl Expr {
-    /// Get a reference to the expression box's expr type.
-    pub fn inner(&self) -> &ExprKind {
+    /// Get a reference to the inner ExprKind.
+    pub fn kind(&self) -> &ExprKind {
         self.expr_type.as_ref()
     }
 
-    /// Get a mutable reference to the expression box's expr type.
-    pub fn inner_mut(&mut self) -> &mut ExprKind {
+    /// Get a mutable reference to the inner ExprKind.
+    pub fn kind_mut(&mut self) -> &mut ExprKind {
         &mut self.expr_type
     }
 
@@ -158,9 +165,7 @@ impl ParseVisitor for Expr {
     where
         E: FnMut(&Expr),
     {
-        match self.inner() {
-            ExprKind::Enum(inner) => inner.visit_child_exprs(visitor),
-            ExprKind::Macro(inner) => inner.visit_child_exprs(visitor),
+        match self.kind() {
             ExprKind::Function(inner) => inner.visit_child_exprs(visitor),
             ExprKind::Logical(inner) => inner.visit_child_exprs(visitor),
             ExprKind::Equality(inner) => inner.visit_child_exprs(visitor),
@@ -181,9 +186,7 @@ impl ParseVisitor for Expr {
     where
         E: FnMut(&mut Expr),
     {
-        match self.inner_mut() {
-            ExprKind::Enum(inner) => inner.visit_child_exprs_mut(visitor),
-            ExprKind::Macro(inner) => inner.visit_child_exprs_mut(visitor),
+        match self.kind_mut() {
             ExprKind::Function(inner) => inner.visit_child_exprs_mut(visitor),
             ExprKind::Logical(inner) => inner.visit_child_exprs_mut(visitor),
             ExprKind::Equality(inner) => inner.visit_child_exprs_mut(visitor),
@@ -204,9 +207,7 @@ impl ParseVisitor for Expr {
     where
         S: FnMut(&Stmt),
     {
-        match self.inner() {
-            ExprKind::Enum(inner) => inner.visit_child_stmts(visitor),
-            ExprKind::Macro(inner) => inner.visit_child_stmts(visitor),
+        match self.kind() {
             ExprKind::Function(inner) => inner.visit_child_stmts(visitor),
             ExprKind::Logical(inner) => inner.visit_child_stmts(visitor),
             ExprKind::Equality(inner) => inner.visit_child_stmts(visitor),
@@ -227,9 +228,7 @@ impl ParseVisitor for Expr {
     where
         S: FnMut(&mut Stmt),
     {
-        match self.inner_mut() {
-            ExprKind::Enum(inner) => inner.visit_child_stmts_mut(visitor),
-            ExprKind::Macro(inner) => inner.visit_child_stmts_mut(visitor),
+        match self.kind_mut() {
             ExprKind::Function(inner) => inner.visit_child_stmts_mut(visitor),
             ExprKind::Logical(inner) => inner.visit_child_stmts_mut(visitor),
             ExprKind::Equality(inner) => inner.visit_child_stmts_mut(visitor),
@@ -248,17 +247,7 @@ impl ParseVisitor for Expr {
 }
 impl std::fmt::Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.inner() {
-            ExprKind::Enum(Enum { name, members }) => {
-                f.pad(&format!("enum {name} {{ {} }}", members.iter().join(", ")))
-            }
-            ExprKind::Macro(Macro { name, config, body }) => {
-                if let Some(config) = config {
-                    f.pad(&format!("#macro {config}:{name} {body}"))
-                } else {
-                    f.pad(&format!("#macro {name} {body}"))
-                }
-            }
+        match self.kind() {
             ExprKind::Function(Function {
                 name,
                 parameters,

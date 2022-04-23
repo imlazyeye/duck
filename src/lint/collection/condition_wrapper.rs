@@ -24,7 +24,7 @@ impl Lint for ConditionWrapper {
 
 impl ConditionWrapper {
     pub fn test(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let Some(grouping) = expr.inner().as_grouping() {
+        if let Some(grouping) = expr.kind().as_grouping() {
             let (left_token, right_token) = grouping.parenthesis();
             if !config.statement_parentheticals {
                 reports.push(
@@ -50,7 +50,7 @@ impl ConditionWrapper {
 
 impl EarlyExprPass for ConditionWrapper {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let ExprKind::Ternary(Ternary { condition, .. }) = expr.inner() {
+        if let ExprKind::Ternary(Ternary { condition, .. }) = expr.kind() {
             Self::test(condition, config, reports)
         }
     }
@@ -58,7 +58,7 @@ impl EarlyExprPass for ConditionWrapper {
 
 impl EarlyStmtPass for ConditionWrapper {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match stmt.inner() {
+        match stmt.kind() {
             StmtKind::Switch(Switch {
                 matching_value: expr, ..
             })

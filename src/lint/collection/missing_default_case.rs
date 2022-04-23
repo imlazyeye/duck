@@ -24,7 +24,7 @@ impl Lint for MissingDefaultCase {
 
 impl EarlyStmtPass for MissingDefaultCase {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::Switch(switch) = stmt.inner() {
+        if let StmtKind::Switch(switch) = stmt.kind() {
             if switch.default_case().is_none() {
                 let final_position = switch
                     .cases()

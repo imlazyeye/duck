@@ -52,6 +52,7 @@ impl Func {
 pub struct Def {
     pub binding: Option<Binding>,
     pub parameters: Vec<Ty>,
+    pub minimum_arguments: usize,
     pub return_type: Box<Ty>,
 }
 

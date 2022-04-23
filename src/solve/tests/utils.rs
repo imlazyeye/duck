@@ -20,7 +20,7 @@ pub fn harness_solver(source: &str) -> Result<Solver, Vec<TypeError>> {
     if let Err(e) = &mut solver.process_statements(ast.stmts_mut()) {
         errors.append(e);
     }
-    if let Err(e) = &mut solver.check_promises() {
+    if let Err(e) = &mut solver.fulfill_promises() {
         errors.append(e);
     }
     if errors.is_empty() { Ok(solver) } else { Err(errors) }

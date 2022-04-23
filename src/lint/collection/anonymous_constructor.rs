@@ -28,7 +28,7 @@ impl EarlyExprPass for AnonymousConstructor {
             name: None,
             constructor: Some(_),
             ..
-        }) = expr.inner()
+        }) = expr.kind()
         {
             reports.push(
                 Self::diagnostic(config)

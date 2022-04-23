@@ -55,7 +55,7 @@ pub fn process_stmt_early(stmt: &mut Stmt, reports: &mut Vec<Diagnostic<FileId>>
     // @end early stmt calls. Do not remove this comment!
 
     // Recurse...
-    let stmt = stmt.inner_mut();
+    let stmt = stmt.kind_mut();
     stmt.visit_child_stmts_mut(|stmt| process_stmt_early(stmt, reports, config));
     stmt.visit_child_exprs_mut(|expr| process_expr_early(expr, reports, config));
 }
@@ -108,7 +108,7 @@ pub fn process_stmt_late(stmt: &Stmt, reports: &mut Vec<Diagnostic<FileId>>, con
     // @end late stmt calls. Do not remove this comment!
 
     // Recurse...
-    let stmt = stmt.inner();
+    let stmt = stmt.kind();
     stmt.visit_child_stmts(|stmt| process_stmt_late(stmt, reports, config));
     stmt.visit_child_exprs(|expr| process_expr_late(expr, reports, config));
 }

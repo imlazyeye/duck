@@ -46,28 +46,7 @@ impl CasingRules {
 
 impl EarlyExprPass for CasingRules {
     fn visit_expr_early(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<crate::FileId>>) {
-        match expr.inner() {
-            ExprKind::Enum(gml_enum) => {
-                Self::check_for(
-                    &gml_enum.name,
-                    config.casing_rules.enum_rule,
-                    expr.file_id(),
-                    config,
-                    reports,
-                );
-                for member in gml_enum.members.iter() {
-                    Self::check_for(
-                        member.name_identifier(),
-                        config.casing_rules.enum_member_rule,
-                        expr.file_id(),
-                        config,
-                        reports,
-                    );
-                }
-            }
-            ExprKind::Macro(Macro { name, .. }) => {
-                Self::check_for(name, config.casing_rules.macro_rule, expr.file_id(), config, reports)
-            }
+        match expr.kind() {
             ExprKind::Function(Function {
                 name: Some(name),
                 constructor: Some(_),
@@ -109,7 +88,28 @@ impl EarlyExprPass for CasingRules {
 
 impl EarlyStmtPass for CasingRules {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        match stmt.inner() {
+        match stmt.kind() {
+            StmtKind::Enum(gml_enum) => {
+                Self::check_for(
+                    &gml_enum.name,
+                    config.casing_rules.enum_rule,
+                    stmt.file_id(),
+                    config,
+                    reports,
+                );
+                for member in gml_enum.members.iter() {
+                    Self::check_for(
+                        member.name_identifier(),
+                        config.casing_rules.enum_member_rule,
+                        stmt.file_id(),
+                        config,
+                        reports,
+                    );
+                }
+            }
+            StmtKind::Macro(Macro { name, .. }) => {
+                Self::check_for(name, config.casing_rules.macro_rule, stmt.file_id(), config, reports)
+            }
             StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
                 Self::check_for(name, config.casing_rules.global_rule, stmt.file_id(), config, reports)
             }

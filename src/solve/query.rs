@@ -1,4 +1,101 @@
-use crate::{parse::*, solve::*};
+use crate::{duck_error, parse::*, solve::*};
+
+impl Solver {
+    pub fn process_statements(&mut self, stmts: &[Stmt]) -> Result<(), Vec<TypeError>> {
+        let mut errors = vec![];
+        for stmt in stmts.iter() {
+            if let Err(e) = self.visit_stmt(stmt) {
+                errors.push(e);
+            }
+        }
+        if errors.is_empty() { Ok(()) } else { Err(errors) }
+    }
+
+    fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), TypeError> {
+        let mut result = Ok(());
+        stmt.visit_child_stmts(|stmt| {
+            result = self.visit_stmt(stmt);
+        });
+        result?;
+        match stmt.kind() {
+            StmtKind::Enum(e) => {
+                let mut fields = vec![];
+                for init in e.members.iter() {
+                    if !init
+                        .assignment_value()
+                        .map_or(true, |v| v.kind().is_numerical_constant())
+                    {
+                        return duck_error!("enum members must be numerical constants");
+                    }
+                    fields.push((init.name_identifier().clone(), Ty::Real))
+                }
+                let id = self.new_adt(AdtState::Concrete, fields);
+                self.write_adt(AdtId::GLOBAL, &e.name, Ty::Adt(id))?;
+                self.constants.insert(e.name.lexeme.clone());
+            }
+            StmtKind::Macro(mac) => {
+                self.write_adt(AdtId::GLOBAL, &mac.name, Ty::Any)?;
+                self.constants.insert(mac.name.lexeme.clone());
+            }
+            StmtKind::Assignment(Assignment { left, right, op }) => {
+                let mut right_ty = right.query(self)?;
+                if let AssignmentOp::Identity(_) = op {
+                    if let Ok((adt_id, iden)) = self.expr_to_adt_access(left) {
+                        self.write_adt(adt_id, iden, right_ty)?;
+                    } else {
+                        left.unify(&mut right_ty, self)?;
+                    }
+                }
+            }
+            StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) => {
+                for initializer in declarations.iter() {
+                    let ty = match initializer {
+                        OptionalInitilization::Uninitialized(_) => Ty::Uninitialized,
+                        OptionalInitilization::Initialized(_) => initializer.assignment_value().unwrap().query(self)?,
+                    };
+                    self.write_adt(self.local_id(), initializer.name_identifier(), ty)?;
+                }
+            }
+            StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
+                self.write_adt(AdtId::GLOBAL, name, Ty::Uninitialized)?;
+            }
+            StmtKind::Return(Return { value }) => {
+                let return_var = self.return_var();
+                if let Some(value) = value {
+                    value.unify(&mut Ty::Var(return_var), self)?;
+                } else {
+                    // todo impl query to var
+                    self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(return_var))?;
+                }
+            }
+            StmtKind::WithLoop(WithLoop { .. }) => {
+                // TODO: Instance ID / Object ID!
+            }
+            StmtKind::RepeatLoop(RepeatLoop { tick_counts, .. }) => {
+                tick_counts.unify(&mut Ty::Real, self)?;
+            }
+            StmtKind::ForLoop(ForLoop { condition, .. })
+            | StmtKind::DoUntil(DoUntil { condition, .. })
+            | StmtKind::WhileLoop(WhileLoop { condition, .. })
+            | StmtKind::If(If { condition, .. }) => {
+                condition.unify(&mut Ty::Bool, self)?;
+            }
+            StmtKind::Switch(Switch {
+                matching_value, cases, ..
+            }) => {
+                let mut identity = matching_value.query(self)?;
+                for case in cases {
+                    case.identity().unify(&mut identity, self)?;
+                }
+            }
+            StmtKind::Expr(expr) => {
+                expr.query(self)?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+}
 
 // Queries
 pub trait QueryItem {
@@ -17,23 +114,7 @@ impl QueryItem for Expr {
 
         println!("{}", Printer::query(self));
 
-        match self.inner() {
-            ExprKind::Enum(e) => {
-                let mut fields = vec![];
-                for init in e.members.iter() {
-                    if let Some(value) = init.assignment_value() {
-                        value.unify(&mut Ty::Real, solver)?;
-                    }
-                    fields.push((init.name_identifier().clone(), Ty::Real))
-                }
-                let adt = solver.new_adt(AdtState::Concrete, fields);
-                solver.write_adt(AdtId::GLOBAL, &e.name, Ty::Adt(adt))?;
-                Ok(Ty::Adt(adt))
-            }
-            ExprKind::Macro(mac) => {
-                solver.write_adt(AdtId::GLOBAL, &mac.name, Ty::Any)?;
-                Ok(Ty::Any)
-            }
+        let ty = match self.kind() {
             ExprKind::Function(func) => {
                 let ty = solver.process_function(self, func)?;
                 if let Some(name) = &func.name {
@@ -52,9 +133,9 @@ impl QueryItem for Expr {
                 Ok(Ty::Bool)
             }
             ExprKind::Evaluation(eval) => {
-                let mut left = eval.left.query(solver)?;
-                eval.right.unify(&mut left, solver)?;
-                Ok(left)
+                eval.left.unify(&mut Ty::Real, solver)?;
+                eval.right.unify(&mut Ty::Real, solver)?;
+                Ok(Ty::Real)
             }
             ExprKind::NullCoalecence(_) => todo!(),
             ExprKind::Ternary(ternary) => {
@@ -144,18 +225,20 @@ impl QueryItem for Expr {
                             .unwrap_or(Ty::Any),
                     )),
                     Literal::Struct(declarations) => {
-                        let mut fields = vec![];
+                        let id = solver.new_adt(AdtState::Extendable, vec![]);
+                        solver.enter_self_scope(id);
                         for declaration in declarations {
                             let ty = declaration.1.query(solver)?.clone();
-                            fields.push((declaration.0.clone(), ty));
+                            solver.write_adt(id, &declaration.0, ty)?;
                         }
-                        Ty::Adt(solver.new_adt(AdtState::Extendable, fields))
+                        solver.depart_self_scope();
+                        Ty::Adt(id)
                     }
                 };
 
                 // Since this expr is a literal we can just skip unification and directly sub it
                 // (just to reduce operations, no functional difference)
-                Ok(solver.sub(self.var(), ty))
+                Ok(ty)
             }
             ExprKind::Identifier(iden) => {
                 let id = if solver.get_adt(solver.local_id()).contains(&iden.lexeme) {
@@ -167,6 +250,12 @@ impl QueryItem for Expr {
                 };
                 handle_adt(self, solver, id, iden)
             }
+        }?;
+
+        if Ty::Var(self.var()) != ty {
+            Ok(solver.sub(self.var(), ty))
+        } else {
+            Ok(ty)
         }
     }
 
@@ -179,15 +268,21 @@ impl Solver {
     fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<Ty, TypeError> {
         let mut parameters = vec![];
         let mut local_fields = vec![];
-        for param in function.parameters.iter() {
+        let mut found_minimum = None;
+        for (i, param) in function.parameters.iter().enumerate() {
             let ty = if let Some(value) = param.assignment_value() {
+                found_minimum = Some(i);
                 value.query(self)?
             } else {
+                if found_minimum.is_some() {
+                    return duck_error!("default arguments can not be followed by standard arguments");
+                }
                 Ty::Var(param.name_expr().var())
             };
             local_fields.push((param.name_identifier().clone(), ty.clone()));
             parameters.push(ty);
         }
+        let minimum_arguments = found_minimum.unwrap_or(parameters.len());
         let local_scope = self.new_adt(AdtState::Extendable, local_fields);
         self.enter_local_scope(local_scope);
         let binding = if let Some(constructor) = function.constructor.as_ref() {
@@ -196,9 +291,9 @@ impl Solver {
                 self_scope: self.enter_new_constructor_scope(),
                 inheritance: match constructor {
                     Constructor::WithInheritance(call) => Some(
-                        call.inner()
+                        call.kind()
                             .as_call()
-                            .and_then(|call| call.left.inner().as_identifier())
+                            .and_then(|call| call.left.kind().as_identifier())
                             .cloned()
                             .unwrap(),
                     ),
@@ -236,6 +331,7 @@ impl Solver {
         let mut ty = Ty::Func(super::Func::Def(super::Def {
             binding: Some(binding),
             parameters,
+            minimum_arguments,
             return_type,
         }));
 
