@@ -1,5 +1,5 @@
 use super::*;
-use crate::{adt, array, function, solve::*, test_expr_type, test_success, test_var_type};
+use crate::{adt, array, function, solve::*, test_expr_type, test_failure, test_success, test_var_type};
 use Ty::*;
 
 // Basic expressions
@@ -25,12 +25,12 @@ test_var_type!(
     h: Bool,
 );
 test_expr_type!(ternary, "true ? 0 : 0" => Real);
-// test_expr_type!(
-//     null_coalecence,
-//     "function(x) {
-//         return x ?? 0;
-//     }" => new_function!((new_union!(Real, Undefined)) => Real)
-// );
+test_expr_type!(
+    null_coalecence,
+    "function(x) {
+        return x ?? 0;
+    }" => function!((Real) => Real)
+);
 test_expr_type!(
     evaluation,
     "1 + 1" => Real,
@@ -41,6 +41,7 @@ test_expr_type!(
     "1 div 1" => Real,
 );
 test_expr_type!(logical, "true && false" => Bool);
+test_failure!(invalid_equality, "var a = 0 == true;");
 
 // Basic statements
 test_success!(repeat_loop, "repeat 1 {}");
@@ -54,6 +55,8 @@ test_success!(switch, "switch true { case true: break; case false: break; }");
 test_var_type!(local_var, "var a = 0", a: Real);
 test_var_type!(null_local_var, "var a;", a: Uninitialized);
 test_var_type!(assign_to_null_var, "var a; a = 0;", a: Real);
+test_failure!(undefined_variable, "var a = b;");
+test_failure!(read_variable_before_declaration, "var a = b, b = 0;");
 
 // Globals
 test_var_type!(globalvar, "globalvar foo;", foo: Uninitialized);
@@ -68,15 +71,36 @@ test_var_type!(
     var bar = foo.bar;",
     bar: Real,
 );
+test_var_type!(
+    members_as_real,
+    "enum foo { bar, buzz }
+    var a = foo.bar + foo.buzz;
+    var b = foo.bar + 1;",
+    a: Real,
+    b: Real,
+);
+test_failure!(
+    invalid_enum_combo,
+    "enum foo { bar }
+    enum fizz { buzz }
+    var a = foo.bar + fizz.buzz;"
+);
+test_failure!(reference_enum_type, "enum foo {}; bar = foo;");
+test_failure!(non_real_enum_member_value, "enum foo { bar = true };");
+test_failure!(non_constant_enum_member, "var fizz = 0; enum foo { bar = fizz };");
+test_failure!(double_enum_declaration, "enum foo {}; enum foo {};");
 
 // Macros
 test_var_type!(macro_reference, "#macro foo 0\nvar bar = foo;", bar: Any);
+test_failure!(illegal_macro_declaration_location, "foo = #macro bar 0");
+test_failure!(double_macro_declaration, "#macro foo 0\n#macro foo 0;");
 
 // Arrays
 test_expr_type!(empty_array, "[]" => array!(Any));
 test_expr_type!(constant_array, "[0]" => array!(Real));
 test_expr_type!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
 test_var_type!(array_access, "var x = [0], y = x[0];", y: Real);
+test_failure!(invalid_array_access, "var a = 0, b = a[0];");
 
 // Structs
 test_expr_type!(empty_struct, "{}" => adt!());
@@ -109,6 +133,8 @@ test_var_type!(
     var fizz = foo.bar();",
     fizz: Real
 );
+test_failure!(undefined_field, "var a = {}, b = a.x;");
+test_failure!(invalid_dot_access, "var a = 0, b = a.x;");
 
 // Functions
 test_expr_type!(function, "function() {}" => function!(() => Undefined));
@@ -246,6 +272,12 @@ test_var_type!(
     bar = foo(bar);",
     bar: adt!(a: Real, b: Real)
 );
+test_failure!(invalid_call_target, "var a = 0, b = a();");
+test_failure!(invalid_argument, "var a = function(x) { return x + 1; }, b = a(true);");
+test_failure!(missing_argument, "var a = function(x) {}, b = a();");
+test_success!(missing_default_argument, "var a = function(x=0) {}, b = a();");
+test_failure!(extra_argument, "var a = function() {}, b = a(0);");
+test_failure!(contrasting_returns, "function() { return 0; return true; }");
 
 // Self
 test_var_type!(self_assignment_no_keyword, "foo = 0;", foo: Real);

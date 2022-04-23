@@ -177,9 +177,22 @@ impl QueryItem for Expr {
 
 impl Solver {
     fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<Ty, TypeError> {
+        let mut parameters = vec![];
+        let mut local_fields = vec![];
+        for param in function.parameters.iter() {
+            let ty = if let Some(value) = param.assignment_value() {
+                value.query(self)?
+            } else {
+                Ty::Var(param.name_expr().var())
+            };
+            local_fields.push((param.name_identifier().clone(), ty.clone()));
+            parameters.push(ty);
+        }
+        let local_scope = self.new_adt(AdtState::Extendable, local_fields);
+        self.enter_local_scope(local_scope);
         let binding = if let Some(constructor) = function.constructor.as_ref() {
             Binding::Constructor {
-                local_scope: self.enter_new_local_scope(),
+                local_scope,
                 self_scope: self.enter_new_constructor_scope(),
                 inheritance: match constructor {
                     Constructor::WithInheritance(call) => Some(
@@ -194,20 +207,11 @@ impl Solver {
             }
         } else {
             Binding::Method {
-                local_scope: self.enter_new_local_scope(),
+                local_scope,
                 self_scope: self.self_id(),
             }
         };
 
-        let mut parameters = vec![];
-        for param in function.parameters.iter() {
-            let mut ty = param.name_expr().query(self)?;
-            self.write_adt(self.local_id(), param.name_identifier(), ty.clone())?;
-            if let Some(value) = param.assignment_value() {
-                value.unify(&mut ty, self)?;
-            }
-            parameters.push(ty);
-        }
         self.enter_new_return_body();
         if let Err(errs) = &mut self.process_statements(function.body_stmts()) {
             return Err(errs.pop().unwrap()); // todo

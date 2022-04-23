@@ -149,7 +149,6 @@ pub mod solve {
     pub use utils::*;
     #[cfg(test)]
     mod tests {
-        mod error_tests;
         mod type_tests;
         mod utils;
         pub use utils::*;

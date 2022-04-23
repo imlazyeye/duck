@@ -104,7 +104,7 @@ macro_rules! test_success {
         #[cfg(test)]
         #[test]
         fn $name() {
-            assert!(harness_solver($src).is_ok());
+            harness_solver($src).unwrap();
         }
     };
 }

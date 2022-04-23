@@ -71,17 +71,13 @@ impl Solver {
             self.unify_tys(&mut field, &mut ty)?;
             self.get_adt_mut(adt_id).fields.insert(iden.lexeme.clone(), field);
             Ok(())
+        } else if adt.state == AdtState::Concrete {
+            duck_error!("No field found for {}", &iden.lexeme)
         } else {
             if !is_write {
                 adt.bounties.insert(iden.lexeme.clone(), Bounty { self_id, origin });
             }
-            match adt.state {
-                AdtState::Inferred => adt.fields.insert(iden.lexeme.clone(), ty),
-                AdtState::Extendable => adt.fields.insert(iden.lexeme.clone(), ty),
-                _ => {
-                    return duck_error!("No field found for {}", &iden.lexeme,);
-                }
-            };
+            adt.fields.insert(iden.lexeme.clone(), ty);
             Ok(())
         }
     }
@@ -213,10 +209,8 @@ impl Solver {
         self.self_stack.push(adt_id);
     }
 
-    pub fn enter_new_local_scope(&mut self) -> AdtId {
-        let adt_id = self.new_adt(AdtState::Extendable, vec![]);
+    pub fn enter_local_scope(&mut self, adt_id: AdtId) {
         self.local_stack.push(adt_id);
-        adt_id
     }
 
     pub fn enter_new_return_body(&mut self) -> Var {
@@ -273,7 +267,8 @@ impl Default for Solver {
             },
         );
         solver.self_stack.push(AdtId::GLOBAL);
-        solver.enter_new_local_scope();
+        let local_scope = solver.new_adt(AdtState::Extendable, vec![]);
+        solver.enter_local_scope(local_scope);
         solver.enter_new_return_body();
         solver
     }

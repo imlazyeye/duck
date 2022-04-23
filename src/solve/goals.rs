@@ -16,6 +16,9 @@ impl Solver {
 // Goal construction
 impl Solver {
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), TypeError> {
+        stmt.visit_child_stmts(|stmt| {
+            self.visit_stmt(stmt);
+        });
         match stmt.inner() {
             StmtKind::Assignment(Assignment { left, right, op }) => {
                 let mut right_ty = right.query(self)?;
