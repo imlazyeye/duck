@@ -136,7 +136,18 @@ impl Printer {
                         "{{ {} }}",
                         adt.fields
                             .iter()
-                            .map(|(name, field)| format!("{}: {}", name, Printer::ty(field, solver)))
+                            .map(|(name, field)| {
+                                format!(
+                                    "{}: {}{}",
+                                    name,
+                                    if field == &Ty::Adt(*adt_id) {
+                                        "<cycle>".into()
+                                    } else {
+                                        Printer::ty(field, solver)
+                                    },
+                                    if adt.promises.contains_key(name) { "?" } else { "" }
+                                )
+                            })
                             .join(", ")
                     )
                 }

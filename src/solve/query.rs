@@ -12,11 +12,6 @@ impl Solver {
     }
 
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), TypeError> {
-        let mut result = Ok(());
-        stmt.visit_child_stmts(|stmt| {
-            result = self.visit_stmt(stmt);
-        });
-        result?;
         match stmt.kind() {
             StmtKind::Enum(e) => {
                 let mut fields = vec![];
@@ -68,28 +63,73 @@ impl Solver {
                     self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(return_var))?;
                 }
             }
-            StmtKind::WithLoop(WithLoop { .. }) => {
+            StmtKind::WithLoop(WithLoop { body, .. }) => {
+                self.visit_stmt(body)?;
                 // TODO: Instance ID / Object ID!
             }
-            StmtKind::RepeatLoop(RepeatLoop { tick_counts, .. }) => {
+            StmtKind::RepeatLoop(RepeatLoop { tick_counts, body }) => {
+                self.visit_stmt(body)?;
                 tick_counts.unify(&mut Ty::Real, self)?;
             }
-            StmtKind::ForLoop(ForLoop { condition, .. })
-            | StmtKind::DoUntil(DoUntil { condition, .. })
-            | StmtKind::WhileLoop(WhileLoop { condition, .. })
-            | StmtKind::If(If { condition, .. }) => {
+            StmtKind::ForLoop(ForLoop {
+                condition,
+                initializer,
+                iterator,
+                body,
+            }) => {
+                self.visit_stmt(initializer)?;
+                self.visit_stmt(iterator)?;
+                self.visit_stmt(body)?;
+                condition.unify(&mut Ty::Bool, self)?;
+            }
+            StmtKind::DoUntil(DoUntil { condition, body }) | StmtKind::WhileLoop(WhileLoop { condition, body }) => {
+                self.visit_stmt(body)?;
+                condition.unify(&mut Ty::Bool, self)?;
+            }
+            StmtKind::If(If {
+                condition,
+                body,
+                else_stmt,
+                ..
+            }) => {
+                self.visit_stmt(body)?;
+                if let Some(else_stmt) = else_stmt {
+                    self.visit_stmt(else_stmt)?;
+                }
                 condition.unify(&mut Ty::Bool, self)?;
             }
             StmtKind::Switch(Switch {
-                matching_value, cases, ..
+                matching_value,
+                cases,
+                default_case,
             }) => {
                 let mut identity = matching_value.query(self)?;
                 for case in cases {
+                    for stmt in case.iter_body_statements() {
+                        self.visit_stmt(stmt)?;
+                    }
                     case.identity().unify(&mut identity, self)?;
+                }
+                if let Some(default_case) = default_case {
+                    for stmt in default_case.iter() {
+                        self.visit_stmt(stmt)?;
+                    }
                 }
             }
             StmtKind::Expr(expr) => {
                 expr.query(self)?;
+            }
+            StmtKind::TryCatch(try_catch) => {
+                self.visit_stmt(&try_catch.try_body)?;
+                self.visit_stmt(&try_catch.catch_body)?;
+                if let Some(finally_body) = &try_catch.finally_body {
+                    self.visit_stmt(finally_body)?;
+                }
+            }
+            StmtKind::Block(block) => {
+                for stmt in block.body.iter() {
+                    self.visit_stmt(stmt)?;
+                }
             }
             _ => {}
         }
@@ -207,7 +247,9 @@ impl QueryItem for Expr {
                     })),
                     solver,
                 )?;
-                Ok(Ty::Var(self.var())) // potentially not normalized
+                let mut ty = Ty::Var(self.var());
+                solver.normalize(&mut ty);
+                Ok(ty)
             }
             ExprKind::Grouping(grouping) => grouping.inner.query(solver),
             ExprKind::Literal(literal) => {
@@ -286,9 +328,11 @@ impl Solver {
         let local_scope = self.new_adt(AdtState::Extendable, local_fields);
         self.enter_local_scope(local_scope);
         let binding = if let Some(constructor) = function.constructor.as_ref() {
+            let self_scope = self.new_adt(AdtState::Extendable, vec![]);
+            self.enter_self_scope(self_scope);
             Binding::Constructor {
                 local_scope,
-                self_scope: self.enter_new_constructor_scope(),
+                self_scope,
                 inheritance: match constructor {
                     Constructor::WithInheritance(call) => Some(
                         call.kind()

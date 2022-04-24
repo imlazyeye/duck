@@ -110,11 +110,17 @@ impl Solver {
         let mut errors = vec![];
         self.adts.iter().for_each(|(_, adt)| {
             adt.promises.iter().for_each(|(name, promise)| {
-                if !promise
+                // HACK: rather bad code but i'm goin with it. the real issue here is that `fulfillers` is a vec at
+                // all -- we don't need that, we need a [Option<AdtId>; 2] -- one for self, one for
+                // global
+                if let Some(Some(field)) = promise
                     .fulfillers
                     .iter()
-                    .any(|adt_id| self.get_adt(*adt_id).contains(name))
+                    .map(|adt_id| self.get_adt(*adt_id).get(name))
+                    .next()
                 {
+                    println!("oh no it should be {}", Printer::ty(field, self));
+                } else {
                     // HACK: This is a bodge -- both the field on Solver and this operation here. Enums and macros are
                     // valid anywhere at any time, so we need a way to mark them as "constant". In
                     // the future there may be a more sophisticated solution, but for now, this is
@@ -153,12 +159,6 @@ impl Solver {
 
     pub fn get_adt_mut(&mut self, adt_id: AdtId) -> &mut Adt {
         self.adts.get_mut(&adt_id).unwrap()
-    }
-
-    pub fn enter_new_constructor_scope(&mut self) -> AdtId {
-        let adt_id = self.new_adt(AdtState::Extendable, vec![]);
-        self.enter_self_scope(adt_id);
-        adt_id
     }
 
     pub fn enter_new_object_scope(&mut self) -> AdtId {

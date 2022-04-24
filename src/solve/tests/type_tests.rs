@@ -299,6 +299,21 @@ test_var_type!(
     bar = foo(bar);",
     bar: adt!(a: Real, b: Real)
 );
+test_var_type!(
+    infinite_cycle,
+    "var foo = { a: 0 };
+    foo.bar = foo;
+    var fizz = foo.bar.a",
+    fizz: Real
+);
+test_var_type!(
+    method_make_self,
+    "function identity(x) { return x; }
+    var foo = { a: 0 };
+    foo.bar = identity(foo);
+    var fizz = foo.bar.a;",
+    fizz: Real,
+);
 test_failure!(invalid_call_target, "var a = 0, b = a();");
 test_failure!(invalid_argument, "var a = function(x) { return x + 1; }, b = a(true);");
 test_failure!(missing_argument, "var a = function(x) {}, b = a();");
@@ -427,11 +442,10 @@ test_var_type!(
     "function foo() constructor {
         x = 0;
         function bar() { 
-            return new foo();
+            return (new foo()).x;
         }
     }
-    var bar = new foo();
-    var fizz = bar.bar().x;",
+    var fizz = (new foo()).bar();",
     fizz: Real
 );
 test_var_type!(

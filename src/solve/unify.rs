@@ -18,6 +18,7 @@ impl Solver {
             (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
                 let rhs = self.adts.remove(rhs_adt).unwrap(); // yikes
                 for (name, rhs_field) in rhs.fields.iter() {
+                    println!("uni!?");
                     self.write_adt(*lhs_adt, &crate::parse::Identifier::lazy(name), rhs_field.clone())?;
                 }
                 self.adts.insert(*rhs_adt, rhs);
@@ -120,10 +121,15 @@ impl Solver {
             }
             Ty::Array(member_ty) => self.normalize(member_ty),
             Ty::Adt(adt_id) => {
-                // TODO bad
+                // HACK: borrow checker issues for mutability
                 let mut adt = self.adts.remove(adt_id).unwrap();
                 for (_, field) in adt.fields.iter_mut() {
-                    self.normalize(field);
+                    // HACK: because we're removing the adt, if it contains a reference to itself, it will not be
+                    // present in the below normalization. We're safe to skip it since we're already normalizing it
+                    // anyway.
+                    if field != &Ty::Adt(*adt_id) {
+                        self.normalize(field);
+                    }
                 }
                 self.adts.insert(*adt_id, adt);
             }
