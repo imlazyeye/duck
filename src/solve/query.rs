@@ -26,11 +26,11 @@ impl Solver {
                 }
                 let id = self.new_adt(AdtState::Concrete, fields);
                 self.write_adt(AdtId::GLOBAL, &e.name, Ty::Adt(id))?;
-                self.constants.insert(e.name.lexeme.clone());
+                self.get_adt_mut(AdtId::GLOBAL).mark_as_constant(&e.name.lexeme);
             }
             StmtKind::Macro(mac) => {
                 self.write_adt(AdtId::GLOBAL, &mac.name, Ty::Any)?;
-                self.constants.insert(mac.name.lexeme.clone());
+                self.get_adt_mut(AdtId::GLOBAL).mark_as_constant(&mac.name.lexeme);
             }
             StmtKind::Assignment(Assignment { left, right, op }) => {
                 let mut right_ty = right.query(self)?;

@@ -20,7 +20,7 @@ pub fn harness_solver(source: &str) -> Result<Solver, Vec<TypeError>> {
     if let Err(e) = &mut solver.process_statements(ast.stmts_mut()) {
         errors.append(e);
     }
-    if let Err(e) = &mut solver.fulfill_promises() {
+    if let Err(e) = &mut solver.emit_uninitialized_variable_errors() {
         errors.append(e);
     }
     if errors.is_empty() { Ok(solver) } else { Err(errors) }
@@ -45,7 +45,7 @@ impl Ty {
                 adt.fields.iter().all(|(name, field)| {
                     other_adt
                         .get(name)
-                        .map_or(false, |other_field| field.loose_eq(other_field, solver))
+                        .map_or(false, |other_field| field.ty.loose_eq(other_field, solver))
                 })
             }
             (Ty::Array(member), Ty::Array(other_member)) => member.loose_eq(other_member, solver),

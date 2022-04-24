@@ -4,6 +4,43 @@ use hashbrown::HashMap;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct Field {
+    pub ty: Ty,
+    pub safe: bool,
+    pub constant: bool,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct Bounty {
+    pub offerer: AdtId,
+    pub origin: Rib,
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum AdtState {
+    /// A generic recred from context.
+    Inferred,
+    /// A adt that can have new fields added to it.
+    Extendable,
+    /// A adt that cannot have new fields added to it.
+    Concrete,
+}
+
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
+pub struct AdtId(u64);
+impl AdtId {
+    pub const GLOBAL: Self = Self(u64::MAX);
+    pub fn new() -> Self {
+        Self(rand::random())
+    }
+}
+impl Default for AdtId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[macro_export]
 macro_rules! array {
     ($ty:expr) => {
@@ -138,14 +175,13 @@ impl Printer {
                             .iter()
                             .map(|(name, field)| {
                                 format!(
-                                    "{}: {}{}",
+                                    "{}: {}",
                                     name,
-                                    if field == &Ty::Adt(*adt_id) {
+                                    if field.ty == Ty::Adt(*adt_id) {
                                         "<cycle>".into()
                                     } else {
-                                        Printer::ty(field, solver)
+                                        Printer::ty(&field.ty, solver)
                                     },
-                                    if adt.promises.contains_key(name) { "?" } else { "" }
                                 )
                             })
                             .join(", ")

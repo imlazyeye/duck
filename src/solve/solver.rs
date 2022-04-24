@@ -5,13 +5,12 @@ use crate::{
     FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
-use hashbrown::{HashMap, HashSet};
+use hashbrown::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Solver {
     pub subs: HashMap<Var, Ty>,
     pub adts: HashMap<AdtId, Adt>,
-    pub constants: HashSet<String>,
     self_stack: Vec<AdtId>,
     local_stack: Vec<AdtId>,
     return_stack: Vec<Var>,
@@ -47,50 +46,6 @@ impl Solver {
         }
     }
 
-    pub fn write_adt(&mut self, adt_id: AdtId, iden: &Identifier, ty: Ty) -> Result<(), TypeError> {
-        self.update_adt(adt_id, iden, ty, true)
-    }
-
-    pub fn read_adt(&mut self, adt_id: AdtId, iden: &Identifier, expected: Ty) -> Result<(), TypeError> {
-        self.update_adt(adt_id, iden, expected, false)
-    }
-
-    fn update_adt(&mut self, adt_id: AdtId, iden: &Identifier, mut ty: Ty, is_write: bool) -> Result<(), TypeError> {
-        let origin = self.local_id();
-        let self_id = self.self_id();
-        let adt = self.get_adt_mut(adt_id);
-        if let Some(field) = adt.fields.get_mut(&iden.lexeme) {
-            if is_write
-                && adt
-                    .promises
-                    .get(&iden.lexeme)
-                    .map_or(false, |promise| promise.origin != origin)
-            {
-                adt.promises.remove(&iden.lexeme);
-            }
-            let mut field = field.clone(); // hot clone, hack
-            self.unify_tys(&mut field, &mut ty)?;
-            self.get_adt_mut(adt_id).fields.insert(iden.lexeme.clone(), field);
-            Ok(())
-        } else if adt.state == AdtState::Concrete {
-            duck_error!("No field found for {}", &iden.lexeme)
-        } else {
-            if !is_write {
-                let mut fulfillers = vec![];
-                if adt_id != self_id {
-                    fulfillers.push(self_id);
-                }
-                if adt_id != AdtId::GLOBAL {
-                    fulfillers.push(AdtId::GLOBAL);
-                }
-                adt.promises.insert(iden.lexeme.clone(), Promise { fulfillers, origin });
-            }
-            println!("{}", Printer::write(iden, &ty, self));
-            self.get_adt_mut(adt_id).fields.insert(iden.lexeme.clone(), ty); // todo: that new get is just for the print above
-            Ok(())
-        }
-    }
-
     pub fn resolve_name(&mut self, name: &str) -> Result<Ty, TypeError> {
         let mut ty = if let Some(field) = self
             .get_adt(self.local_id())
@@ -106,32 +61,13 @@ impl Solver {
         Ok(ty)
     }
 
-    pub fn fulfill_promises(&mut self) -> Result<(), Vec<TypeError>> {
+    pub fn emit_uninitialized_variable_errors(&mut self) -> Result<(), Vec<TypeError>> {
         let mut errors = vec![];
         self.adts.iter().for_each(|(_, adt)| {
-            adt.promises.iter().for_each(|(name, promise)| {
-                // HACK: rather bad code but i'm goin with it. the real issue here is that `fulfillers` is a vec at
-                // all -- we don't need that, we need a [Option<AdtId>; 2] -- one for self, one for
-                // global
-                if let Some(Some(field)) = promise
-                    .fulfillers
-                    .iter()
-                    .map(|adt_id| self.get_adt(*adt_id).get(name))
-                    .next()
-                {
-                    println!("oh no it should be {}", Printer::ty(field, self));
-                } else {
-                    // HACK: This is a bodge -- both the field on Solver and this operation here. Enums and macros are
-                    // valid anywhere at any time, so we need a way to mark them as "constant". In
-                    // the future there may be a more sophisticated solution, but for now, this is
-                    // how we do it.
-                    if !self.constants.contains(name) {
-                        errors.push(
-                            Diagnostic::error().with_message(format!("cannot find a value for `{name}` in this scope")),
-                        );
-                    }
-                }
-            })
+            adt.fields.iter().filter(|(_, f)| !f.safe).for_each(|(name, _)| {
+                errors
+                    .push(Diagnostic::error().with_message(format!("cannot find a value for `{name}` in this scope")));
+            });
         });
         if errors.is_empty() { Ok(()) } else { Err(errors) }
     }
@@ -145,8 +81,20 @@ impl Solver {
             id,
             Adt {
                 id,
-                fields: fields.into_iter().map(|(iden, ty)| (iden.lexeme, ty)).collect(),
-                promises: HashMap::default(),
+                fields: fields
+                    .into_iter()
+                    .map(|(iden, ty)| {
+                        (
+                            iden.lexeme,
+                            Field {
+                                ty,
+                                safe: true,
+                                constant: false,
+                            },
+                        )
+                    })
+                    .collect(),
+                bounties: HashMap::default(),
                 state,
             },
         );
@@ -273,7 +221,6 @@ impl Default for Solver {
         let mut solver = Self {
             subs: HashMap::default(),
             adts: HashMap::default(),
-            constants: HashSet::default(),
             self_stack: vec![],
             local_stack: vec![],
             return_stack: vec![],
@@ -283,7 +230,7 @@ impl Default for Solver {
             Adt {
                 id: AdtId::GLOBAL,
                 fields: HashMap::default(),
-                promises: HashMap::default(),
+                bounties: HashMap::default(),
                 state: AdtState::Extendable,
             },
         );

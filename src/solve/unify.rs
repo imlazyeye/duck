@@ -18,8 +18,7 @@ impl Solver {
             (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
                 let rhs = self.adts.remove(rhs_adt).unwrap(); // yikes
                 for (name, rhs_field) in rhs.fields.iter() {
-                    println!("uni!?");
-                    self.write_adt(*lhs_adt, &crate::parse::Identifier::lazy(name), rhs_field.clone())?;
+                    self.write_adt(*lhs_adt, &crate::parse::Identifier::lazy(name), rhs_field.ty.clone())?;
                 }
                 self.adts.insert(*rhs_adt, rhs);
                 Ok(())
@@ -47,6 +46,7 @@ impl Solver {
                         let adt = solver.get_adt(id);
                         self.adts.insert(id, adt.clone());
                     }
+
                     self.unify_tys(&mut call.return_type, &mut def.return_type)?;
 
                     #[cfg(test)]
@@ -91,7 +91,6 @@ impl Solver {
         if !self.occurs(var, ty) {
             self.sub(*var, ty.clone());
         }
-
         Ok(())
     }
 
@@ -103,7 +102,7 @@ impl Solver {
                 .get_adt(*adt)
                 .fields
                 .iter()
-                .any(|(_, field)| self.occurs(var, field)),
+                .any(|(_, field)| self.occurs(var, &field.ty)),
             Ty::Func(func) => {
                 self.occurs(var, func.return_type()) || func.parameters().iter().any(|v| self.occurs(var, v))
             }
@@ -127,8 +126,8 @@ impl Solver {
                     // HACK: because we're removing the adt, if it contains a reference to itself, it will not be
                     // present in the below normalization. We're safe to skip it since we're already normalizing it
                     // anyway.
-                    if field != &Ty::Adt(*adt_id) {
-                        self.normalize(field);
+                    if field.ty != Ty::Adt(*adt_id) {
+                        self.normalize(&mut field.ty);
                     }
                 }
                 self.adts.insert(*adt_id, adt);
