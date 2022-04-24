@@ -69,18 +69,18 @@ impl Solver {
     }
 
     pub fn maybe_update_adt(&mut self, adt_id: AdtId, iden: &Identifier, ty: &mut Ty) -> Result<bool, TypeError> {
-        let mut adt = self.adts.remove(&adt_id).unwrap(); // hack: oh no
+        let mut adt = self.get_adt_mut(adt_id).clone(); // todo: horribly hot clone
         let state = adt.state;
         let result = if let Some(field) = adt.fields.get_mut(&iden.lexeme) {
             field.safe = true;
             self.unify_tys(&mut field.ty, ty)?;
+            self.adts.insert(adt_id, adt); // jesus christ
             Ok(true)
         } else if state == AdtState::Concrete {
             duck_error!("No field found for {}", &iden.lexeme)
         } else {
             Ok(false)
         };
-        self.adts.insert(adt_id, adt);
         result
     }
 

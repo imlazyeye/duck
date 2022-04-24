@@ -359,6 +359,7 @@ impl Solver {
         self.depart_local_scope();
         let return_type = if function.constructor.is_some() {
             let _ = self.retrieve_return_value();
+            self.get_adt_mut(self.self_id()).state = AdtState::Concrete;
             let ret = Ty::Adt(self.self_id());
             self.depart_self_scope();
             Box::new(ret)

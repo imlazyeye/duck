@@ -64,6 +64,7 @@ test_failure!(read_variable_before_declaration, "var a = b, b = 0;");
 test_var_type!(globalvar, "globalvar foo;", foo: Uninitialized);
 test_var_type!(globalvar_assign, "globalvar foo; foo = 0", foo: Real);
 test_var_type!(global, "global.foo = 0;", foo: Real);
+test_failure!(duplicate_global_function, "function foo() {} function foo() {}");
 
 // Enums
 test_var_type!(enum_declaration, "enum foo { bar }", foo: adt!(bar: Real));
@@ -139,6 +140,13 @@ test_var_type!(
         bar: function() { return 0; },
     };
     var fizz = foo.bar();",
+    fizz: Real
+);
+test_var_type!(
+    infinite_cycle,
+    "var foo = { a: 0 };
+    foo.bar = foo;
+    var fizz = foo.bar.a",
     fizz: Real
 );
 test_failure!(undefined_field, "var a = {}, b = a.x;");
@@ -252,6 +260,23 @@ test_var_type!(
     }",
     foo: function!(() => function!(() => Real))
 );
+test_var_type!(
+    return_self,
+    "function foo() constructor {
+        x = 0;
+        function bar() { 
+            return self;
+        }
+    }
+    var fizz = (new foo()).bar().x;",
+    fizz: Real
+);
+test_var_type!(
+    self_as_argument,
+    "var identity = function(x) { return x; }
+    var foo = identity(self);",
+    foo: adt!()
+);
 test_expr_type!(
     infer_function_in_parameters,
     "function(x) { return x() + 1; }" => function!(
@@ -299,21 +324,6 @@ test_var_type!(
     bar = foo(bar);",
     bar: adt!(a: Real, b: Real)
 );
-test_var_type!(
-    infinite_cycle,
-    "var foo = { a: 0 };
-    foo.bar = foo;
-    var fizz = foo.bar.a",
-    fizz: Real
-);
-test_var_type!(
-    method_make_self,
-    "function identity(x) { return x; }
-    var foo = { a: 0 };
-    foo.bar = identity(foo);
-    var fizz = foo.bar.a;",
-    fizz: Real,
-);
 test_failure!(invalid_call_target, "var a = 0, b = a();");
 test_failure!(invalid_argument, "var a = function(x) { return x + 1; }, b = a(true);");
 test_failure!(missing_argument, "var a = function(x) {}, b = a();");
@@ -336,9 +346,9 @@ test_var_type!(
     function bar(x) { self.a = x + 1; }",
     bar: function!((Real) => Undefined),
 );
-test_var_type!(function_extend_self, "function foo() { self.a = 0; }", a: Real,);
+test_var_type!(function_self_extention, "function foo() { self.a = 0; }", a: Real,);
 test_var_type!(
-    function_extend_self_nested,
+    function_self_extention_nested,
     "function foo() { 
         function bar() { self.a = 0; }
     }",
@@ -438,18 +448,7 @@ test_var_type!(
     fizz: adt!(x: Real)
 );
 test_var_type!(
-    constructor_make_self,
-    "function foo() constructor {
-        x = 0;
-        function bar() { 
-            return (new foo()).x;
-        }
-    }
-    var fizz = (new foo()).bar();",
-    fizz: Real
-);
-test_var_type!(
-    constructor_clone,
+    clone,
     "function foo() constructor {
         self.x = 0;
         function clone() { return new foo(); }
@@ -458,6 +457,12 @@ test_var_type!(
     var fizz = bar.clone();
     var buzz = fizz.x;",
     buzz: Real
+);
+test_failure!(
+    constructor_extention,
+    "function foo() constructor {}
+    var bar = new foo();
+    bar.a = 0;"
 );
 
 // Out of order

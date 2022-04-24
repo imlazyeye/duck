@@ -4,11 +4,9 @@ use super::*;
 
 impl Solver {
     pub fn unify_tys(&mut self, lhs: &mut Ty, rhs: &mut Ty) -> Result<(), TypeError> {
-        if lhs == rhs {
-            return Ok(());
-        }
         // println!("{}", Printer::ty_unification(lhs, rhs, self));
         match (lhs, rhs) {
+            (lhs, rhs) if lhs == rhs => Ok(()),
             (ty @ Ty::Uninitialized, other) | (other, ty @ Ty::Uninitialized) => {
                 *ty = other.clone();
                 Ok(())
@@ -90,6 +88,12 @@ impl Solver {
 
         if !self.occurs(var, ty) {
             self.sub(*var, ty.clone());
+        } else {
+            println!(
+                "Not inserting {} for {} as there is a cycle!",
+                Printer::var(var),
+                Printer::ty(ty, self)
+            );
         }
         Ok(())
     }
