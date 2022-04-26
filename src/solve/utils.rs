@@ -84,7 +84,7 @@ macro_rules! function {
     (($($arg:expr), * $(,)?) => $return_type:expr) => {
         crate::solve::Ty::Func(crate::solve::Func::Def(crate::solve::Def {
             binding: None,
-            parameters:  vec![$($arg)*],
+            parameters:  vec![$($arg, )*],
             minimum_arguments: 0, // we don't check this, so we're just gonna yolo it
             return_type: Box::new($return_type),
         }))
@@ -156,6 +156,7 @@ impl Printer {
     pub fn ty(ty: &Ty, solver: &Solver) -> String {
         let s = match ty {
             Ty::Uninitialized => "<null>".into(),
+            Ty::Identity => "identity".into(),
             Ty::Any => "any".into(),
             Ty::Undefined => "undefined".into(),
             Ty::Noone => "noone".into(),

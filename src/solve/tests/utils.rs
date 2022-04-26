@@ -1,5 +1,6 @@
 use crate::{parse::*, solve::*};
 use parking_lot::Mutex;
+use pretty_assertions::assert_eq;
 
 lazy_static! {
     pub(super) static ref SOLVER: Mutex<Solver> = Mutex::new(create_test_solver());
@@ -11,19 +12,14 @@ fn create_test_solver() -> Solver {
     solver
 }
 
-pub fn harness_solver(source: &str) -> Result<Solver, Vec<TypeError>> {
+pub fn harness_solver(source: &str) -> Result<Solver, TypeError> {
     let mut solver = Solver::default();
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
-    let mut errors = vec![];
     let mut ast = parser.into_ast().unwrap();
-    if let Err(e) = &mut solver.process_statements(ast.stmts_mut()) {
-        errors.append(e);
-    }
-    if let Err(e) = &mut solver.emit_uninitialized_variable_errors() {
-        errors.append(e);
-    }
-    if errors.is_empty() { Ok(solver) } else { Err(errors) }
+    solver.process_statements(ast.stmts_mut())?;
+    solver.emit_uninitialized_variable_errors()?;
+    Ok(solver)
 }
 
 pub fn assert_var_type(name: &'static str, should_be: Ty, solver: &mut Solver) {

@@ -1,14 +1,13 @@
 use crate::{duck_error, parse::*, solve::*};
 
 impl Solver {
-    pub fn process_statements(&mut self, stmts: &[Stmt]) -> Result<(), Vec<TypeError>> {
-        let mut errors = vec![];
+    pub fn process_statements(&mut self, stmts: &[Stmt]) -> Result<(), TypeError> {
         for stmt in stmts.iter() {
-            if let Err(e) = self.visit_stmt(stmt) {
-                errors.push(e);
-            }
+            // todo: there's no reason (I don't think) that we have to only accept ONE error, we could keep
+            // going, but its easier for types right now if everyting just returns one type error
+            self.visit_stmt(stmt)?;
         }
-        if errors.is_empty() { Ok(()) } else { Err(errors) }
+        Ok(())
     }
 
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), TypeError> {
@@ -156,7 +155,11 @@ impl QueryItem for Expr {
 
         let ty = match self.kind() {
             ExprKind::Function(func) => {
-                let ty = solver.process_function(self, func)?;
+                let ty = if let Some(constructor) = func.constructor.as_ref() {
+                    solver.process_constructor(self, func, constructor)?
+                } else {
+                    solver.process_function(self, func)?
+                };
                 if let Some(name) = &func.name {
                     solver.write_adt(solver.self_id(), name, ty.clone())?;
                 };
@@ -307,7 +310,9 @@ impl QueryItem for Expr {
 }
 
 impl Solver {
-    fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<Ty, TypeError> {
+    fn process_function_head(&mut self, function: &Function) -> Result<(Vec<Ty>, usize, AdtId), TypeError> {
+        #[cfg(test)]
+        println!("\n--- Entering function... ---\n");
         let mut parameters = vec![];
         let mut local_fields = vec![];
         let mut found_minimum = None;
@@ -326,52 +331,18 @@ impl Solver {
         }
         let minimum_arguments = found_minimum.unwrap_or(parameters.len());
         let local_scope = self.new_adt(AdtState::Extendable, local_fields);
-        self.enter_local_scope(local_scope);
-        let binding = if let Some(constructor) = function.constructor.as_ref() {
-            let self_scope = self.new_adt(AdtState::Extendable, vec![]);
-            self.enter_self_scope(self_scope);
-            Binding::Constructor {
-                local_scope,
-                self_scope,
-                inheritance: match constructor {
-                    Constructor::WithInheritance(call) => Some(
-                        call.kind()
-                            .as_call()
-                            .and_then(|call| call.left.kind().as_identifier())
-                            .cloned()
-                            .unwrap(),
-                    ),
-                    _ => None,
-                },
-            }
-        } else {
-            Binding::Method {
-                local_scope,
-                self_scope: self.self_id(),
-            }
-        };
-
         self.enter_new_return_body();
-        if let Err(errs) = &mut self.process_statements(function.body_stmts()) {
-            return Err(errs.pop().unwrap()); // todo
-        }
+        Ok((parameters, minimum_arguments, local_scope))
+    }
 
-        self.depart_local_scope();
-        let return_type = if function.constructor.is_some() {
-            let _ = self.retrieve_return_value();
-            self.get_adt_mut(self.self_id()).state = AdtState::Concrete;
-            let ret = Ty::Adt(self.self_id());
-            self.depart_self_scope();
-            Box::new(ret)
-        } else {
-            let ty = self.retrieve_return_value();
-            if ty == Ty::Uninitialized {
-                Box::new(Ty::Undefined)
-            } else {
-                Box::new(ty)
-            }
-        };
-
+    fn make_function_ty(
+        &mut self,
+        expr: &Expr,
+        binding: Binding,
+        parameters: Vec<Ty>,
+        minimum_arguments: usize,
+        return_type: Box<Ty>,
+    ) -> Result<Ty, TypeError> {
         // Create the new definition
         let mut ty = Ty::Func(super::Func::Def(super::Def {
             binding: Some(binding),
@@ -388,6 +359,68 @@ impl Solver {
         }
 
         Ok(ty)
+    }
+
+    fn process_constructor(
+        &mut self,
+        expr: &Expr,
+        function: &crate::parse::Function,
+        constructor: &Constructor,
+    ) -> Result<Ty, TypeError> {
+        let self_scope = self.new_adt(AdtState::Extendable, vec![]);
+        let (parameters, minimum_arguments, local_scope) = self.process_function_head(function)?;
+        self.enter_local_scope(local_scope);
+        self.enter_self_scope(self_scope);
+        let binding = Binding::Constructor {
+            local_scope,
+            self_scope,
+            inheritance: match constructor {
+                Constructor::WithInheritance(call) => Some(
+                    call.kind()
+                        .as_call()
+                        .and_then(|call| call.left.kind().as_identifier())
+                        .cloned()
+                        .unwrap(),
+                ),
+                _ => None,
+            },
+        };
+
+        self.process_statements(function.body_stmts())?;
+        self.depart_local_scope();
+        self.retrieve_return_value();
+
+        let ty = self.make_function_ty(expr, binding, parameters, minimum_arguments, Box::new(Ty::Identity))?;
+        if let Some(name) = &function.name {
+            self.write_adt(self.self_id(), name, ty.clone())?;
+        }
+        self.get_adt_mut(self.self_id()).state = AdtState::Concrete;
+        self.depart_self_scope();
+        println!("\n--- Departing function... ---\n");
+
+        Ok(ty)
+    }
+
+    fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<Ty, TypeError> {
+        let (parameters, minimum_arguments, local_scope) = self.process_function_head(function)?;
+        self.enter_local_scope(local_scope);
+        self.process_statements(function.body_stmts())?;
+        self.depart_local_scope();
+        let return_type = match self.retrieve_return_value() {
+            Ty::Uninitialized => Box::new(Ty::Undefined),
+            ty => Box::new(ty),
+        };
+        println!("\n--- Departing function... ---\n");
+        self.make_function_ty(
+            expr,
+            Binding::Method {
+                local_scope,
+                self_scope: self.self_id(),
+            },
+            parameters,
+            minimum_arguments,
+            return_type,
+        )
     }
 }
 

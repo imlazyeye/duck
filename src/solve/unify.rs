@@ -24,7 +24,7 @@ impl Solver {
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
                 (Func::Def(def), Func::Call(call)) | (Func::Call(call), Func::Def(def)) => {
                     #[cfg(test)]
-                    println!("\n--- Calling function... ---\n",);
+                    println!("\n--- Evaluating call pattern... ---\n",);
                     let mut solver = self.clone();
                     let mut def = def.clone();
                     for (i, param) in def.parameters.iter_mut().enumerate() {
@@ -37,15 +37,22 @@ impl Solver {
                     if call.parameters.len() > def.parameters.len() {
                         return duck_error!("extra arguments provided to call");
                     }
-                    solver.normalize(&mut def.return_type);
-                    // HACK: bit of a bodge here, but since the Adt's actual data is stored on the solver, not in these
-                    // types, we need to do the following to transfer that data back to the real solver
-                    if let &Ty::Adt(id) = def.return_type.as_ref() {
-                        let adt = solver.get_adt(id);
-                        self.adts.insert(id, adt.clone());
+                    let ret = def.return_type.as_mut();
+                    solver.normalize(ret);
+                    let bound_scope = def.binding.as_ref().map(|v| v.self_scope());
+                    let transmute_identity = bound_scope.map_or(true, |v| v != self.self_id());
+                    if ret == &Ty::Identity && transmute_identity {
+                        *ret = Ty::Adt(bound_scope.unwrap_or_else(|| solver.self_id()));
+                        solver.normalize(ret);
                     }
-
-                    self.unify_tys(&mut call.return_type, &mut def.return_type)?;
+                    if let Ty::Adt(id) = ret {
+                        // HACK: bit of a bodge here, but since the Adt's actual data is stored on the solver, not
+                        // in these types, we need to do the following to transfer that
+                        // data back to the real solver
+                        let adt = solver.get_adt(*id);
+                        self.adts.insert(*id, adt.clone());
+                    }
+                    self.unify_tys(&mut call.return_type, ret)?;
 
                     #[cfg(test)]
                     println!("\n--- Ending call... ---\n");
@@ -91,8 +98,8 @@ impl Solver {
         } else {
             println!(
                 "Not inserting {} for {} as there is a cycle!",
+                Printer::ty(ty, self),
                 Printer::var(var),
-                Printer::ty(ty, self)
             );
         }
         Ok(())

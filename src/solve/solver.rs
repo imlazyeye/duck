@@ -61,54 +61,20 @@ impl Solver {
         Ok(ty)
     }
 
-    pub fn emit_uninitialized_variable_errors(&mut self) -> Result<(), Vec<TypeError>> {
-        let mut errors = vec![];
-        self.adts.iter().for_each(|(_, adt)| {
-            adt.fields.iter().filter(|(_, f)| !f.safe).for_each(|(name, _)| {
-                errors
-                    .push(Diagnostic::error().with_message(format!("cannot find a value for `{name}` in this scope")));
-            });
-        });
-        if errors.is_empty() { Ok(()) } else { Err(errors) }
+    pub fn emit_uninitialized_variable_errors(&mut self) -> Result<(), TypeError> {
+        for (_, adt) in self.adts.iter() {
+            for (name, field) in adt.fields.iter() {
+                if !field.safe {
+                    return duck_error!("cannot find a value for `{name}`");
+                }
+            }
+        }
+        Ok(())
     }
 }
 
-// Adts
+// Scope
 impl Solver {
-    pub fn new_adt(&mut self, state: AdtState, fields: Vec<(Identifier, Ty)>) -> AdtId {
-        let id = AdtId::new();
-        self.adts.insert(
-            id,
-            Adt {
-                id,
-                fields: fields
-                    .into_iter()
-                    .map(|(iden, ty)| {
-                        (
-                            iden.lexeme,
-                            Field {
-                                ty,
-                                safe: true,
-                                constant: false,
-                            },
-                        )
-                    })
-                    .collect(),
-                bounties: HashMap::default(),
-                state,
-            },
-        );
-        id
-    }
-
-    pub fn get_adt(&self, adt_id: AdtId) -> &Adt {
-        self.adts.get(&adt_id).unwrap()
-    }
-
-    pub fn get_adt_mut(&mut self, adt_id: AdtId) -> &mut Adt {
-        self.adts.get_mut(&adt_id).unwrap()
-    }
-
     pub fn enter_new_object_scope(&mut self) -> AdtId {
         let adt_id = {
             use Ty::*;

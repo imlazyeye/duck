@@ -6,6 +6,7 @@ use super::*;
 pub enum Ty {
     Uninitialized,
     Any,
+    Identity,
     Undefined,
     Noone,
     Bool,
@@ -73,4 +74,11 @@ pub enum Binding {
         self_scope: AdtId,
         inheritance: Option<Identifier>,
     },
+}
+impl Binding {
+    pub fn self_scope(&self) -> AdtId {
+        match self {
+            Binding::Method { self_scope, .. } | Binding::Constructor { self_scope, .. } => *self_scope,
+        }
+    }
 }

@@ -263,19 +263,18 @@ test_var_type!(
 test_var_type!(
     return_self,
     "function foo() constructor {
-        x = 0;
         function bar() { 
             return self;
         }
     }
-    var fizz = (new foo()).bar().x;",
-    fizz: Real
+    var fizz = (new foo()).bar();",
+    fizz: adt!(foo: function!(() => Identity), bar: function!(() => Identity),)
 );
 test_var_type!(
     self_as_argument,
     "var identity = function(x) { return x; }
     var foo = identity(self);",
-    foo: adt!()
+    foo: Identity,
 );
 test_expr_type!(
     infer_function_in_parameters,
@@ -391,7 +390,10 @@ test_var_type!(
         self.x = y;
     }
     var bar = foo(0);",
-    bar: adt!(x: Real)
+    bar: adt!(
+        foo: function!((Real) => Identity),
+        x: Real,
+    )
 );
 test_var_type!(
     constructor_getter,
@@ -445,18 +447,21 @@ test_var_type!(
         return new_struct;
     }
     var fizz = bar();",
-    fizz: adt!(x: Real)
+    fizz: adt!(
+        foo: function!(() => Identity),
+        x: Real,
+    )
 );
 test_var_type!(
     clone,
     "function foo() constructor {
-        self.x = 0;
         function clone() { return new foo(); }
     }
-    var bar = new foo();
-    var fizz = bar.clone();
-    var buzz = fizz.x;",
-    buzz: Real
+    var bar = (new foo()).clone();",
+    bar: adt!(
+        foo: function!(() => Identity),
+        clone: function!(() => Identity),
+    )
 );
 test_failure!(
     constructor_extention,
@@ -535,6 +540,7 @@ test_var_type!(
     var a = Vec2(0, 0);
     "#,
     a: adt!(
+        Vec2: function!((Real, Real) => Identity),
         x: Real,
         y: Real,
         get_scale: function!(() => Real),
