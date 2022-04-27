@@ -4,7 +4,7 @@ use super::*;
 
 impl Solver {
     pub fn unify_tys(&mut self, lhs: &mut Ty, rhs: &mut Ty) -> Result<(), TypeError> {
-        // println!("{}", Printer::ty_unification(lhs, rhs, self));
+        println!("{}", Printer::ty_unification(lhs, rhs, self));
         match (lhs, rhs) {
             (lhs, rhs) if lhs == rhs => Ok(()),
             (ty @ Ty::Uninitialized, other) | (other, ty @ Ty::Uninitialized) => {
@@ -29,7 +29,11 @@ impl Solver {
                     let mut def = def.clone();
                     for (i, param) in def.parameters.iter_mut().enumerate() {
                         if let Some(arg) = call.parameters.get_mut(i) {
-                            solver.unify_tys(param, arg)?;
+                            if arg == &Ty::Identity {
+                                solver.unify_tys(param, &mut Ty::Adt(self.self_id()))?;
+                            } else {
+                                solver.unify_tys(param, arg)?;
+                            }
                         } else if i < def.minimum_arguments {
                             return duck_error!("missing argument {i} in call");
                         };
@@ -93,18 +97,22 @@ impl Solver {
             *ty = sub;
         }
 
-        if !self.occurs(var, ty) {
-            self.sub(*var, ty.clone());
-        } else {
-            println!(
-                "Not inserting {} for {} as there is a cycle!",
-                Printer::ty(ty, self),
-                Printer::var(var),
-            );
-        }
+        // is this crazy...?
+        // if !self.occurs(var, ty) {
+        // } else {
+        //     println!(
+        //         "Not inserting {} for {} as there is a cycle!",
+        //         Printer::ty(ty, self),
+        //         Printer::var(var, self),
+        //     );
+        // }
+
+        self.sub(*var, ty.clone());
+
         Ok(())
     }
 
+    #[allow(unused)]
     fn occurs(&self, var: &Var, ty: &Ty) -> bool {
         match ty {
             Ty::Var(ty_var) => ty_var == var || self.subs.get(ty_var).map_or(false, |ty| self.occurs(var, ty)),
@@ -131,17 +139,23 @@ impl Solver {
             }
             Ty::Array(member_ty) => self.normalize(member_ty),
             Ty::Adt(adt_id) => {
-                // HACK: borrow checker issues for mutability
-                let mut adt = self.adts.remove(adt_id).unwrap();
-                for (_, field) in adt.fields.iter_mut() {
-                    // HACK: because we're removing the adt, if it contains a reference to itself, it will not be
-                    // present in the below normalization. We're safe to skip it since we're already normalizing it
-                    // anyway.
-                    if field.ty != Ty::Adt(*adt_id) {
-                        self.normalize(&mut field.ty);
+                // HACK: borrow checker shenanigans
+                // 1. we're removing becuase we need mutable access on top of our existing one
+                // 2. we allow for the None case in case of a cycle.
+                //
+                // both of these might be wrong and required revisiting. this code went through a
+                // lot of versions to get Identity working.
+                if let Some(mut adt) = self.adts.remove(adt_id) {
+                    for (_, field) in adt.fields.iter_mut() {
+                        let search = &Ty::Adt(*adt_id);
+                        if field.ty.contains(search) {
+                            field.ty.replace(search, Ty::Identity);
+                        } else {
+                            self.normalize(&mut field.ty);
+                        }
                     }
+                    self.adts.insert(*adt_id, adt);
                 }
-                self.adts.insert(*adt_id, adt);
             }
             Ty::Func(func) => {
                 func.parameters_mut().iter_mut().for_each(|v| self.normalize(v));

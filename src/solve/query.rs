@@ -151,7 +151,7 @@ impl QueryItem for Expr {
             return Ok(cache.clone());
         }
 
-        println!("{}", Printer::query(self));
+        println!("{}", Printer::query(self, solver));
 
         let ty = match self.kind() {
             ExprKind::Function(func) => {
@@ -209,14 +209,18 @@ impl QueryItem for Expr {
                 Access::Global { right } => handle_adt(self, solver, AdtId::GLOBAL, right),
                 Access::Identity { right } => handle_adt(self, solver, solver.self_id(), right),
                 Access::Dot { left, right } => {
-                    let id = if let Ty::Adt(id) = left.query(solver)? {
-                        id
+                    // TODO: all this infer stuff is weird
+                    if let Ty::Adt(id) = left.query(solver)? {
+                        if solver.get_adt_mut(id).state == AdtState::Inferred {
+                            solver.declare_into_adt(id, right, Ty::Var(self.var()), true);
+                        } else {
+                            solver.read_adt(id, right, Ty::Var(self.var()))?;
+                        };
                     } else {
                         let id = solver.new_adt(AdtState::Inferred, vec![(right.clone(), Ty::Var(self.var()))]);
                         left.unify(&mut Ty::Adt(id), solver)?;
-                        id
                     };
-                    handle_adt(self, solver, id, right)
+                    Ok(Ty::Var(self.var()))
                 }
                 Access::Array {
                     left,

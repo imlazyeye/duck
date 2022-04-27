@@ -76,8 +76,8 @@ impl Solver {
         let state = adt.state;
         let result = if let Some(field) = adt.fields.get_mut(&iden.lexeme) {
             // HACK: this is a total bodge but I don't really mind because its us artifically representing a
-            // limitation that GML has that we do not. GameMaker fails to compile if you double-declare a global
-            // named function, so we have to as well
+            // limitation in GML. GameMaker fails to compile if you double-declare a global named function, so
+            // we have to as well
             if adt_id == AdtId::GLOBAL && matches!((&field.ty, &ty), (Ty::Func(_), Ty::Func(_))) {
                 return duck_error!("cannot declare a global function more than once");
             }

@@ -1,6 +1,5 @@
 use crate::{parse::*, solve::*};
 use parking_lot::Mutex;
-use pretty_assertions::assert_eq;
 
 lazy_static! {
     pub(super) static ref SOLVER: Mutex<Solver> = Mutex::new(create_test_solver());
@@ -26,7 +25,7 @@ pub fn assert_var_type(name: &'static str, should_be: Ty, solver: &mut Solver) {
     let ty = solver.resolve_name(name).unwrap();
     assert!(
         ty.loose_eq(&should_be, solver),
-        "{name} was the wrong type! Expected {}, got {}",
+        "{name} was the wrong type! \n\nlhs: {} \n\nrhs: {}",
         Printer::ty(&should_be, solver),
         Printer::ty(&ty, solver)
     );

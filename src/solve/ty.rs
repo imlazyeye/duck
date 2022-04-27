@@ -18,6 +18,41 @@ pub enum Ty {
     Func(Func),
 }
 
+impl Ty {
+    pub fn contains(&self, other: &Ty) -> bool {
+        match self {
+            Ty::Array(inner) => inner.contains(other),
+            Ty::Func(func) => func.parameters().iter().any(|v| v.contains(other)) || func.return_type().contains(other),
+            _ => self == other,
+        }
+    }
+
+    pub fn replace(&mut self, search: &Ty, replace: Ty) {
+        match self {
+            Ty::Array(inner) => {
+                if inner.as_ref() == search {
+                    *inner.as_mut() = replace
+                }
+            }
+            Ty::Func(func) => {
+                func.parameters_mut().iter_mut().for_each(|v| {
+                    if v == search {
+                        *v = replace.clone()
+                    }
+                });
+                if func.return_type() == search {
+                    *func.return_type_mut() = replace
+                }
+            }
+            _ => {
+                if self == search {
+                    *self = replace;
+                }
+            }
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Func {
     Def(Def),

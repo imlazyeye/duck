@@ -60,12 +60,15 @@ macro_rules! adt {
     };
     ($($var:ident: $should_be:expr), * $(,)?) => {
         {
-            let fields = vec![
-                $((
+            #[allow(unused_mut)]
+            let mut fields = vec![];
+            $(
+                let should_be = $should_be;
+                fields.push((
                     crate::parse::Identifier::lazy(stringify!($var).to_string()),
-                    $should_be,
-                ), )*
-            ];
+                    should_be,
+                ));
+            )*
             Ty::Adt(SOLVER.lock().new_adt(AdtState::Extendable, fields))
         }
     };
@@ -119,18 +122,13 @@ impl Printer {
         printer.iter = 0;
     }
 
-    pub fn give_expr_alias(var: Var, name: String) {
-        if !PRINTER.lock().aliases.contains_key(&var) {
-            println!("{}        {}   :   {}", "ALIAS".bright_red(), Printer::var(&var), name);
-            // PRINTER.lock().expr_strings.insert(var, name);
-        }
-    }
-
     #[must_use]
-    pub fn var(var: &Var) -> String {
+    pub fn var(var: &Var, solver: &Solver) -> String {
         let mut printer = PRINTER.lock();
         let var = *var;
-        if let Some(expr_string) = printer.expr_strings.get(&var) {
+        if solver.return_var() == var {
+            "RETURN".into()
+        } else if let Some(expr_string) = printer.expr_strings.get(&var) {
             expr_string.clone()
         } else {
             let entry = if let Some(entry) = printer.aliases.get(&var) {
@@ -164,7 +162,7 @@ impl Printer {
             Ty::Real => "real".into(),
             Ty::Str => "string".into(),
             Ty::Array(inner) => format!("[{}]", Self::ty(inner, solver)),
-            Ty::Var(var) => Self::var(var),
+            Ty::Var(var) => Self::var(var, solver),
             Ty::Adt(adt_id) => {
                 let adt = solver.get_adt(*adt_id);
                 if adt.fields.is_empty() {
@@ -174,11 +172,12 @@ impl Printer {
                         "{{ {} }}",
                         adt.fields
                             .iter()
+                            .sorted_by_key(|(n, _)| n.as_str())
                             .map(|(name, field)| {
                                 format!(
                                     "{}: {}",
                                     name,
-                                    if field.ty == Ty::Adt(*adt_id) {
+                                    if field.ty.contains(&Ty::Adt(*adt_id)) {
                                         "<cycle>".into()
                                     } else {
                                         Printer::ty(&field.ty, solver)
@@ -213,8 +212,12 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn query(a: &crate::parse::Expr) -> String {
-        format!("{}        {a}: {}", "QUERY".bright_red(), Printer::var(&a.var()))
+    pub fn query(a: &crate::parse::Expr, solver: &Solver) -> String {
+        format!(
+            "{}        {a}: {}",
+            "QUERY".bright_red(),
+            Printer::var(&a.var(), solver)
+        )
     }
 
     #[must_use]
@@ -237,7 +240,7 @@ impl Printer {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY M".bright_yellow(),
-            Printer::var(var),
+            Printer::var(var, solver),
             Printer::ty(ty, solver),
         )
     }
@@ -247,7 +250,7 @@ impl Printer {
         format!(
             "{}          {}   →   {}",
             "SUB".bright_green(),
-            Printer::var(var),
+            Printer::var(var, solver),
             Printer::ty(ty, solver),
         )
     }

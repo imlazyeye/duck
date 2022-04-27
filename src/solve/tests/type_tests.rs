@@ -274,26 +274,37 @@ test_var_type!(
     self_as_argument,
     "var identity = function(x) { return x; }
     var foo = identity(self);",
-    foo: Identity,
+    foo: adt!(),
 );
+test_var_type!(
+    self_in_call_pattern,
+    "function foo(a) {
+        return a.x;
+    }
+    self.x = 0;
+    self.y = self.foo(self);",
+    y: Real,
+);
+
 test_expr_type!(
-    infer_function_in_parameters,
+    infer_function,
     "function(x) { return x() + 1; }" => function!(
         (function!(() => Real)) => Real
     )
 );
 test_expr_type!(
-    infer_array_in_parameters,
+    infer_array,
     "function(x) { return x[0] + 1; }" => function!(
         (array!(Real)) => Real
     )
 );
 test_expr_type!(
-    infer_struct_in_parameters,
+    infer_struct,
     "function(x) { return x.y + 1; }" => function!(
         (adt!(y: Real)) => Real
     )
 );
+test_success!(infer_multi_field_struct, "function foo(o) { return o.x + o.y; }");
 test_var_type!(
     mutate_struct_via_function,
     "var foo = function(a) {
@@ -390,10 +401,7 @@ test_var_type!(
         self.x = y;
     }
     var bar = foo(0);",
-    bar: adt!(
-        foo: function!((Real) => Identity),
-        x: Real,
-    )
+    bar: adt!(foo: function!((Real) => Identity), x: Real,)
 );
 test_var_type!(
     constructor_getter,
@@ -447,10 +455,7 @@ test_var_type!(
         return new_struct;
     }
     var fizz = bar();",
-    fizz: adt!(
-        foo: function!(() => Identity),
-        x: Real,
-    )
+    fizz: adt!(foo: function!(() => Identity), x: Real,)
 );
 test_var_type!(
     clone,
@@ -458,10 +463,22 @@ test_var_type!(
         function clone() { return new foo(); }
     }
     var bar = (new foo()).clone();",
-    bar: adt!(
-        foo: function!(() => Identity),
-        clone: function!(() => Identity),
-    )
+    bar: adt!(foo: function!(() => Identity), clone: function!(() => Identity),)
+);
+test_var_type!(
+    identity_sanitization,
+    "function alias() {
+        return new con();
+    }
+
+    function con() constructor {
+        function clone() {
+            return alias();
+        }
+    }
+
+    var result = alias();",
+    result: adt!(con: function!(() => Identity), clone: function!(() => Identity),)
 );
 test_failure!(
     constructor_extention,
@@ -523,27 +540,68 @@ test_var_type!(
 test_var_type!(
     vec_2,
     r#"
-    function Vec2(_x, _y) constructor {
+    // placeholder until the std is in here
+    function sqrt(num) {
+        return num + 1;
+    }
+
+    function Vec2(_x, _y) {
+        return new __Vec2(_x, _y);
+    }
+
+    function __Vec2(_x, _y) constructor {
         self.x = _x;
         self.y = _y;
-
-        static get_scale = function() {
-            return self.x * self.y;
-        }
 
         static set = function(o) {
             self.x = o.x;
             self.y = o.y;
+        }
+
+        static clone = function() {
+            return Vec2(self.x, self.y);
+        }
+
+        static eq = function(o) {
+            return o.x == self.x && o.y == self.y;
+        }
+
+        static scale = function(scalar) {
+            return Vec2(self.x * scalar, self.y * scalar);
+        }
+
+        static set_scale = function(scalar) {
+            self.x *= scalar;
+            self.y *= scalar;
+        }
+
+        static sqrd_magnitude = function() {
+            return self.dot(self);
+        }
+
+        static normalize = function() {
+            var sqrd_magnitude_rcp = 1.0 / sqrt(self.sqrd_magnitude());
+            return self.scale(sqrd_magnitude_rcp);
+        }
+
+        static dot = function(o) {
+            return self.x * o.x + self.y * o.y;
         }
     }
 
     var a = Vec2(0, 0);
     "#,
     a: adt!(
-        Vec2: function!((Real, Real) => Identity),
+        __Vec2: function!((Real, Real) => Identity),
         x: Real,
         y: Real,
-        get_scale: function!(() => Real),
         set: function!((adt!(x: Real, y: Real)) => Undefined),
+        clone: function!(() => Identity),
+        eq: function!((adt!(x: Real, y: Real)) => Bool),
+        scale: function!((Real) => Identity),
+        set_scale: function!((Real) => Undefined),
+        sqrd_magnitude: function!(() => Real),
+        normalize: function!(() => Identity),
+        dot: function!((adt!(x: Real, y: Real)) => Real),
     )
 );

@@ -40,8 +40,9 @@ num-format = "0.4"
 codespan-reporting = "0.11"
 rand = "0.8"
 lazy_static = "1.4"
-parking_lot = "0.12"
+parking_lot = { version = "0.12", features = ["deadlock_detection"] }
 maplit = "1.0"
+regex = "1.5"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports", "async_tokio"] }
