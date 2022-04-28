@@ -52,6 +52,17 @@ test_success!(do_until_loop, "do {} until true;");
 test_success!(while_loop, "while true {}");
 test_success!(if_stmt, "if true {}");
 test_success!(switch, "switch true { case true: break; case false: break; }");
+test_success!(
+    numerical_assignment_ops,
+    "var a = 0;
+    a += 1;
+    a -= 1;
+    a /= 1;
+    a *= 1;
+    a %= 1;
+    a &= 1;
+    a |= 1;"
+);
 
 // Local variable
 test_var_type!(local_var, "var a = 0", a: Real);
@@ -181,10 +192,10 @@ test_var_type!(
     bar: Real,
 );
 test_var_type!(
-    identity_function,
-    "var foo = function(x) { return x; };
-    var bar = foo(true);",
-    bar: Bool,
+    echo,
+    "var echo = function(x) { return x; };
+    var foo = echo(true);",
+    foo: Bool,
 );
 test_var_type!(
     return_generic_array_access,
@@ -233,14 +244,14 @@ test_var_type!(
     bar: adt!(x: Real)
 );
 test_var_type!(
-    multi_use_identity,
-    "function foo(a) {
+    multi_use_echo,
+    "function echo(a) {
         return a;
     }
-    var bar = foo(true);
-    var fizz = foo(0);",
-    bar: Bool,
-    fizz: Real,
+    var foo = echo(true);
+    var bar = echo(0);",
+    foo: Bool,
+    bar: Real,
 );
 test_var_type!(
     return_onto_known_type,
@@ -272,8 +283,8 @@ test_var_type!(
 );
 test_var_type!(
     self_as_argument,
-    "var identity = function(x) { return x; }
-    var foo = identity(self);",
+    "var echo = function(x) { return x; }
+    var foo = echo(self);",
     foo: adt!(),
 );
 test_var_type!(
@@ -507,15 +518,22 @@ test_var_type!(
     bar: function!(() => Undefined),
 );
 test_var_type!(
-    identity_out_of_order,
+    echo_out_of_order,
     "function wrapper() {
-        return identity(0);
+        return echo(0);
     }
-    function identity(x) {
+    function echo(x) {
         return x;
     }
-    var bar = wrapper();",
-    bar: Real,
+    var foo = wrapper();",
+    foo: Real,
+);
+test_var_type!(
+    self_as_param_out_of_order,
+    "self.x = 0; 
+    function bar() { fizz(self) }
+    function fizz(o) { return o.x + 1; }",
+    fizz: function!((adt!(x: Real)) => Real),
 );
 
 // Stress tests
@@ -603,27 +621,5 @@ test_var_type!(
         sqrd_magnitude: function!(() => Real),
         normalize: function!(() => Identity),
         dot: function!((adt!(x: Real, y: Real)) => Real),
-    )
-);
-
-test_var_type!(
-    mystery,
-    r#"
-    function foo() constructor {
-        function bar() {
-            return self.fizz(self);
-        }
-
-        function fizz(o) {
-            return;
-        }
-    }
-
-    var a = new foo();
-    "#,
-    a: adt!(
-        foo: function!((Real) => Identity),
-        bar: function!(() => Undefined),
-        fizz: function!((adt!()) => Undefined),
     )
 );

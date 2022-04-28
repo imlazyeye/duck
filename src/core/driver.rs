@@ -1,8 +1,7 @@
-#[cfg(features = "solve")]
-use crate::solve::*;
 use crate::{
     lint::{collection::*, *},
     parse::{Ast, Expr, ParseVisitor, Parser, Stmt},
+    solve::*,
     Config, FileId, GmlLibrary,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
@@ -285,7 +284,6 @@ pub fn start_early_pass(
     let (stmt_sender, stmt_reciever) = channel::<Stmt>(1000);
     let sender = report_sender.clone();
     let handle = tokio::task::spawn(async move {
-        #[cfg(features = "solve")]
         let mut solver = Solver::default();
         while let Some(ast) = ast_receiever.recv().await {
             let tagged = ast.tagged_nodes(&crate::parse::Tag("enum_string".into(), None));
@@ -293,10 +291,9 @@ pub fn start_early_pass(
                 println!("{tagged:?}");
             }
             let config = config.clone();
-            #[cfg(features = "solve")]
             {
-                if let Err(errors) = solver.process_statements(ast.stmts()) {
-                    sender.send(errors).await.unwrap();
+                if let Err(err) = solver.process_statements(ast.stmts()) {
+                    sender.send(vec![err]).await.unwrap();
                 }
             }
             for mut stmt in ast.unpack() {

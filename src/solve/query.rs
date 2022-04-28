@@ -31,16 +31,21 @@ impl Solver {
                 self.write_adt(AdtId::GLOBAL, &mac.name, Ty::Any)?;
                 self.get_adt_mut(AdtId::GLOBAL).mark_as_constant(&mac.name.lexeme);
             }
-            StmtKind::Assignment(Assignment { left, right, op }) => {
-                let mut right_ty = right.query(self)?;
-                if let AssignmentOp::Identity(_) = op {
+            StmtKind::Assignment(Assignment { left, right, op }) => match op {
+                AssignmentOp::Identity(_) => {
+                    let mut right_ty = right.query(self)?;
                     if let Ok((adt_id, iden)) = self.expr_to_adt_access(left) {
                         self.write_adt(adt_id, iden, right_ty)?;
                     } else {
                         left.unify(&mut right_ty, self)?;
                     }
                 }
-            }
+                AssignmentOp::NullCoalecenceEqual(_) => todo!(),
+                _ => {
+                    left.unify(&mut Ty::Real, self)?;
+                    right.unify(&mut Ty::Real, self)?;
+                }
+            },
             StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {
                     let ty = match initializer {

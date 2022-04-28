@@ -22,13 +22,13 @@ impl Solver {
                 Ok(())
             }
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
-                (Func::Def(def), Func::Call(call)) | (Func::Call(call), Func::Def(def)) => {
+                (Func::Def(def), call @ Func::Call(_)) | (call @ Func::Call(_), Func::Def(def)) => {
                     #[cfg(test)]
                     println!("\n--- Evaluating call pattern... ---\n",);
                     let mut solver = self.clone();
                     let mut def = def.clone();
                     for (i, param) in def.parameters.iter_mut().enumerate() {
-                        if let Some(arg) = call.parameters.get_mut(i) {
+                        if let Some(arg) = call.parameters_mut().get_mut(i) {
                             if arg == &Ty::Identity {
                                 solver.unify_tys(param, &mut Ty::Adt(self.self_id()))?;
                             } else {
@@ -38,7 +38,7 @@ impl Solver {
                             return duck_error!("missing argument {i} in call");
                         };
                     }
-                    if call.parameters.len() > def.parameters.len() {
+                    if call.parameters().len() > def.parameters.len() {
                         return duck_error!("extra arguments provided to call");
                     }
                     let ret = def.return_type.as_mut();
@@ -56,7 +56,8 @@ impl Solver {
                         let adt = solver.get_adt(*id);
                         self.adts.insert(*id, adt.clone());
                     }
-                    self.unify_tys(&mut call.return_type, ret)?;
+                    self.unify_tys(call.return_type_mut(), ret)?;
+                    *call = Func::Def(def.clone());
 
                     #[cfg(test)]
                     println!("\n--- Ending call... ---\n");
