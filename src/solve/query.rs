@@ -254,9 +254,7 @@ impl QueryItem for Expr {
                     })),
                     solver,
                 )?;
-                let mut ty = Ty::Var(self.var());
-                solver.normalize(&mut ty);
-                Ok(ty)
+                Ok(Ty::Var(self.var()))
             }
             ExprKind::Grouping(grouping) => grouping.inner.query(solver),
             ExprKind::Literal(literal) => {

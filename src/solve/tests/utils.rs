@@ -2,13 +2,11 @@ use crate::{parse::*, solve::*};
 use parking_lot::Mutex;
 
 lazy_static! {
-    pub(super) static ref SOLVER: Mutex<Solver> = Mutex::new(create_test_solver());
-}
-
-fn create_test_solver() -> Solver {
-    let mut solver = Solver::default();
-    solver.adts.remove(&AdtId::GLOBAL);
-    solver
+    pub(super) static ref SOLVER: Mutex<Solver> = {
+        let mut solver = Solver::default();
+        solver.adts.remove(&AdtId::GLOBAL);
+        Mutex::new(solver)
+    };
 }
 
 pub fn harness_solver(source: &str) -> Result<Solver, TypeError> {
@@ -22,7 +20,18 @@ pub fn harness_solver(source: &str) -> Result<Solver, TypeError> {
 }
 
 pub fn assert_var_type(name: &'static str, should_be: Ty, solver: &mut Solver) {
-    let ty = solver.resolve_name(name).unwrap();
+    let ty = if let Some(field) = solver
+        .get_adt(solver.local_id())
+        .get(name)
+        .or_else(|| solver.get_adt(AdtId::GLOBAL).get(name))
+        .or_else(|| solver.get_adt(solver.self_id()).get(name))
+    {
+        let mut ty = field.clone();
+        solver.normalize(&mut ty);
+        ty
+    } else {
+        panic!("Could not resolve a type for `{name}`");
+    };
     assert!(
         ty.loose_eq(&should_be, solver),
         "{name} was the wrong type! \n\nlhs: {} \n\nrhs: {}",

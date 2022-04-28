@@ -18,19 +18,18 @@ pub struct Solver {
 
 // General
 impl Solver {
-    pub fn find_adt_for_iden(&mut self, iden: &Identifier) -> AdtId {
-        if self.get_adt(self.local_id()).contains(&iden.lexeme) {
-            self.local_id()
-        } else if self.get_adt(AdtId::GLOBAL).contains(&iden.lexeme) {
-            AdtId::GLOBAL
-        } else {
-            self.self_id()
-        }
-    }
-
     pub fn expr_to_adt_access<'a>(&mut self, expr: &'a Expr) -> Result<(AdtId, &'a Identifier), TypeError> {
         match expr.kind() {
-            ExprKind::Identifier(iden) => Ok((self.find_adt_for_iden(iden), iden)),
+            ExprKind::Identifier(iden) => {
+                let adt = if self.get_adt(self.local_id()).contains(&iden.lexeme) {
+                    self.local_id()
+                } else if self.get_adt(AdtId::GLOBAL).contains(&iden.lexeme) {
+                    AdtId::GLOBAL
+                } else {
+                    self.self_id()
+                };
+                Ok((adt, iden))
+            }
             ExprKind::Access(Access::Identity { right }) => Ok((self.self_id(), right)),
             ExprKind::Access(Access::Global { right }) => Ok((self.self_id(), right)),
             ExprKind::Access(Access::Dot { left, right }) => {
@@ -44,21 +43,6 @@ impl Solver {
             }
             _ => duck_error!("expr does not contain adt"),
         }
-    }
-
-    pub fn resolve_name(&mut self, name: &str) -> Result<Ty, TypeError> {
-        let mut ty = if let Some(field) = self
-            .get_adt(self.local_id())
-            .get(name)
-            .or_else(|| self.get_adt(AdtId::GLOBAL).get(name))
-            .or_else(|| self.get_adt(self.self_id()).get(name))
-        {
-            field.clone()
-        } else {
-            return duck_error!("Could not resolve a type for `{name}`");
-        };
-        self.normalize(&mut ty);
-        Ok(ty)
     }
 
     pub fn emit_uninitialized_variable_errors(&mut self) -> Result<(), TypeError> {

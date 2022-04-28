@@ -605,3 +605,25 @@ test_var_type!(
         dot: function!((adt!(x: Real, y: Real)) => Real),
     )
 );
+
+test_var_type!(
+    mystery,
+    r#"
+    function foo() constructor {
+        function bar() {
+            return self.fizz(self);
+        }
+
+        function fizz(o) {
+            return;
+        }
+    }
+
+    var a = new foo();
+    "#,
+    a: adt!(
+        foo: function!((Real) => Identity),
+        bar: function!(() => Undefined),
+        fizz: function!((adt!()) => Undefined),
+    )
+);

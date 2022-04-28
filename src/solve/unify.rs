@@ -165,8 +165,7 @@ impl Solver {
         }
     }
 
-    pub fn sub(&mut self, var: Var, mut ty: Ty) -> Ty {
-        self.normalize(&mut ty); // todo: unsure if needed
+    pub fn sub(&mut self, var: Var, ty: Ty) -> Ty {
         #[cfg(test)]
         println!("{}", Printer::substitution(&var, &ty, self));
         self.subs.insert(var, ty);
