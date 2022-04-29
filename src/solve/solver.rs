@@ -175,11 +175,12 @@ impl Default for Solver {
             local_stack: vec![],
             return_stack: vec![],
         };
+        let adt = solver.define_gml_std();
         solver.adts.insert(
             AdtId::GLOBAL,
             Adt {
                 id: AdtId::GLOBAL,
-                fields: HashMap::default(),
+                fields: adt.fields,
                 bounties: HashMap::default(),
                 state: AdtState::Extendable,
             },

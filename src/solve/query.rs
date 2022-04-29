@@ -161,9 +161,9 @@ impl QueryItem for Expr {
         let ty = match self.kind() {
             ExprKind::Function(func) => {
                 let ty = if let Some(constructor) = func.constructor.as_ref() {
-                    solver.process_constructor(self, func, constructor)?
+                    solver.process_constructor(func, constructor)?
                 } else {
-                    solver.process_function(self, func)?
+                    solver.process_function(func)?
                 };
                 if let Some(name) = &func.name {
                     solver.write_adt(solver.self_id(), name, ty.clone())?;
@@ -270,12 +270,18 @@ impl QueryItem for Expr {
                     Literal::String(_) => Ty::Str,
                     Literal::Real(_) | Literal::Hex(_) => Ty::Real,
                     Literal::Misc(_) => Ty::Any, // todo
-                    Literal::Array(exprs) => Ty::Array(Box::new(
-                        exprs
-                            .first()
-                            .and_then(|expr| expr.query(solver).ok())
-                            .unwrap_or(Ty::Any),
-                    )),
+                    Literal::Array(exprs) => {
+                        let ty = if let Some(expr) = exprs.first() {
+                            let mut ty = expr.query(solver)?;
+                            for expr in exprs.iter().skip(1) {
+                                expr.unify(&mut ty, solver)?;
+                            }
+                            ty
+                        } else {
+                            Ty::Any
+                        };
+                        Ty::Array(Box::new(ty))
+                    }
                     Literal::Struct(declarations) => {
                         let id = solver.new_adt(AdtState::Extendable, vec![]);
                         solver.enter_self_scope(id);
@@ -342,35 +348,8 @@ impl Solver {
         Ok((parameters, minimum_arguments, local_scope))
     }
 
-    fn make_function_ty(
-        &mut self,
-        expr: &Expr,
-        binding: Binding,
-        parameters: Vec<Ty>,
-        minimum_arguments: usize,
-        return_type: Box<Ty>,
-    ) -> Result<Ty, TypeError> {
-        // Create the new definition
-        let mut ty = Ty::Func(super::Func::Def(super::Def {
-            binding: Some(binding),
-            parameters,
-            minimum_arguments,
-            return_type,
-        }));
-
-        // Do we already have a call placed on us?
-        if let Some(mut expr_ty) = self.subs.remove(&expr.var()) {
-            #[cfg(test)]
-            println!("--- Resolving a previous definition... ---\n");
-            self.unify_tys(&mut ty, &mut expr_ty)?;
-        }
-
-        Ok(ty)
-    }
-
     fn process_constructor(
         &mut self,
-        expr: &Expr,
         function: &crate::parse::Function,
         constructor: &Constructor,
     ) -> Result<Ty, TypeError> {
@@ -397,7 +376,12 @@ impl Solver {
         self.depart_local_scope();
         self.retrieve_return_value();
 
-        let ty = self.make_function_ty(expr, binding, parameters, minimum_arguments, Box::new(Ty::Identity))?;
+        let ty = Ty::Func(super::Func::Def(super::Def {
+            binding: Some(binding),
+            parameters,
+            minimum_arguments,
+            return_type: Box::new(Ty::Identity),
+        }));
         if let Some(name) = &function.name {
             self.write_adt(self.self_id(), name, ty.clone())?;
         }
@@ -408,7 +392,7 @@ impl Solver {
         Ok(ty)
     }
 
-    fn process_function(&mut self, expr: &Expr, function: &crate::parse::Function) -> Result<Ty, TypeError> {
+    fn process_function(&mut self, function: &crate::parse::Function) -> Result<Ty, TypeError> {
         let (parameters, minimum_arguments, local_scope) = self.process_function_head(function)?;
         self.enter_local_scope(local_scope);
         self.process_statements(function.body_stmts())?;
@@ -418,16 +402,15 @@ impl Solver {
             ty => Box::new(ty),
         };
         println!("\n--- Departing function... ---\n");
-        self.make_function_ty(
-            expr,
-            Binding::Method {
+        Ok(Ty::Func(super::Func::Def(super::Def {
+            binding: Some(Binding::Method {
                 local_scope,
                 self_scope: self.self_id(),
-            },
+            }),
             parameters,
             minimum_arguments,
             return_type,
-        )
+        })))
     }
 }
 

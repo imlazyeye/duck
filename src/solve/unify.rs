@@ -13,6 +13,9 @@ impl Solver {
             }
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var(var, other),
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => self.unify_tys(lhs_member, rhs_member),
+            (adt @ Ty::Adt(_), Ty::Identity) | (Ty::Identity, adt @ Ty::Adt(_)) => {
+                self.unify_tys(adt, &mut Ty::Adt(self.self_id()))
+            }
             (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
                 let rhs = self.adts.remove(rhs_adt).unwrap(); // yikes
                 for (name, rhs_field) in rhs.fields.iter() {
@@ -27,9 +30,11 @@ impl Solver {
                     println!("\n--- Evaluating call pattern... ---\n",);
                     let mut solver = self.clone();
                     let mut def = def.clone();
+                    let bound_scope = def.binding.as_ref().map(|v| v.self_scope());
+                    let transmute_identity = bound_scope.map_or(true, |v| v != self.self_id());
                     for (i, param) in def.parameters.iter_mut().enumerate() {
                         if let Some(arg) = call.parameters_mut().get_mut(i) {
-                            if arg == &Ty::Identity {
+                            if arg == &Ty::Identity && transmute_identity {
                                 solver.unify_tys(param, &mut Ty::Adt(self.self_id()))?;
                             } else {
                                 solver.unify_tys(param, arg)?;
@@ -43,8 +48,6 @@ impl Solver {
                     }
                     let ret = def.return_type.as_mut();
                     solver.normalize(ret);
-                    let bound_scope = def.binding.as_ref().map(|v| v.self_scope());
-                    let transmute_identity = bound_scope.map_or(true, |v| v != self.self_id());
                     if ret == &Ty::Identity && transmute_identity {
                         *ret = Ty::Adt(bound_scope.unwrap_or_else(|| solver.self_id()));
                         solver.normalize(ret);

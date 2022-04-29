@@ -121,6 +121,7 @@ test_expr_type!(constant_array, "[0]" => array!(Real));
 test_expr_type!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
 test_var_type!(array_access, "var x = [0], y = x[0];", y: Real);
 test_failure!(invalid_array_access, "var a = 0, b = a[0];");
+test_failure!(mixed_array, "var a = [0, true];");
 
 // Structs
 test_expr_type!(empty_struct, "{}" => adt!());
@@ -285,7 +286,7 @@ test_var_type!(
     self_as_argument,
     "var echo = function(x) { return x; }
     var foo = echo(self);",
-    foo: adt!(),
+    foo: Identity,
 );
 test_var_type!(
     self_in_call_pattern,
@@ -395,6 +396,11 @@ test_var_type!(
         self.y = obj.y;
     }",
     set: function!((adt!(x: Real, y: Real)) => Undefined),
+);
+test_success!(
+    gml_std,
+    "var a = [true, false, true];
+    array_insert(a, true, 0);"
 );
 
 // Constructors
@@ -529,7 +535,7 @@ test_var_type!(
     foo: Real,
 );
 test_var_type!(
-    self_as_param_out_of_order,
+    self_as_argument_out_of_order,
     "self.x = 0; 
     function bar() { fizz(self) }
     function fizz(o) { return o.x + 1; }",

@@ -94,6 +94,13 @@ macro_rules! function {
     };
 }
 
+#[macro_export]
+macro_rules! var {
+    () => {
+        Ty::Var(crate::solve::Var::Generated(rand::random()))
+    };
+}
+
 lazy_static! {
     static ref PRINTER: Mutex<Printer> = Mutex::new(Printer {
         aliases: HashMap::default(),
@@ -145,14 +152,11 @@ impl Printer {
             };
             entry
         }
-        .bright_black()
-        .bold()
-        .to_string()
     }
 
     #[must_use]
     pub fn ty(ty: &Ty, solver: &Solver) -> String {
-        let s = match ty {
+        match ty {
             Ty::Uninitialized => "<null>".into(),
             Ty::Identity => "identity".into(),
             Ty::Any => "any".into(),
@@ -207,8 +211,7 @@ impl Printer {
                     Printer::ty(return_type, solver)
                 ),
             },
-        };
-        s.blue().bold().to_string()
+        }
     }
 
     #[must_use]
@@ -216,13 +219,17 @@ impl Printer {
         format!(
             "{}        {a}: {}",
             "QUERY".bright_red(),
-            Printer::var(&a.var(), solver)
+            Printer::var(&a.var(), solver).bold().bright_black()
         )
     }
 
     #[must_use]
     pub fn write(name: &crate::parse::Identifier, ty: &Ty, solver: &Solver) -> String {
-        format!("{}        {name}: {}", "WRITE".bright_cyan(), Printer::ty(ty, solver))
+        format!(
+            "{}        {name}: {}",
+            "WRITE".bright_cyan(),
+            Printer::ty(ty, solver).blue().bold()
+        )
     }
 
     #[must_use]
@@ -230,8 +237,8 @@ impl Printer {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY T".bright_yellow(),
-            Printer::ty(a, solver),
-            Printer::ty(b, solver),
+            Printer::ty(a, solver).blue().bold(),
+            Printer::ty(b, solver).blue().bold(),
         )
     }
 
@@ -240,8 +247,8 @@ impl Printer {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY M".bright_yellow(),
-            Printer::var(var, solver),
-            Printer::ty(ty, solver),
+            Printer::var(var, solver).bright_black().bold(),
+            Printer::ty(ty, solver).blue().bold(),
         )
     }
 
@@ -250,8 +257,8 @@ impl Printer {
         format!(
             "{}          {}   →   {}",
             "SUB".bright_green(),
-            Printer::var(var, solver),
-            Printer::ty(ty, solver),
+            Printer::var(var, solver).bright_black().bold(),
+            Printer::ty(ty, solver).blue().bold(),
         )
     }
 }
