@@ -308,7 +308,6 @@ test_var_type!(
     self.y = self.foo(self);",
     y: Real,
 );
-
 test_expr_type!(
     infer_function,
     "function(x) { return x() + 1; }" => function!(
@@ -412,6 +411,17 @@ test_success!(
     gml_std,
     "var a = [true, false, true];
     array_insert(a, true, 0);"
+);
+test_var_type!(
+    option_field,
+    "self.a = undefined;
+    self.b = 0;
+    if true {
+        self.a = 0;
+        self.b = undefined;
+    }",
+    a: option!(Real),
+    b: option!(Real),
 );
 
 // Constructors

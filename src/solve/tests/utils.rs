@@ -1,5 +1,6 @@
 use crate::{parse::*, solve::*};
 use parking_lot::Mutex;
+use pretty_assertions::assert_eq;
 
 lazy_static! {
     pub(super) static ref SOLVER: Mutex<Solver> = {

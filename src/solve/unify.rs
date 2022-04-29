@@ -12,8 +12,9 @@ impl Solver {
                 Ok(())
             }
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var(var, other),
-            (Ty::Undefined, other) | (other, Ty::Undefined) => {
+            (und @ Ty::Undefined, other) | (other, und @ Ty::Undefined) => {
                 *other = Ty::Option(Box::new(other.clone()));
+                *und = other.clone();
                 Ok(())
             }
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => self.unify_tys(lhs_member, rhs_member),
