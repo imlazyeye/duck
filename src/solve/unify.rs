@@ -12,6 +12,10 @@ impl Solver {
                 Ok(())
             }
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var(var, other),
+            (Ty::Undefined, other) | (other, Ty::Undefined) => {
+                *other = Ty::Option(Box::new(other.clone()));
+                Ok(())
+            }
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => self.unify_tys(lhs_member, rhs_member),
             (adt @ Ty::Adt(_), Ty::Identity) | (Ty::Identity, adt @ Ty::Adt(_)) => {
                 self.unify_tys(adt, &mut Ty::Adt(self.self_id()))

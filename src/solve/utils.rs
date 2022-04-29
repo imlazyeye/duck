@@ -49,6 +49,13 @@ macro_rules! array {
 }
 
 #[macro_export]
+macro_rules! option {
+    ($ty:expr) => {
+        Ty::Option(Box::new($ty))
+    };
+}
+
+#[macro_export]
 macro_rules! adt {
     ($solver:expr => { $($var:ident: $should_be:expr), * $(,)? }) => {
         $solver.new_adt(AdtState::Extendable, vec![
@@ -211,6 +218,9 @@ impl Printer {
                     Printer::ty(return_type, solver)
                 ),
             },
+            Ty::Option(ty) => {
+                format!("Option<{}>", Printer::ty(ty.as_ref(), solver))
+            }
         }
     }
 

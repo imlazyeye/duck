@@ -16,6 +16,7 @@ pub enum Ty {
     Array(Box<Ty>),
     Adt(AdtId),
     Func(Func),
+    Option(Box<Ty>),
 }
 
 impl Ty {

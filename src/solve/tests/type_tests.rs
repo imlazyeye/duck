@@ -1,5 +1,5 @@
 use super::*;
-use crate::{adt, array, function, solve::*, test_expr_type, test_failure, test_success, test_var_type};
+use crate::{adt, array, function, option, solve::*, test_expr_type, test_failure, test_success, test_var_type};
 use Ty::*;
 
 // Basic expressions
@@ -25,12 +25,12 @@ test_var_type!(
     h: Bool,
 );
 test_expr_type!(ternary, "true ? 0 : 0" => Real);
-// test_expr_type!(
-//     null_coalecence,
-//     "function(x) {
-//         return x ?? 0;
-//     }" => function!((Real) => Real)
-// );
+test_expr_type!(
+    null_coalecence,
+    "function(x) {
+        return x ?? 0;
+    }" => function!((option!(Real)) => Real)
+);
 test_expr_type!(
     evaluation,
     "1 + 1" => Real,
@@ -281,6 +281,17 @@ test_var_type!(
     }
     var fizz = (new foo()).bar();",
     fizz: adt!(foo: function!(() => Identity), bar: function!(() => Identity),)
+);
+test_var_type!(
+    return_option,
+    "function foo() {
+        if true {
+            return 0;
+        } else {
+            return undefined;
+        }
+    }",
+    foo: function!(() => option!(Real))
 );
 test_var_type!(
     self_as_argument,

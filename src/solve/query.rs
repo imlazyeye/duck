@@ -185,7 +185,11 @@ impl QueryItem for Expr {
                 eval.right.unify(&mut Ty::Real, solver)?;
                 Ok(Ty::Real)
             }
-            ExprKind::NullCoalecence(_) => todo!(),
+            ExprKind::NullCoalecence(null) => {
+                let ty = null.right.query(solver)?;
+                null.left.unify(&mut Ty::Option(Box::new(ty.clone())), solver)?;
+                Ok(ty)
+            }
             ExprKind::Ternary(ternary) => {
                 ternary.condition.unify(&mut Ty::Bool, solver)?;
                 let mut false_value = ternary.false_value.query(solver)?;
