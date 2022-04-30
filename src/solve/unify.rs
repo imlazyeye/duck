@@ -1,3 +1,5 @@
+use hashbrown::HashMap;
+
 use crate::duck_error;
 
 use super::*;
@@ -33,39 +35,33 @@ impl Solver {
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
                 (Func::Def(def), call @ Func::Call(_)) | (call @ Func::Call(_), Func::Def(def)) => {
                     #[cfg(test)]
-                    println!("\n--- Evaluating call pattern... ---\n",);
-                    let mut solver = self.clone();
-                    let mut def = def.clone();
-                    let bound_scope = def.binding.as_ref().map(|v| v.self_scope());
-                    let transmute_identity = bound_scope.map_or(true, |v| v != self.self_id());
+                    let mut def = def.checkout(self);
+                    println!(
+                        "\n--- Evaluating call for checkout: {}... ---\n",
+                        Printer::ty(&Ty::Func(Func::Def(def.clone())), self)
+                    );
+                    let bound_scope = def.binding.as_ref().map_or_else(|| self.self_id(), |v| v.self_scope());
+                    let transmute_identity = bound_scope != self.self_id();
+
+                    if call.parameters().len() > def.parameters.len() {
+                        return duck_error!("extra arguments provided to call");
+                    }
                     for (i, param) in def.parameters.iter_mut().enumerate() {
                         if let Some(arg) = call.parameters_mut().get_mut(i) {
                             if arg == &Ty::Identity && transmute_identity {
-                                solver.unify_tys(param, &mut Ty::Adt(self.self_id()))?;
+                                self.unify_tys(param, &mut Ty::Adt(self.self_id()))?;
                             } else {
-                                solver.unify_tys(param, arg)?;
+                                self.unify_tys(param, arg)?;
                             }
                         } else if i < def.minimum_arguments {
                             return duck_error!("missing argument {i} in call");
                         };
                     }
-                    if call.parameters().len() > def.parameters.len() {
-                        return duck_error!("extra arguments provided to call");
+
+                    if def.return_type.as_ref() == &Ty::Identity && transmute_identity {
+                        *def.return_type = Ty::Adt(bound_scope);
                     }
-                    let ret = def.return_type.as_mut();
-                    solver.normalize(ret);
-                    if ret == &Ty::Identity && transmute_identity {
-                        *ret = Ty::Adt(bound_scope.unwrap_or_else(|| solver.self_id()));
-                        solver.normalize(ret);
-                    }
-                    if let Ty::Adt(id) = ret {
-                        // HACK: bit of a bodge here, but since the Adt's actual data is stored on the solver, not
-                        // in these types, we need to do the following to transfer that
-                        // data back to the real solver
-                        let adt = solver.get_adt(*id);
-                        self.adts.insert(*id, adt.clone());
-                    }
-                    self.unify_tys(call.return_type_mut(), ret)?;
+                    self.unify_tys(call.return_type_mut(), &mut def.return_type)?;
                     *call = Func::Def(def.clone());
 
                     #[cfg(test)]
@@ -107,17 +103,10 @@ impl Solver {
             *ty = sub;
         }
 
-        // is this crazy...?
-        // if !self.occurs(var, ty) {
-        // } else {
-        //     println!(
-        //         "Not inserting {} for {} as there is a cycle!",
-        //         Printer::ty(ty, self),
-        //         Printer::var(var, self),
-        //     );
-        // }
-
-        self.sub(*var, ty.clone());
+        self.normalize(ty);
+        if *ty != Ty::Var(*var) {
+            self.sub(*var, ty.clone());
+        }
 
         Ok(())
     }

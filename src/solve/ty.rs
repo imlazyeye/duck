@@ -1,4 +1,6 @@
-use crate::parse::Identifier;
+use hashbrown::HashMap;
+
+use crate::{parse::Identifier, var};
 
 use super::*;
 
@@ -91,6 +93,62 @@ pub struct Def {
     pub parameters: Vec<Ty>,
     pub minimum_arguments: usize,
     pub return_type: Box<Ty>,
+}
+
+impl Def {
+    pub fn checkout(&self, solver: &mut Solver) -> Def {
+        fn checkout_ty(ty: &Ty, solver: &mut Solver, map: &mut HashMap<Var, Var>) -> Ty {
+            match ty {
+                Ty::Var(var) => {
+                    if let Some(ty) = solver.subs.get(&var).cloned() {
+                        checkout_ty(&ty, solver, map)
+                    } else if let Some(mapping) = map.get(&var) {
+                        Ty::Var(*mapping)
+                    } else {
+                        let new = Var::Generated(rand::random());
+                        map.insert(*var, new);
+                        Ty::Var(new)
+                    }
+                }
+                Ty::Array(inner) => Ty::Array(Box::new(checkout_ty(inner, solver, map))),
+                Ty::Adt(_) => ty.clone(), // todo: this will cause a bug and ill get so frusterated
+                Ty::Func(func) => match func {
+                    Func::Def(Def {
+                        binding,
+                        parameters,
+                        minimum_arguments,
+                        return_type,
+                    }) => Ty::Func(Func::Def(Def {
+                        binding: binding.clone(),
+                        parameters: parameters.iter().map(|v| checkout_ty(v, solver, map)).collect(),
+                        minimum_arguments: *minimum_arguments,
+                        return_type: Box::new(checkout_ty(return_type, solver, map)),
+                    })),
+                    Func::Call(Call {
+                        parameters,
+                        return_type,
+                    }) => Ty::Func(Func::Call(Call {
+                        parameters: parameters.iter().map(|v| checkout_ty(v, solver, map)).collect(),
+                        return_type: Box::new(checkout_ty(return_type, solver, map)),
+                    })),
+                },
+                Ty::Option(inner) => Ty::Option(Box::new(checkout_ty(inner, solver, map))),
+                _ => ty.clone(),
+            }
+        }
+
+        let mut remap = HashMap::new();
+        Def {
+            binding: self.binding.clone(),
+            parameters: self
+                .parameters
+                .iter()
+                .map(|v| checkout_ty(v, solver, &mut remap))
+                .collect(),
+            minimum_arguments: self.minimum_arguments,
+            return_type: Box::new(checkout_ty(&self.return_type, solver, &mut remap)),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

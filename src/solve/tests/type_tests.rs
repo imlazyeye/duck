@@ -116,6 +116,13 @@ test_type!(
 test_type!(constant_array, "[0]" => array!(Real));
 test_type!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
 test_type!(array_access, "var x = [0];", "x[0]" => Real);
+test_type!(
+    infer_array_type_from_copy,
+    "var arr = [];
+    var con = [0];
+    array_copy(con, 0, arr, 0, 0);",
+    "arr" => array!(Real)
+);
 test_failure!(invalid_array_access, "var a = 0, b = a[0];");
 test_failure!(mixed_array, "var a = [0, true];");
 
