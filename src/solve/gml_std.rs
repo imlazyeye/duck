@@ -2,7 +2,7 @@ use crate::{adt, array, function, solve::*, var};
 use Ty::*;
 
 impl Solver {
-    pub fn define_gml_std(&mut self) -> crate::solve::adt::Adt {
+    pub fn define_gml_std(&mut self) -> crate::solve::adt::OldAdt {
         let id = adt!(self => {
 
             // Arrays (missing array_pop and array_sort, as they require unions)

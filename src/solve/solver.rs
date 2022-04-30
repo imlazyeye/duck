@@ -10,7 +10,7 @@ use hashbrown::HashMap;
 #[derive(Debug, Clone)]
 pub struct Solver {
     pub subs: HashMap<Var, Ty>,
-    pub adts: HashMap<AdtId, Adt>,
+    pub adts: HashMap<AdtId, OldAdt>,
     self_stack: Vec<AdtId>,
     local_stack: Vec<AdtId>,
     return_stack: Vec<Var>,
@@ -48,7 +48,7 @@ impl Solver {
     pub fn emit_uninitialized_variable_errors(&mut self) -> Result<(), TypeError> {
         for (_, adt) in self.adts.iter() {
             for (name, field) in adt.fields.iter() {
-                if !field.safe {
+                if !field.resolved {
                     return duck_error!("cannot find a value for `{name}`");
                 }
             }
@@ -178,7 +178,7 @@ impl Default for Solver {
         let adt = solver.define_gml_std();
         solver.adts.insert(
             AdtId::GLOBAL,
-            Adt {
+            OldAdt {
                 id: AdtId::GLOBAL,
                 fields: adt.fields,
                 bounties: HashMap::default(),

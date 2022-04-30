@@ -30,6 +30,114 @@ impl Adt {
     pub fn set_state(&mut self, state: AdtState) {
         self.state = state;
     }
+
+    pub fn write(&mut self, name: &str, ty: Ty) -> Result<FieldUpdate, TypeError> {
+        self.update(name, ty, true)
+    }
+
+    pub fn read(&mut self, name: &str, ty: Ty) -> Result<FieldUpdate, TypeError> {
+        self.update(name, ty, false)
+    }
+
+    fn update<'adt>(&'adt mut self, name: &str, ty: Ty, resolved: bool) -> Result<FieldUpdate, TypeError> {
+        if !self.fields.contains_key(name) {
+            if self.state == AdtState::Concrete {
+                duck_error!("cannot find a value for `{name}`")
+            } else {
+                if resolved {
+                    self.declare(name, ty);
+                } else {
+                    self.declare_unresolved(name, ty);
+                }
+                Ok(FieldUpdate::None)
+            }
+        } else {
+            let field = self.fields.get_mut(name).unwrap();
+            // HACK: this is a total bodge but I don't really mind because its us artifically representing a
+            // limitation in GML. GameMaker fails to compile if you double-declare a global named function, so
+            // we have to as well
+            if self.id == AdtId::GLOBAL && matches!((&field.ty, &ty), (Ty::Func(_), Ty::Func(_))) {
+                return duck_error!("cannot declare a global function more than once");
+            }
+            if !field.resolved && resolved {
+                field.resolved = true;
+            }
+            Ok(FieldUpdate::Some(&mut field.ty, ty))
+        }
+    }
+
+    fn declare(&mut self, name: &str, ty: Ty) {
+        self.fields.insert(
+            name.into(),
+            Field {
+                ty,
+                constant: false,
+                resolved: true,
+            },
+        );
+    }
+
+    fn declare_unresolved(&mut self, name: &str, ty: Ty) {
+        self.fields.insert(
+            name.into(),
+            Field {
+                ty,
+                constant: false,
+                resolved: false,
+            },
+        );
+    }
+}
+
+pub enum FieldUpdate<'adt> {
+    Some(&'adt mut Ty, Ty),
+    None,
+}
+impl<'adt> FieldUpdate<'adt> {
+    pub fn commit(mut self, solver: &mut Solver) -> Result<(), TypeError> {
+        match &mut self {
+            FieldUpdate::Some(lhs, rhs) => solver.unify_tys(lhs, rhs)?,
+            FieldUpdate::None => {}
+        }
+        std::mem::forget(self);
+        Ok(())
+    }
+}
+impl<'adt> Drop for FieldUpdate<'adt> {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            panic!("Failed to commit a unification request!");
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct OldAdt {
+    pub id: AdtId,
+    pub fields: HashMap<String, Field>,
+    pub bounties: HashMap<String, Bounty>,
+    pub state: AdtState,
+}
+impl OldAdt {
+    pub fn contains(&self, key: &str) -> bool {
+        self.fields.contains_key(key)
+    }
+
+    pub fn get(&self, key: &str) -> Option<&Ty> {
+        self.fields.get(key).map(|f| &f.ty)
+    }
+
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut Ty> {
+        self.fields.get_mut(key).map(|f| &mut f.ty)
+    }
+
+    pub fn mark_as_constant(&mut self, key: &str) {
+        self.fields.get_mut(key).unwrap().constant = true;
+    }
+
+    pub fn set_state(&mut self, state: AdtState) {
+        self.state = state;
+    }
 }
 
 // Eventually we will have real ribs, but for now we cheat and use local adtids
@@ -37,10 +145,10 @@ pub type Rib = AdtId;
 
 impl Solver {
     pub fn write_adt(&mut self, adt_id: AdtId, iden: &Identifier, mut ty: Ty) -> Result<(), TypeError> {
-        println!("{}", Printer::write(iden, &ty, self));
+        // println!("{}", Printer::write(iden, &ty, self));
         if let Some(bounty) = self.get_adt(adt_id).bounties.get(&iden.lexeme).copied() {
             // TODO: it'd be a lot nicer if bounties couldn't survive if the offer was "closed"...
-            if !self.get_adt(bounty.offerer).fields.get(&iden.lexeme).unwrap().safe {
+            if !self.get_adt(bounty.offerer).fields.get(&iden.lexeme).unwrap().resolved {
                 self.maybe_update_adt(bounty.offerer, iden, &mut ty)?;
             }
         }
@@ -81,7 +189,7 @@ impl Solver {
             if adt_id == AdtId::GLOBAL && matches!((&field.ty, &ty), (Ty::Func(_), Ty::Func(_))) {
                 return duck_error!("cannot declare a global function more than once");
             }
-            field.safe = true;
+            field.resolved = true;
             self.unify_tys(&mut field.ty, ty)?;
             self.adts.insert(adt_id, adt); // jesus christ
             Ok(true)
@@ -99,7 +207,7 @@ impl Solver {
             Field {
                 ty,
                 constant: false,
-                safe,
+                resolved: safe,
             },
         );
     }
@@ -108,7 +216,7 @@ impl Solver {
         let id = AdtId::new();
         self.adts.insert(
             id,
-            Adt {
+            OldAdt {
                 id,
                 fields: fields
                     .into_iter()
@@ -118,7 +226,7 @@ impl Solver {
                             iden.lexeme,
                             Field {
                                 ty,
-                                safe: true,
+                                resolved: true,
                                 constant: false,
                             },
                         )
@@ -131,11 +239,11 @@ impl Solver {
         id
     }
 
-    pub fn get_adt(&self, adt_id: AdtId) -> &Adt {
+    pub fn get_adt(&self, adt_id: AdtId) -> &OldAdt {
         self.adts.get(&adt_id).unwrap()
     }
 
-    pub fn get_adt_mut(&mut self, adt_id: AdtId) -> &mut Adt {
+    pub fn get_adt_mut(&mut self, adt_id: AdtId) -> &mut OldAdt {
         self.adts.get_mut(&adt_id).unwrap()
     }
 }

@@ -7,7 +7,7 @@ use parking_lot::Mutex;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Field {
     pub ty: Ty,
-    pub safe: bool,
+    pub resolved: bool,
     pub constant: bool,
 }
 
@@ -234,7 +234,7 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn write(name: &crate::parse::Identifier, ty: &Ty, solver: &Solver) -> String {
+    pub fn write(name: &str, ty: &Ty, solver: &Solver) -> String {
         format!(
             "{}        {name}: {}",
             "WRITE".bright_cyan(),
