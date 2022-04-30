@@ -12,6 +12,7 @@ impl Solver {
                 Ok(())
             }
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var(var, other),
+            (Ty::Any, _) | (_, Ty::Any) => Ok(()),
             (und @ Ty::Undefined, other) | (other, und @ Ty::Undefined) => {
                 *other = Ty::Option(Box::new(other.clone()));
                 *und = other.clone();

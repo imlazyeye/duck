@@ -42,6 +42,10 @@ impl Solver {
                 let ty = var!();
                 function!((array!(ty.clone()), ty, Real) => Undefined)
             },
+
+            // Maths
+            floor: function!((Real) => Real),
+            sqrt: function!((Real) => Real)
         });
 
         self.get_adt(id).clone()

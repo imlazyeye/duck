@@ -1,4 +1,4 @@
-use crate::{duck_error, parse::*, solve::*};
+use crate::{duck_error, parse::*, solve::*, var};
 
 impl Solver {
     pub fn process_statements(&mut self, stmts: &[Stmt]) -> Result<(), TypeError> {
@@ -52,6 +52,8 @@ impl Solver {
                         OptionalInitilization::Uninitialized(_) => Ty::Uninitialized,
                         OptionalInitilization::Initialized(_) => initializer.assignment_value().unwrap().query(self)?,
                     };
+                    // To enable shadowing, we first remove any old field for this name
+                    self.get_adt_mut(self.local_id()).fields.remove(initializer.name());
                     self.write_adt(self.local_id(), initializer.name_identifier(), ty)?;
                 }
             }
@@ -282,7 +284,7 @@ impl QueryItem for Expr {
                             }
                             ty
                         } else {
-                            Ty::Any
+                            var!()
                         };
                         Ty::Array(Box::new(ty))
                     }

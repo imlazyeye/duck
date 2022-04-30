@@ -10,35 +10,32 @@ lazy_static! {
     };
 }
 
-pub fn harness_solver(source: &str) -> Result<Solver, TypeError> {
-    let mut solver = Solver::default();
+pub fn harness_solver(source: &str, solver: &mut Solver) -> Result<(), TypeError> {
     let source = Box::leak(Box::new(source.to_string()));
     let parser = Parser::new(source, 0);
     let mut ast = parser.into_ast().unwrap();
     solver.process_statements(ast.stmts_mut())?;
     solver.emit_uninitialized_variable_errors()?;
-    Ok(solver)
+    Ok(())
 }
 
-pub fn assert_var_type(name: &'static str, should_be: Ty, solver: &mut Solver) {
-    let ty = if let Some(field) = solver
+pub fn test_type(src: &'static str, should_be: Ty, solver: &mut Solver) {
+    let source = Box::leak(Box::new(format!("var a = {}", src)));
+    harness_solver(source, solver).unwrap();
+    let field = solver
         .get_adt(solver.local_id())
-        .get(name)
-        .or_else(|| solver.get_adt(AdtId::GLOBAL).get(name))
-        .or_else(|| solver.get_adt(solver.self_id()).get(name))
-    {
-        let mut ty = field.clone();
-        solver.normalize(&mut ty);
-        ty
-    } else {
-        panic!("Could not resolve a type for `{name}`");
-    };
-    assert!(
-        ty.loose_eq(&should_be, solver),
-        "{name} was the wrong type! \n\nlhs: {} \n\nrhs: {}",
-        Printer::ty(&should_be, solver),
-        Printer::ty(&ty, solver)
-    );
+        .get("a")
+        .or_else(|| solver.get_adt(AdtId::GLOBAL).get("a"))
+        .or_else(|| solver.get_adt(solver.self_id()).get("a"))
+        .unwrap();
+    let mut ty = field.clone();
+    solver.normalize(&mut ty);
+    if !ty.loose_eq(&should_be, solver) {
+        let lhs = Printer::ty(&should_be, solver);
+        let rhs = Printer::ty(&ty, solver);
+        assert_eq!(lhs, rhs, "\n\n{source}");
+        panic!(); // just to be sure
+    }
 }
 
 impl Ty {
@@ -71,34 +68,30 @@ impl Ty {
 }
 
 #[macro_export]
-macro_rules! test_expr_type {
+macro_rules! test_type {
     ($name:ident, $($src:expr => $should_be:expr), * $(,)?) => {
         #[cfg(test)]
         #[test]
         fn $name() {
+            let mut solver = Solver::default();
             $({
-                let source = Box::leak(Box::new(format!("var a = {}", $src)));
-                let mut solver = harness_solver(source).unwrap();
                 let should_be = $should_be;
                 solver.adts.extend(SOLVER.lock().adts.clone());
-                assert_var_type("a", should_be, &mut solver);
+                test_type($src, should_be, &mut solver);
             })*
         }
     };
-}
-
-#[macro_export]
-macro_rules! test_var_type {
-    ($name:ident, $src:expr, $($var:ident: $should_be:expr), * $(,)?) => {
+    ($name:ident, $preamble:expr, $($src:expr => $should_be:expr), * $(,)?) => {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let mut solver = harness_solver($src).unwrap();
-            $(
+            let mut solver = Solver::default();
+            harness_solver($preamble, &mut solver).unwrap();
+            $({
                 let should_be = $should_be;
                 solver.adts.extend(SOLVER.lock().adts.clone());
-                assert_var_type(stringify!($var), should_be, &mut solver);
-            )*
+                test_type($src, should_be, &mut solver);
+            })*
         }
     };
 }
@@ -109,7 +102,7 @@ macro_rules! test_success {
         #[cfg(test)]
         #[test]
         fn $name() {
-            harness_solver($src).unwrap();
+            harness_solver($src, &mut Solver::default()).unwrap();
         }
     };
 }
@@ -120,7 +113,7 @@ macro_rules! test_failure {
         #[cfg(test)]
         #[test]
         fn $name() {
-            assert!(harness_solver($src).is_err());
+            assert!(harness_solver($src, &mut Solver::default()).is_err());
         }
     };
 }

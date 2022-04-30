@@ -1,37 +1,40 @@
 use super::*;
-use crate::{adt, array, function, option, solve::*, test_expr_type, test_failure, test_success, test_var_type};
+use crate::{adt, array, function, option, solve::*, test_failure, test_success, test_type};
 use Ty::*;
 
 // Basic expressions
-test_expr_type!(undefined, "undefined" => Undefined);
-test_expr_type!(noone, "noone" => Noone);
-test_expr_type!(bools, "true" => Bool, "false" => Bool);
-test_expr_type!(real, "1" => Real);
-test_expr_type!(real_float, "0.1" => Real);
-test_expr_type!(hex, "$ffffff" => Real);
-test_expr_type!(string, r#""foo""# => Str);
-test_expr_type!(grouping, "(0)" => Real);
-test_var_type!(postfix, "var x = 0, y = x++, z = x--;", x: Real, y: Real, z: Real);
-test_var_type!(
-    unary,
-    "var a = 0, b = ++a, c = --a, d = +a, e = -a, f = ~a, g = true, h = !g;",
-    a: Real,
-    b: Real,
-    c: Real,
-    d: Real,
-    e: Real,
-    f: Real,
-    g: Bool,
-    h: Bool,
+test_type!(undefined, "undefined" => Undefined);
+test_type!(noone, "noone" => Noone);
+test_type!(bools, "true" => Bool, "false" => Bool);
+test_type!(real, "1" => Real);
+test_type!(real_float, "0.1" => Real);
+test_type!(hex, "$ffffff" => Real);
+test_type!(string, r#""foo""# => Str);
+test_type!(grouping, "(0)" => Real);
+test_type!(
+    postfix,
+    "var x = 0",
+    "x++" => Real,
+    "x--" => Real,
 );
-test_expr_type!(ternary, "true ? 0 : 0" => Real);
-test_expr_type!(
+test_type!(
+    unary,
+    "var a = 0, b = false;",
+    "++a" => Real,
+    "--a" => Real,
+    "+a" => Real,
+    "-a" => Real,
+    "~a" => Real,
+    "!b" => Bool,
+);
+test_type!(ternary, "true ? 0 : 0" => Real);
+test_type!(
     null_coalecence,
     "function(x) {
         return x ?? 0;
     }" => function!((option!(Real)) => Real)
 );
-test_expr_type!(
+test_type!(
     evaluation,
     "1 + 1" => Real,
     "1 * 1" => Real,
@@ -39,10 +42,10 @@ test_expr_type!(
     "1 % 1" => Real,
     "1 div 1" => Real,
 );
+test_type!(logical, "true && false" => Bool);
 // this will require unions
-// test_expr_type!(add_strings, "\"foo\" + \"foo\"" => Str);
+// test_type!(add_strings, "\"foo\" + \"foo\"" => Str);
 test_failure!(subtract_strings, "var a = \"foo\" - \"foo\"");
-test_expr_type!(logical, "true && false" => Bool);
 test_failure!(invalid_equality, "var a = 0 == true;");
 
 // Basic statements
@@ -65,39 +68,33 @@ test_success!(
 );
 
 // Local variable
-test_var_type!(local_var, "var a = 0", a: Real);
-test_var_type!(null_local_var, "var a;", a: Uninitialized);
-test_var_type!(assign_to_null_var, "var a; a = 0;", a: Real);
+test_type!(local_var, "var a = 0", "a" => Real);
+test_type!(null_local_var, "var a;", "a" => Uninitialized);
+test_type!(assign_to_null_var, "var a; a = 0;", "a" => Real);
+test_type!(shadowing, "var a = 0; var a = true;", "a" => Bool);
 test_failure!(undefined_variable, "var a = b;");
 test_failure!(read_variable_before_declaration, "var a = b, b = 0;");
 
 // Globals
-test_var_type!(globalvar, "globalvar foo;", foo: Uninitialized);
-test_var_type!(globalvar_assign, "globalvar foo; foo = 0", foo: Real);
-test_var_type!(global, "global.foo = 0;", foo: Real);
+test_type!(globalvar, "globalvar foo;", "foo" => Uninitialized);
+test_type!(globalvar_assign, "globalvar foo; foo = 0", "foo" => Real);
+test_type!(global, "global.foo = 0;", "foo" => Real);
 test_failure!(duplicate_global_function, "function foo() {} function foo() {}");
 
 // Enums
-test_var_type!(enum_declaration, "enum foo { bar }", foo: adt!(bar: Real));
-test_var_type!(
-    access_enum,
-    "enum foo { bar }; 
-    var bar = foo.bar;",
-    bar: Real,
-);
-test_var_type!(
+test_type!(enum_declaration, "enum foo { bar }", "foo" => adt!(bar: Real));
+test_type!(access_enum, "enum foo { bar };", "foo.bar" => Real);
+test_type!(
     members_as_real,
-    "enum foo { bar, buzz }
-    var a = foo.bar + foo.buzz;
-    var b = foo.bar + 1;",
-    a: Real,
-    b: Real,
+    "enum foo { bar, buzz }",
+    "foo.bar + foo.buzz" => Real,
+    "foo.bar + 1" => Real,
 );
-test_var_type!(
+test_type!(
     enum_promise,
     "self.foo = Fizz.Buzz;
     enum Fizz { Buzz }",
-    foo: Real,
+    "foo" => Real,
 );
 test_failure!(non_real_enum_member_value, "enum foo { bar = true };");
 test_failure!(non_constant_enum_member, "var fizz = 0; enum foo { bar = fizz };");
@@ -107,236 +104,209 @@ test_failure!(non_constant_enum_member, "var fizz = 0; enum foo { bar = fizz };"
 // test_failure!(double_enum_declaration, "enum foo {}; enum foo {};");
 
 // Macros
-test_var_type!(macro_reference, "#macro foo 0\nvar bar = foo;", bar: Any);
-test_var_type!(
+test_type!(macro_reference, "#macro foo 0\nvar bar = foo;", "bar" => Any);
+test_type!(
     macro_promise,
     "self.foo = Fizz;
     #macro Fizz 0",
-    foo: Any,
+    "foo" => Any,
 );
 
 // Arrays
-test_expr_type!(empty_array, "[]" => array!(Any));
-test_expr_type!(constant_array, "[0]" => array!(Real));
-test_expr_type!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
-test_var_type!(array_access, "var x = [0], y = x[0];", y: Real);
+test_type!(constant_array, "[0]" => array!(Real));
+test_type!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
+test_type!(array_access, "var x = [0];", "x[0]" => Real);
 test_failure!(invalid_array_access, "var a = 0, b = a[0];");
 test_failure!(mixed_array, "var a = [0, true];");
 
 // Structs
-test_expr_type!(empty_struct, "{}" => adt!());
-test_expr_type!(populated_struct, "{ x: 0 }" => adt!(x: Real));
-test_var_type!(struct_access, "var foo = { x: 0 }, bar = foo.x;", bar: Real,);
-test_var_type!(
+test_type!(empty_struct, "{}" => adt!());
+test_type!(populated_struct, "{ x: 0 }" => adt!(x: Real));
+test_type!(struct_access, "var foo = { x: 0 }", "foo.x" => Real);
+test_type!(
     struct_extention,
     "var foo = { x: 0 };
     foo.y = 0;",
-    foo: adt!(x: Real, y: Real),
+    "foo" => adt!(x: Real, y: Real),
 );
-test_var_type!(
+test_type!(
     nested_structs,
-    "var foo = { x: { y: { z: 0 } } };
-    var bar = foo.x.y.z;",
-    bar: Real,
+    "var foo = { x: { y: { z: 0 } } };",
+    "foo.x.y.z;" => Real,
 );
-test_var_type!(
+test_type!(
     struct_field_transfer,
     "var foo = { x: 0 };
     var bar = { y: 0 };
     foo.x = bar.y;",
-    foo: adt!(x: Real),
+    "foo" => adt!(x: Real),
 );
-test_var_type!(
+test_type!(
     function_on_struct,
     "var foo = {
         bar: function() { return 0; },
-    };
-    var fizz = foo.bar();",
-    fizz: Real
+    };",
+    "foo.bar()" => Real,
 );
-test_var_type!(
+test_type!(
     infinite_cycle,
     "var foo = { a: 0 };
-    foo.bar = foo;
-    var fizz = foo.bar.a",
-    fizz: Real
+    foo.bar = foo;",
+    "foo.bar.a" => Real
 );
 test_failure!(undefined_field, "var a = {}, b = a.x;");
 test_failure!(invalid_dot_access, "var a = 0, b = a.x;");
 
 // Functions
-test_expr_type!(function, "function() {}" => function!(() => Undefined));
-test_var_type!(named_function, "function foo() {};", foo: function!(() => Undefined));
-test_var_type!(
+test_type!(function, "function() {}" => function!(() => Undefined));
+test_type!(named_function, "function foo() {};", "foo" => function!(() => Undefined));
+test_type!(
     default_argument,
-    "function foo(x=0) { return x; }
-    var a = foo();",
-    a: Real
+    "function foo(x=0) { return x; }",
+    "foo()" => Real
 );
 test_failure!(invalid_default_argument, "function foo(x=0, y) {}");
-test_var_type!(
-    return_nothing,
-    "var foo = function() {};
-    var bar = foo();",
-    bar: Undefined,
-);
-test_var_type!(
-    return_constant,
-    "var foo = function() { return 0; };
-    var bar = foo();",
-    bar: Real,
-);
-test_var_type!(
+test_type!(return_nothing, "var foo = function() {};", "foo()" => Undefined,);
+test_type!(return_constant, "var foo = function() { return 0; };", "foo()" => Real);
+test_type!(
     return_inferred_constant,
-    "var foo = function(x) { return x + 1; };
-    var bar = foo(1);",
-    bar: Real,
+    "var foo = function(x) { return x + 1; };",
+    "foo(1);" => Real,
 );
-test_var_type!(
+test_type!(
     echo,
-    "var echo = function(x) { return x; };
-    var foo = echo(true);",
-    foo: Bool,
+    "var echo = function(x) { return x; };",
+    "echo(true);" => Bool,
 );
-test_var_type!(
+test_type!(
     return_generic_array_access,
-    "var foo = function(x) { return x[0]; };
-    var bar = foo([0]);",
-    bar: Real,
+    "var foo = function(x) { return x[0]; };",
+    "foo([0])" => Real,
 );
-test_var_type!(
+test_type!(
     return_generic_struct_access,
-    "var foo = function(x) { return x.y; };
-    var bar = foo({ y: 0 });",
-    bar: Real,
+    "var foo = function(x) { return x.y; };",
+    "foo({ y: 0 })" => Real,
 );
-test_var_type!(
+test_type!(
     return_other_function_return,
     "function wrapper(lambda) {
         return lambda(0);
     }
-    function inner(n) { return n; }
-    var data = wrapper(inner);",
-    data: Real,
+    function inner(n) { return n; }",
+    "wrapper(inner)" => Real,
 );
-test_var_type!(
+test_type!(
     return_advanced_generic,
-    r#"var foo = function(a, b) {
+    "var foo = function(a, b) {
         return a[b];
     }
     var bar = function(x, y) {
         return x + y * 2;
-    }
-    var fizz = foo(["hello"], 0);
-    var buzz = foo([ { a: true } ], bar(1, 2));"#,
-    fizz: Str,
-    buzz: adt!(a: Bool)
+    }",
+    "foo([\"hello\"], 0)" => Str,
+    "foo([ { a: true } ], bar(1, 2));" => adt!(a: Bool)
 );
-test_var_type!(
+test_type!(
     return_array_with_arg,
-    "function foo(x) { return [x]; }
-    var bar = foo(0);",
-    bar: array!(Real)
+    "function foo(x) { return [x]; }",
+    "foo(0)" => array!(Real)
 );
-test_var_type!(
+test_type!(
     return_struct_with_arg,
-    "function foo(x) { return { x: x }; }
-    var bar = foo(0);",
-    bar: adt!(x: Real)
+    "function foo(x) { return { x: x }; }",
+    "foo(0)" => adt!(x: Real)
 );
-test_var_type!(
+test_type!(
     multi_use_echo,
     "function echo(a) {
         return a;
-    }
-    var foo = echo(true);
-    var bar = echo(0);",
-    foo: Bool,
-    bar: Real,
+    }",
+    "echo(true)" => Bool,
+    "echo(0)" => Real,
 );
-test_var_type!(
+test_type!(
     return_onto_known_type,
     "var foo = function() {
         return 0;
     }
     var bar = 0;
     bar = foo();",
-    bar: Real
+    "bar" => Real
 );
-test_var_type!(
+test_type!(
     return_nested_return,
     "function foo() {
         return function bar() {
             return 0;
         }
     }",
-    foo: function!(() => function!(() => Real))
+    "foo" => function!(() => function!(() => Real))
 );
-test_var_type!(
+test_type!(
     return_self,
     "function foo() constructor {
         function bar() { 
             return self;
         }
-    }
-    var fizz = (new foo()).bar();",
-    fizz: adt!(foo: function!(() => Identity), bar: function!(() => Identity),)
+    }",
+    "(new foo()).bar()" => adt!(
+        foo: function!(() => Identity),
+        bar: function!(() => Identity),
+    )
 );
-test_var_type!(
+test_type!(
     return_option,
-    "function foo() {
+    "function() {
         if true {
             return 0;
         } else {
             return undefined;
         }
-    }",
-    foo: function!(() => option!(Real))
+    }" => function!(() => option!(Real))
 );
-test_var_type!(
+test_type!(
     self_as_argument,
-    "var echo = function(x) { return x; }
-    var foo = echo(self);",
-    foo: Identity,
+    "var echo = function(x) { return x; }",
+    "echo(self)" => Identity,
 );
-test_var_type!(
+test_type!(
     self_in_call_pattern,
     "function foo(a) {
         return a.x;
     }
-    self.x = 0;
-    self.y = self.foo(self);",
-    y: Real,
+    self.x = 0;",
+    "self.foo(self)" => Real,
 );
-test_expr_type!(
+test_type!(
     infer_function,
     "function(x) { return x() + 1; }" => function!(
         (function!(() => Real)) => Real
     )
 );
-test_expr_type!(
+test_type!(
     infer_array,
     "function(x) { return x[0] + 1; }" => function!(
         (array!(Real)) => Real
     )
 );
-test_expr_type!(
+test_type!(
     infer_struct,
     "function(x) { return x.y + 1; }" => function!(
         (adt!(y: Real)) => Real
     )
 );
 test_success!(infer_multi_field_struct, "function foo(o) { return o.x + o.y; }");
-test_var_type!(
+test_type!(
     mutate_struct_via_function,
     "var foo = function(a) {
         a.a = 0;
     }
     var bar = {};
     foo(bar);",
-    bar: adt!(a: Real)
+    "bar" => adt!(a: Real)
 );
-test_var_type!(
+test_type!(
     retain_all_fields_in_generic_call,
     "var foo = function(a) {
         a.a = 0;
@@ -344,9 +314,9 @@ test_var_type!(
     }
     var bar = { a: 0, b: 0 };
     foo(bar);",
-    bar: adt!(a: Real, b: Real)
+    "bar" => adt!(a: Real, b: Real)
 );
-test_var_type!(
+test_type!(
     retain_all_fields_in_generic_call_after_return,
     "var foo = function(a) {
         a.a = 0;
@@ -354,7 +324,7 @@ test_var_type!(
     }
     var bar = { a: 0, b: 0 };
     bar = foo(bar);",
-    bar: adt!(a: Real, b: Real)
+    "bar" => adt!(a: Real, b: Real)
 );
 test_failure!(invalid_call_target, "var a = 0, b = a();");
 test_failure!(invalid_argument, "var a = function(x) { return x + 1; }, b = a(true);");
@@ -364,40 +334,39 @@ test_failure!(extra_argument, "var a = function() {}, b = a(0);");
 test_failure!(contrasting_returns, "function() { return 0; return true; }");
 
 // Self
-test_var_type!(self_assignment_no_keyword, "foo = 0;", foo: Real);
-test_var_type!(self_assignment_with_keyword, "self.foo = 0;", foo: Real);
-test_var_type!(
+test_type!(self_assignment_no_keyword, "foo = 0;", "foo" => Real);
+test_type!(self_assignment_with_keyword, "self.foo = 0;", "self.foo" => Real);
+test_type!(
     function_write_constant_to_self,
     "self.a = 0;
     function bar() { self.a = 0; }",
-    bar: function!(() => Undefined),
+    "bar" => function!(() => Undefined),
 );
-test_var_type!(
+test_type!(
     function_write_parameter_to_self,
     "self.a = 0;
     function bar(x) { self.a = x + 1; }",
-    bar: function!((Real) => Undefined),
+    "bar" => function!((Real) => Undefined),
 );
-test_var_type!(function_self_extention, "function foo() { self.a = 0; }", a: Real,);
-test_var_type!(
+test_type!(function_self_extention, "function foo() { self.a = 0; }", "a" => Real,);
+test_type!(
     function_self_extention_nested,
-    "function foo() { 
+    "function foo() {
         function bar() { self.a = 0; }
     }",
-    a: Real,
+    "a" => Real,
 );
-test_var_type!(
+test_type!(
     bound_scope_in_struct,
     "var foo = {
         bar: 0,
         fizz: function() {
             return self.bar;
         }
-    };
-    var buzz = foo.fizz();",
-    buzz: Real,
+    };",
+    "foo.fizz()" => Real,
 );
-test_var_type!(
+test_type!(
     obj_setter,
     "self.x = 0;
     self.y = 0;
@@ -405,14 +374,14 @@ test_var_type!(
         self.x = obj.x;
         self.y = obj.y;
     }",
-    set: function!((adt!(x: Real, y: Real)) => Undefined),
+    "set" => function!((adt!(x: Real, y: Real)) => Undefined),
 );
 test_success!(
     gml_std,
     "var a = [true, false, true];
     array_insert(a, true, 0);"
 );
-test_var_type!(
+test_type!(
     option_field,
     "self.a = undefined;
     self.b = 0;
@@ -420,58 +389,52 @@ test_var_type!(
         self.a = 0;
         self.b = undefined;
     }",
-    a: option!(Real),
-    b: option!(Real),
+    "a" => option!(Real),
+    "b" => option!(Real),
 );
 
 // Constructors
-test_var_type!(
+test_type!(
     constructor,
     "var foo = function() constructor {
         self.a = 0;
-    }
-    var bar = new foo();",
-    bar: adt!(a: Real)
+    }",
+    "new foo()" => adt!(a: Real)
 );
-test_var_type!(
+test_type!(
     constructor_with_parameter,
     "function foo(y) constructor {
         self.x = y;
-    }
-    var bar = foo(0);",
-    bar: adt!(foo: function!((Real) => Identity), x: Real,)
+    }",
+    "foo(0)" => adt!(foo: function!((Real) => Identity), x: Real,)
 );
-test_var_type!(
+test_type!(
     constructor_getter,
     "var foo = function() constructor {
         self.a = 0;
         function get_a() {
             return self.a;
         }
-    }
-    var bar = new foo()
-    var fizz = bar.get_a();",
-    fizz: Real,
+    }",
+    "(new foo()).get_a()" => Real,
 );
-test_var_type!(
+test_type!(
     inheritance,
     "var foo = function() constructor {
         self.a = 0;
     }
-    var bar = function() : foo() constructor {}
-    var fizz = new bar();",
-    fizz: adt!(a: Real)
+    var bar = function() : foo() constructor {}",
+    "new bar()" => adt!(a: Real)
 );
-test_var_type!(
+test_type!(
     inheritance_passing_arguments,
     "var foo = function(x) constructor {
         self.a = x;
     }
-    var bar = function(x) : foo(x) constructor {}
-    var fizz = new bar(0);",
-    fizz: adt!(a: Real)
+    var bar = function(x) : foo(x) constructor {}",
+    "new bar(0)" => adt!(a: Real)
 );
-test_var_type!(
+test_type!(
     multi_inheritance,
     "var foo = function() constructor {
         self.a = 0;
@@ -479,11 +442,10 @@ test_var_type!(
     var bar = function() : foo() constructor {
         self.b = 0;
     }
-    var fizz = function() : bar() constructor {}
-    var buzz = new fizz();",
-    buzz: adt!(a: Real, b: Real)
+    var fizz = function() : bar() constructor {}",
+    "new fizz()" => adt!(a: Real, b: Real)
 );
-test_var_type!(
+test_type!(
     alias_function,
     "function foo() constructor {
         self.x = 0;
@@ -491,19 +453,17 @@ test_var_type!(
     var bar = function() {
         var new_struct = new foo();
         return new_struct;
-    }
-    var fizz = bar();",
-    fizz: adt!(foo: function!(() => Identity), x: Real,)
+    }",
+    "bar()" => adt!(foo: function!(() => Identity), x: Real,)
 );
-test_var_type!(
+test_type!(
     clone,
     "function foo() constructor {
         function clone() { return new foo(); }
-    }
-    var bar = (new foo()).clone();",
-    bar: adt!(foo: function!(() => Identity), clone: function!(() => Identity),)
+    }",
+    "(new foo()).clone()" => adt!(foo: function!(() => Identity), clone: function!(() => Identity),)
 );
-test_var_type!(
+test_type!(
     identity_sanitization,
     "function alias() {
         return new con();
@@ -513,10 +473,8 @@ test_var_type!(
         function clone() {
             return alias();
         }
-    }
-
-    var result = alias();",
-    result: adt!(con: function!(() => Identity), clone: function!(() => Identity),)
+    }",
+    "alias()" => adt!(con: function!(() => Identity), clone: function!(() => Identity),)
 );
 test_failure!(
     constructor_extention,
@@ -526,45 +484,44 @@ test_failure!(
 );
 
 // Out of order
-test_var_type!(
+test_type!(
     function_read_self_out_of_order,
     "function bar() { return self.a; }
     self.a = 0;",
-    bar: function!(() => Real),
+    "bar" => function!(() => Real),
 );
-test_var_type!(
+test_type!(
     function_write_self_out_of_order,
     "function bar(x) { self.a = x; }
     self.a = 0;",
-    bar: function!((Real) => Undefined),
+    "bar" => function!((Real) => Undefined),
 );
-test_var_type!(
+test_type!(
     function_calls_out_of_order,
     "function foo() { self.bar();}
     function bar() {}",
-    bar: function!(() => Undefined),
+    "bar" => function!(() => Undefined),
 );
-test_var_type!(
+test_type!(
     echo_out_of_order,
     "function wrapper() {
         return echo(0);
     }
     function echo(x) {
         return x;
-    }
-    var foo = wrapper();",
-    foo: Real,
+    }",
+    "wrapper()" => Real,
 );
-test_var_type!(
+test_type!(
     self_as_argument_out_of_order,
-    "self.x = 0; 
+    "self.x = 0;
     function bar() { fizz(self) }
     function fizz(o) { return o.x + 1; }",
-    fizz: function!((adt!(x: Real)) => Real),
+    "fizz" => function!((adt!(x: Real)) => Real),
 );
 
 // Stress tests
-test_var_type!(
+test_type!(
     complicted_data_construction,
     "var build_data = function(x, y, z) {
         return {
@@ -576,21 +533,14 @@ test_var_type!(
     var build_x = function(x) { return x; }
     var y_fn = function(n) { return n; }
     var z = [[{ a: { b: { c: 0 }}}]];
-    var data = build_data(build_x(0), y_fn, z);
-    var output = data.x + data.y + data.z;",
-    z: array!(array!(adt!(a: adt!(b: adt!(c: Real))))),
-    data: adt!(x: Real, y: Real, z: Real),
-    output: Real
+    var data = build_data(build_x(0), y_fn, z);",
+    "z" => array!(array!(adt!(a: adt!(b: adt!(c: Real))))),
+    "data" => adt!(x: Real, y: Real, z: Real),
+    "data.x + data.y + data.z" => Real,
 );
-test_var_type!(
+test_type!(
     vec_2,
-    r#"
-    // placeholder until the std is in here
-    function sqrt(num) {
-        return num + 1;
-    }
-
-    function Vec2(_x, _y) {
+    "function Vec2(_x, _y) {
         return new __Vec2(_x, _y);
     }
 
@@ -632,11 +582,8 @@ test_var_type!(
         static dot = function(o) {
             return self.x * o.x + self.y * o.y;
         }
-    }
-
-    var a = Vec2(0, 0);
-    "#,
-    a: adt!(
+    }",
+    "Vec2(0, 0)" => adt!(
         __Vec2: function!((Real, Real) => Identity),
         x: Real,
         y: Real,
@@ -648,5 +595,142 @@ test_var_type!(
         sqrd_magnitude: function!(() => Real),
         normalize: function!(() => Identity),
         dot: function!((adt!(x: Real, y: Real)) => Real),
+    )
+);
+test_type!(
+    list,
+    "#macro MINIMUM_DEFAULT_SIZE 4
+
+    function ListFromArray(a) {
+        return new __List(a, array_length(a));
+    }
+
+    function List() {
+        return new __List([], 0);
+    }
+
+    function __List(arr, c) constructor {
+        self.__count = c;
+        self.__internal_size = array_length(arr);
+        self.__buffer = arr;
+
+        static count = function() {
+            return self.__count;
+        }
+
+        static clone = function() {
+            if self.is_empty() {
+                return List();
+            }
+            var new_array = array_create(self.count(), 0);
+            array_copy(new_array, 0, self.__buffer, 0, self.count());
+            return ListFromArray(new_array);
+        }
+        
+        static push = function(item) {
+            self.ensure_size(self.__count + 1);
+            self.__buffer[@ __count] = item;
+            self.__count++;
+        }
+
+        // static pop = function() {
+        //     if self.__count > 0 {
+        //         var ret = self.get(self.__count - 1);
+        //         self.__count -= 1;
+        //         return ret;
+        //     } else {
+        //         return undefined;
+        //     }
+        // }
+
+        static transfer = function(other_list) {
+            self.copy_from(other_list);
+            other_list.clear();
+        }
+        
+        static copy_from = function(other_list) {
+            self.ensure_size(self.__count + other_list.count());
+            array_copy(self.__buffer, self.__count, other_list.__buffer, 0, other_list.__count);
+            self.__count += other_list.count();
+        }
+
+        static get = function(idx) {
+            return self.__buffer[idx];
+        }
+
+        static set = function(idx, item) {
+            self.__buffer[@ idx] = item;
+        }
+
+        static remove = function(idx) {
+            var value = self.__buffer[idx];
+            self.__count--;
+            var a = [];
+            array_copy(a, 0, self.__buffer, 0, idx);
+            array_copy(a, idx, self.__buffer, idx + 1, self.__count - idx);
+            self.__buffer = a;
+            return value;
+        }
+        
+        static clear = function() {
+            self.__count = 0;
+        }
+
+        static is_empty = function() {
+            return self.__count == 0;
+        }
+
+        static find = function(selector) {
+            for (var i = 0; i < self.count(); i++) {
+                var cur = self.get(i);
+                if (selector(cur)) {
+                    return i;
+                }
+            }
+            return undefined;
+        }
+        
+        static to_array = function() {
+            var a = [];
+            array_copy(a, 0, self.__buffer, 0, self.__count);
+            return a;
+        }
+            
+        static ensure_size = function(requested_size) {
+            while self.__internal_size < requested_size {
+                self.__internal_size = self.__internal_size > 1 ? floor(self.__internal_size * (3 / 2)) : MINIMUM_DEFAULT_SIZE;
+            }
+        }
+    }
+    
+    var list = new __List([0], 1);",
+    "new __List([0], 1)" => adt!(
+        __List: function!((array!(Real), Real) => Identity),
+        __buffer: array!(Real),
+        __count: Real,
+        __internal_size: Real,
+        count: function!(() => Real),
+        clone: function!(() => Identity),
+        push: function!((Real) => Undefined),
+        // pop: function!(() => option!(Real)),
+        transfer: function!(
+            (adt!(clear: function!(() => Undefined)))
+            => Undefined
+        ),
+        copy_from: function!(
+            (adt!(__buffer: array!(Real), __count: Real, clear: function!(() => Undefined)))
+            => Undefined
+        ),
+        get: function!((Real) => Real),
+        set: function!((Real, Real) => Undefined),
+        remove: function!((Real) => option!(Real)),
+        clear: function!(() => Undefined),
+        is_empty: function!(() => Bool),
+        find: function!(
+            (function!((Real) => Bool))
+            => option!(Real)
+        ),
+        to_array: function!(() => array!(Real)),
+        ensure_size: function!((Real) => Undefined)
     )
 );
