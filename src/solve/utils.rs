@@ -57,14 +57,7 @@ macro_rules! option {
 
 #[macro_export]
 macro_rules! adt {
-    ($solver:expr => { $($var:ident: $should_be:expr), * $(,)? }) => {
-        $solver.new_adt(AdtState::Extendable, vec![
-            $((
-                crate::parse::Identifier::lazy(stringify!($var).to_string()),
-                $should_be,
-            ), )*
-        ])
-    };
+
     ($($var:ident: $should_be:expr), * $(,)?) => {
         {
             #[allow(unused_mut)]
@@ -76,7 +69,21 @@ macro_rules! adt {
                     should_be,
                 ));
             )*
-            Ty::Adt(SOLVER.lock().new_adt(AdtState::Extendable, fields))
+            Ty::Adt(crate::solve::Adt::new(AdtState::Extendable, fields))
+        }
+    };
+     ($id:expr => { $($var:ident: $should_be:expr), * $(,)? }) => {
+        {
+            #[allow(unused_mut)]
+            let mut fields = vec![];
+            $(
+                let should_be = $should_be;
+                fields.push((
+                    crate::parse::Identifier::lazy(stringify!($var).to_string()),
+                    should_be,
+                ));
+            )*
+            Ty::Adt(crate::solve::Adt::new(AdtState::Extendable, fields))
         }
     };
 }
@@ -137,12 +144,10 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn var(var: &Var, solver: &Solver) -> String {
+    pub fn var(var: &Var) -> String {
         let mut printer = PRINTER.lock();
         let var = *var;
-        if solver.return_var() == var {
-            "RETURN".into()
-        } else if let Some(expr_string) = printer.expr_strings.get(&var) {
+        if let Some(expr_string) = printer.expr_strings.get(&var) {
             expr_string.clone()
         } else {
             let entry = if let Some(entry) = printer.aliases.get(&var) {
@@ -162,7 +167,7 @@ impl Printer {
     }
 
     #[must_use]
-    pub fn ty(ty: &Ty, solver: &Solver) -> String {
+    pub fn ty(ty: &Ty) -> String {
         match ty {
             Ty::Uninitialized => "<null>".into(),
             Ty::Identity => "identity".into(),
@@ -172,10 +177,9 @@ impl Printer {
             Ty::Bool => "bool".into(),
             Ty::Real => "real".into(),
             Ty::Str => "string".into(),
-            Ty::Array(inner) => format!("[{}]", Self::ty(inner, solver)),
-            Ty::Var(var) => Self::var(var, solver),
-            Ty::Adt(adt_id) => {
-                let adt = solver.get_adt(*adt_id);
+            Ty::Array(inner) => format!("[{}]", Printer::ty(inner)),
+            Ty::Var(var) => Self::var(var),
+            Ty::Adt(adt) => {
                 if adt.fields.is_empty() {
                     "{}".into()
                 } else {
@@ -188,10 +192,10 @@ impl Printer {
                                 format!(
                                     "{}: {}",
                                     name,
-                                    if field.ty.contains(&Ty::Adt(*adt_id)) {
+                                    if field.ty.contains(ty) {
                                         "<cycle>".into()
                                     } else {
-                                        Printer::ty(&field.ty, solver)
+                                        Printer::ty(&field.ty)
                                     },
                                 )
                             })
@@ -206,69 +210,69 @@ impl Printer {
                     ..
                 }) => format!(
                     "fn ({}) -> {}",
-                    parameters.iter().map(|ty| Printer::ty(ty, solver)).join(", "),
-                    Printer::ty(return_type, solver)
+                    parameters.iter().map(|ty| Printer::ty(ty)).join(", "),
+                    Printer::ty(return_type)
                 ),
                 Func::Call(Call {
                     parameters,
                     return_type,
                 }) => format!(
                     "({}) -> {}",
-                    parameters.iter().map(|ty| Printer::ty(ty, solver)).join(", "),
-                    Printer::ty(return_type, solver)
+                    parameters.iter().map(|ty| Printer::ty(ty)).join(", "),
+                    Printer::ty(return_type)
                 ),
             },
             Ty::Option(ty) => {
-                format!("Option<{}>", Printer::ty(ty.as_ref(), solver))
+                format!("Option<{}>", Printer::ty(ty.as_ref()))
             }
         }
     }
 
     #[must_use]
-    pub fn query(a: &crate::parse::Expr, solver: &Solver) -> String {
+    pub fn query(a: &crate::parse::Expr) -> String {
         format!(
             "{}        {a}: {}",
             "QUERY".bright_red(),
-            Printer::var(&a.var(), solver).bold().bright_black()
+            Printer::var(&a.var()).bold().bright_black()
         )
     }
 
     #[must_use]
-    pub fn write(name: &str, ty: &Ty, solver: &Solver) -> String {
+    pub fn write(name: &str, ty: &Ty) -> String {
         format!(
             "{}        {name}: {}",
             "WRITE".bright_cyan(),
-            Printer::ty(ty, solver).blue().bold()
+            Printer::ty(ty).blue().bold()
         )
     }
 
     #[must_use]
-    pub fn ty_unification(a: &Ty, b: &Ty, solver: &Solver) -> String {
+    pub fn ty_unification(a: &Ty, b: &Ty) -> String {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY T".bright_yellow(),
-            Printer::ty(a, solver).blue().bold(),
-            Printer::ty(b, solver).blue().bold(),
+            Printer::ty(a).blue().bold(),
+            Printer::ty(b).blue().bold(),
         )
     }
 
     #[must_use]
-    pub fn var_unification(var: &Var, ty: &Ty, solver: &Solver) -> String {
+    pub fn var_unification(var: &Var, ty: &Ty) -> String {
         format!(
             "{}      {}   ≟   {}",
             "UNIFY M".bright_yellow(),
-            Printer::var(var, solver).bright_black().bold(),
-            Printer::ty(ty, solver).blue().bold(),
+            Printer::var(var).bright_black().bold(),
+            Printer::ty(ty).blue().bold(),
         )
     }
 
     #[must_use]
-    pub fn substitution(var: &Var, ty: &Ty, solver: &Solver) -> String {
+    pub fn substitution(var: &Var, ty: &Ty) -> String {
         format!(
             "{}          {}   →   {}",
             "SUB".bright_green(),
-            Printer::var(var, solver).bright_black().bold(),
-            Printer::ty(ty, solver).blue().bold(),
+            Printer::var(var).bright_black().bold(),
+            Printer::ty(ty).blue().bold(),
         )
     }
 }

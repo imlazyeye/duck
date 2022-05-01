@@ -23,19 +23,21 @@ impl Solver {
                     }
                     fields.push((init.name_identifier().clone(), Ty::Real))
                 }
-                let id = self.new_adt(AdtState::Concrete, fields);
-                self.write_adt(AdtId::GLOBAL, &e.name, Ty::Adt(id))?;
-                self.get_adt_mut(AdtId::GLOBAL).mark_as_constant(&e.name.lexeme);
+                let adt = Adt::new(AdtState::Concrete, fields);
+                self.adt_mut(&Var::GlobalAdt)
+                    .write_constant(&e.name.lexeme, Ty::Adt(adt))?
+                    .commit(self);
             }
             StmtKind::Macro(mac) => {
-                self.write_adt(AdtId::GLOBAL, &mac.name, Ty::Any)?;
-                self.get_adt_mut(AdtId::GLOBAL).mark_as_constant(&mac.name.lexeme);
+                self.adt_mut(&Var::GlobalAdt)
+                    .write_constant(&mac.name.lexeme, Ty::Any)?
+                    .commit(self);
             }
             StmtKind::Assignment(Assignment { left, right, op }) => match op {
                 AssignmentOp::Identity(_) => {
                     let mut right_ty = right.query(self)?;
-                    if let Ok((adt_id, iden)) = self.expr_to_adt_access(left) {
-                        self.write_adt(adt_id, iden, right_ty)?;
+                    if let Ok((var, iden)) = self.expr_to_adt_access(left) {
+                        self.adt_mut(&var).write(&iden.lexeme, right_ty)?.commit(self)?;
                     } else {
                         left.unify(&mut right_ty, self)?;
                     }
@@ -53,15 +55,18 @@ impl Solver {
                         OptionalInitilization::Initialized(_) => initializer.assignment_value().unwrap().query(self)?,
                     };
                     // To enable shadowing, we first remove any old field for this name
-                    self.get_adt_mut(self.local_id()).fields.remove(initializer.name());
-                    self.write_adt(self.local_id(), initializer.name_identifier(), ty)?;
+                    let local_adt = self.local_adt_mut();
+                    local_adt.fields.remove(initializer.name());
+                    local_adt.write(initializer.name(), ty)?.commit(self)?;
                 }
             }
             StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
-                self.write_adt(AdtId::GLOBAL, name, Ty::Uninitialized)?;
+                self.adt_mut(&Var::GlobalAdt)
+                    .write(&name.lexeme, Ty::Uninitialized)?
+                    .commit(self)?;
             }
             StmtKind::Return(Return { value }) => {
-                let return_var = self.return_var();
+                let return_var = *self.return_var();
                 if let Some(value) = value {
                     value.unify(&mut Ty::Var(return_var), self)?;
                 } else {
@@ -158,7 +163,7 @@ impl QueryItem for Expr {
             return Ok(cache.clone());
         }
 
-        println!("{}", Printer::query(self, solver));
+        println!("{}", Printer::query(self));
 
         let ty = match self.kind() {
             ExprKind::Function(func) => {
@@ -168,7 +173,7 @@ impl QueryItem for Expr {
                     solver.process_function(func)?
                 };
                 if let Some(name) = &func.name {
-                    solver.write_adt(solver.self_id(), name, ty.clone())?;
+                    solver.self_adt_mut().write(&name.lexeme, ty.clone())?.commit(solver)?;
                 };
                 Ok(ty)
             }
@@ -217,19 +222,22 @@ impl QueryItem for Expr {
                 Ok(Ty::Real)
             }
             ExprKind::Access(access) => match access {
-                Access::Global { right } => handle_adt(self, solver, AdtId::GLOBAL, right),
-                Access::Identity { right } => handle_adt(self, solver, solver.self_id(), right),
+                Access::Global { right } => handle_adt(self, solver, &Var::GlobalAdt, right),
+                Access::Identity { right } => {
+                    let id = *solver.self_id();
+                    handle_adt(self, solver, &id, right)
+                }
                 Access::Dot { left, right } => {
                     // TODO: all this infer stuff is weird
-                    if let Ty::Adt(id) = left.query(solver)? {
-                        if solver.get_adt_mut(id).state == AdtState::Inferred {
-                            solver.declare_into_adt(id, right, Ty::Var(self.var()), true);
+                    if let Ty::Adt(mut adt) = left.query(solver)? {
+                        if adt.state == AdtState::Inferred {
+                            adt.write(&right.lexeme, Ty::Var(self.var()))?.commit(solver)?;
                         } else {
-                            solver.read_adt(id, right, Ty::Var(self.var()))?;
+                            adt.read(&right.lexeme, Ty::Var(self.var()))?.commit(solver)?;
                         };
                     } else {
-                        let id = solver.new_adt(AdtState::Inferred, vec![(right.clone(), Ty::Var(self.var()))]);
-                        left.unify(&mut Ty::Adt(id), solver)?;
+                        let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(self.var()))]);
+                        left.unify(&mut Ty::Adt(adt), solver)?;
                     };
                     Ok(Ty::Var(self.var()))
                 }
@@ -289,14 +297,14 @@ impl QueryItem for Expr {
                         Ty::Array(Box::new(ty))
                     }
                     Literal::Struct(declarations) => {
-                        let id = solver.new_adt(AdtState::Extendable, vec![]);
-                        solver.enter_self_scope(id);
+                        let mut adt = Adt::new(AdtState::Extendable, vec![]);
+                        solver.enter_self_scope(adt.id);
                         for declaration in declarations {
                             let ty = declaration.1.query(solver)?.clone();
-                            solver.write_adt(id, &declaration.0, ty)?;
+                            adt.write(&declaration.0.lexeme, ty)?.commit(solver)?;
                         }
                         solver.depart_self_scope();
-                        Ty::Adt(id)
+                        Ty::Adt(adt)
                     }
                 };
 
@@ -305,14 +313,14 @@ impl QueryItem for Expr {
                 Ok(ty)
             }
             ExprKind::Identifier(iden) => {
-                let id = if solver.get_adt(solver.local_id()).contains(&iden.lexeme) {
-                    solver.local_id()
-                } else if solver.get_adt(AdtId::GLOBAL).contains(&iden.lexeme) {
-                    AdtId::GLOBAL
+                let id = if solver.local_adt().contains(&iden.lexeme) {
+                    *solver.local_id()
+                } else if solver.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
+                    Var::GlobalAdt
                 } else {
-                    solver.self_id()
+                    *solver.self_id()
                 };
-                handle_adt(self, solver, id, iden)
+                handle_adt(self, solver, &id, iden)
             }
         }?;
 
@@ -329,7 +337,7 @@ impl QueryItem for Expr {
 }
 
 impl Solver {
-    fn process_function_head(&mut self, function: &Function) -> Result<(Vec<Ty>, usize, AdtId), TypeError> {
+    fn process_function_head(&mut self, function: &Function) -> Result<(Vec<Ty>, usize, Var), TypeError> {
         #[cfg(test)]
         println!("\n--- Entering function... ---\n");
         let mut parameters = vec![];
@@ -349,9 +357,9 @@ impl Solver {
             parameters.push(ty);
         }
         let minimum_arguments = found_minimum.unwrap_or(parameters.len());
-        let local_scope = self.new_adt(AdtState::Extendable, local_fields);
+        let local_scope = Adt::new(AdtState::Extendable, local_fields);
         self.enter_new_return_body();
-        Ok((parameters, minimum_arguments, local_scope))
+        Ok((parameters, minimum_arguments, local_scope.id))
     }
 
     fn process_constructor(
@@ -359,13 +367,13 @@ impl Solver {
         function: &crate::parse::Function,
         constructor: &Constructor,
     ) -> Result<Ty, TypeError> {
-        let self_scope = self.new_adt(AdtState::Extendable, vec![]);
+        let self_scope = Adt::new(AdtState::Extendable, vec![]);
         let (parameters, minimum_arguments, local_scope) = self.process_function_head(function)?;
         self.enter_local_scope(local_scope);
-        self.enter_self_scope(self_scope);
+        self.enter_self_scope(self_scope.id);
         let binding = Binding::Constructor {
             local_scope,
-            self_scope,
+            self_scope: self_scope.id,
             inheritance: match constructor {
                 Constructor::WithInheritance(call) => Some(
                     call.kind()
@@ -389,9 +397,9 @@ impl Solver {
             return_type: Box::new(Ty::Identity),
         }));
         if let Some(name) = &function.name {
-            self.write_adt(self.self_id(), name, ty.clone())?;
+            self.self_adt_mut().write(&name.lexeme, ty.clone())?.commit(self)?;
         }
-        self.get_adt_mut(self.self_id()).state = AdtState::Concrete;
+        self.self_adt_mut().state = AdtState::Concrete;
         self.depart_self_scope();
         println!("\n--- Departing function... ---\n");
 
@@ -411,7 +419,7 @@ impl Solver {
         Ok(Ty::Func(super::Func::Def(super::Def {
             binding: Some(Binding::Method {
                 local_scope,
-                self_scope: self.self_id(),
+                self_scope: *self.self_id(),
             }),
             parameters,
             minimum_arguments,
@@ -420,12 +428,12 @@ impl Solver {
     }
 }
 
-fn handle_adt(expr: &Expr, solver: &mut Solver, id: AdtId, iden: &Identifier) -> Result<Ty, TypeError> {
+fn handle_adt(expr: &Expr, solver: &mut Solver, id: &Var, iden: &Identifier) -> Result<Ty, TypeError> {
     let var = expr.var();
-    let ty = if let Some(field) = solver.get_adt(id).get(&iden.lexeme) {
+    let ty = if let Some(field) = solver.adt(id).get(&iden.lexeme) {
         field.clone()
     } else {
-        solver.read_adt(id, iden, Ty::Var(var))?;
+        solver.adt_mut(id).read(&iden.lexeme, Ty::Var(var))?.commit(solver)?;
         Ty::Var(var)
     };
     Ok(ty)

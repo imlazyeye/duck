@@ -16,7 +16,7 @@ pub enum Ty {
     Str,
     Var(Var),
     Array(Box<Ty>),
-    Adt(AdtId),
+    Adt(Adt),
     Func(Func),
     Option(Box<Ty>),
 }
@@ -160,19 +160,19 @@ pub struct Call {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Binding {
     Method {
-        local_scope: AdtId,
-        self_scope: AdtId,
+        local_scope: Var,
+        self_scope: Var,
     },
     Constructor {
-        local_scope: AdtId,
-        self_scope: AdtId,
+        local_scope: Var,
+        self_scope: Var,
         inheritance: Option<Identifier>,
     },
 }
 impl Binding {
-    pub fn self_scope(&self) -> AdtId {
+    pub fn self_scope(&self) -> &Var {
         match self {
-            Binding::Method { self_scope, .. } | Binding::Constructor { self_scope, .. } => *self_scope,
+            Binding::Method { self_scope, .. } | Binding::Constructor { self_scope, .. } => self_scope,
         }
     }
 }

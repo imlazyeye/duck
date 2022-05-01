@@ -134,14 +134,14 @@ pub mod parse {
 #[allow(missing_docs)]
 pub mod solve {
     mod adt;
-    mod gml_std;
+    mod global_std;
     mod query;
     mod solver;
     mod ty;
     mod unify;
     mod utils;
     pub use adt::*;
-    pub use gml_std::*;
+    pub use global_std::*;
     pub use query::*;
     pub use solver::*;
     pub use ty::*;

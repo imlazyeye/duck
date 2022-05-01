@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 lazy_static! {
     pub(super) static ref SOLVER: Mutex<Solver> = {
         let mut solver = Solver::default();
-        solver.adts.remove(&AdtId::GLOBAL);
+        solver.subs.remove(&Var::GlobalAdt);
         Mutex::new(solver)
     };
 }
@@ -23,16 +23,16 @@ pub fn test_type(src: &'static str, should_be: Ty, solver: &mut Solver) {
     let source = Box::leak(Box::new(format!("var a = {}", src)));
     harness_solver(source, solver).unwrap();
     let field = solver
-        .get_adt(solver.local_id())
+        .local_adt()
         .get("a")
-        .or_else(|| solver.get_adt(AdtId::GLOBAL).get("a"))
-        .or_else(|| solver.get_adt(solver.self_id()).get("a"))
+        .or_else(|| solver.adt(&Var::GlobalAdt).get("a"))
+        .or_else(|| solver.self_adt().get("a"))
         .unwrap();
     let mut ty = field.clone();
     solver.normalize(&mut ty);
     if !ty.loose_eq(&should_be, solver) {
-        let lhs = Printer::ty(&should_be, solver);
-        let rhs = Printer::ty(&ty, solver);
+        let lhs = Printer::ty(&should_be);
+        let rhs = Printer::ty(&ty);
         assert_eq!(lhs, rhs, "\n\n{source}");
         panic!(); // just to be sure
     }
@@ -41,15 +41,11 @@ pub fn test_type(src: &'static str, should_be: Ty, solver: &mut Solver) {
 impl Ty {
     pub fn loose_eq(&self, other: &Ty, solver: &Solver) -> bool {
         match (self, other) {
-            (Ty::Adt(adt_id), Ty::Adt(other_adt_id)) => {
-                let adt = solver.get_adt(*adt_id);
-                let other_adt = solver.adts.get(other_adt_id).unwrap();
-                adt.fields.iter().all(|(name, field)| {
-                    other_adt
-                        .get(name)
-                        .map_or(false, |other_field| field.ty.loose_eq(other_field, solver))
-                })
-            }
+            (Ty::Adt(adt), Ty::Adt(other_adt)) => adt.fields.iter().all(|(name, field)| {
+                other_adt
+                    .get(name)
+                    .map_or(false, |other_field| field.ty.loose_eq(other_field, solver))
+            }),
             (Ty::Array(member), Ty::Array(other_member)) => member.loose_eq(other_member, solver),
             (Ty::Adt(_), _) => false,
             (Ty::Func(function), Ty::Func(other_function)) => {
@@ -76,7 +72,7 @@ macro_rules! test_type {
             let mut solver = Solver::default();
             $({
                 let should_be = $should_be;
-                solver.adts.extend(SOLVER.lock().adts.clone());
+                solver.subs.extend(SOLVER.lock().subs.clone());
                 test_type($src, should_be, &mut solver);
             })*
         }
@@ -89,7 +85,7 @@ macro_rules! test_type {
             harness_solver($preamble, &mut solver).unwrap();
             $({
                 let should_be = $should_be;
-                solver.adts.extend(SOLVER.lock().adts.clone());
+                solver.subs.extend(SOLVER.lock().subs.clone());
                 test_type($src, should_be, &mut solver);
             })*
         }

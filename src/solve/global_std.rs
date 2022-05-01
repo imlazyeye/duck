@@ -1,10 +1,13 @@
-use crate::{adt, array, function, solve::*, var};
+use crate::{
+    adt, array, function,
+    solve::{adt::Adt, *},
+    var,
+};
 use Ty::*;
 
 impl Solver {
-    pub fn define_gml_std(&mut self) -> crate::solve::adt::OldAdt {
-        let id = adt!(self => {
-
+    pub fn global_adt(&mut self) -> Ty {
+        adt!(
             // Arrays (missing array_pop and array_sort, as they require unions)
             array_copy: {
                 let ty = array!(var!());
@@ -46,8 +49,6 @@ impl Solver {
             // Maths
             floor: function!((Real) => Real),
             sqrt: function!((Real) => Real)
-        });
-
-        self.get_adt(id).clone()
+        )
     }
 }

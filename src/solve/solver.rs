@@ -10,34 +10,34 @@ use hashbrown::HashMap;
 #[derive(Debug, Clone)]
 pub struct Solver {
     pub subs: HashMap<Var, Ty>,
-    pub adts: HashMap<AdtId, OldAdt>,
-    self_stack: Vec<AdtId>,
-    local_stack: Vec<AdtId>,
+    self_stack: Vec<Var>,
+    local_stack: Vec<Var>,
     return_stack: Vec<Var>,
 }
 
 // General
 impl Solver {
-    pub fn expr_to_adt_access<'a>(&mut self, expr: &'a Expr) -> Result<(AdtId, &'a Identifier), TypeError> {
+    pub fn expr_to_adt_access<'a>(&mut self, expr: &'a Expr) -> Result<(Var, &'a Identifier), TypeError> {
         match expr.kind() {
             ExprKind::Identifier(iden) => {
-                let adt = if self.get_adt(self.local_id()).contains(&iden.lexeme) {
+                let var = if self.local_adt().contains(&iden.lexeme) {
                     self.local_id()
-                } else if self.get_adt(AdtId::GLOBAL).contains(&iden.lexeme) {
-                    AdtId::GLOBAL
+                } else if self.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
+                    &Var::GlobalAdt
                 } else {
                     self.self_id()
                 };
-                Ok((adt, iden))
+                Ok((*var, iden))
             }
-            ExprKind::Access(Access::Identity { right }) => Ok((self.self_id(), right)),
-            ExprKind::Access(Access::Global { right }) => Ok((self.self_id(), right)),
+            ExprKind::Access(Access::Identity { right }) => Ok((*self.self_id(), right)),
+            ExprKind::Access(Access::Global { right }) => Ok((*self.self_id(), right)),
             ExprKind::Access(Access::Dot { left, right }) => {
-                if let Ty::Adt(id) = left.query(self)? {
-                    Ok((id, right))
+                if let Ty::Adt(adt) = left.query(self)? {
+                    Ok((adt.id, right))
                 } else {
-                    let id = self.new_adt(AdtState::Inferred, vec![(right.clone(), Ty::Var(expr.var()))]);
-                    left.unify(&mut Ty::Adt(id), self)?;
+                    let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(expr.var()))]);
+                    let id = adt.id;
+                    left.unify(&mut Ty::Adt(adt), self)?;
                     Ok((id, right))
                 }
             }
@@ -46,23 +46,25 @@ impl Solver {
     }
 
     pub fn emit_uninitialized_variable_errors(&mut self) -> Result<(), TypeError> {
-        for (_, adt) in self.adts.iter() {
-            for (name, field) in adt.fields.iter() {
-                if !field.resolved {
-                    return duck_error!("cannot find a value for `{name}`");
-                }
-            }
-        }
+        todo!();
+        // for (_, adt) in self.adts.iter() {
+        //     for (name, field) in adt.fields.iter() {
+        //         if !field.resolved {
+        //             return duck_error!("cannot find a value for `{name}`");
+        //         }
+        //     }
+        // }
         Ok(())
     }
 }
 
 // Scope
 impl Solver {
-    pub fn enter_new_object_scope(&mut self) -> AdtId {
-        let adt_id = {
+    pub fn enter_new_object_scope(&mut self) -> Var {
+        let id = Var::Generated(rand::random());
+        let adt = {
             use Ty::*;
-            adt!(self => {
+            adt!(id => {
                 id: Real,
                 visible: Bool,
                 solid: Bool,
@@ -119,16 +121,16 @@ impl Solver {
                                          * todo: we don't support the physics system */
             })
         };
-        self.enter_self_scope(adt_id);
-        adt_id
+        self.enter_self_scope(id);
+        id
     }
 
-    pub fn enter_self_scope(&mut self, adt_id: AdtId) {
-        self.self_stack.push(adt_id);
+    pub fn enter_self_scope(&mut self, id: Var) {
+        self.self_stack.push(id);
     }
 
-    pub fn enter_local_scope(&mut self, adt_id: AdtId) {
-        self.local_stack.push(adt_id);
+    pub fn enter_local_scope(&mut self, id: Var) {
+        self.local_stack.push(id);
     }
 
     pub fn enter_new_return_body(&mut self) -> Var {
@@ -153,16 +155,34 @@ impl Solver {
         self.subs.get(&var).unwrap().clone()
     }
 
-    pub fn self_id(&self) -> AdtId {
-        *self.self_stack.last().unwrap()
+    pub fn self_id(&self) -> &Var {
+        self.self_stack.last().unwrap()
     }
 
-    pub fn local_id(&self) -> AdtId {
-        *self.local_stack.last().unwrap()
+    pub fn local_id(&self) -> &Var {
+        self.local_stack.last().unwrap()
     }
 
-    pub fn return_var(&self) -> Var {
-        *self.return_stack.last().unwrap()
+    pub fn self_adt(&self) -> &Adt {
+        self.adt(self.self_id())
+    }
+
+    pub fn local_adt(&self) -> &Adt {
+        self.adt(self.local_id())
+    }
+
+    pub fn self_adt_mut(&mut self) -> &mut Adt {
+        let id = *self.self_id();
+        self.adt_mut(&id)
+    }
+
+    pub fn local_adt_mut(&mut self) -> &mut Adt {
+        let id = *self.local_id();
+        self.adt_mut(&id)
+    }
+
+    pub fn return_var(&self) -> &Var {
+        self.return_stack.last().unwrap()
     }
 }
 
@@ -170,24 +190,15 @@ impl Default for Solver {
     fn default() -> Self {
         let mut solver = Self {
             subs: HashMap::default(),
-            adts: HashMap::default(),
             self_stack: vec![],
             local_stack: vec![],
             return_stack: vec![],
         };
-        let adt = solver.define_gml_std();
-        solver.adts.insert(
-            AdtId::GLOBAL,
-            OldAdt {
-                id: AdtId::GLOBAL,
-                fields: adt.fields,
-                bounties: HashMap::default(),
-                state: AdtState::Extendable,
-            },
-        );
-        solver.self_stack.push(AdtId::GLOBAL);
-        let local_scope = solver.new_adt(AdtState::Extendable, vec![]);
-        solver.enter_local_scope(local_scope);
+        let adt = solver.global_adt();
+        solver.subs.insert(Var::GlobalAdt, adt);
+        solver.self_stack.push(Var::GlobalAdt);
+        let local_scope = Adt::new(AdtState::Extendable, vec![]);
+        solver.enter_local_scope(local_scope.id);
         solver.enter_new_return_body();
         solver
     }
@@ -197,6 +208,7 @@ pub type TypeError = Diagnostic<FileId>;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum Var {
+    GlobalAdt,
     Expr(ExprId),
     Generated(u64),
 }
