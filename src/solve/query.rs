@@ -1,6 +1,6 @@
 use crate::{duck_error, parse::*, solve::*, var};
 
-impl Solver {
+impl<'s> Session<'s> {
     pub fn process_statements(&mut self, stmts: &[Stmt]) -> Result<(), TypeError> {
         for stmt in stmts.iter() {
             // todo: there's no reason (I don't think) that we have to only accept ONE error, we could keep
@@ -25,53 +25,53 @@ impl Solver {
                 }
                 let adt = Adt::new(AdtState::Concrete, fields);
                 self.adt_mut(&Var::GlobalAdt)
-                    .write_constant(&e.name.lexeme, Ty::Adt(adt))?
-                    .commit(self);
+                    .write_constant(&e.name.lexeme, &Ty::Adt(adt))?
+                    .commit(self)?;
             }
             StmtKind::Macro(mac) => {
                 self.adt_mut(&Var::GlobalAdt)
-                    .write_constant(&mac.name.lexeme, Ty::Any)?
-                    .commit(self);
+                    .write_constant(&mac.name.lexeme, &Ty::Any)?
+                    .commit(self)?;
             }
             StmtKind::Assignment(Assignment { left, right, op }) => match op {
                 AssignmentOp::Identity(_) => {
-                    let mut right_ty = right.query(self)?;
-                    if let Ok((var, iden)) = self.expr_to_adt_access(left) {
-                        self.adt_mut(&var).write(&iden.lexeme, right_ty)?.commit(self)?;
+                    let right_ty = right.query(self)?;
+                    if let Ok((adt, iden)) = self.expr_to_adt_access(left) {
+                        adt.write(&iden.lexeme, &right_ty)?.commit(self)?;
                     } else {
-                        left.unify(&mut right_ty, self)?;
+                        left.unify(&right_ty, self)?;
                     }
                 }
                 AssignmentOp::NullCoalecenceEqual(_) => todo!(),
                 _ => {
-                    left.unify(&mut Ty::Real, self)?;
-                    right.unify(&mut Ty::Real, self)?;
+                    left.unify(&Ty::Real, self)?;
+                    right.unify(&Ty::Real, self)?;
                 }
             },
             StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {
-                    let ty = match initializer {
-                        OptionalInitilization::Uninitialized(_) => Ty::Uninitialized,
-                        OptionalInitilization::Initialized(_) => initializer.assignment_value().unwrap().query(self)?,
+                    let ty = if let Some(value) = initializer.assignment_value() {
+                        value.query(self)?
+                    } else {
+                        Ty::Uninitialized
                     };
+
                     // To enable shadowing, we first remove any old field for this name
-                    let local_adt = self.local_adt_mut();
-                    local_adt.fields.remove(initializer.name());
-                    local_adt.write(initializer.name(), ty)?.commit(self)?;
+                    let local = self.local_mut();
+                    local.fields.remove(initializer.name());
+                    local.write(initializer.name(), &ty)?.commit(self)?;
                 }
             }
             StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
                 self.adt_mut(&Var::GlobalAdt)
-                    .write(&name.lexeme, Ty::Uninitialized)?
+                    .write(&name.lexeme, &Ty::Uninitialized)?
                     .commit(self)?;
             }
             StmtKind::Return(Return { value }) => {
-                let return_var = *self.return_var();
                 if let Some(value) = value {
-                    value.unify(&mut Ty::Var(return_var), self)?;
+                    value.unify(&Ty::Var(Var::Return), self)?;
                 } else {
-                    // todo impl query to var
-                    self.unify_tys(&mut Ty::Undefined, &mut Ty::Var(return_var))?;
+                    self.unify_var_ty(&Var::Return, &Ty::Undefined)?;
                 }
             }
             StmtKind::WithLoop(WithLoop { body, .. }) => {
@@ -80,7 +80,7 @@ impl Solver {
             }
             StmtKind::RepeatLoop(RepeatLoop { tick_counts, body }) => {
                 self.visit_stmt(body)?;
-                tick_counts.unify(&mut Ty::Real, self)?;
+                tick_counts.unify(&Ty::Real, self)?;
             }
             StmtKind::ForLoop(ForLoop {
                 condition,
@@ -91,11 +91,11 @@ impl Solver {
                 self.visit_stmt(initializer)?;
                 self.visit_stmt(iterator)?;
                 self.visit_stmt(body)?;
-                condition.unify(&mut Ty::Bool, self)?;
+                condition.unify(&Ty::Bool, self)?;
             }
             StmtKind::DoUntil(DoUntil { condition, body }) | StmtKind::WhileLoop(WhileLoop { condition, body }) => {
                 self.visit_stmt(body)?;
-                condition.unify(&mut Ty::Bool, self)?;
+                condition.unify(&Ty::Bool, self)?;
             }
             StmtKind::If(If {
                 condition,
@@ -107,19 +107,19 @@ impl Solver {
                 if let Some(else_stmt) = else_stmt {
                     self.visit_stmt(else_stmt)?;
                 }
-                condition.unify(&mut Ty::Bool, self)?;
+                condition.unify(&Ty::Bool, self)?;
             }
             StmtKind::Switch(Switch {
                 matching_value,
                 cases,
                 default_case,
             }) => {
-                let mut identity = matching_value.query(self)?;
+                let identity = matching_value.query(self)?;
                 for case in cases {
                     for stmt in case.iter_body_statements() {
                         self.visit_stmt(stmt)?;
                     }
-                    case.identity().unify(&mut identity, self)?;
+                    case.identity().unify(&identity, self)?;
                 }
                 if let Some(default_case) = default_case {
                     for stmt in default_case.iter() {
@@ -150,16 +150,16 @@ impl Solver {
 
 // Queries
 pub trait QueryItem {
-    fn query(&self, solver: &mut Solver) -> Result<Ty, TypeError>;
+    fn query(&self, session: &mut Session) -> Result<Ty, TypeError>;
     fn var(&self) -> Var;
-    fn unify(&self, ty: &mut Ty, solver: &mut Solver) -> Result<(), TypeError> {
-        let me = &mut self.query(solver)?;
-        solver.unify_tys(me, ty)
+    fn unify(&self, ty: &Ty, session: &mut Session) -> Result<(), TypeError> {
+        let me = self.query(session)?;
+        session.unify_ty_ty(&me, ty)
     }
 }
 impl QueryItem for Expr {
-    fn query(&self, solver: &mut Solver) -> Result<Ty, TypeError> {
-        if let Some(cache) = solver.subs.get(&self.var()) {
+    fn query<'s>(&self, session: &'s mut Session) -> Result<Ty, TypeError> {
+        if let Some(cache) = session.subs.get(&self.var()) {
             return Ok(cache.clone());
         }
 
@@ -168,39 +168,39 @@ impl QueryItem for Expr {
         let ty = match self.kind() {
             ExprKind::Function(func) => {
                 let ty = if let Some(constructor) = func.constructor.as_ref() {
-                    solver.process_constructor(func, constructor)?
+                    session.process_constructor(func, constructor)?
                 } else {
-                    solver.process_function(func)?
+                    session.process_function(func)?
                 };
                 if let Some(name) = &func.name {
-                    solver.self_adt_mut().write(&name.lexeme, ty.clone())?.commit(solver)?;
+                    session.identity_mut().write(&name.lexeme, &ty)?.commit(session)?;
                 };
                 Ok(ty)
             }
             ExprKind::Logical(log) => {
-                log.left.unify(&mut Ty::Bool, solver)?;
-                log.right.unify(&mut Ty::Bool, solver)?;
+                log.left.unify(&Ty::Bool, session)?;
+                log.right.unify(&Ty::Bool, session)?;
                 Ok(Ty::Bool)
             }
             ExprKind::Equality(eq) => {
-                let mut left = eq.left.query(solver)?;
-                eq.right.unify(&mut left, solver)?;
+                let left = eq.left.query(session)?;
+                eq.right.unify(&left, session)?;
                 Ok(Ty::Bool)
             }
             ExprKind::Evaluation(eval) => {
-                eval.left.unify(&mut Ty::Real, solver)?;
-                eval.right.unify(&mut Ty::Real, solver)?;
+                eval.left.unify(&Ty::Real, session)?;
+                eval.right.unify(&Ty::Real, session)?;
                 Ok(Ty::Real)
             }
             ExprKind::NullCoalecence(null) => {
-                let ty = null.right.query(solver)?;
-                null.left.unify(&mut Ty::Option(Box::new(ty.clone())), solver)?;
+                let ty = null.right.query(session)?;
+                null.left.unify(&Ty::Option(Box::new(ty.clone())), session)?;
                 Ok(ty)
             }
             ExprKind::Ternary(ternary) => {
-                ternary.condition.unify(&mut Ty::Bool, solver)?;
-                let mut false_value = ternary.false_value.query(solver)?;
-                ternary.true_value.unify(&mut false_value, solver)?;
+                ternary.condition.unify(&Ty::Bool, session)?;
+                let false_value = ternary.false_value.query(session)?;
+                ternary.true_value.unify(&false_value, session)?;
                 Ok(false_value)
             }
             ExprKind::Unary(unary) => match unary.op {
@@ -209,35 +209,35 @@ impl QueryItem for Expr {
                 | UnaryOp::Positive(_)
                 | UnaryOp::Negative(_)
                 | UnaryOp::BitwiseNot(_) => {
-                    unary.right.unify(&mut Ty::Real, solver)?;
+                    unary.right.unify(&Ty::Real, session)?;
                     Ok(Ty::Real)
                 }
                 UnaryOp::Not(_) => {
-                    unary.right.unify(&mut Ty::Bool, solver)?;
+                    unary.right.unify(&Ty::Bool, session)?;
                     Ok(Ty::Bool)
                 }
             },
             ExprKind::Postfix(postfix) => {
-                postfix.left.unify(&mut Ty::Real, solver)?;
+                postfix.left.unify(&Ty::Real, session)?;
                 Ok(Ty::Real)
             }
             ExprKind::Access(access) => match access {
-                Access::Global { right } => handle_adt(self, solver, &Var::GlobalAdt, right),
+                Access::Global { right } => handle_adt(self, session, &Var::GlobalAdt, right),
                 Access::Identity { right } => {
-                    let id = *solver.self_id();
-                    handle_adt(self, solver, &id, right)
+                    let id = *session.identity_var();
+                    handle_adt(self, session, &id, right)
                 }
                 Access::Dot { left, right } => {
                     // TODO: all this infer stuff is weird
-                    if let Ty::Adt(mut adt) = left.query(solver)? {
+                    if let Ty::Adt(mut adt) = left.query(session)? {
                         if adt.state == AdtState::Inferred {
-                            adt.write(&right.lexeme, Ty::Var(self.var()))?.commit(solver)?;
+                            adt.write(&right.lexeme, &Ty::Var(self.var()))?.commit(session)?;
                         } else {
-                            adt.read(&right.lexeme, Ty::Var(self.var()))?.commit(solver)?;
+                            adt.read(&right.lexeme, &Ty::Var(self.var()))?.commit(session)?;
                         };
                     } else {
                         let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(self.var()))]);
-                        left.unify(&mut Ty::Adt(adt), solver)?;
+                        left.unify(&Ty::Adt(adt), session)?;
                     };
                     Ok(Ty::Var(self.var()))
                 }
@@ -247,12 +247,12 @@ impl QueryItem for Expr {
                     index_two,
                     ..
                 } => {
-                    index_one.unify(&mut Ty::Real, solver)?;
+                    index_one.unify(&Ty::Real, session)?;
                     if let Some(index_two) = index_two {
-                        index_two.unify(&mut Ty::Real, solver)?;
+                        index_two.unify(&Ty::Real, session)?;
                     }
-                    left.unify(&mut Ty::Array(Box::new(Ty::Var(self.var()))), solver)?;
-                    Ok(solver
+                    left.unify(&Ty::Array(Box::new(Ty::Var(self.var()))), session)?;
+                    Ok(session
                         .subs
                         .get(&self.var())
                         .cloned()
@@ -264,18 +264,18 @@ impl QueryItem for Expr {
                 let parameters = call
                     .arguments
                     .iter()
-                    .map(|expr| expr.query(solver))
+                    .map(|expr| expr.query(session))
                     .collect::<Result<Vec<Ty>, TypeError>>()?;
                 call.left.unify(
-                    &mut Ty::Func(super::Func::Call(super::Call {
+                    &Ty::Func(super::Func::Call(super::Call {
                         parameters,
                         return_type: Box::new(Ty::Var(self.var())),
                     })),
-                    solver,
+                    session,
                 )?;
                 Ok(Ty::Var(self.var()))
             }
-            ExprKind::Grouping(grouping) => grouping.inner.query(solver),
+            ExprKind::Grouping(grouping) => grouping.inner.query(session),
             ExprKind::Literal(literal) => {
                 let ty = match literal {
                     Literal::True | Literal::False => Ty::Bool,
@@ -286,25 +286,28 @@ impl QueryItem for Expr {
                     Literal::Misc(_) => Ty::Any, // todo
                     Literal::Array(exprs) => {
                         let ty = if let Some(expr) = exprs.first() {
-                            let mut ty = expr.query(solver)?;
+                            let ty = expr.query(session)?;
                             for expr in exprs.iter().skip(1) {
-                                expr.unify(&mut ty, solver)?;
+                                expr.unify(&ty, session)?;
                             }
-                            ty
+                            ty.clone()
                         } else {
                             var!()
                         };
                         Ty::Array(Box::new(ty))
                     }
                     Literal::Struct(declarations) => {
-                        let mut adt = Adt::new(AdtState::Extendable, vec![]);
-                        solver.enter_self_scope(adt.id);
+                        session.enter_new_identity(vec![]);
                         for declaration in declarations {
-                            let ty = declaration.1.query(solver)?.clone();
-                            adt.write(&declaration.0.lexeme, ty)?.commit(solver)?;
+                            let ty = declaration.1.query(session)?;
+                            session
+                                .identity_mut()
+                                .write(&declaration.0.lexeme, &ty)?
+                                .commit(session)?;
                         }
-                        solver.depart_self_scope();
-                        Ty::Adt(adt)
+                        let ty = session.identity().clone(); // todo
+                        session.pop_identity();
+                        Ty::Adt(ty)
                     }
                 };
 
@@ -313,19 +316,20 @@ impl QueryItem for Expr {
                 Ok(ty)
             }
             ExprKind::Identifier(iden) => {
-                let id = if solver.local_adt().contains(&iden.lexeme) {
-                    *solver.local_id()
-                } else if solver.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
+                let id = if session.local().contains(&iden.lexeme) {
+                    *session.local_var()
+                } else if session.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
                     Var::GlobalAdt
                 } else {
-                    *solver.self_id()
+                    *session.identity_var()
                 };
-                handle_adt(self, solver, &id, iden)
+                handle_adt(self, session, &id, iden)
             }
         }?;
 
         if Ty::Var(self.var()) != ty {
-            Ok(solver.sub(self.var(), ty))
+            session.sub(self.var(), ty.clone());
+            Ok(ty)
         } else {
             Ok(ty)
         }
@@ -336,7 +340,7 @@ impl QueryItem for Expr {
     }
 }
 
-impl Solver {
+impl<'s> Session<'s> {
     fn process_function_head(&mut self, function: &Function) -> Result<(Vec<Ty>, usize, Var), TypeError> {
         #[cfg(test)]
         println!("\n--- Entering function... ---\n");
@@ -346,7 +350,7 @@ impl Solver {
         for (i, param) in function.parameters.iter().enumerate() {
             let ty = if let Some(value) = param.assignment_value() {
                 found_minimum = Some(i);
-                value.query(self)?
+                value.query(self)?.clone()
             } else {
                 if found_minimum.is_some() {
                     return duck_error!("default arguments can not be followed by standard arguments");
@@ -357,9 +361,7 @@ impl Solver {
             parameters.push(ty);
         }
         let minimum_arguments = found_minimum.unwrap_or(parameters.len());
-        let local_scope = Adt::new(AdtState::Extendable, local_fields);
-        self.enter_new_return_body();
-        Ok((parameters, minimum_arguments, local_scope.id))
+        Ok((parameters, minimum_arguments, self.enter_new_local(local_fields)))
     }
 
     fn process_constructor(
@@ -367,13 +369,13 @@ impl Solver {
         function: &crate::parse::Function,
         constructor: &Constructor,
     ) -> Result<Ty, TypeError> {
-        let self_scope = Adt::new(AdtState::Extendable, vec![]);
-        let (parameters, minimum_arguments, local_scope) = self.process_function_head(function)?;
-        self.enter_local_scope(local_scope);
-        self.enter_self_scope(self_scope.id);
+        let identity = self.enter_new_identity(vec![]);
+        let (parameters, minimum_arguments, local_var) = self.process_function_head(function)?;
+        self.push_local(local_var);
+        self.push_identity(identity);
         let binding = Binding::Constructor {
-            local_scope,
-            self_scope: self_scope.id,
+            local_scope: local_var,
+            self_scope: identity,
             inheritance: match constructor {
                 Constructor::WithInheritance(call) => Some(
                     call.kind()
@@ -387,8 +389,8 @@ impl Solver {
         };
 
         self.process_statements(function.body_stmts())?;
-        self.depart_local_scope();
-        self.retrieve_return_value();
+        self.pop_local();
+        self.subs.remove(&Var::Return);
 
         let ty = Ty::Func(super::Func::Def(super::Def {
             binding: Some(binding),
@@ -397,29 +399,26 @@ impl Solver {
             return_type: Box::new(Ty::Identity),
         }));
         if let Some(name) = &function.name {
-            self.self_adt_mut().write(&name.lexeme, ty.clone())?.commit(self)?;
+            self.identity_mut().write(&name.lexeme, &ty)?.commit(self)?;
         }
-        self.self_adt_mut().state = AdtState::Concrete;
-        self.depart_self_scope();
+        self.identity_mut().state = AdtState::Concrete;
+        self.pop_identity();
         println!("\n--- Departing function... ---\n");
 
         Ok(ty)
     }
 
     fn process_function(&mut self, function: &crate::parse::Function) -> Result<Ty, TypeError> {
-        let (parameters, minimum_arguments, local_scope) = self.process_function_head(function)?;
-        self.enter_local_scope(local_scope);
+        let (parameters, minimum_arguments, local) = self.process_function_head(function)?;
+        self.push_local(local);
         self.process_statements(function.body_stmts())?;
-        self.depart_local_scope();
-        let return_type = match self.retrieve_return_value() {
-            Ty::Uninitialized => Box::new(Ty::Undefined),
-            ty => Box::new(ty),
-        };
+        self.pop_local();
+        let return_type = Box::new(self.subs.remove(&Var::Return).unwrap_or(Ty::Undefined));
         println!("\n--- Departing function... ---\n");
         Ok(Ty::Func(super::Func::Def(super::Def {
             binding: Some(Binding::Method {
-                local_scope,
-                self_scope: *self.self_id(),
+                local_scope: local,
+                self_scope: *self.identity_var(),
             }),
             parameters,
             minimum_arguments,
@@ -428,12 +427,12 @@ impl Solver {
     }
 }
 
-fn handle_adt(expr: &Expr, solver: &mut Solver, id: &Var, iden: &Identifier) -> Result<Ty, TypeError> {
+fn handle_adt(expr: &Expr, session: &mut Session, id: &Var, iden: &Identifier) -> Result<Ty, TypeError> {
     let var = expr.var();
-    let ty = if let Some(field) = solver.adt(id).get(&iden.lexeme) {
+    let ty = if let Some(field) = session.adt(id).get(&iden.lexeme) {
         field.clone()
     } else {
-        solver.adt_mut(id).read(&iden.lexeme, Ty::Var(var))?.commit(solver)?;
+        session.adt_mut(id).read(&iden.lexeme, &Ty::Var(var))?.commit(session)?;
         Ty::Var(var)
     };
     Ok(ty)

@@ -1,206 +1,129 @@
 use super::*;
 use crate::{
-    adt, array, duck_error,
+    duck_error,
     parse::{Access, Expr, ExprId, ExprKind, Identifier},
     FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;
 
-#[derive(Debug, Clone)]
-pub struct Solver {
-    pub subs: HashMap<Var, Ty>,
-    self_stack: Vec<Var>,
-    local_stack: Vec<Var>,
-    return_stack: Vec<Var>,
+pub struct Session<'s> {
+    pub subs: &'s mut HashMap<Var, Ty>,
+    identity: Vec<Var>,
+    local: Vec<Var>,
 }
 
-// General
-impl Solver {
-    pub fn expr_to_adt_access<'a>(&mut self, expr: &'a Expr) -> Result<(Var, &'a Identifier), TypeError> {
+// Misc
+impl<'s> Session<'s> {
+    pub fn new(subs: &'s mut HashMap<Var, Ty>) -> Self {
+        let mut session = Self {
+            subs,
+            identity: vec![],
+            local: vec![],
+        };
+        session.subs.insert(Var::GlobalAdt, global_adt());
+        session.identity.push(Var::GlobalAdt);
+        session.enter_new_local(vec![]);
+        session
+    }
+
+    pub fn expr_to_adt_access<'e>(&mut self, expr: &'e Expr) -> Result<(&mut Adt, &'e Identifier), TypeError> {
         match expr.kind() {
             ExprKind::Identifier(iden) => {
-                let var = if self.local_adt().contains(&iden.lexeme) {
-                    self.local_id()
+                let var = if self.local().contains(&iden.lexeme) {
+                    *self.local_var()
                 } else if self.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
-                    &Var::GlobalAdt
+                    Var::GlobalAdt
                 } else {
-                    self.self_id()
+                    *self.identity_var()
                 };
-                Ok((*var, iden))
+                Ok((self.adt_mut(&var), iden))
             }
-            ExprKind::Access(Access::Identity { right }) => Ok((*self.self_id(), right)),
-            ExprKind::Access(Access::Global { right }) => Ok((*self.self_id(), right)),
+            ExprKind::Access(Access::Identity { right }) => Ok((self.identity_mut(), right)),
+            ExprKind::Access(Access::Global { right }) => Ok((self.adt_mut(&Var::GlobalAdt), right)),
             ExprKind::Access(Access::Dot { left, right }) => {
-                if let Ty::Adt(adt) = left.query(self)? {
-                    Ok((adt.id, right))
-                } else {
-                    let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(expr.var()))]);
-                    let id = adt.id;
-                    left.unify(&mut Ty::Adt(adt), self)?;
-                    Ok((id, right))
-                }
+                let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(expr.var()))]);
+                left.unify(&Ty::Adt(adt), self)?;
+                Ok((self.adt_mut(&left.var()), right))
             }
             _ => duck_error!("expr does not contain adt"),
         }
     }
-
-    pub fn emit_uninitialized_variable_errors(&mut self) -> Result<(), TypeError> {
-        todo!();
-        // for (_, adt) in self.adts.iter() {
-        //     for (name, field) in adt.fields.iter() {
-        //         if !field.resolved {
-        //             return duck_error!("cannot find a value for `{name}`");
-        //         }
-        //     }
-        // }
-        Ok(())
-    }
 }
 
-// Scope
-impl Solver {
-    pub fn enter_new_object_scope(&mut self) -> Var {
-        let id = Var::Generated(rand::random());
-        let adt = {
-            use Ty::*;
-            adt!(id => {
-                id: Real,
-                visible: Bool,
-                solid: Bool,
-                persistent: Bool,
-                depth: Real,
-                layer: Real,
-                alarm: array!(Real),
-                direction: Real,
-                friction: Real,
-                gravity: Real,
-                gravity_direction: Real,
-                hspeed: Real,
-                vspeed: Real,
-                speed: Real,
-                xstart: Real,
-                ystart: Real,
-                x: Real,
-                y: Real,
-                xprevious: Real,
-                yprevious: Real,
-                object_index: Real,
-                sprite_index: Real,
-                sprite_width: Real,
-                sprite_height: Real,
-                sprite_xoffset: Real,
-                sprite_yoffset: Real,
-                image_alpha: Real,
-                image_angle: Real,
-                image_blend: Real,
-                image_index: Real,
-                image_number: Real,
-                image_speed: Real,
-                image_xscale: Real,
-                image_yscale: Real,
-                mask_index: Real,
-                bbox_bottom: Real,
-                bbox_left: Real,
-                bbox_right: Real,
-                bbox_top: Real,
-                path_index: Real,
-                path_position: Real,
-                path_positionprevious: Real,
-                path_speed: Real,
-                path_scale: Real,
-                path_orientation: Real,
-                path_endaction: Real, // todo: its a collection of constants
-                timeline_index: Real,
-                timeline_running: Bool,
-                timeline_speed: Real,
-                timeline_position: Real,
-                timeline_loop: Bool,
-                in_sequence: Bool,
-                sequence_instance: Any, /* it's some struct and look I just don't care
-                                         * todo: we don't support the physics system */
-            })
-        };
-        self.enter_self_scope(id);
-        id
-    }
-
-    pub fn enter_self_scope(&mut self, id: Var) {
-        self.self_stack.push(id);
-    }
-
-    pub fn enter_local_scope(&mut self, id: Var) {
-        self.local_stack.push(id);
-    }
-
-    pub fn enter_new_return_body(&mut self) -> Var {
+// Stack
+impl<'s> Session<'s> {
+    pub fn enter_new_identity(&mut self, fields: Vec<(Identifier, Ty)>) -> Var {
         let var = Var::Generated(rand::random());
-        self.subs.insert(var, Ty::Uninitialized);
-        self.return_stack.push(var);
+        let adt = Adt::new(AdtState::Extendable, fields);
+        self.subs.insert(var, Ty::Adt(adt));
+        self.push_identity(var);
         var
     }
 
-    pub fn depart_self_scope(&mut self) {
-        self.self_stack.pop();
-        assert!(!self.self_stack.is_empty(), "Cannot depart the root scope!");
+    pub fn enter_new_local(&mut self, fields: Vec<(Identifier, Ty)>) -> Var {
+        let var = Var::Generated(rand::random());
+        let adt = Adt::new(AdtState::Extendable, fields);
+        self.subs.insert(var, Ty::Adt(adt));
+        self.push_local(var);
+        var
     }
 
-    pub fn depart_local_scope(&mut self) {
-        self.local_stack.pop();
-        assert!(!self.self_stack.is_empty(), "Cannot depart the root scope!");
+    pub fn push_identity(&mut self, id: Var) {
+        self.identity.push(id);
     }
 
-    pub fn retrieve_return_value(&mut self) -> Ty {
-        let var = self.return_stack.pop().unwrap_or_else(|| unreachable!());
-        self.subs.get(&var).unwrap().clone()
+    pub fn push_local(&mut self, id: Var) {
+        self.local.push(id);
     }
 
-    pub fn self_id(&self) -> &Var {
-        self.self_stack.last().unwrap()
+    pub fn pop_identity(&mut self) -> Var {
+        let var = self.identity.pop().unwrap();
+        assert!(!self.identity.is_empty(), "Cannot depart the root scope!");
+        var
     }
 
-    pub fn local_id(&self) -> &Var {
-        self.local_stack.last().unwrap()
+    pub fn pop_local(&mut self) -> Var {
+        let var = self.local.pop().unwrap();
+        assert!(!self.local.is_empty(), "Cannot depart the root scope!");
+        var
     }
 
-    pub fn self_adt(&self) -> &Adt {
-        self.adt(self.self_id())
+    pub fn identity_var(&self) -> &Var {
+        self.identity.last().unwrap()
     }
 
-    pub fn local_adt(&self) -> &Adt {
-        self.adt(self.local_id())
+    pub fn local_var(&self) -> &Var {
+        self.local.last().unwrap()
     }
 
-    pub fn self_adt_mut(&mut self) -> &mut Adt {
-        let id = *self.self_id();
+    pub fn identity(&self) -> &Adt {
+        self.adt(self.identity_var())
+    }
+
+    pub fn local(&self) -> &Adt {
+        self.adt(self.local_var())
+    }
+
+    pub fn identity_mut(&mut self) -> &mut Adt {
+        let id = *self.identity_var();
         self.adt_mut(&id)
     }
 
-    pub fn local_adt_mut(&mut self) -> &mut Adt {
-        let id = *self.local_id();
+    pub fn local_mut(&mut self) -> &mut Adt {
+        let id = *self.local_var();
         self.adt_mut(&id)
-    }
-
-    pub fn return_var(&self) -> &Var {
-        self.return_stack.last().unwrap()
     }
 }
 
-impl Default for Solver {
-    fn default() -> Self {
-        let mut solver = Self {
-            subs: HashMap::default(),
-            self_stack: vec![],
-            local_stack: vec![],
-            return_stack: vec![],
-        };
-        let adt = solver.global_adt();
-        solver.subs.insert(Var::GlobalAdt, adt);
-        solver.self_stack.push(Var::GlobalAdt);
-        let local_scope = Adt::new(AdtState::Extendable, vec![]);
-        solver.enter_local_scope(local_scope.id);
-        solver.enter_new_return_body();
-        solver
+// Adts
+impl<'s> Session<'s> {
+    pub fn adt(&self, var: &Var) -> &Adt {
+        self.subs.get(var).unwrap().adt()
+    }
+
+    pub fn adt_mut(&mut self, var: &Var) -> &mut Adt {
+        self.subs.get_mut(var).unwrap().adt_mut()
     }
 }
 
@@ -209,6 +132,7 @@ pub type TypeError = Diagnostic<FileId>;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
 pub enum Var {
     GlobalAdt,
+    Return,
     Expr(ExprId),
     Generated(u64),
 }

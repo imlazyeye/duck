@@ -134,14 +134,14 @@ pub mod parse {
 #[allow(missing_docs)]
 pub mod solve {
     mod adt;
-    mod global_std;
+    mod adt_prefabs;
     mod query;
     mod solver;
     mod ty;
     mod unify;
     mod utils;
     pub use adt::*;
-    pub use global_std::*;
+    pub use adt_prefabs::*;
     pub use query::*;
     pub use solver::*;
     pub use ty::*;
@@ -150,7 +150,7 @@ pub mod solve {
     #[cfg(test)]
     mod tests {
         mod type_tests;
-        mod utils;
-        pub use utils::*;
+        mod test_utils;
+        pub use test_utils::*;
     }
 }

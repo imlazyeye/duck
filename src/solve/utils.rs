@@ -13,8 +13,8 @@ pub struct Field {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Bounty {
-    pub offerer: AdtId,
-    pub origin: Rib,
+    pub offerer: Var,
+    pub origin: Var,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -25,20 +25,6 @@ pub enum AdtState {
     Extendable,
     /// A adt that cannot have new fields added to it.
     Concrete,
-}
-
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy)]
-pub struct AdtId(u64);
-impl AdtId {
-    pub const GLOBAL: Self = Self(u64::MAX);
-    pub fn new() -> Self {
-        Self(rand::random())
-    }
-}
-impl Default for AdtId {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 #[macro_export]
@@ -57,22 +43,7 @@ macro_rules! option {
 
 #[macro_export]
 macro_rules! adt {
-
     ($($var:ident: $should_be:expr), * $(,)?) => {
-        {
-            #[allow(unused_mut)]
-            let mut fields = vec![];
-            $(
-                let should_be = $should_be;
-                fields.push((
-                    crate::parse::Identifier::lazy(stringify!($var).to_string()),
-                    should_be,
-                ));
-            )*
-            Ty::Adt(crate::solve::Adt::new(AdtState::Extendable, fields))
-        }
-    };
-     ($id:expr => { $($var:ident: $should_be:expr), * $(,)? }) => {
         {
             #[allow(unused_mut)]
             let mut fields = vec![];
@@ -210,7 +181,7 @@ impl Printer {
                     ..
                 }) => format!(
                     "fn ({}) -> {}",
-                    parameters.iter().map(|ty| Printer::ty(ty)).join(", "),
+                    parameters.iter().map(Printer::ty).join(", "),
                     Printer::ty(return_type)
                 ),
                 Func::Call(Call {
@@ -218,7 +189,7 @@ impl Printer {
                     return_type,
                 }) => format!(
                     "({}) -> {}",
-                    parameters.iter().map(|ty| Printer::ty(ty)).join(", "),
+                    parameters.iter().map(Printer::ty).join(", "),
                     Printer::ty(return_type)
                 ),
             },
