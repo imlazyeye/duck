@@ -69,15 +69,13 @@ test_success!(
 
 // Local variable
 test_type!(local_var, "var a = 0", "a" => Real);
-test_type!(null_local_var, "var a;", "a" => Uninitialized);
 test_type!(assign_to_null_var, "var a; a = 0;", "a" => Real);
 test_type!(shadowing, "var a = 0; var a = true;", "a" => Bool);
 test_failure!(undefined_variable, "var a = b;");
 test_failure!(read_variable_before_declaration, "var a = b, b = 0;");
 
 // Globals
-test_type!(globalvar, "globalvar foo;", "foo" => Uninitialized);
-test_type!(globalvar_assign, "globalvar foo; foo = 0", "foo" => Real);
+test_type!(globalvar, "globalvar foo; foo = 0", "foo" => Real);
 test_type!(global, "global.foo = 0;", "foo" => Real);
 test_failure!(duplicate_global_function, "function foo() {} function foo() {}");
 
@@ -403,17 +401,22 @@ test_type!(
 // Constructors
 test_type!(
     constructor,
+    "var foo = function() constructor {}",
+    "new foo()" => adt!()
+);
+test_type!(
+    constructor_with_field,
     "var foo = function() constructor {
-        self.a = 0;
+        self.x = 0;
     }",
-    "new foo()" => adt!(a: Real)
+    "new foo()" => adt!(x: Real)
 );
 test_type!(
     constructor_with_parameter,
     "function foo(y) constructor {
         self.x = y;
     }",
-    "foo(0)" => adt!(foo: function!((Real) => Identity), x: Real,)
+    "foo(0)" => adt!(x: Real)
 );
 test_type!(
     constructor_getter,

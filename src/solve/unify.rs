@@ -3,9 +3,9 @@ use crate::duck_error;
 
 impl<'s> Session<'s> {
     pub fn unify_ty_ty(&mut self, lhs: &Ty, rhs: &Ty) -> Result<(), TypeError> {
-        if let Some(lhs) = lhs.normalize_shallow(self) {
+        if let Some(lhs) = lhs.as_shallow_normalized(self) {
             return self.unify_ty_ty(&lhs, rhs);
-        } else if let Some(rhs) = rhs.normalize_shallow(self) {
+        } else if let Some(rhs) = rhs.as_shallow_normalized(self) {
             return self.unify_ty_ty(lhs, &rhs);
         };
 
@@ -13,9 +13,6 @@ impl<'s> Session<'s> {
 
         match (lhs, rhs) {
             (lhs, rhs) if lhs == rhs => Ok(()),
-            (ty @ Ty::Uninitialized, other) | (other, ty @ Ty::Uninitialized) => {
-                todo!()
-            }
             (other, Ty::Var(var)) | (Ty::Var(var), other) => self.unify_var_ty(var, other),
             (Ty::Any, _) | (_, Ty::Any) => Ok(()),
             (und @ Ty::Undefined, other) | (other, und @ Ty::Undefined) => {
@@ -27,9 +24,11 @@ impl<'s> Session<'s> {
             }
             (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
                 for (name, rhs_field) in rhs_adt.fields.iter() {
-                    match lhs_adt.get(name) {
-                        Some(ty) => self.unify_ty_ty(ty, &rhs_field.ty)?,
-                        None => return duck_error!("cannot find a value for `{name}`"),
+                    if let FieldValue::Initialized(rhs_ty) = &rhs_field.value {
+                        match lhs_adt.ty(name) {
+                            Some(lhs_ty) => self.unify_ty_ty(lhs_ty, rhs_ty)?,
+                            None => return duck_error!("cannot find a value for `{name}`"),
+                        }
                     }
                 }
                 Ok(())
@@ -104,7 +103,7 @@ impl<'s> Session<'s> {
 
     pub fn unify_var_ty(&mut self, var: &Var, ty: &Ty) -> Result<(), TypeError> {
         assert!(
-            ty.normalize_shallow(self).is_none(),
+            ty.as_shallow_normalized(self).is_none(),
             "Var {} was bound to {}",
             Printer::var(var),
             Printer::ty(ty)
@@ -117,52 +116,58 @@ impl<'s> Session<'s> {
 }
 
 impl Ty {
-    pub fn normalize_shallow(&self, sess: &Session) -> Option<Ty> {
+    pub fn normalized(self, sess: &Session) -> Self {
+        if let Some(ty) = self.as_deep_normalized(sess) {
+            ty
+        } else {
+            self
+        }
+    }
+
+    pub fn as_shallow_normalized(&self, sess: &Session) -> Option<Ty> {
         match self {
             Ty::Var(var) => sess.subs.get(var).cloned(),
             _ => None,
         }
     }
 
-    pub fn normalize_deep(&self, sess: &Session) -> Option<Ty> {
+    pub fn as_deep_normalized(&self, sess: &Session) -> Option<Ty> {
         match self {
-            Ty::Var(_) => self.normalize_shallow(sess).map(|ty| {
-                if let Some(dty) = ty.normalize_deep(sess) {
+            Ty::Var(_) => self.as_shallow_normalized(sess).map(|ty| {
+                if let Some(dty) = ty.as_deep_normalized(sess) {
                     dty
                 } else {
                     ty
                 }
             }),
-            Ty::Array(inner) => inner.normalize_deep(sess).map(|v| Ty::Array(Box::new(v))),
+            Ty::Array(inner) => inner.as_deep_normalized(sess).map(|v| Ty::Array(Box::new(v))),
             Ty::Adt(adt) => {
                 let mut adt = adt.clone();
-                let any = adt.fields.iter_mut().any(|(_, field)| {
-                    if let Some(ty) = field.ty.normalize_deep(sess) {
-                        field.ty = ty;
-                        true
-                    } else {
-                        false
+                let mut any = false;
+                adt.fields.iter_mut().for_each(|(_, field)| {
+                    if let Some(ty) = field.value.ty().and_then(|v| v.as_deep_normalized(sess)) {
+                        field.value = FieldValue::Initialized(ty);
+                        any = true;
                     }
                 });
                 if any { Some(Ty::Adt(adt)) } else { None }
             }
             Ty::Func(func) => {
                 let mut func = func.clone();
-                let mut any = func.parameters_mut().iter_mut().any(|param| {
-                    if let Some(ty) = param.normalize_deep(sess) {
+                let mut any = false;
+                func.parameters_mut().iter_mut().for_each(|param| {
+                    if let Some(ty) = param.as_deep_normalized(sess) {
                         *param = ty;
-                        true
-                    } else {
-                        false
+                        any = true;
                     }
                 });
-                if let Some(ty) = func.return_type().normalize_deep(sess) {
+                if let Some(ty) = func.return_type().as_deep_normalized(sess) {
                     *func.return_type_mut() = ty;
                     any = true;
                 }
                 if any { Some(Ty::Func(func)) } else { None }
             }
-            Ty::Option(inner) => inner.normalize_deep(sess).map(|v| Ty::Option(Box::new(v))),
+            Ty::Option(inner) => inner.as_deep_normalized(sess).map(|v| Ty::Option(Box::new(v))),
             _ => None,
         }
     }

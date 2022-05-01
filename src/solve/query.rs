@@ -50,22 +50,19 @@ impl<'s> Session<'s> {
             },
             StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) => {
                 for initializer in declarations.iter() {
-                    let ty = if let Some(value) = initializer.assignment_value() {
-                        value.query(self)?
-                    } else {
-                        Ty::Uninitialized
-                    };
-
                     // To enable shadowing, we first remove any old field for this name
-                    let local = self.local_mut();
-                    local.fields.remove(initializer.name());
-                    local.write(initializer.name(), &ty)?.commit(self)?;
+                    self.local_mut().fields.remove(initializer.name());
+
+                    if let Some(value) = initializer.assignment_value() {
+                        let ty = value.query(self)?;
+                        self.local_mut().write(initializer.name(), &ty)?.commit(self)?;
+                    } else {
+                        self.local_mut().write_unitialized(initializer.name())?;
+                    };
                 }
             }
             StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
-                self.adt_mut(&Var::GlobalAdt)
-                    .write(&name.lexeme, &Ty::Uninitialized)?
-                    .commit(self)?;
+                self.adt_mut(&Var::GlobalAdt).write_unitialized(&name.lexeme)?
             }
             StmtKind::Return(Return { value }) => {
                 if let Some(value) = value {
@@ -158,8 +155,8 @@ pub trait QueryItem {
     }
 }
 impl QueryItem for Expr {
-    fn query<'s>(&self, session: &'s mut Session) -> Result<Ty, TypeError> {
-        if let Some(cache) = session.subs.get(&self.var()) {
+    fn query<'s>(&self, sess: &'s mut Session) -> Result<Ty, TypeError> {
+        if let Some(cache) = sess.subs.get(&self.var()) {
             return Ok(cache.clone());
         }
 
@@ -168,39 +165,39 @@ impl QueryItem for Expr {
         let ty = match self.kind() {
             ExprKind::Function(func) => {
                 let ty = if let Some(constructor) = func.constructor.as_ref() {
-                    session.process_constructor(func, constructor)?
+                    sess.process_constructor(func, constructor)?
                 } else {
-                    session.process_function(func)?
+                    sess.process_function(func)?
                 };
                 if let Some(name) = &func.name {
-                    session.identity_mut().write(&name.lexeme, &ty)?.commit(session)?;
+                    sess.identity_mut().write(&name.lexeme, &ty)?.commit(sess)?;
                 };
                 Ok(ty)
             }
             ExprKind::Logical(log) => {
-                log.left.unify(&Ty::Bool, session)?;
-                log.right.unify(&Ty::Bool, session)?;
+                log.left.unify(&Ty::Bool, sess)?;
+                log.right.unify(&Ty::Bool, sess)?;
                 Ok(Ty::Bool)
             }
             ExprKind::Equality(eq) => {
-                let left = eq.left.query(session)?;
-                eq.right.unify(&left, session)?;
+                let left = eq.left.query(sess)?;
+                eq.right.unify(&left, sess)?;
                 Ok(Ty::Bool)
             }
             ExprKind::Evaluation(eval) => {
-                eval.left.unify(&Ty::Real, session)?;
-                eval.right.unify(&Ty::Real, session)?;
+                eval.left.unify(&Ty::Real, sess)?;
+                eval.right.unify(&Ty::Real, sess)?;
                 Ok(Ty::Real)
             }
             ExprKind::NullCoalecence(null) => {
-                let ty = null.right.query(session)?;
-                null.left.unify(&Ty::Option(Box::new(ty.clone())), session)?;
+                let ty = null.right.query(sess)?;
+                null.left.unify(&Ty::Option(Box::new(ty.clone())), sess)?;
                 Ok(ty)
             }
             ExprKind::Ternary(ternary) => {
-                ternary.condition.unify(&Ty::Bool, session)?;
-                let false_value = ternary.false_value.query(session)?;
-                ternary.true_value.unify(&false_value, session)?;
+                ternary.condition.unify(&Ty::Bool, sess)?;
+                let false_value = ternary.false_value.query(sess)?;
+                ternary.true_value.unify(&false_value, sess)?;
                 Ok(false_value)
             }
             ExprKind::Unary(unary) => match unary.op {
@@ -209,35 +206,36 @@ impl QueryItem for Expr {
                 | UnaryOp::Positive(_)
                 | UnaryOp::Negative(_)
                 | UnaryOp::BitwiseNot(_) => {
-                    unary.right.unify(&Ty::Real, session)?;
+                    unary.right.unify(&Ty::Real, sess)?;
                     Ok(Ty::Real)
                 }
                 UnaryOp::Not(_) => {
-                    unary.right.unify(&Ty::Bool, session)?;
+                    unary.right.unify(&Ty::Bool, sess)?;
                     Ok(Ty::Bool)
                 }
             },
             ExprKind::Postfix(postfix) => {
-                postfix.left.unify(&Ty::Real, session)?;
+                postfix.left.unify(&Ty::Real, sess)?;
                 Ok(Ty::Real)
             }
             ExprKind::Access(access) => match access {
-                Access::Global { right } => handle_adt(self, session, &Var::GlobalAdt, right),
+                Access::Global { right } => handle_adt(self, sess, &Var::GlobalAdt, right),
                 Access::Identity { right } => {
-                    let id = *session.identity_var();
-                    handle_adt(self, session, &id, right)
+                    let id = *sess.identity_var();
+                    handle_adt(self, sess, &id, right)
                 }
                 Access::Dot { left, right } => {
-                    // TODO: all this infer stuff is weird
-                    if let Ty::Adt(mut adt) = left.query(session)? {
+                    // If we can find an adt on the left, we will read/write to it. Otherwise, we'll infer a new one.
+                    let mut ty = left.query(sess)?.normalized(sess);
+                    if let Ty::Adt(adt) = &mut ty {
                         if adt.state == AdtState::Inferred {
-                            adt.write(&right.lexeme, &Ty::Var(self.var()))?.commit(session)?;
+                            adt.write(&right.lexeme, &Ty::Var(self.var()))?.commit(sess)?;
                         } else {
-                            adt.read(&right.lexeme, &Ty::Var(self.var()))?.commit(session)?;
+                            adt.read(&right.lexeme, &Ty::Var(self.var()))?.commit(sess)?;
                         };
                     } else {
                         let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(self.var()))]);
-                        left.unify(&Ty::Adt(adt), session)?;
+                        left.unify(&Ty::Adt(adt), sess)?;
                     };
                     Ok(Ty::Var(self.var()))
                 }
@@ -247,12 +245,12 @@ impl QueryItem for Expr {
                     index_two,
                     ..
                 } => {
-                    index_one.unify(&Ty::Real, session)?;
+                    index_one.unify(&Ty::Real, sess)?;
                     if let Some(index_two) = index_two {
-                        index_two.unify(&Ty::Real, session)?;
+                        index_two.unify(&Ty::Real, sess)?;
                     }
-                    left.unify(&Ty::Array(Box::new(Ty::Var(self.var()))), session)?;
-                    Ok(session
+                    left.unify(&Ty::Array(Box::new(Ty::Var(self.var()))), sess)?;
+                    Ok(sess
                         .subs
                         .get(&self.var())
                         .cloned()
@@ -264,18 +262,18 @@ impl QueryItem for Expr {
                 let parameters = call
                     .arguments
                     .iter()
-                    .map(|expr| expr.query(session))
+                    .map(|expr| expr.query(sess))
                     .collect::<Result<Vec<Ty>, TypeError>>()?;
                 call.left.unify(
                     &Ty::Func(super::Func::Call(super::Call {
                         parameters,
                         return_type: Box::new(Ty::Var(self.var())),
                     })),
-                    session,
+                    sess,
                 )?;
                 Ok(Ty::Var(self.var()))
             }
-            ExprKind::Grouping(grouping) => grouping.inner.query(session),
+            ExprKind::Grouping(grouping) => grouping.inner.query(sess),
             ExprKind::Literal(literal) => {
                 let ty = match literal {
                     Literal::True | Literal::False => Ty::Bool,
@@ -286,9 +284,9 @@ impl QueryItem for Expr {
                     Literal::Misc(_) => Ty::Any, // todo
                     Literal::Array(exprs) => {
                         let ty = if let Some(expr) = exprs.first() {
-                            let ty = expr.query(session)?;
+                            let ty = expr.query(sess)?;
                             for expr in exprs.iter().skip(1) {
-                                expr.unify(&ty, session)?;
+                                expr.unify(&ty, sess)?;
                             }
                             ty.clone()
                         } else {
@@ -297,16 +295,13 @@ impl QueryItem for Expr {
                         Ty::Array(Box::new(ty))
                     }
                     Literal::Struct(declarations) => {
-                        session.enter_new_identity(vec![]);
+                        sess.enter_new_identity(vec![]);
                         for declaration in declarations {
-                            let ty = declaration.1.query(session)?;
-                            session
-                                .identity_mut()
-                                .write(&declaration.0.lexeme, &ty)?
-                                .commit(session)?;
+                            let ty = declaration.1.query(sess)?;
+                            sess.identity_mut().write(&declaration.0.lexeme, &ty)?.commit(sess)?;
                         }
-                        let ty = session.identity().clone(); // todo
-                        session.pop_identity();
+                        let ty = sess.identity().clone(); // todo
+                        sess.pop_identity();
                         Ty::Adt(ty)
                     }
                 };
@@ -316,19 +311,19 @@ impl QueryItem for Expr {
                 Ok(ty)
             }
             ExprKind::Identifier(iden) => {
-                let id = if session.local().contains(&iden.lexeme) {
-                    *session.local_var()
-                } else if session.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
+                let id = if sess.local().contains(&iden.lexeme) {
+                    *sess.local_var()
+                } else if sess.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
                     Var::GlobalAdt
                 } else {
-                    *session.identity_var()
+                    *sess.identity_var()
                 };
-                handle_adt(self, session, &id, iden)
+                handle_adt(self, sess, &id, iden)
             }
         }?;
 
         if Ty::Var(self.var()) != ty {
-            session.sub(self.var(), ty.clone());
+            sess.sub(self.var(), ty.clone());
             Ok(ty)
         } else {
             Ok(ty)
@@ -372,7 +367,6 @@ impl<'s> Session<'s> {
         let identity = self.enter_new_identity(vec![]);
         let (parameters, minimum_arguments, local_var) = self.process_function_head(function)?;
         self.push_local(local_var);
-        self.push_identity(identity);
         let binding = Binding::Constructor {
             local_scope: local_var,
             self_scope: identity,
@@ -392,20 +386,24 @@ impl<'s> Session<'s> {
         self.pop_local();
         self.subs.remove(&Var::Return);
 
-        let ty = Ty::Func(super::Func::Def(super::Def {
+        let mut func = super::Func::Def(super::Def {
             binding: Some(binding),
             parameters,
             minimum_arguments,
             return_type: Box::new(Ty::Identity),
-        }));
+        });
+
         if let Some(name) = &function.name {
-            self.identity_mut().write(&name.lexeme, &ty)?.commit(self)?;
+            self.identity_mut()
+                .write(&name.lexeme, &Ty::Func(func.clone()))?
+                .commit(self)?;
         }
         self.identity_mut().state = AdtState::Concrete;
+        *func.return_type_mut() = Ty::Adt(self.identity().clone());
         self.pop_identity();
         println!("\n--- Departing function... ---\n");
 
-        Ok(ty)
+        Ok(Ty::Func(func))
     }
 
     fn process_function(&mut self, function: &crate::parse::Function) -> Result<Ty, TypeError> {
@@ -429,7 +427,7 @@ impl<'s> Session<'s> {
 
 fn handle_adt(expr: &Expr, session: &mut Session, id: &Var, iden: &Identifier) -> Result<Ty, TypeError> {
     let var = expr.var();
-    let ty = if let Some(field) = session.adt(id).get(&iden.lexeme) {
+    let ty = if let Some(field) = session.adt(id).ty(&iden.lexeme) {
         field.clone()
     } else {
         session.adt_mut(id).read(&iden.lexeme, &Ty::Var(var))?.commit(session)?;

@@ -13,19 +13,16 @@ pub fn harness_session(source: &str, session: &mut Session) -> Result<(), TypeEr
 pub fn test_type(should_be: Ty, session: &mut Session, preamble: Option<&str>, src: &'static str) {
     let source = Box::leak(Box::new(format!("var TEST_VALUE = {}", src)));
     harness_session(source, session).unwrap();
-    let mut ty = session
+    let ty = session
         .local()
-        .get("TEST_VALUE")
-        .or_else(|| session.adt(&Var::GlobalAdt).get("TEST_VALUE"))
-        .or_else(|| session.identity().get("TEST_VALUE"))
+        .ty("TEST_VALUE")
+        .or_else(|| session.adt(&Var::GlobalAdt).ty("TEST_VALUE"))
+        .or_else(|| session.identity().ty("TEST_VALUE"))
         .unwrap()
-        .clone();
+        .clone()
+        .normalized(session);
 
-    if let Some(nty) = ty.normalize_deep(session) {
-        ty = nty;
-    }
-
-    if !ty.loose_eq(&should_be) {
+    if !should_be.loose_eq(&ty) {
         let lhs = Printer::ty(&should_be);
         let rhs = Printer::ty(&ty);
         if let Some(preamble) = preamble {
@@ -41,12 +38,11 @@ impl Ty {
     pub fn loose_eq(&self, other: &Ty) -> bool {
         match (self, other) {
             (Ty::Adt(adt), Ty::Adt(other_adt)) => adt.fields.iter().all(|(name, field)| {
-                other_adt
-                    .get(name)
-                    .map_or(false, |other_field| field.ty.loose_eq(other_field))
+                other_adt.ty(name).map_or(false, |other_field| {
+                    field.value.ty().map_or(false, |ty| ty.loose_eq(other_field))
+                })
             }),
             (Ty::Array(member), Ty::Array(other_member)) => member.loose_eq(other_member),
-            (Ty::Adt(_), _) => false,
             (Ty::Func(function), Ty::Func(other_function)) => {
                 function.return_type().loose_eq(other_function.return_type())
                     && function.parameters().iter().enumerate().all(|(i, param)| {

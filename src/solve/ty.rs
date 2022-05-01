@@ -6,7 +6,6 @@ use super::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Ty {
-    Uninitialized,
     Any,
     Identity,
     Undefined,
@@ -22,15 +21,6 @@ pub enum Ty {
 }
 
 impl Ty {
-    pub const UNINITIALIZED: Ty = Ty::Uninitialized;
-    pub const ANY: Ty = Ty::Any;
-    pub const IDENTITY: Ty = Ty::Identity;
-    pub const UNDEFINED: Ty = Ty::Undefined;
-    pub const NOONE: Ty = Ty::Noone;
-    pub const BOOL: Ty = Ty::Bool;
-    pub const REAL: Ty = Ty::Real;
-    pub const STR: Ty = Ty::Str;
-
     pub fn contains(&self, other: &Ty) -> bool {
         match self {
             Ty::Array(inner) => inner.contains(other),
@@ -140,7 +130,9 @@ impl Def {
                             (
                                 n.clone(),
                                 Field {
-                                    ty: checkout_ty(&v.ty, map),
+                                    value: v.value.ty().map_or(FieldValue::Uninitialized, |v| {
+                                        FieldValue::Initialized(checkout_ty(&v, map))
+                                    }),
                                     constant: v.constant,
                                     resolved: v.resolved,
                                 },

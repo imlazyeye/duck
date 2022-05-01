@@ -4,29 +4,6 @@ use hashbrown::HashMap;
 use itertools::Itertools;
 use parking_lot::Mutex;
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct Field {
-    pub ty: Ty,
-    pub resolved: bool,
-    pub constant: bool,
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Bounty {
-    pub offerer: Var,
-    pub origin: Var,
-}
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum AdtState {
-    /// A generic recred from context.
-    Inferred,
-    /// A adt that can have new fields added to it.
-    Extendable,
-    /// A adt that cannot have new fields added to it.
-    Concrete,
-}
-
 #[macro_export]
 macro_rules! array {
     ($ty:expr) => {
@@ -140,7 +117,6 @@ impl Printer {
     #[must_use]
     pub fn ty(ty: &Ty) -> String {
         match ty {
-            Ty::Uninitialized => "<null>".into(),
             Ty::Identity => "identity".into(),
             Ty::Any => "any".into(),
             Ty::Undefined => "undefined".into(),
@@ -163,11 +139,15 @@ impl Printer {
                                 format!(
                                     "{}: {}",
                                     name,
-                                    if field.ty.contains(ty) {
-                                        "<cycle>".into()
+                                    if let Some(field_ty) = field.value.ty() {
+                                        if field_ty.contains(ty) {
+                                            "<cycle>".into()
+                                        } else {
+                                            Printer::ty(field_ty)
+                                        }
                                     } else {
-                                        Printer::ty(&field.ty)
-                                    },
+                                        "<null>".into()
+                                    }
                                 )
                             })
                             .join(", ")
@@ -207,16 +187,7 @@ impl Printer {
             Printer::var(&a.var()).bold().bright_black()
         )
     }
-
-    #[must_use]
-    pub fn write(name: &str, ty: &Ty) -> String {
-        format!(
-            "{}        {name}: {}",
-            "WRITE".bright_cyan(),
-            Printer::ty(ty).blue().bold()
-        )
-    }
-
+    
     #[must_use]
     pub fn ty_unification(a: &Ty, b: &Ty) -> String {
         format!(
