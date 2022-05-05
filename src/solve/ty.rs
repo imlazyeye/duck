@@ -185,21 +185,7 @@ pub struct Call {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Binding {
-    Method {
-        local_scope: Var,
-        self_scope: Var,
-    },
-    Constructor {
-        local_scope: Var,
-        self_scope: Var,
-        inheritance: Option<Identifier>,
-    },
-}
-impl Binding {
-    pub fn self_scope(&self) -> &Var {
-        match self {
-            Binding::Method { self_scope, .. } | Binding::Constructor { self_scope, .. } => self_scope,
-        }
-    }
+pub struct Binding {
+    pub local_var: Var,
+    pub identity_var: Var,
 }

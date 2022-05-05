@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    duck_error,
+    duck_error, duck_error_unwrapped,
     parse::{Access, Expr, ExprId, ExprKind, Identifier},
     FileId,
 };
@@ -48,6 +48,15 @@ impl<'s> Session<'s> {
             }
             _ => duck_error!("expr does not contain adt"),
         }
+    }
+
+    pub fn resolve_name(&self, name: &str) -> Result<Ty, TypeError> {
+        self.local()
+            .ty(name)
+            .or_else(|| self.adt(&Var::GlobalAdt).ty(name))
+            .or_else(|| self.identity().ty(name))
+            .map(|v| v.clone().normalized(self))
+            .ok_or_else(|| duck_error_unwrapped!("could not find a value for `{name}`"))
     }
 }
 
@@ -119,11 +128,19 @@ impl<'s> Session<'s> {
 // Adts
 impl<'s> Session<'s> {
     pub fn adt(&self, var: &Var) -> &Adt {
-        self.subs.get(var).unwrap().adt()
+        if let Ty::Var(var) = self.subs.get(var).unwrap().clone() {
+            self.adt(&var)
+        } else {
+            self.subs.get(var).unwrap().adt()
+        }
     }
 
     pub fn adt_mut(&mut self, var: &Var) -> &mut Adt {
-        self.subs.get_mut(var).unwrap().adt_mut()
+        if let Ty::Var(var) = self.subs.get(var).unwrap().clone() {
+            self.adt_mut(&var)
+        } else {
+            self.subs.get_mut(var).unwrap().adt_mut()
+        }
     }
 }
 

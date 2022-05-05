@@ -13,15 +13,7 @@ pub fn harness_session(source: &str, session: &mut Session) -> Result<(), TypeEr
 pub fn test_type(should_be: Ty, session: &mut Session, preamble: Option<&str>, src: &'static str) {
     let source = Box::leak(Box::new(format!("var TEST_VALUE = {}", src)));
     harness_session(source, session).unwrap();
-    let ty = session
-        .local()
-        .ty("TEST_VALUE")
-        .or_else(|| session.adt(&Var::GlobalAdt).ty("TEST_VALUE"))
-        .or_else(|| session.identity().ty("TEST_VALUE"))
-        .unwrap()
-        .clone()
-        .normalized(session);
-
+    let ty = session.resolve_name("TEST_VALUE").unwrap();
     if !should_be.loose_eq(&ty) {
         let lhs = Printer::ty(&should_be);
         let rhs = Printer::ty(&ty);
@@ -67,8 +59,7 @@ macro_rules! test_type {
             let mut subs = hashbrown::HashMap::new();
             let mut session = crate::solve::Session::new(&mut subs);
             $({
-                let should_be = $should_be;
-                crate::solve::tests::test_utils::test_type(should_be, &mut session, None, $src);
+                crate::solve::tests::test_utils::test_type($should_be, &mut session, None, $src);
             })*
         }
     };
@@ -80,8 +71,7 @@ macro_rules! test_type {
             let mut session = crate::solve::Session::new(&mut subs);
             crate::solve::tests::test_utils::harness_session($preamble, &mut session).unwrap();
             $({
-                let should_be = $should_be;
-                crate::solve::tests::test_utils::test_type(should_be, &mut session, Some($preamble), $src);
+                crate::solve::tests::test_utils::test_type($should_be, &mut session, Some($preamble), $src);
             })*
         }
     };

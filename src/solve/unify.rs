@@ -44,7 +44,7 @@ impl<'s> Session<'s> {
                     let bound_scope = def
                         .binding
                         .as_ref()
-                        .map_or_else(|| self.identity_var(), |v| v.self_scope());
+                        .map_or_else(|| self.identity_var(), |v| &v.identity_var);
                     let transmute_identity = bound_scope != self.identity_var();
 
                     if call.parameters().len() > def.parameters.len() {
@@ -86,17 +86,11 @@ impl<'s> Session<'s> {
                 (Func::Call(_), Func::Call(_)) => Ok(()),
             },
             (lhs, rhs) => {
-                if lhs != rhs {
-                    #[cfg(test)]
-                    println!("Error!");
-                    duck_error!(
-                        "Attempted to equate two incompatible types: {} and {}",
-                        Printer::ty(lhs),
-                        Printer::ty(rhs)
-                    )
-                } else {
-                    Ok(())
-                }
+                duck_error!(
+                    "Attempted to equate two incompatible types: {} and {}",
+                    Printer::ty(lhs),
+                    Printer::ty(rhs)
+                )
             }
         }
     }
@@ -110,7 +104,7 @@ impl<'s> Session<'s> {
         );
 
         // occurs check?
-        self.subs.insert(*var, ty.clone());
+        self.sub(*var, ty.clone());
         Ok(())
     }
 }

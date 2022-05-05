@@ -71,9 +71,19 @@ impl<'s> Session<'s> {
                     self.unify_var_ty(&Var::Return, &Ty::Undefined)?;
                 }
             }
-            StmtKind::WithLoop(WithLoop { body, .. }) => {
+            StmtKind::WithLoop(WithLoop { body, identity }) => {
+                // let mut ty = identity.query(self)?.normalized(self);
+                // if let Ty::Adt(adt) = &mut ty {
+                //     if adt.state == AdtState::Inferred {
+                //         adt.write(&right.lexeme, &Ty::Var(self.var()))?.commit(sess)?;
+                //     } else {
+                //         adt.read(&right.lexeme, &Ty::Var(self.var()))?.commit(sess)?;
+                //     };
+                // } else {
+                //     let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(self.var()))]);
+                //     left.unify(&Ty::Adt(adt), sess)?;
+                // };
                 self.visit_stmt(body)?;
-                // TODO: Instance ID / Object ID!
             }
             StmtKind::RepeatLoop(RepeatLoop { tick_counts, body }) => {
                 self.visit_stmt(body)?;
@@ -364,30 +374,33 @@ impl<'s> Session<'s> {
         function: &crate::parse::Function,
         constructor: &Constructor,
     ) -> Result<Ty, TypeError> {
-        let identity = self.enter_new_identity(vec![]);
+        let inheritance_call = if let Constructor::WithInheritance(call) = constructor {
+            Some(call.query(self)?.normalized(self))
+        } else {
+            None
+        };
+
         let (parameters, minimum_arguments, local_var) = self.process_function_head(function)?;
         self.push_local(local_var);
-        let binding = Binding::Constructor {
-            local_scope: local_var,
-            self_scope: identity,
-            inheritance: match constructor {
-                Constructor::WithInheritance(call) => Some(
-                    call.kind()
-                        .as_call()
-                        .and_then(|call| call.left.kind().as_identifier())
-                        .cloned()
-                        .unwrap(),
-                ),
-                _ => None,
-            },
-        };
+        self.enter_new_identity(vec![]);
+
+        if let Some(inheritance_call) = inheritance_call {
+            if let Ty::Adt(adt) = inheritance_call {
+                self.identity_mut().fields.extend(adt.fields);
+            } else {
+                panic!("i don't know what to do here: {}", Printer::ty(&inheritance_call))
+            }
+        }
 
         self.process_statements(function.body_stmts())?;
         self.pop_local();
         self.subs.remove(&Var::Return);
 
         let mut func = super::Func::Def(super::Def {
-            binding: Some(binding),
+            binding: Some(Binding {
+                local_var,
+                identity_var: *self.identity_var(),
+            }),
             parameters,
             minimum_arguments,
             return_type: Box::new(Ty::Identity),
@@ -407,17 +420,26 @@ impl<'s> Session<'s> {
     }
 
     fn process_function(&mut self, function: &crate::parse::Function) -> Result<Ty, TypeError> {
-        let (parameters, minimum_arguments, local) = self.process_function_head(function)?;
-        self.push_local(local);
-        self.process_statements(function.body_stmts())?;
+        let (parameters, minimum_arguments, local_var) = self.process_function_head(function)?;
+        self.push_local(local_var);
+        let binding = if self.identity_var() == &Var::GlobalAdt {
+            // We create a dummy adt for self, since global functions are not bound to anything
+            self.enter_new_identity(vec![]);
+            self.process_statements(function.body_stmts())?;
+            self.pop_identity();
+            None
+        } else {
+            self.process_statements(function.body_stmts())?;
+            Some(Binding {
+                local_var,
+                identity_var: *self.identity_var(),
+            })
+        };
         self.pop_local();
         let return_type = Box::new(self.subs.remove(&Var::Return).unwrap_or(Ty::Undefined));
         println!("\n--- Departing function... ---\n");
         Ok(Ty::Func(super::Func::Def(super::Def {
-            binding: Some(Binding::Method {
-                local_scope: local,
-                self_scope: *self.identity_var(),
-            }),
+            binding,
             parameters,
             minimum_arguments,
             return_type,

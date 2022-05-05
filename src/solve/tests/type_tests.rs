@@ -429,11 +429,42 @@ test_type!(
     "(new foo()).get_a()" => Real,
 );
 test_type!(
+    manual_inheritance,
+    "function foo() {
+        self.a = 0;
+    }
+    var bar = function() constructor {
+        self.foo();
+    }",
+    "new bar()" => adt!(a: Real)
+);
+test_type!(
+    nested_manual_inheritance,
+    "function foo() {
+        var bar = function() {
+            self.a = 0;
+        }
+        bar();
+    }
+    function fizz() constructor {
+        self.foo();
+    }",
+    "new fizz()" => adt!(a: Real)
+);
+test_type!(
     inheritance,
     "var foo = function() constructor {
         self.a = 0;
     }
     var bar = function() : foo() constructor {}",
+    "new bar()" => adt!(a: Real)
+);
+test_type!(
+    inheritance_out_of_order,
+    "var bar = function() : foo() constructor {},
+    var foo = function() constructor {
+        self.a = 0;
+    }",
     "new bar()" => adt!(a: Real)
 );
 test_type!(
