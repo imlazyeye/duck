@@ -640,9 +640,6 @@ impl Parser {
                     self.match_take(TokenKind::Comma);
                 }
             };
-            // GM accepts semicolons here, and as such, so do we.
-            // FIXME: create an infastrucutre such that we can lint this?
-            self.match_take_repeating(TokenKind::SemiColon);
             Ok(self.new_expr(Enum::new_with_members(name, members), Span::new(start, end)))
         } else {
             self.macro_declaration()
