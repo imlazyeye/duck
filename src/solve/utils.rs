@@ -180,6 +180,11 @@ impl Printer {
     }
 
     #[must_use]
+    pub fn stmt(a: &crate::parse::Stmt) -> String {
+        format!("{}         {a}", "STMT".bright_white())
+    }
+
+    #[must_use]
     pub fn query(a: &crate::parse::Expr) -> String {
         format!(
             "{}        {a}: {}",
@@ -187,7 +192,7 @@ impl Printer {
             Printer::var(&a.var()).bold().bright_black()
         )
     }
-    
+
     #[must_use]
     pub fn ty_unification(a: &Ty, b: &Ty) -> String {
         format!(

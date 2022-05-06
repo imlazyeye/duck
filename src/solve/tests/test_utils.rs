@@ -51,7 +51,7 @@ impl Ty {
 }
 
 #[macro_export]
-macro_rules! test_type {
+macro_rules! global_test {
     ($name:ident, $($src:expr => $should_be:expr), * $(,)?) => {
         #[cfg(test)]
         #[test]
@@ -69,6 +69,41 @@ macro_rules! test_type {
         fn $name() {
             let mut subs = hashbrown::HashMap::new();
             let mut session = crate::solve::Session::new(&mut subs);
+            crate::solve::tests::test_utils::harness_session($preamble, &mut session).unwrap();
+            $({
+                crate::solve::tests::test_utils::test_type($should_be, &mut session, Some($preamble), $src);
+            })*
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! instance_test {
+    ($name:ident, $($src:expr => $should_be:expr), * $(,)?) => {
+        #[cfg(test)]
+        #[test]
+        fn $name() {
+            let mut subs = hashbrown::HashMap::new();
+            let mut session = crate::solve::Session::new(&mut subs);
+            let var = crate::solve::Var::Generated(rand::random());
+            let adt = crate::solve::adt_prefabs::object_adt().adt().clone();
+            session.subs.insert(var, crate::solve::Ty::Adt(adt));
+            session.push_identity(var);
+            $({
+                crate::solve::tests::test_utils::test_type($should_be, &mut session, None, $src);
+            })*
+        }
+    };
+    ($name:ident, $preamble:expr, $($src:expr => $should_be:expr), * $(,)?) => {
+        #[cfg(test)]
+        #[test]
+        fn $name() {
+            let mut subs = hashbrown::HashMap::new();
+            let mut session = crate::solve::Session::new(&mut subs);
+            let var = crate::solve::Var::Generated(rand::random());
+            let adt = crate::solve::adt_prefabs::object_adt().adt().clone();
+            session.subs.insert(var, crate::solve::Ty::Adt(adt));
+            session.push_identity(var);
             crate::solve::tests::test_utils::harness_session($preamble, &mut session).unwrap();
             $({
                 crate::solve::tests::test_utils::test_type($should_be, &mut session, Some($preamble), $src);

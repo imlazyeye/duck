@@ -36,7 +36,7 @@ impl<'s> Session<'s> {
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
                 (Func::Def(def), call @ Func::Call(_)) | (call @ Func::Call(_), Func::Def(def)) => {
                     #[cfg(test)]
-                    let def = def.checkout();
+                    let def = def.checkout(self);
                     println!(
                         "\n--- Evaluating call for checkout: {}... ---\n",
                         Printer::ty(&Ty::Func(Func::Def(def.clone())))

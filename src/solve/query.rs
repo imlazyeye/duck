@@ -11,6 +11,7 @@ impl<'s> Session<'s> {
     }
 
     fn visit_stmt(&mut self, stmt: &Stmt) -> Result<(), TypeError> {
+        println!("{}", Printer::stmt(stmt));
         match stmt.kind() {
             StmtKind::Enum(e) => {
                 let mut fields = vec![];

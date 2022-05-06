@@ -137,7 +137,9 @@ pub enum FieldUpdate {
 impl FieldUpdate {
     pub fn commit(mut self, session: &mut Session) -> Result<(), TypeError> {
         match &mut self {
-            FieldUpdate::Some(lhs, rhs) => session.unify_ty_ty(lhs, rhs)?,
+            FieldUpdate::Some(lhs, rhs) => {
+                session.unify_ty_ty(lhs, rhs)?
+            },
             FieldUpdate::None => {}
         }
         std::mem::forget(self);

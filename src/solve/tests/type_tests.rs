@@ -1,23 +1,23 @@
 use super::*;
-use crate::{adt, array, function, option, solve::*, test_failure, test_success, test_type};
+use crate::{adt, array, function, global_test, instance_test, option, solve::*, test_failure, test_success};
 use Ty::*;
 
 // Basic expressions
-test_type!(undefined, "undefined" => Undefined);
-test_type!(noone, "noone" => Noone);
-test_type!(bools, "true" => Bool, "false" => Bool);
-test_type!(real, "1" => Real);
-test_type!(real_float, "0.1" => Real);
-test_type!(hex, "$ffffff" => Real);
-test_type!(string, r#""foo""# => Str);
-test_type!(grouping, "(0)" => Real);
-test_type!(
+global_test!(undefined, "undefined" => Undefined);
+global_test!(noone, "noone" => Noone);
+global_test!(bools, "true" => Bool, "false" => Bool);
+global_test!(real, "1" => Real);
+global_test!(real_float, "0.1" => Real);
+global_test!(hex, "$ffffff" => Real);
+global_test!(string, r#""foo""# => Str);
+global_test!(grouping, "(0)" => Real);
+global_test!(
     postfix,
     "var x = 0",
     "x++" => Real,
     "x--" => Real,
 );
-test_type!(
+global_test!(
     unary,
     "var a = 0, b = false;",
     "++a" => Real,
@@ -27,14 +27,14 @@ test_type!(
     "~a" => Real,
     "!b" => Bool,
 );
-test_type!(ternary, "true ? 0 : 0" => Real);
-test_type!(
+global_test!(ternary, "true ? 0 : 0" => Real);
+global_test!(
     null_coalecence,
     "function(x) {
         return x ?? 0;
     }" => function!((option!(Real)) => Real)
 );
-test_type!(
+global_test!(
     evaluation,
     "1 + 1" => Real,
     "1 * 1" => Real,
@@ -42,7 +42,7 @@ test_type!(
     "1 % 1" => Real,
     "1 div 1" => Real,
 );
-test_type!(logical, "true && false" => Bool);
+global_test!(logical, "true && false" => Bool);
 // this will require unions
 // test_type!(add_strings, "\"foo\" + \"foo\"" => Str);
 test_failure!(subtract_strings, "var a = \"foo\" - \"foo\"");
@@ -68,29 +68,29 @@ test_success!(
 );
 
 // Local variable
-test_type!(local_var, "var a = 0", "a" => Real);
-test_type!(assign_to_null_var, "var a; a = 0;", "a" => Real);
-test_type!(shadowing, "var a = 0; var a = true;", "a" => Bool);
+global_test!(local_var, "var a = 0", "a" => Real);
+global_test!(assign_to_null_var, "var a; a = 0;", "a" => Real);
+global_test!(shadowing, "var a = 0; var a = true;", "a" => Bool);
 test_failure!(undefined_variable, "var a = b;");
 test_failure!(read_variable_before_declaration, "var a = b, b = 0;");
 
 // Globals
-test_type!(globalvar, "globalvar foo; foo = 0", "foo" => Real);
-test_type!(global, "global.foo = 0;", "foo" => Real);
+global_test!(globalvar, "globalvar foo; foo = 0", "foo" => Real);
+global_test!(global, "global.foo = 0;", "foo" => Real);
 test_failure!(duplicate_global_function, "function foo() {} function foo() {}");
 
 // Enums
-test_type!(enum_declaration, "enum foo { bar }", "foo" => adt!(bar: Real));
-test_type!(access_enum, "enum foo { bar };", "foo.bar" => Real);
-test_type!(
+global_test!(enum_declaration, "enum foo { bar }", "foo" => adt!(bar: Real));
+global_test!(access_enum, "enum foo { bar };", "foo.bar" => Real);
+global_test!(
     members_as_real,
     "enum foo { bar, buzz }",
     "foo.bar + foo.buzz" => Real,
     "foo.bar + 1" => Real,
 );
-test_type!(
+global_test!(
     enum_promise,
-    "self.foo = Fizz.Buzz;
+    "var foo = Fizz.Buzz;
     enum Fizz { Buzz }",
     "foo" => Real,
 );
@@ -102,19 +102,19 @@ test_failure!(non_constant_enum_member, "var fizz = 0; enum foo { bar = fizz };"
 // test_failure!(double_enum_declaration, "enum foo {}; enum foo {};");
 
 // Macros
-test_type!(macro_reference, "#macro foo 0\nvar bar = foo;", "bar" => Any);
-test_type!(
+global_test!(macro_reference, "#macro foo 0\nvar bar = foo;", "bar" => Any);
+global_test!(
     macro_promise,
-    "self.foo = Fizz;
+    "var foo = Fizz;
     #macro Fizz 0",
     "foo" => Any,
 );
 
 // Arrays
-test_type!(constant_array, "[0]" => array!(Real));
-test_type!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
-test_type!(array_access, "var x = [0];", "x[0]" => Real);
-test_type!(
+global_test!(constant_array, "[0]" => array!(Real));
+global_test!(nested_array, "[[[0]]]" => array!(array!(array!(Real))));
+global_test!(array_access, "var x = [0];", "x[0]" => Real);
+global_test!(
     infer_array_type_from_copy,
     "var arr = [];
     var con = [0];
@@ -125,35 +125,35 @@ test_failure!(invalid_array_access, "var a = 0, b = a[0];");
 test_failure!(mixed_array, "var a = [0, true];");
 
 // Structs
-test_type!(empty_struct, "{}" => adt!());
-test_type!(populated_struct, "{ x: 0 }" => adt!(x: Real));
-test_type!(struct_access, "var foo = { x: 0 }", "foo.x" => Real);
-test_type!(
+global_test!(empty_struct, "{}" => adt!());
+global_test!(populated_struct, "{ x: 0 }" => adt!(x: Real));
+global_test!(struct_access, "var foo = { x: 0 }", "foo.x" => Real);
+global_test!(
     struct_extention,
     "var foo = { x: 0 };
     foo.y = 0;",
     "foo" => adt!(x: Real, y: Real),
 );
-test_type!(
+global_test!(
     nested_structs,
     "var foo = { x: { y: { z: 0 } } };",
     "foo.x.y.z;" => Real,
 );
-test_type!(
+global_test!(
     struct_field_transfer,
     "var foo = { x: 0 };
     var bar = { y: 0 };
     foo.x = bar.y;",
     "foo" => adt!(x: Real),
 );
-test_type!(
+global_test!(
     function_on_struct,
     "var foo = {
         bar: function() { return 0; },
     };",
     "foo.bar()" => Real,
 );
-test_type!(
+global_test!(
     infinite_cycle,
     "var foo = { a: 0 };
     foo.bar = foo;",
@@ -163,37 +163,37 @@ test_failure!(undefined_field, "var a = {}, b = a.x;");
 test_failure!(invalid_dot_access, "var a = 0, b = a.x;");
 
 // Functions
-test_type!(function, "function() {}" => function!(() => Undefined));
-test_type!(named_function, "function foo() {};", "foo" => function!(() => Undefined));
-test_type!(
+global_test!(function, "function() {}" => function!(() => Undefined));
+global_test!(named_function, "function foo() {};", "foo" => function!(() => Undefined));
+global_test!(
     default_argument,
     "function foo(x=0) { return x; }",
     "foo()" => Real
 );
 test_failure!(invalid_default_argument, "function foo(x=0, y) {}");
-test_type!(return_nothing, "var foo = function() {};", "foo()" => Undefined,);
-test_type!(return_constant, "var foo = function() { return 0; };", "foo()" => Real);
-test_type!(
+global_test!(return_nothing, "function foo() {};", "foo()" => Undefined,);
+global_test!(return_constant, "function foo() { return 0; };", "foo()" => Real);
+global_test!(
     return_inferred_constant,
-    "var foo = function(x) { return x + 1; };",
+    "function foo(x) { return x + 1; };",
     "foo(1);" => Real,
 );
-test_type!(
+global_test!(
     echo,
-    "var echo = function(x) { return x; };",
+    "function echo(x) { return x; };",
     "echo(true);" => Bool,
 );
-test_type!(
+global_test!(
     return_generic_array_access,
-    "var foo = function(x) { return x[0]; };",
+    "function foo(x) { return x[0]; };",
     "foo([0])" => Real,
 );
-test_type!(
+global_test!(
     return_generic_struct_access,
-    "var foo = function(x) { return x.y; };",
+    "function foo(x) { return x.y; };",
     "foo({ y: 0 })" => Real,
 );
-test_type!(
+global_test!(
     return_other_function_return,
     "function wrapper(lambda) {
         return lambda(0);
@@ -201,28 +201,28 @@ test_type!(
     function inner(n) { return n; }",
     "wrapper(inner)" => Real,
 );
-test_type!(
+global_test!(
     return_advanced_generic,
-    "var foo = function(a, b) {
+    "function foo(a, b) {
         return a[b];
     }
-    var bar = function(x, y) {
+    function var(x, y) {
         return x + y * 2;
     }",
     "foo([\"hello\"], 0)" => Str,
     "foo([ { a: true } ], bar(1, 2));" => adt!(a: Bool)
 );
-test_type!(
+global_test!(
     return_array_with_arg,
     "function foo(x) { return [x]; }",
     "foo(0)" => array!(Real)
 );
-test_type!(
+global_test!(
     return_struct_with_arg,
     "function foo(x) { return { x: x }; }",
     "foo(0)" => adt!(x: Real)
 );
-test_type!(
+global_test!(
     multi_use_echo,
     "function echo(a) {
         return a;
@@ -230,16 +230,16 @@ test_type!(
     "echo(true)" => Bool,
     "echo(0)" => Real,
 );
-test_type!(
+global_test!(
     return_onto_known_type,
-    "var foo = function() {
+    "function foo() {
         return 0;
     }
     var bar = 0;
     bar = foo();",
     "bar" => Real
 );
-test_type!(
+global_test!(
     return_nested_return,
     "function foo() {
         return function bar() {
@@ -248,7 +248,7 @@ test_type!(
     }",
     "foo" => function!(() => function!(() => Real))
 );
-test_type!(
+instance_test!(
     return_self,
     "function foo() constructor {
         function bar() { 
@@ -260,7 +260,7 @@ test_type!(
         bar: function!(() => Identity),
     )
 );
-test_type!(
+global_test!(
     return_option,
     "function() {
         if true {
@@ -270,12 +270,12 @@ test_type!(
         }
     }" => function!(() => option!(Real))
 );
-test_type!(
+instance_test!(
     self_as_argument,
-    "var echo = function(x) { return x; }",
+    "function echo(x) { return x; }",
     "echo(self)" => Identity,
 );
-test_type!(
+instance_test!(
     self_in_call_pattern,
     "function foo(a) {
         return a.x;
@@ -283,26 +283,26 @@ test_type!(
     self.x = 0;",
     "self.foo(self)" => Real,
 );
-test_type!(
+global_test!(
     infer_function,
     "function(x) { return x() + 1; }" => function!(
         (function!(() => Real)) => Real
     )
 );
-test_type!(
+global_test!(
     infer_array,
     "function(x) { return x[0] + 1; }" => function!(
         (array!(Real)) => Real
     )
 );
-test_type!(
+global_test!(
     infer_struct,
     "function(x) { return x.y + 1; }" => function!(
         (adt!(y: Real)) => Real
     )
 );
 test_success!(infer_multi_field_struct, "function foo(o) { return o.x + o.y; }");
-test_type!(
+global_test!(
     mutate_struct_via_function,
     "var foo = function(a) {
         a.a = 0;
@@ -311,7 +311,7 @@ test_type!(
     foo(bar);",
     "bar" => adt!(a: Real)
 );
-test_type!(
+global_test!(
     retain_all_fields_in_generic_call,
     "var foo = function(a) {
         a.a = 0;
@@ -321,7 +321,7 @@ test_type!(
     foo(bar);",
     "bar" => adt!(a: Real, b: Real)
 );
-test_type!(
+global_test!(
     retain_all_fields_in_generic_call_after_return,
     "var foo = function(a) {
         a.a = 0;
@@ -339,29 +339,29 @@ test_failure!(extra_argument, "var a = function() {}, b = a(0);");
 test_failure!(contrasting_returns, "function() { return 0; return true; }");
 
 // Self
-test_type!(self_assignment_no_keyword, "foo = 0;", "foo" => Real);
-test_type!(self_assignment_with_keyword, "self.foo = 0;", "self.foo" => Real);
-test_type!(
+instance_test!(self_assignment_no_keyword, "foo = 0;", "foo" => Real);
+instance_test!(self_assignment_with_keyword, "self.foo = 0;", "self.foo" => Real);
+instance_test!(
     function_write_constant_to_self,
     "self.a = 0;
     function bar() { self.a = 0; }",
     "bar" => function!(() => Undefined),
 );
-test_type!(
+instance_test!(
     function_write_parameter_to_self,
     "self.a = 0;
     function bar(x) { self.a = x + 1; }",
     "bar" => function!((Real) => Undefined),
 );
-test_type!(function_self_extention, "function foo() { self.a = 0; }", "a" => Real,);
-test_type!(
+instance_test!(function_self_extention, "function foo() { self.a = 0; }", "a" => Real,);
+instance_test!(
     function_self_extention_nested,
     "function foo() {
         function bar() { self.a = 0; }
     }",
     "a" => Real,
 );
-test_type!(
+instance_test!(
     bound_scope_in_struct,
     "var foo = {
         bar: 0,
@@ -371,7 +371,7 @@ test_type!(
     };",
     "foo.fizz()" => Real,
 );
-test_type!(
+instance_test!(
     obj_setter,
     "self.x = 0;
     self.y = 0;
@@ -386,7 +386,7 @@ test_success!(
     "var a = [true, false, true];
     array_insert(a, true, 0);"
 );
-test_type!(
+instance_test!(
     option_field,
     "self.a = undefined;
     self.b = 0;
@@ -399,28 +399,28 @@ test_type!(
 );
 
 // Constructors
-test_type!(
+global_test!(
     constructor,
-    "var foo = function() constructor {}",
+    "function foo() constructor {}",
     "new foo()" => adt!()
 );
-test_type!(
+global_test!(
     constructor_with_field,
-    "var foo = function() constructor {
+    "function foo() constructor {
         self.x = 0;
     }",
     "new foo()" => adt!(x: Real)
 );
-test_type!(
+global_test!(
     constructor_with_parameter,
     "function foo(y) constructor {
         self.x = y;
     }",
     "foo(0)" => adt!(x: Real)
 );
-test_type!(
+global_test!(
     constructor_getter,
-    "var foo = function() constructor {
+    "function foo() constructor {
         self.a = 0;
         function get_a() {
             return self.a;
@@ -428,17 +428,17 @@ test_type!(
     }",
     "(new foo()).get_a()" => Real,
 );
-test_type!(
+global_test!(
     manual_inheritance,
     "function foo() {
         self.a = 0;
     }
-    var bar = function() constructor {
+    function bar() constructor {
         self.foo();
     }",
     "new bar()" => adt!(a: Real)
 );
-test_type!(
+global_test!(
     nested_manual_inheritance,
     "function foo() {
         var bar = function() {
@@ -451,60 +451,60 @@ test_type!(
     }",
     "new fizz()" => adt!(a: Real)
 );
-test_type!(
+global_test!(
     inheritance,
-    "var foo = function() constructor {
+    "function foo() constructor {
         self.a = 0;
     }
-    var bar = function() : foo() constructor {}",
+    function bar() : foo() constructor {}",
     "new bar()" => adt!(a: Real)
 );
-test_type!(
+global_test!(
     inheritance_out_of_order,
-    "var bar = function() : foo() constructor {},
-    var foo = function() constructor {
+    "function bar() : foo() constructor {},
+    function foo() constructor {
         self.a = 0;
     }",
     "new bar()" => adt!(a: Real)
 );
-test_type!(
+global_test!(
     inheritance_passing_arguments,
-    "var foo = function(x) constructor {
+    "function foo(x) constructor {
         self.a = x;
     }
-    var bar = function(x) : foo(x) constructor {}",
+    function bar(x) : foo(x) constructor {}",
     "new bar(0)" => adt!(a: Real)
 );
-test_type!(
+global_test!(
     multi_inheritance,
-    "var foo = function() constructor {
+    "function foo() constructor {
         self.a = 0;
     }
-    var bar = function() : foo() constructor {
+    function bar() : foo() constructor {
         self.b = 0;
     }
-    var fizz = function() : bar() constructor {}",
+    function fizz() : bar() constructor {}",
     "new fizz()" => adt!(a: Real, b: Real)
 );
-test_type!(
+global_test!(
     alias_function,
     "function foo() constructor {
         self.x = 0;
     }
-    var bar = function() {
+    function bar() {
         var new_struct = new foo();
         return new_struct;
     }",
     "bar()" => adt!(foo: function!(() => Identity), x: Real,)
 );
-test_type!(
+global_test!(
     clone,
     "function foo() constructor {
         function clone() { return new foo(); }
     }",
     "(new foo()).clone()" => adt!(foo: function!(() => Identity), clone: function!(() => Identity),)
 );
-test_type!(
+global_test!(
     identity_sanitization,
     "function alias() {
         return new con();
@@ -525,25 +525,25 @@ test_failure!(
 );
 
 // Out of order
-test_type!(
+instance_test!(
     function_read_self_out_of_order,
     "function bar() { return self.a; }
     self.a = 0;",
     "bar" => function!(() => Real),
 );
-test_type!(
+instance_test!(
     function_write_self_out_of_order,
     "function bar(x) { self.a = x; }
     self.a = 0;",
     "bar" => function!((Real) => Undefined),
 );
-test_type!(
+global_test!(
     function_calls_out_of_order,
-    "function foo() { self.bar();}
+    "function foo() { bar();}
     function bar() {}",
     "bar" => function!(() => Undefined),
 );
-test_type!(
+global_test!(
     echo_out_of_order,
     "function wrapper() {
         return echo(0);
@@ -553,7 +553,7 @@ test_type!(
     }",
     "wrapper()" => Real,
 );
-test_type!(
+instance_test!(
     self_as_argument_out_of_order,
     "self.x = 0;
     function bar() { fizz(self) }
@@ -562,7 +562,7 @@ test_type!(
 );
 
 // Stress tests
-test_type!(
+global_test!(
     complicted_data_construction,
     "var build_data = function(x, y, z) {
         return {
@@ -579,7 +579,7 @@ test_type!(
     "data" => adt!(x: Real, y: Real, z: Real),
     "data.x + data.y + data.z" => Real,
 );
-test_type!(
+global_test!(
     vec_2,
     "function Vec2(_x, _y) {
         return new __Vec2(_x, _y);
@@ -638,7 +638,7 @@ test_type!(
         dot: function!((adt!(x: Real, y: Real)) => Real),
     )
 );
-test_type!(
+global_test!(
     list,
     "#macro MINIMUM_DEFAULT_SIZE 4
 

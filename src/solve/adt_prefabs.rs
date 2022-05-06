@@ -1,7 +1,7 @@
 use crate::{adt, array, function, solve::*, var};
 use Ty::*;
 
-pub fn enter_new_object_scope() -> Ty {
+pub fn object_adt() -> Ty {
     use Ty::*;
     adt!(
         id: Real,

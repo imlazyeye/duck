@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 use crate::{parse::*, FileId};
 
 use super::{Assignment, Return, Throw};
@@ -238,6 +240,72 @@ impl ParseVisitor for Stmt {
     }
     fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, visitor: S) {
         self.kind_mut().visit_child_stmts_mut(visitor)
+    }
+}
+
+impl std::fmt::Display for Stmt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.kind() {
+            StmtKind::Enum(en) => f.pad(&format!("enum {} {{{}}}", en.name, en.members.iter().join(", "))),
+            StmtKind::Macro(mac) => f.pad(&format!(
+                "#macro {}{} {}",
+                if let Some(config) = &mac.config {
+                    format!(":{config}")
+                } else {
+                    "".into()
+                },
+                mac.name,
+                mac.body
+            )),
+            StmtKind::GlobalvarDeclaration(globalvar) => f.pad(&format!("globalvar {};", globalvar.name)),
+            StmtKind::LocalVariableSeries(series) => f.pad(&format!(
+                "var {};",
+                series
+                    .declarations
+                    .iter()
+                    .map(|v| if let Some(value) = v.assignment_value() {
+                        format!("{} = {}", v.name(), value)
+                    } else {
+                        v.name().into()
+                    })
+                    .join(", ")
+            )),
+            StmtKind::TryCatch(try_catch) => f.pad(&format!(
+                "try {{ ... }} catch {}{}",
+                try_catch.catch_expr,
+                try_catch
+                    .finally_body
+                    .as_ref()
+                    .map(|v| " finally {{ ... }}".to_string())
+                    .unwrap_or_default()
+            )),
+            StmtKind::ForLoop(fo) => f.pad(&format!(
+                "for ({} {} {}) {{ ... }}",
+                fo.initializer, fo.condition, fo.iterator
+            )),
+            StmtKind::WithLoop(with) => f.pad(&format!("with {} {{ ... }}", with.identity)),
+            StmtKind::RepeatLoop(repeat) => f.pad(&format!("repeat {} {{ ... }}", repeat.tick_counts)),
+            StmtKind::DoUntil(do_until) => f.pad(&format!("do {{{}}} until {};", do_until.body, do_until.condition)),
+            StmtKind::WhileLoop(whi) => f.pad(&format!("while {} {{ ... }}", whi.condition)),
+            StmtKind::If(i) => f.pad(&format!(
+                "if {} {{ ... }}{}",
+                i.condition,
+                i.else_stmt.as_ref().map(|e| format!(" else {e}")).unwrap_or_default()
+            )),
+            StmtKind::Switch(switch) => f.pad(&format!("switch {} {{ ... }}", switch.matching_value)),
+            StmtKind::Block(_) => f.pad("{ ... }"),
+            StmtKind::Return(ret) => f.pad(&format!(
+                "return{};",
+                ret.value.as_ref().map(|v| format!(" {}", v)).unwrap_or_default()
+            )),
+            StmtKind::Throw(throw) => f.pad(&format!("throw {};", throw.value)),
+            StmtKind::Delete(delete) => f.pad(&format!("delete {};", delete.value)),
+            StmtKind::Break => f.pad("break;"),
+            StmtKind::Continue => f.pad("continue;"),
+            StmtKind::Exit => f.pad("exit;"),
+            StmtKind::Assignment(assign) => f.pad(&format!("{} {} {}", assign.left, assign.op.token(), assign.right)),
+            StmtKind::Expr(expr) => f.pad(&expr.to_string()),
+        }
     }
 }
 
