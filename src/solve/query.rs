@@ -25,13 +25,15 @@ impl<'s> Session<'s> {
                     fields.push((init.name_identifier().clone(), Ty::Real))
                 }
                 let adt = Adt::new(AdtState::Concrete, fields);
-                self.adt_mut(&Var::GlobalAdt)
-                    .write_constant(&e.name.lexeme, &Ty::Adt(adt), self)?
-                    .commit(self)?;
+                let write = self
+                    .adt_mut(&Var::GlobalAdt)
+                    .write_constant(&e.name.lexeme, &Ty::Adt(adt))?;
+                let sub = write.commit(self)?;
+                sub.commit(self)?;
             }
             StmtKind::Macro(mac) => {
                 self.adt_mut(&Var::GlobalAdt)
-                    .write_constant(&mac.name.lexeme, &Ty::Any, self)?
+                    .write_constant(&mac.name.lexeme, &Ty::Any)?
                     .commit(self)?;
             }
             StmtKind::Assignment(Assignment { left, right, op }) => match op {
@@ -51,14 +53,14 @@ impl<'s> Session<'s> {
 
                     if let Some(value) = initializer.assignment_value() {
                         let ty = value.query(self)?;
-                        self.local_mut().write(initializer.name(), &ty, self)?.commit(self)?;
+                        self.local_mut().write(initializer.name(), &ty)?.commit(self)?;
                     } else {
-                        self.local_mut().write_unitialized(initializer.name(), self)?;
+                        self.local_mut().write_unitialized(initializer.name())?;
                     };
                 }
             }
             StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
-                self.adt_mut(&Var::GlobalAdt).write_unitialized(&name.lexeme, self)?
+                self.adt_mut(&Var::GlobalAdt).write_unitialized(&name.lexeme)?
             }
             StmtKind::Return(Return { value }) => {
                 if let Some(value) = value {
@@ -176,7 +178,7 @@ impl QueryItem for Expr {
                     sess.process_function(func)?
                 };
                 if let Some(name) = &func.name {
-                    sess.identity_mut().write(&name.lexeme, &ty, sess)?.commit(sess)?;
+                    sess.identity_mut().write(&name.lexeme, &ty)?.commit(sess)?;
                 };
                 Ok(ty)
             }
@@ -236,9 +238,9 @@ impl QueryItem for Expr {
                     let ty = sess.get_normalized_mut(left.var());
                     if let Some(Ty::Adt(adt)) = ty {
                         if adt.state == AdtState::Inferred {
-                            adt.write(&right.lexeme, &Ty::Var(self.var()), sess)?.commit(sess)?;
+                            adt.write(&right.lexeme, &Ty::Var(self.var()))?.commit(sess)?;
                         } else {
-                            adt.read(&right.lexeme, &Ty::Var(self.var()), sess)?.commit(sess)?;
+                            adt.read(&right.lexeme, &Ty::Var(self.var()))?.commit(sess)?;
                         };
                     } else {
                         let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(self.var()))]);
@@ -305,9 +307,7 @@ impl QueryItem for Expr {
                         sess.enter_new_identity(vec![]);
                         for declaration in declarations {
                             let ty = declaration.1.query(sess)?;
-                            sess.identity_mut()
-                                .write(&declaration.0.lexeme, &ty, sess)?
-                                .commit(sess)?;
+                            sess.identity_mut().write(&declaration.0.lexeme, &ty)?.commit(sess)?;
                         }
                         let ty = sess.identity().clone(); // todo
                         sess.pop_identity();
@@ -408,7 +408,7 @@ impl<'s> Session<'s> {
 
         if let Some(name) = &function.name {
             self.identity_mut()
-                .write(&name.lexeme, &Ty::Func(func.clone()), self)?
+                .write(&name.lexeme, &Ty::Func(func.clone()))?
                 .commit(self)?;
         }
         self.identity_mut().state = AdtState::Concrete;
@@ -452,10 +452,7 @@ fn handle_adt(expr: &Expr, session: &mut Session, id: &Var, iden: &Identifier) -
     let ty = if let Some(field) = session.adt(id).ty(&iden.lexeme) {
         field.clone()
     } else {
-        session
-            .adt_mut(id)
-            .read(&iden.lexeme, &Ty::Var(var), session)?
-            .commit(session)?;
+        session.adt_mut(id).read(&iden.lexeme, &Ty::Var(var))?.commit(session)?;
         Ty::Var(var)
     };
     Ok(ty)
