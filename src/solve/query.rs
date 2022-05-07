@@ -64,7 +64,7 @@ impl<'s> Session<'s> {
                 if let Some(value) = value {
                     value.unify(&Ty::Var(Var::Return), self)?;
                 } else {
-                    self.unify_var_ty(&Var::Return, &Ty::Undefined)?;
+                    self.sub(Var::Return, Ty::Undefined);
                 }
             }
             StmtKind::WithLoop(WithLoop { body, identity }) => {
@@ -157,7 +157,7 @@ pub trait QueryItem {
     fn var(&self) -> Var;
     fn unify(&self, ty: &Ty, session: &mut Session) -> Result<(), TypeError> {
         let me = self.query(session)?;
-        session.unify_ty_ty(&me, ty)
+        session.unify(&me, ty).and_then(|v| v.commit(session))
     }
 }
 impl QueryItem for Expr {
