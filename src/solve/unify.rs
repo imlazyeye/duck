@@ -16,7 +16,9 @@ impl<'s> Session<'s> {
             (other, Ty::Var(var)) | (Ty::Var(var), other) => Ok(Substitution::Single(*var, other.clone())),
             (Ty::Any, _) | (_, Ty::Any) => Ok(Substitution::None),
             (und @ Ty::Undefined, other) | (other, und @ Ty::Undefined) => {
-                todo!()
+                *other = Ty::Option(Box::new(other.clone()));
+                *und = other.clone();
+                Ok(Substitution::None)
             }
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => Self::unify(lhs_member, rhs_member),
             (adt @ Ty::Adt(_), Ty::Identity) | (Ty::Identity, adt @ Ty::Adt(_)) => {

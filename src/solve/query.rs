@@ -275,11 +275,7 @@ impl QueryItem for Expr {
                             index_two.unify(&mut Ty::Real, sess)?;
                         }
                         left.unify(&mut Ty::Array(Box::new(Ty::Var(self.var()))), sess)?;
-                        Ok(sess
-                            .subs
-                            .get(&self.var())
-                            .cloned()
-                            .unwrap_or_else(|| Ty::Var(self.var())))
+                        Ok(Ty::Var(self.var()))
                     }
                     _ => unimplemented!(),
                 },
@@ -313,7 +309,7 @@ impl QueryItem for Expr {
                                 for expr in exprs.iter().skip(1) {
                                     expr.unify(&mut ty, sess)?;
                                 }
-                                ty.clone()
+                                ty.clone() // TODO if you had [{this: 0}] would it break? should query return var?
                             } else {
                                 var!()
                             };
