@@ -140,7 +140,7 @@ impl Def {
                         .collect(),
 
                     state: adt.state,
-                    bounties: adt.bounties.clone(),
+                    bounties: adt.bounties,
                 }),
                 Ty::Func(func) => match func {
                     Func::Def(Def {
@@ -149,7 +149,7 @@ impl Def {
                         minimum_arguments,
                         return_type,
                     }) => Ty::Func(Func::Def(Def {
-                        binding: binding.clone(),
+                        binding,
                         parameters: parameters.iter().map(|v| checkout_ty(v, sess, map)).collect(),
                         minimum_arguments,
                         return_type: Box::new(checkout_ty(&return_type, sess, map)),

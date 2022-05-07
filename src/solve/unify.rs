@@ -2,12 +2,12 @@ use super::*;
 use crate::duck_error;
 
 impl<'s> Session<'s> {
-    pub fn unify(&self, lhs: &Ty, rhs: &Ty) -> Result<Substitution, TypeError> {
-        if let Some(lhs) = lhs.as_shallow_normalized(self) {
-            return self.unify(&lhs, rhs);
-        } else if let Some(rhs) = rhs.as_shallow_normalized(self) {
-            return self.unify(lhs, &rhs);
-        };
+    pub fn unify(lhs: &mut Ty, rhs: &mut Ty) -> Result<Substitution, TypeError> {
+        // if let Some(lhs) = lhs.as_shallow_normalized(self) {
+        //     return self.unify(&lhs, rhs);
+        // } else if let Some(rhs) = rhs.as_shallow_normalized(self) {
+        //     return self.unify(lhs, &rhs);
+        // };
 
         println!("{}", Printer::ty_unification(lhs, rhs));
 
@@ -18,18 +18,15 @@ impl<'s> Session<'s> {
             (und @ Ty::Undefined, other) | (other, und @ Ty::Undefined) => {
                 todo!()
             }
-            (Ty::Array(lhs_member), Ty::Array(rhs_member)) => self.unify(lhs_member, rhs_member),
+            (Ty::Array(lhs_member), Ty::Array(rhs_member)) => Self::unify(lhs_member, rhs_member),
             (adt @ Ty::Adt(_), Ty::Identity) | (Ty::Identity, adt @ Ty::Adt(_)) => {
                 unimplemented!();
             }
             (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
                 let mut sub = Substitution::None;
-                for (name, rhs_field) in rhs_adt.fields.iter() {
-                    if let FieldValue::Initialized(rhs_ty) = &rhs_field.value {
-                        let new_sub = match lhs_adt.ty(name) {
-                            Some(lhs_ty) => self.unify(lhs_ty, rhs_ty)?,
-                            None => return duck_error!("cannot find a value for `{name}`"),
-                        };
+                for (name, rhs_field) in rhs_adt.fields.iter_mut() {
+                    if let FieldValue::Initialized(rhs_ty) = &mut rhs_field.value {
+                        let new_sub = lhs_adt.read(name, rhs_ty)?.commit()?;
                         sub = sub.combo(new_sub);
                     }
                 }
@@ -38,7 +35,7 @@ impl<'s> Session<'s> {
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
                 (Func::Def(def), call @ Func::Call(_)) | (call @ Func::Call(_), Func::Def(def)) => {
                     let mut sub = Substitution::None;
-                    let def = def.checkout(self);
+                    // let def = def.checkout(self);
                     println!(
                         "\n--- Evaluating call for checkout: {}... ---\n",
                         Printer::ty(&Ty::Func(Func::Def(def.clone())))
@@ -46,14 +43,14 @@ impl<'s> Session<'s> {
                     if call.parameters().len() > def.parameters.len() {
                         return duck_error!("extra arguments provided to call");
                     }
-                    for (i, param) in def.parameters.iter().enumerate() {
-                        if let Some(arg) = call.parameters().get(i) {
-                            sub = sub.combo(self.unify(param, arg)?);
+                    for (i, param) in def.parameters.iter_mut().enumerate() {
+                        if let Some(arg) = call.parameters_mut().get_mut(i) {
+                            sub = sub.combo(Self::unify(param, arg)?);
                         } else if i < def.minimum_arguments {
                             return duck_error!("missing argument {i} in call");
                         };
                     }
-                    sub = sub.combo(self.unify(call.return_type(), &def.return_type)?);
+                    sub = sub.combo(Self::unify(call.return_type_mut(), &mut def.return_type)?);
                     println!("\n--- Ending call... ---\n");
                     Ok(sub)
                 }
@@ -127,12 +124,12 @@ impl Ty {
 }
 
 impl<'sess> Session<'sess> {
-    pub fn sub(&mut self, var: Var, ty: Ty) -> Result<(), TypeError> {
+    pub fn sub(&mut self, var: Var, mut ty: Ty) -> Result<(), TypeError> {
         #[cfg(test)]
         println!("{}", Printer::substitution(&var, &ty));
-        let previous_sub = self.subs.remove(&var);
-        if let Some(previous_sub) = previous_sub {
-            self.unify(&previous_sub, &ty)?.commit(self);
+        let mut previous_sub = self.subs.remove(&var);
+        if let Some(previous_sub) = &mut previous_sub {
+            Session::unify(previous_sub, &mut ty)?.commit(self)?;
         }
         self.subs.insert(var, ty);
         Ok(())

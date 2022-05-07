@@ -135,9 +135,9 @@ pub enum FieldUpdate<'adt> {
     None,
 }
 impl<'adt> FieldUpdate<'adt> {
-    pub fn commit(mut self, session: &Session) -> Result<Substitution, TypeError> {
+    pub fn commit(mut self) -> Result<Substitution, TypeError> {
         let result = match &mut self {
-            FieldUpdate::Some(lhs, rhs) => session.unify(lhs, rhs),
+            FieldUpdate::Some(lhs, rhs) => Session::unify(lhs, rhs),
             FieldUpdate::None => Ok(Substitution::None),
         };
         std::mem::forget(self);

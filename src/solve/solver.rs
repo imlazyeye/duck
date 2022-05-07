@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
-    duck_error, duck_error_unwrapped,
-    parse::{Access, Expr, ExprId, ExprKind, Identifier},
+    duck_error_unwrapped,
+    parse::{ExprId, Identifier},
     FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
