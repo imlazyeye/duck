@@ -47,17 +47,11 @@ impl Adt {
         self.state = state;
     }
 
-    pub fn write_constant(&mut self, name: &str, ty: &Ty) -> Result<FieldUpdate, TypeError> {
-        println!(
-            "{}        {name}: {}",
-            "WRITE".bright_cyan(),
-            Printer::ty(ty).blue().bold()
-        );
-        self.update(name, ty, true, true)
+    pub fn write_constant(&mut self, name: &str, ty: &Ty, sess: &Session) -> Result<Substitution, TypeError> {
+        self.update(name, ty, true, true, sess)
     }
 
-    pub fn write_unitialized(&mut self, name: &str) -> Result<(), TypeError> {
-        println!("{}        {name}: <null>", "WRITE".bright_cyan());
+    pub fn write_unitialized(&mut self, name: &str, sess: &Session) -> Result<(), TypeError> {
         if !self.fields.contains_key(name) && self.state == AdtState::Concrete {
             duck_error!("cannot find a value for `{name}`")
         } else {
@@ -73,12 +67,12 @@ impl Adt {
         }
     }
 
-    pub fn write(&mut self, name: &str, ty: &Ty) -> Result<FieldUpdate, TypeError> {
-        self.update(name, ty, true, false)
+    pub fn write(&mut self, name: &str, ty: &Ty, sess: &Session) -> Result<Substitution, TypeError> {
+        self.update(name, ty, true, false, sess)
     }
 
-    pub fn read(&mut self, name: &str, ty: &Ty) -> Result<FieldUpdate, TypeError> {
-        self.update(name, ty, false, false)
+    pub fn read(&mut self, name: &str, ty: &Ty, sess: &Session) -> Result<Substitution, TypeError> {
+        self.update(name, ty, false, false, sess)
     }
 
     fn update<'adt>(
@@ -87,7 +81,8 @@ impl Adt {
         ty: &Ty,
         resolved: bool,
         constant: bool,
-    ) -> Result<FieldUpdate, TypeError> {
+        sess: &Session,
+    ) -> Result<Substitution, TypeError> {
         println!(
             "{}       {name}: {}",
             "UPDATE".bright_cyan(),
@@ -100,12 +95,12 @@ impl Adt {
                 self.fields.insert(
                     name.into(),
                     Field {
-                        value: FieldValue::Initialized(ty.clone()), // todo: make it a real ref
+                        value: FieldValue::Initialized(ty.clone()),
                         constant,
                         resolved,
                     },
                 );
-                Ok(FieldUpdate::None)
+                Ok(Substitution::None)
             }
         } else {
             let field = self.fields.get_mut(name).unwrap();
@@ -118,36 +113,12 @@ impl Adt {
             if !field.resolved && resolved {
                 field.resolved = true;
             }
-            if let FieldValue::Initialized(field_ty) = &field.value {
-                Ok(FieldUpdate::Some(field_ty.clone(), ty.clone())) // todo: this too
-            } else {
+            if field.value == FieldValue::Uninitialized {
                 field.value = FieldValue::Initialized(ty.clone());
-                Ok(FieldUpdate::None)
+                Ok(Substitution::None)
+            } else {
+                sess.unify(field.value.ty().unwrap(), &ty)
             }
-        }
-    }
-}
-
-#[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
-pub enum FieldUpdate {
-    Some(Ty, Ty),
-    None,
-}
-impl FieldUpdate {
-    pub fn commit(mut self, session: &mut Session) -> Result<(), TypeError> {
-        match &mut self {
-            FieldUpdate::Some(lhs, rhs) => session.unify(lhs, rhs)?.commit(session)?,
-            FieldUpdate::None => {}
-        }
-        std::mem::forget(self);
-        Ok(())
-    }
-}
-impl Drop for FieldUpdate {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            panic!("Failed to commit a unification request!");
         }
     }
 }
