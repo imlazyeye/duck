@@ -110,11 +110,17 @@ impl<'s> Session<'s> {
 }
 
 impl Ty {
-    pub fn normalized(self, sess: &Session) -> Self {
+    // pub fn normalized(self, sess: &Session) -> Self {
+    //     if let Some(ty) = self.as_deep_normalized(sess) {
+    //         ty
+    //     } else {
+    //         self
+    //     }
+    // }
+
+    pub fn normalize(&mut self, sess: &Session) {
         if let Some(ty) = self.as_deep_normalized(sess) {
-            ty
-        } else {
-            self
+            *self = ty
         }
     }
 

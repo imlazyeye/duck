@@ -27,36 +27,28 @@ impl<'s> Session<'s> {
         session
     }
 
-    pub fn expr_to_adt_access<'e>(&mut self, expr: &'e Expr) -> Result<(&mut Adt, &'e Identifier), TypeError> {
-        match expr.kind() {
-            ExprKind::Identifier(iden) => {
-                let var = if self.local().contains(&iden.lexeme) {
-                    *self.local_var()
-                } else if self.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
-                    Var::GlobalAdt
-                } else {
-                    *self.identity_var()
-                };
-                Ok((self.adt_mut(&var), iden))
-            }
-            ExprKind::Access(Access::Identity { right }) => Ok((self.identity_mut(), right)),
-            ExprKind::Access(Access::Global { right }) => Ok((self.adt_mut(&Var::GlobalAdt), right)),
-            ExprKind::Access(Access::Dot { left, right }) => {
-                let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(expr.var()))]);
-                left.unify(&Ty::Adt(adt), self)?;
-                Ok((self.adt_mut(&left.var()), right))
-            }
-            _ => duck_error!("expr does not contain adt"),
-        }
-    }
-
     pub fn resolve_name(&self, name: &str) -> Result<Ty, TypeError> {
         self.local()
             .ty(name)
             .or_else(|| self.adt(&Var::GlobalAdt).ty(name))
             .or_else(|| self.identity().ty(name))
-            .map(|v| v.clone().normalized(self))
+            .map(|v| {
+                let mut ty = v.clone();
+                ty.normalize(self);
+                ty
+            })
             .ok_or_else(|| duck_error_unwrapped!("could not find a value for `{name}`"))
+    }
+
+    pub fn get_normalized_mut(&mut self, mut var: Var) -> Option<&mut Ty> {
+        while let Some(ty) = self.subs.get(&var) {
+            if let Ty::Var(v) = ty {
+                var = *v
+            } else {
+                return self.subs.get_mut(&var);
+            }
+        }
+        None
     }
 }
 

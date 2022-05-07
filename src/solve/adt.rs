@@ -74,11 +74,6 @@ impl Adt {
     }
 
     pub fn write(&mut self, name: &str, ty: &Ty) -> Result<FieldUpdate, TypeError> {
-        println!(
-            "{}        {name}: {}",
-            "WRITE".bright_cyan(),
-            Printer::ty(ty).blue().bold()
-        );
         self.update(name, ty, true, false)
     }
 
@@ -93,6 +88,11 @@ impl Adt {
         resolved: bool,
         constant: bool,
     ) -> Result<FieldUpdate, TypeError> {
+        println!(
+            "{}       {name}: {}",
+            "UPDATE".bright_cyan(),
+            Printer::ty(ty).blue().bold()
+        );
         if !self.fields.contains_key(name) {
             if self.state == AdtState::Concrete {
                 duck_error!("cannot find a value for `{name}`")
@@ -137,9 +137,7 @@ pub enum FieldUpdate {
 impl FieldUpdate {
     pub fn commit(mut self, session: &mut Session) -> Result<(), TypeError> {
         match &mut self {
-            FieldUpdate::Some(lhs, rhs) => {
-                session.unify_ty_ty(lhs, rhs)?
-            },
+            FieldUpdate::Some(lhs, rhs) => session.unify_ty_ty(lhs, rhs)?,
             FieldUpdate::None => {}
         }
         std::mem::forget(self);

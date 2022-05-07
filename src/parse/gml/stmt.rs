@@ -276,7 +276,7 @@ impl std::fmt::Display for Stmt {
                 try_catch
                     .finally_body
                     .as_ref()
-                    .map(|v| " finally {{ ... }}".to_string())
+                    .map(|_| " finally {{ ... }}".to_string())
                     .unwrap_or_default()
             )),
             StmtKind::ForLoop(fo) => f.pad(&format!(

@@ -1,8 +1,5 @@
-use hashbrown::HashMap;
-
-use crate::parse::Identifier;
-
 use super::*;
+use hashbrown::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Ty {
@@ -111,18 +108,19 @@ pub struct Def {
 impl Def {
     pub fn checkout(&self, sess: &Session) -> Def {
         fn checkout_ty(ty: &Ty, sess: &Session, map: &mut HashMap<Var, Var>) -> Ty {
-            let ty = &ty.clone().normalized(sess);
+            let mut ty = ty.clone();
+            ty.normalize(sess);
             match ty {
                 Ty::Var(var) => {
-                    if let Some(mapping) = map.get(var) {
+                    if let Some(mapping) = map.get(&var) {
                         Ty::Var(*mapping)
                     } else {
                         let new = Var::Generated(rand::random());
-                        map.insert(*var, new);
+                        map.insert(var, new);
                         Ty::Var(new)
                     }
                 }
-                Ty::Array(inner) => Ty::Array(Box::new(checkout_ty(inner, sess, map))),
+                Ty::Array(inner) => Ty::Array(Box::new(checkout_ty(&inner, sess, map))),
                 Ty::Adt(adt) => Ty::Adt(Adt {
                     fields: adt
                         .fields
@@ -132,7 +130,7 @@ impl Def {
                                 n.clone(),
                                 Field {
                                     value: v.value.ty().map_or(FieldValue::Uninitialized, |v| {
-                                        FieldValue::Initialized(checkout_ty(&v, sess, map))
+                                        FieldValue::Initialized(checkout_ty(v, sess, map))
                                     }),
                                     constant: v.constant,
                                     resolved: v.resolved,
@@ -153,18 +151,18 @@ impl Def {
                     }) => Ty::Func(Func::Def(Def {
                         binding: binding.clone(),
                         parameters: parameters.iter().map(|v| checkout_ty(v, sess, map)).collect(),
-                        minimum_arguments: *minimum_arguments,
-                        return_type: Box::new(checkout_ty(return_type, sess, map)),
+                        minimum_arguments,
+                        return_type: Box::new(checkout_ty(&return_type, sess, map)),
                     })),
                     Func::Call(Call {
                         parameters,
                         return_type,
                     }) => Ty::Func(Func::Call(Call {
                         parameters: parameters.iter().map(|v| checkout_ty(v, sess, map)).collect(),
-                        return_type: Box::new(checkout_ty(return_type, sess, map)),
+                        return_type: Box::new(checkout_ty(&return_type, sess, map)),
                     })),
                 },
-                Ty::Option(inner) => Ty::Option(Box::new(checkout_ty(inner, sess, map))),
+                Ty::Option(inner) => Ty::Option(Box::new(checkout_ty(&inner, sess, map))),
                 _ => ty.clone(),
             }
         }

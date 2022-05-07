@@ -36,12 +36,7 @@ impl<'s> Session<'s> {
             }
             StmtKind::Assignment(Assignment { left, right, op }) => match op {
                 AssignmentOp::Identity(_) => {
-                    let right_ty = right.query(self)?;
-                    if let Ok((adt, iden)) = self.expr_to_adt_access(left) {
-                        adt.write(&iden.lexeme, &right_ty)?.commit(self)?;
-                    } else {
-                        left.unify(&right_ty, self)?;
-                    }
+                    left.unify(&right.query(self)?, self)?;
                 }
                 AssignmentOp::NullCoalecenceEqual(_) => todo!(),
                 _ => {
@@ -237,8 +232,9 @@ impl QueryItem for Expr {
                 }
                 Access::Dot { left, right } => {
                     // If we can find an adt on the left, we will read/write to it. Otherwise, we'll infer a new one.
-                    let mut ty = left.query(sess)?.normalized(sess);
-                    if let Ty::Adt(adt) = &mut ty {
+                    left.query(sess)?; // todo: this should be an &mut...
+                    let ty = sess.get_normalized_mut(left.var());
+                    if let Some(Ty::Adt(adt)) = ty {
                         if adt.state == AdtState::Inferred {
                             adt.write(&right.lexeme, &Ty::Var(self.var()))?.commit(sess)?;
                         } else {
@@ -376,7 +372,8 @@ impl<'s> Session<'s> {
         constructor: &Constructor,
     ) -> Result<Ty, TypeError> {
         let inheritance_call = if let Constructor::WithInheritance(call) = constructor {
-            Some(call.query(self)?.normalized(self))
+            todo!()
+            // Some(call.query(self)?.normalized(self))
         } else {
             None
         };

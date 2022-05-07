@@ -81,7 +81,7 @@ test_failure!(duplicate_global_function, "function foo() {} function foo() {}");
 
 // Enums
 global_test!(enum_declaration, "enum foo { bar }", "foo" => adt!(bar: Real));
-global_test!(access_enum, "enum foo { bar };", "foo.bar" => Real);
+global_test!(access_enum, "enum foo { bar }", "foo.bar" => Real);
 global_test!(
     members_as_real,
     "enum foo { bar, buzz }",
