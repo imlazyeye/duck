@@ -8,20 +8,20 @@ use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;
 
 pub struct Session<'s> {
-    pub subs: &'s mut HashMap<Var, Ty>,
+    pub subs: &'s mut Subs,
     identity: Vec<Var>,
     local: Vec<Var>,
 }
 
 // Misc
 impl<'s> Session<'s> {
-    pub fn new(subs: &'s mut HashMap<Var, Ty>) -> Self {
+    pub fn new(subs: &'s mut Subs) -> Self {
         let mut session = Self {
             subs,
             identity: vec![],
             local: vec![],
         };
-        session.subs.insert(Var::GlobalAdt, global_adt());
+        session.subs.0.insert(Var::GlobalAdt, global_adt());
         session.identity.push(Var::GlobalAdt);
         session.enter_new_local(vec![]);
         session
@@ -57,7 +57,7 @@ impl<'s> Session<'s> {
     pub fn enter_new_identity(&mut self, fields: Vec<(Identifier, Ty)>) -> Var {
         let var = Var::Generated(rand::random());
         let adt = Adt::new(AdtState::Extendable, fields);
-        self.subs.insert(var, Ty::Adt(adt));
+        self.subs.0.insert(var, Ty::Adt(adt));
         self.push_identity(var);
         var
     }
@@ -65,7 +65,7 @@ impl<'s> Session<'s> {
     pub fn enter_new_local(&mut self, fields: Vec<(Identifier, Ty)>) -> Var {
         let var = Var::Generated(rand::random());
         let adt = Adt::new(AdtState::Extendable, fields);
-        self.subs.insert(var, Ty::Adt(adt));
+        self.subs.0.insert(var, Ty::Adt(adt));
         self.push_local(var);
         var
     }
@@ -144,4 +144,45 @@ pub enum Var {
     Return,
     Expr(ExprId),
     Generated(u64),
+}
+
+#[derive(Default)]
+pub struct Subs(HashMap<Var, Ty>);
+impl Subs {
+    pub fn register(&mut self, var: Var, mut ty: Ty) -> Result<(), TypeError> {
+        if let Some(previous_ty) = &mut self.remove(&var) {
+            Unification::unify(previous_ty, &mut ty)?.commit(self)?;
+        }
+        if !ty.contains(&Ty::Var(var)) {
+            println!("{}", Printer::substitution(&var, &ty));
+            self.0.insert(var, ty);
+        }
+        Ok(())
+    }
+
+    pub fn remove(&mut self, var: &Var) -> Option<Ty> {
+        self.0.remove(var)
+    }
+
+    pub fn contains(&self, var: &Var) -> bool {
+        self.0.contains_key(var)
+    }
+
+    pub fn get(&self, var: &Var) -> Option<&Ty> {
+        self.0.get(var)
+    }
+
+    pub fn get_mut(&mut self, var: &Var) -> Option<&mut Ty> {
+        self.0.get_mut(var)
+    }
+}
+
+impl<'s> Session<'s> {
+    pub fn checkout<R, F: FnOnce(&mut Ty) -> Result<R, TypeError>>(&mut self, var: &Var, f: F) -> Result<R, TypeError> {
+        let mut ty = self.subs.remove(var).unwrap_or(Ty::Var(*var));
+        ty.normalize(self);
+        let result = f(&mut ty);
+        self.subs.register(*var, ty)?;
+        result
+    }
 }

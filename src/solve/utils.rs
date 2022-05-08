@@ -97,6 +97,8 @@ impl Printer {
         let var = *var;
         if let Some(expr_string) = printer.expr_strings.get(&var) {
             expr_string.clone()
+        } else if var == Var::Return {
+            "RET".to_string()
         } else {
             let entry = if let Some(entry) = printer.aliases.get(&var) {
                 entry.to_string()
@@ -189,7 +191,7 @@ impl Printer {
         format!(
             "{}        {a}: {}",
             "QUERY".bright_red(),
-            Printer::var(&a.var()).bold().bright_black()
+            Printer::var(&Var::Expr(a.id())).bold().bright_black()
         )
     }
 

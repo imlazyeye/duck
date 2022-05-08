@@ -1,19 +1,26 @@
 use super::*;
 use crate::duck_error;
 
-impl<'s> Session<'s> {
+pub struct Unification;
+impl Unification {
+    pub fn var_var(lhs: Var, rhs: Var, session: &mut Session) -> Result<(), TypeError> {
+        session
+            .checkout(&rhs, |rhs_ty| Unification::unify(&mut Ty::Var(lhs), rhs_ty))?
+            .commit(session.subs)
+    }
+
+    pub fn var_ty(var: Var, ty: &mut Ty, session: &mut Session) -> Result<(), TypeError> {
+        ty.normalize(session);
+        session
+            .checkout(&var, |var_ty| Unification::unify(ty, var_ty))?
+            .commit(session.subs)
+    }
+
     pub fn unify(lhs: &mut Ty, rhs: &mut Ty) -> Result<Substitution, TypeError> {
-        // if let Some(lhs) = lhs.as_shallow_normalized(self) {
-        //     return self.unify(&lhs, rhs);
-        // } else if let Some(rhs) = rhs.as_shallow_normalized(self) {
-        //     return self.unify(lhs, &rhs);
-        // };
-
         println!("{}", Printer::ty_unification(lhs, rhs));
-
         match (lhs, rhs) {
             (lhs, rhs) if lhs == rhs => Ok(Substitution::None),
-            (other, Ty::Var(var)) | (Ty::Var(var), other) => Ok(Substitution::Single(*var, other.clone())),
+            (Ty::Var(var), other) | (other, Ty::Var(var)) => Ok(Substitution::Single(*var, other.clone())),
             (Ty::Any, _) | (_, Ty::Any) => Ok(Substitution::None),
             (und @ Ty::Undefined, other) | (other, und @ Ty::Undefined) => {
                 *other = Ty::Option(Box::new(other.clone()));
@@ -21,15 +28,11 @@ impl<'s> Session<'s> {
                 Ok(Substitution::None)
             }
             (Ty::Array(lhs_member), Ty::Array(rhs_member)) => Self::unify(lhs_member, rhs_member),
-            (adt @ Ty::Adt(_), Ty::Identity) | (Ty::Identity, adt @ Ty::Adt(_)) => {
-                unimplemented!();
-            }
             (Ty::Adt(lhs_adt), Ty::Adt(rhs_adt)) => {
                 let mut sub = Substitution::None;
                 for (name, rhs_field) in rhs_adt.fields.iter_mut() {
                     if let FieldValue::Initialized(rhs_ty) = &mut rhs_field.value {
-                        let new_sub = lhs_adt.read(name, rhs_ty)?.commit()?;
-                        sub = sub.combo(new_sub);
+                        sub = sub.combo(lhs_adt.read(name, rhs_ty.clone())?);
                     }
                 }
                 Ok(sub)
@@ -37,7 +40,7 @@ impl<'s> Session<'s> {
             (Ty::Func(lhs_func), Ty::Func(rhs_func)) => match (lhs_func, rhs_func) {
                 (Func::Def(def), call @ Func::Call(_)) | (call @ Func::Call(_), Func::Def(def)) => {
                     let mut sub = Substitution::None;
-                    // let def = def.checkout(self);
+                    let mut def = def.checkout();
                     println!(
                         "\n--- Evaluating call for checkout: {}... ---\n",
                         Printer::ty(&Ty::Func(Func::Def(def.clone())))
@@ -47,7 +50,7 @@ impl<'s> Session<'s> {
                     }
                     for (i, param) in def.parameters.iter_mut().enumerate() {
                         if let Some(arg) = call.parameters_mut().get_mut(i) {
-                            sub = sub.combo(Self::unify(param, arg)?);
+                            sub = sub.combo(Self::unify(arg, param)?);
                         } else if i < def.minimum_arguments {
                             return duck_error!("missing argument {i} in call");
                         };
@@ -70,15 +73,16 @@ impl<'s> Session<'s> {
 }
 
 impl Ty {
-    pub fn normalize(&mut self, sess: &Session) {
+    pub fn normalize(&mut self, sess: &Session) -> &mut Self {
         if let Some(ty) = self.as_deep_normalized(sess) {
             *self = ty
         }
+        self
     }
 
     pub fn as_shallow_normalized(&self, sess: &Session) -> Option<Ty> {
         match self {
-            Ty::Var(var) => sess.subs.get(var).cloned(),
+            Ty::Var(var) => sess.subs.get(var).filter(|v| v != &&Ty::Var(*var)).cloned(),
             _ => None,
         }
     }
@@ -125,19 +129,6 @@ impl Ty {
     }
 }
 
-impl<'sess> Session<'sess> {
-    pub fn sub(&mut self, var: Var, mut ty: Ty) -> Result<(), TypeError> {
-        #[cfg(test)]
-        println!("{}", Printer::substitution(&var, &ty));
-        let mut previous_sub = self.subs.remove(&var);
-        if let Some(previous_sub) = &mut previous_sub {
-            Session::unify(previous_sub, &mut ty)?.commit(self)?;
-        }
-        self.subs.insert(var, ty);
-        Ok(())
-    }
-}
-
 #[must_use]
 pub enum Substitution {
     Single(Var, Ty),
@@ -159,18 +150,11 @@ impl Substitution {
         Substitution::Multi(vec)
     }
 
-    pub fn commit(self, sess: &mut Session) -> Result<(), TypeError> {
+    pub fn commit(self, subs: &mut Subs) -> Result<(), TypeError> {
         match self {
-            Substitution::Single(var, ty) => sess.sub(var, ty),
-            Substitution::Multi(subs) => subs.into_iter().try_for_each(|(var, ty)| sess.sub(var, ty)),
+            Substitution::Single(var, ty) => subs.register(var, ty),
+            Substitution::Multi(multi) => multi.into_iter().try_for_each(|(var, ty)| subs.register(var, ty)),
             Substitution::None => Ok(()),
         }
     }
 }
-// impl Drop for Substitution {
-//     fn drop(&mut self) {
-//         if !std::thread::panicking() {
-//             panic!("Failed to commit a substitution request!");
-//         }
-//     }
-// }

@@ -15,7 +15,7 @@ impl Adt {
         Self {
             fields: fields
                 .into_iter()
-                .chain([(Identifier::lazy("self"), Ty::Identity)].into_iter())
+                // .chain([(Identifier::lazy("self"), Ty::Identity)].into_iter())
                 .map(|(iden, ty)| {
                     (
                         iden.lexeme,
@@ -47,12 +47,7 @@ impl Adt {
         self.state = state;
     }
 
-    pub fn write_constant(&mut self, name: &str, ty: &Ty) -> Result<FieldUpdate, TypeError> {
-        println!(
-            "{}        {name}: {}",
-            "WRITE".bright_cyan(),
-            Printer::ty(ty).blue().bold()
-        );
+    pub fn write_constant(&mut self, name: &str, ty: Ty) -> Result<Substitution, TypeError> {
         self.update(name, ty, true, true)
     }
 
@@ -73,25 +68,19 @@ impl Adt {
         }
     }
 
-    pub fn write(&mut self, name: &str, ty: &Ty) -> Result<FieldUpdate, TypeError> {
+    pub fn write(&mut self, name: &str, ty: Ty) -> Result<Substitution, TypeError> {
         self.update(name, ty, true, false)
     }
 
-    pub fn read(&mut self, name: &str, ty: &Ty) -> Result<FieldUpdate, TypeError> {
+    pub fn read(&mut self, name: &str, ty: Ty) -> Result<Substitution, TypeError> {
         self.update(name, ty, false, false)
     }
 
-    fn update<'adt>(
-        &'adt mut self,
-        name: &str,
-        ty: &Ty,
-        resolved: bool,
-        constant: bool,
-    ) -> Result<FieldUpdate, TypeError> {
+    fn update(&mut self, name: &str, mut ty: Ty, resolved: bool, constant: bool) -> Result<Substitution, TypeError> {
         println!(
             "{}       {name}: {}",
             "UPDATE".bright_cyan(),
-            Printer::ty(ty).blue().bold()
+            Printer::ty(&ty).blue().bold()
         );
         if !self.fields.contains_key(name) {
             if self.state == AdtState::Concrete {
@@ -100,12 +89,12 @@ impl Adt {
                 self.fields.insert(
                     name.into(),
                     Field {
-                        value: FieldValue::Initialized(ty.clone()), // todo: make it a real ref
+                        value: FieldValue::Initialized(ty),
                         constant,
                         resolved,
                     },
                 );
-                Ok(FieldUpdate::None)
+                Ok(Substitution::None)
             }
         } else {
             let field = self.fields.get_mut(name).unwrap();
@@ -120,34 +109,10 @@ impl Adt {
             }
             if field.value == FieldValue::Uninitialized {
                 field.value = FieldValue::Initialized(ty.clone());
-                Ok(FieldUpdate::None)
+                Ok(Substitution::None)
             } else {
-                Ok(FieldUpdate::Some(field.value.ty_mut().unwrap(), ty.clone())) // todo: this too
+                Unification::unify(field.value.ty_mut().unwrap(), &mut ty)
             }
-        }
-    }
-}
-
-#[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
-pub enum FieldUpdate<'adt> {
-    Some(&'adt mut Ty, Ty),
-    None,
-}
-impl<'adt> FieldUpdate<'adt> {
-    pub fn commit(mut self) -> Result<Substitution, TypeError> {
-        let result = match &mut self {
-            FieldUpdate::Some(lhs, rhs) => Session::unify(lhs, rhs),
-            FieldUpdate::None => Ok(Substitution::None),
-        };
-        std::mem::forget(self);
-        result
-    }
-}
-impl<'adt> Drop for FieldUpdate<'adt> {
-    fn drop(&mut self) {
-        if !std::thread::panicking() {
-            panic!("Failed to commit a unification request!");
         }
     }
 }

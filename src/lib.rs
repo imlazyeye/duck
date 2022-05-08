@@ -132,6 +132,7 @@ pub mod parse {
 
 /// Operations to perform static analysis on GML.
 #[allow(missing_docs)]
+#[allow(clippy::unimplemented)]
 pub mod solve {
     mod adt;
     mod adt_prefabs;
@@ -149,8 +150,8 @@ pub mod solve {
     pub use utils::*;
     #[cfg(test)]
     mod tests {
-        mod type_tests;
         mod test_utils;
+        mod type_tests;
         pub use test_utils::*;
     }
 }

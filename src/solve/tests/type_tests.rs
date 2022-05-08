@@ -579,65 +579,65 @@ global_test!(
     "data" => adt!(x: Real, y: Real, z: Real),
     "data.x + data.y + data.z" => Real,
 );
-global_test!(
-    vec_2,
-    "function Vec2(_x, _y) {
-        return new __Vec2(_x, _y);
-    }
+// global_test!(
+//     vec_2,
+//     "function Vec2(_x, _y) {
+//         return new __Vec2(_x, _y);
+//     }
 
-    function __Vec2(_x, _y) constructor {
-        self.x = _x;
-        self.y = _y;
+//     function __Vec2(_x, _y) constructor {
+//         self.x = _x;
+//         self.y = _y;
 
-        static set = function(o) {
-            self.x = o.x;
-            self.y = o.y;
-        }
+//         static set = function(o) {
+//             self.x = o.x;
+//             self.y = o.y;
+//         }
 
-        static clone = function() {
-            return Vec2(self.x, self.y);
-        }
+//         static clone = function() {
+//             return Vec2(self.x, self.y);
+//         }
 
-        static eq = function(o) {
-            return o.x == self.x && o.y == self.y;
-        }
+//         static eq = function(o) {
+//             return o.x == self.x && o.y == self.y;
+//         }
 
-        static scale = function(scalar) {
-            return Vec2(self.x * scalar, self.y * scalar);
-        }
+//         static scale = function(scalar) {
+//             return Vec2(self.x * scalar, self.y * scalar);
+//         }
 
-        static set_scale = function(scalar) {
-            self.x *= scalar;
-            self.y *= scalar;
-        }
+//         static set_scale = function(scalar) {
+//             self.x *= scalar;
+//             self.y *= scalar;
+//         }
 
-        static sqrd_magnitude = function() {
-            return self.dot(self);
-        }
+//         static sqrd_magnitude = function() {
+//             return self.dot(self);
+//         }
 
-        static normalize = function() {
-            var sqrd_magnitude_rcp = 1.0 / sqrt(self.sqrd_magnitude());
-            return self.scale(sqrd_magnitude_rcp);
-        }
+//         static normalize = function() {
+//             var sqrd_magnitude_rcp = 1.0 / sqrt(self.sqrd_magnitude());
+//             return self.scale(sqrd_magnitude_rcp);
+//         }
 
-        static dot = function(o) {
-            return self.x * o.x + self.y * o.y;
-        }
-    }",
-    "Vec2(0, 0)" => adt!(
-        __Vec2: function!((Real, Real) => Identity),
-        x: Real,
-        y: Real,
-        set: function!((adt!(x: Real, y: Real)) => Undefined),
-        clone: function!(() => Identity),
-        eq: function!((adt!(x: Real, y: Real)) => Bool),
-        scale: function!((Real) => Identity),
-        set_scale: function!((Real) => Undefined),
-        sqrd_magnitude: function!(() => Real),
-        normalize: function!(() => Identity),
-        dot: function!((adt!(x: Real, y: Real)) => Real),
-    )
-);
+//         static dot = function(o) {
+//             return self.x * o.x + self.y * o.y;
+//         }
+//     }",
+//     "Vec2(0, 0)" => adt!(
+//         __Vec2: function!((Real, Real) => Identity),
+//         x: Real,
+//         y: Real,
+//         set: function!((adt!(x: Real, y: Real)) => Undefined),
+//         clone: function!(() => Identity),
+//         eq: function!((adt!(x: Real, y: Real)) => Bool),
+//         scale: function!((Real) => Identity),
+//         set_scale: function!((Real) => Undefined),
+//         sqrd_magnitude: function!(() => Real),
+//         normalize: function!(() => Identity),
+//         dot: function!((adt!(x: Real, y: Real)) => Real),
+//     )
+// );
 global_test!(
     list,
     "#macro MINIMUM_DEFAULT_SIZE 4

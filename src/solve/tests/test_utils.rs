@@ -56,7 +56,7 @@ macro_rules! global_test {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let mut subs = hashbrown::HashMap::new();
+            let mut subs = crate::solve::Subs::default();
             let mut session = crate::solve::Session::new(&mut subs);
             $({
                 crate::solve::tests::test_utils::test_type($should_be, &mut session, None, $src);
@@ -67,7 +67,7 @@ macro_rules! global_test {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let mut subs = hashbrown::HashMap::new();
+            let mut subs = crate::solve::Subs::default();
             let mut session = crate::solve::Session::new(&mut subs);
             crate::solve::tests::test_utils::harness_session($preamble, &mut session).unwrap();
             $({
@@ -83,11 +83,11 @@ macro_rules! instance_test {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let mut subs = hashbrown::HashMap::new();
+            let mut subs = crate::solve::Subs::default();
             let mut session = crate::solve::Session::new(&mut subs);
             let var = crate::solve::Var::Generated(rand::random());
             let adt = crate::solve::adt_prefabs::object_adt().adt().clone();
-            session.subs.insert(var, crate::solve::Ty::Adt(adt));
+            session.subs.register(var, crate::solve::Ty::Adt(adt));
             session.push_identity(var);
             $({
                 crate::solve::tests::test_utils::test_type($should_be, &mut session, None, $src);
@@ -98,11 +98,11 @@ macro_rules! instance_test {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let mut subs = hashbrown::HashMap::new();
+            let mut subs = crate::solve::Subs::default();
             let mut session = crate::solve::Session::new(&mut subs);
             let var = crate::solve::Var::Generated(rand::random());
             let adt = crate::solve::adt_prefabs::object_adt().adt().clone();
-            session.subs.insert(var, crate::solve::Ty::Adt(adt));
+            session.subs.register(var, crate::solve::Ty::Adt(adt)).unwrap();
             session.push_identity(var);
             crate::solve::tests::test_utils::harness_session($preamble, &mut session).unwrap();
             $({
@@ -118,7 +118,7 @@ macro_rules! test_success {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let mut subs = hashbrown::HashMap::new();
+            let mut subs = crate::solve::Subs::default();
             let mut session = Session::new(&mut subs);
             harness_session($src, &mut session).unwrap();
         }
@@ -131,7 +131,7 @@ macro_rules! test_failure {
         #[cfg(test)]
         #[test]
         fn $name() {
-            let mut subs = hashbrown::HashMap::new();
+            let mut subs = crate::solve::Subs::default();
             let mut session = Session::new(&mut subs);
             assert!(harness_session($src, &mut session).is_err());
         }
