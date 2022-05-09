@@ -263,6 +263,13 @@ impl Lexer {
                     if self.match_take('=') {
                         Some(TokenKind::SlashEqual)
                     } else if self.match_take('/') {
+                        // Eat the remaining slashes...
+                        loop {
+                            if !self.match_take('/') {
+                                break;
+                            }
+                        }
+                        
                         // Eat up the whitespace first...
                         self.consume_whitespace_on_line(start_index);
 
