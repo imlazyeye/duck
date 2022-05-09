@@ -269,7 +269,7 @@ impl Lexer {
                                 break;
                             }
                         }
-                        
+
                         // Eat up the whitespace first...
                         self.consume_whitespace_on_line(start_index);
 
@@ -277,7 +277,7 @@ impl Lexer {
                         if self.match_take('#') && self.match_take('[') {
                             let tag = self.construct_word(self.next_char_boundary);
                             let parameter = if self.match_take('(') {
-                                let parameter = self.construct_word(self.next_char_boundary);
+                                let parameter = self.consume_until(self.next_char_boundary, ')');
                                 self.match_take(')');
                                 Some(parameter)
                             } else {
@@ -392,6 +392,14 @@ impl Lexer {
     /// Consumes the rest of the line into the string.
     fn consume_rest_of_line(&mut self, start_pos: usize) -> &'static str {
         while self.peek().map_or(false, |chr| chr != '\r' && chr != '\n') {
+            self.take().unwrap();
+        }
+        &self.source[start_pos..self.next_char_boundary]
+    }
+
+    /// Consumes until reaching the given character, pausing before taking it.
+    fn consume_until(&mut self, start_pos: usize, c: char) -> &'static str {
+        while self.peek().map_or(false, |chr| chr != c) {
             self.take().unwrap();
         }
         &self.source[start_pos..self.next_char_boundary]

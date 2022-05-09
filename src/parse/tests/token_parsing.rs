@@ -37,6 +37,7 @@ token_test!(star_comment: "/* comment */" => Comment("/* comment */"));
 token_test!(multiline_star_comment: "/*\n comment \n*/" => Comment("/*\n comment \n*/"));
 token_test!(tag: "// #[enum_string]" => Tag("enum_string", None));
 token_test!(tag_extra_slashes: "///// #[enum_string]" => Tag("enum_string", None));
+token_test!(tag_freeform_param: "///// #[tag(with random stuff inside!)]" => Tag("tag", Some("with random stuff inside!")));
 token_test!(parameter_tag: "// #[allow(and_keyword)]" => Tag("allow", Some("and_keyword")));
 token_test!(
     keywords:
