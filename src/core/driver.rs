@@ -283,20 +283,8 @@ pub fn start_early_pass(
     let (stmt_sender, stmt_reciever) = channel::<Stmt>(1000);
     let sender = report_sender.clone();
     let handle = tokio::task::spawn(async move {
-        #[cfg(solve)]
-        let mut solver = Solver::default();
         while let Some(ast) = ast_receiever.recv().await {
-            let tagged = ast.tagged_nodes(&crate::parse::Tag("enum_string".into(), None));
-            if !tagged.is_empty() {
-                println!("{tagged:?}");
-            }
             let config = config.clone();
-            #[cfg(solve)]
-            {
-                if let Err(err) = solver.process_statements(ast.stmts()) {
-                    sender.send(vec![err]).await.unwrap();
-                }
-            }
             for mut stmt in ast.unpack() {
                 let mut reports = vec![];
                 process_stmt_early(&mut stmt, &mut reports, config.as_ref());

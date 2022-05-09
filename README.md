@@ -7,6 +7,8 @@ A fast and flexible analyzer for GML ([GameMaker Language](https://manual.yoyoga
 
 ![example of the missing_case_member lint in action](https://i.imgur.com/i3b6sH1.jpg)
 
+⚠️ duck is not yet released and is unstable! An announcement will be made when 0.1.0 is released. ⚠️
+
 duck is is a highly flexible analyzer that enables far stricter rules for GML than GameMaker itself enforces. It is able to detect code that will directly lead to errors as well as enforce styling rules -- all of which are _completely customizable_.
 
 duck is also extremely fast. It currently can fully process a 250,000 line project in [less than half a second](#footnotes).
