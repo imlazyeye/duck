@@ -12,8 +12,9 @@ pub struct Parser {
     cursor: usize,
     file_id: FileId,
     comments: Vec<Token>,
-    tag_slot: Option<Tag>,
     use_default_ids: bool,
+    tag_queue: Option<Tag>,
+    active_tag: Option<Tag>,
 }
 
 // Basic features
@@ -25,8 +26,9 @@ impl Parser {
             cursor: 0,
             file_id,
             comments: vec![],
-            tag_slot: None,
             use_default_ids: false,
+            tag_queue: None,
+            active_tag: None,
         }
     }
 
@@ -62,7 +64,7 @@ impl Parser {
             },
             span,
             self.file_id,
-            self.tag_slot.as_ref().cloned(),
+            self.tag_queue.as_ref().cloned(),
         )
     }
 
@@ -76,7 +78,7 @@ impl Parser {
             },
             self.span(start_position),
             self.file_id,
-            self.tag_slot.take(),
+            self.active_tag.as_ref().cloned(),
         )
     }
 
@@ -95,7 +97,9 @@ impl Parser {
     ///
     /// Returns a [ParseError] if any of the source code caused an error.
     pub fn stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
-        match self.peek()?.token_type {
+        self.collect_upcoming_comments(); // seeks out tags
+        self.active_tag = self.tag_queue.take();
+        let result = match self.peek()?.token_type {
             TokenKind::Macro(name, config, body) => self.macro_declaration(name, config, body),
             TokenKind::Enum => self.enum_declaration(),
             TokenKind::Try => self.try_catch(),
@@ -116,7 +120,9 @@ impl Parser {
             TokenKind::Globalvar => self.globalvar_declaration(),
             TokenKind::Var => self.local_variable_series(),
             _ => self.assignment(),
-        }
+        };
+        self.active_tag.take();
+        result
     }
 
     fn macro_declaration(&mut self, name: &str, config: Option<&str>, body: &str) -> Result<Stmt, Diagnostic<FileId>> {
@@ -1181,7 +1187,7 @@ impl Parser {
                     token_type: TokenKind::Tag(label, parameter),
                     ..
                 }) => {
-                    self.tag_slot = Some(Tag(label.to_string(), parameter.map(|v| v.to_string())));
+                    self.tag_queue = Some(Tag(label.to_string(), parameter.map(|v| v.to_string())));
                     self.lexer.next().unwrap();
                 }
                 _ => break,
