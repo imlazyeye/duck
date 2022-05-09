@@ -339,12 +339,15 @@ impl<'s> Session<'s> {
         let mut local_fields = vec![];
         let mut found_minimum = None;
         for (i, param) in function.parameters.iter().enumerate() {
-            if param.assignment_value().is_some() {
+            let ty = if let Some(value) = param.assignment_value() {
                 found_minimum = Some(i);
-            } else if found_minimum.is_some() {
-                return duck_error!("default arguments can not be followed by standard arguments");
+                Ty::Var(value.query(self)?)
+            } else {
+                if found_minimum.is_some() {
+                    return duck_error!("default arguments can not be followed by standard arguments");
+                }
+                Ty::Var(param.name_expr().query(self)?)
             };
-            let ty = Ty::Var(param.name_expr().query(self)?);
             local_fields.push((param.name_identifier().clone(), ty.clone()));
             parameters.push(ty);
         }
