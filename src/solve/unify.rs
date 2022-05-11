@@ -10,9 +10,9 @@ impl Unification {
     }
 
     pub fn var_ty(var: Var, ty: &mut Ty, session: &mut Session) -> Result<(), TypeError> {
-        ty.normalize(session);
+        // let mut ty = ty.normalized(session).into();
         session
-            .checkout(&var, |var_ty| Unification::unify(ty, var_ty))?
+            .checkout(&var, |var_ty| Unification::unify(var_ty, ty))?
             .commit(session.subs)
     }
 
@@ -50,12 +50,12 @@ impl Unification {
                     }
                     for (i, param) in def.parameters.iter_mut().enumerate() {
                         if let Some(arg) = call.parameters_mut().get_mut(i) {
-                            sub = sub.combo(Self::unify(arg, param)?);
+                            sub = sub.combo(Unification::unify(arg, param)?);
                         } else if i < def.minimum_arguments {
                             return duck_error!("missing argument {i} in call");
                         };
                     }
-                    sub = sub.combo(Self::unify(call.return_type_mut(), &mut def.return_type)?);
+                    sub = sub.combo(Unification::unify(call.return_type_mut(), &mut def.return_type)?);
                     println!("\n--- Ending call... ---\n");
                     Ok(sub)
                 }
@@ -72,36 +72,33 @@ impl Unification {
     }
 }
 
+pub struct Normalized(Ty);
+impl From<Normalized> for Ty {
+    fn from(norm: Normalized) -> Self {
+        norm.0
+    }
+}
+
 impl Ty {
-    pub fn normalize(&mut self, sess: &Session) -> &mut Self {
-        if let Some(ty) = self.as_deep_normalized(sess) {
-            *self = ty
-        }
-        self
+    pub fn normalized(&self, sess: &Session) -> Normalized {
+        Normalized(self.normalize_ty(sess).unwrap_or_else(|| self.clone()))
     }
 
-    pub fn as_shallow_normalized(&self, sess: &Session) -> Option<Ty> {
+    fn normalize_ty(&self, sess: &Session) -> Option<Ty> {
         match self {
-            Ty::Var(var) => sess.subs.get(var).filter(|v| v != &&Ty::Var(*var)).cloned(),
-            _ => None,
-        }
-    }
-
-    pub fn as_deep_normalized(&self, sess: &Session) -> Option<Ty> {
-        match self {
-            Ty::Var(_) => self.as_shallow_normalized(sess).map(|ty| {
-                if let Some(dty) = ty.as_deep_normalized(sess) {
+            Ty::Var(var) => sess.subs.get(var).map(|ty| {
+                if let Some(dty) = ty.normalize_ty(sess) {
                     dty
                 } else {
-                    ty
+                    ty.clone()
                 }
             }),
-            Ty::Array(inner) => inner.as_deep_normalized(sess).map(|v| Ty::Array(Box::new(v))),
+            Ty::Array(inner) => inner.normalize_ty(sess).map(|v| Ty::Array(Box::new(v))),
             Ty::Adt(adt) => {
                 let mut adt = adt.clone();
                 let mut any = false;
                 adt.fields.iter_mut().for_each(|(_, field)| {
-                    if let Some(ty) = field.value.ty().and_then(|v| v.as_deep_normalized(sess)) {
+                    if let Some(ty) = field.value.ty().and_then(|v| v.normalize_ty(sess)) {
                         field.value = FieldValue::Initialized(ty);
                         any = true;
                     }
@@ -112,18 +109,18 @@ impl Ty {
                 let mut func = func.clone();
                 let mut any = false;
                 func.parameters_mut().iter_mut().for_each(|param| {
-                    if let Some(ty) = param.as_deep_normalized(sess) {
+                    if let Some(ty) = param.normalize_ty(sess) {
                         *param = ty;
                         any = true;
                     }
                 });
-                if let Some(ty) = func.return_type().as_deep_normalized(sess) {
+                if let Some(ty) = func.return_type().normalize_ty(sess) {
                     *func.return_type_mut() = ty;
                     any = true;
                 }
                 if any { Some(Ty::Func(func)) } else { None }
             }
-            Ty::Option(inner) => inner.as_deep_normalized(sess).map(|v| Ty::Option(Box::new(v))),
+            Ty::Option(inner) => inner.normalize_ty(sess).map(|v| Ty::Option(Box::new(v))),
             _ => None,
         }
     }

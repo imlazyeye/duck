@@ -18,11 +18,16 @@ pub enum Ty {
 }
 
 impl Ty {
-    pub fn contains(&self, other: &Ty) -> bool {
+    pub fn contains(&self, other: &Ty, subs: &Subs) -> bool {
         match self {
-            Ty::Array(inner) => inner.contains(other),
-            Ty::Func(func) => func.parameters().iter().any(|v| v.contains(other)) || func.return_type().contains(other),
-            _ => self == other,
+            ty if ty == other => true,
+            Ty::Var(var) => subs.get(var).map_or(false, |v| v.contains(other, subs)),
+            Ty::Array(inner) => inner.contains(other, subs),
+            Ty::Func(func) => {
+                func.parameters().iter().any(|v| v.contains(other, subs)) || func.return_type().contains(other, subs)
+            }
+            Ty::Option(inner) => inner.contains(other, subs),
+            _ => false,
         }
     }
 

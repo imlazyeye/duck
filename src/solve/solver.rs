@@ -32,11 +32,7 @@ impl<'s> Session<'s> {
             .ty(name)
             .or_else(|| self.adt(&Var::GlobalAdt).ty(name))
             .or_else(|| self.identity().ty(name))
-            .map(|v| {
-                let mut ty = v.clone();
-                ty.normalize(self);
-                ty
-            })
+            .map(|v| v.clone().normalized(self).into())
             .ok_or_else(|| duck_error_unwrapped!("could not find a value for `{name}`"))
     }
 
@@ -150,10 +146,13 @@ pub enum Var {
 pub struct Subs(HashMap<Var, Ty>);
 impl Subs {
     pub fn register(&mut self, var: Var, mut ty: Ty) -> Result<(), TypeError> {
-        if let Some(previous_ty) = &mut self.remove(&var) {
-            Unification::unify(previous_ty, &mut ty)?.commit(self)?;
-        }
-        if !ty.contains(&Ty::Var(var)) {
+        let ty = if let Some(mut previous_ty) = self.remove(&var) {
+            Unification::unify(&mut previous_ty, &mut ty)?.commit(self)?;
+            previous_ty
+        } else {
+            ty
+        };
+        if !ty.contains(&Ty::Var(var), self) {
             println!("{}", Printer::substitution(&var, &ty));
             self.0.insert(var, ty);
         }
@@ -179,8 +178,7 @@ impl Subs {
 
 impl<'s> Session<'s> {
     pub fn checkout<R, F: FnOnce(&mut Ty) -> Result<R, TypeError>>(&mut self, var: &Var, f: F) -> Result<R, TypeError> {
-        let mut ty = self.subs.remove(var).unwrap_or(Ty::Var(*var));
-        ty.normalize(self);
+        let mut ty = self.subs.remove(var).unwrap_or(Ty::Var(*var)).normalized(self).into();
         let result = f(&mut ty);
         self.subs.register(*var, ty)?;
         result

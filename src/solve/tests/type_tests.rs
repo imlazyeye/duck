@@ -35,6 +35,14 @@ global_test!(
     }" => function!((option!(Real)) => Real)
 );
 global_test!(
+    option_coerce_later,
+    "var a = 0;
+    var b = a;
+    a = undefined",
+    "a" => option!(Real),
+    "b" => option!(Real)
+);
+global_test!(
     evaluation,
     "1 + 1" => Real,
     "1 * 1" => Real,
@@ -315,7 +323,6 @@ global_test!(
     retain_all_fields_in_generic_call,
     "var foo = function(a) {
         a.a = 0;
-        return a;
     }
     var bar = { a: 0, b: 0 };
     foo(bar);",
