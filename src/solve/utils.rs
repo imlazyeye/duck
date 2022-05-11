@@ -142,11 +142,7 @@ impl Printer {
                                     "{}: {}",
                                     name,
                                     if let Some(field_ty) = field.value.ty() {
-                                        if field_ty.contains(ty) {
-                                            "<cycle>".into()
-                                        } else {
-                                            Printer::ty(field_ty)
-                                        }
+                                        Printer::ty(field_ty)
                                     } else {
                                         "<null>".into()
                                     }

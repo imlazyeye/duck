@@ -62,7 +62,7 @@ impl<'s> Session<'s> {
             }
             StmtKind::Return(Return { value }) => {
                 if let Some(value) = value {
-                    value.unify_ty(Ty::Var(Var::Return), self)?;
+                    Unification::var_var(Var::Return, value.query(self)?, self)?;
                 } else {
                     self.subs.register(Var::Return, Ty::Undefined)?;
                 }
@@ -124,7 +124,7 @@ impl<'s> Session<'s> {
                     for stmt in case.iter_body_statements() {
                         self.visit_stmt(stmt)?;
                     }
-                    case.identity().unify_ty(Ty::Var(matching_value.query(self)?), self)?;
+                    case.identity().unify_expr(matching_value, self)?;
                 }
                 if let Some(default_case) = default_case {
                     for stmt in default_case.iter() {
@@ -231,7 +231,7 @@ impl Expr {
                         // If we can find an adt on the left, we will read/write to it. Otherwise, we'll infer a new
                         // one.
                         let adt_var = left.query(sess)?;
-                        let adt_ty = sess.get_normalized_mut(adt_var);
+                        let adt_ty = sess.get_normalized_mut(adt_var); // TODO: prob bad?
                         if let Some(Ty::Adt(adt)) = adt_ty {
                             if adt.state == AdtState::Inferred {
                                 adt.write(&right.lexeme, Ty::Var(my_var))?.commit(sess.subs)?;
@@ -289,7 +289,7 @@ impl Expr {
                                 for expr in exprs.iter().skip(1) {
                                     expr.unify_ty(ty.clone(), sess)?;
                                 }
-                                ty // TODO if you had [{this: 0}] would it break? should query return var?
+                                ty
                             } else {
                                 var!()
                             };
