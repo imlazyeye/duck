@@ -1,7 +1,7 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of an logical expression in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Logical {
     /// The left hand side of the logical assessment.
     pub left: Expr,
@@ -36,7 +36,8 @@ impl ParseVisitor for Logical {
 }
 
 /// The various logical operations supported in gml.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
+#[serde(tag = "type", content = "token", rename_all = "snake_case")]
 pub enum LogicalOp {
     /// and, &&
     And(Token),

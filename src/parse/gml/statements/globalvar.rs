@@ -1,7 +1,7 @@
 use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a globalvar in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Globalvar {
     /// The name of the declared globalvar.
     pub name: Identifier,

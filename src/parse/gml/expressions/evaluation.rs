@@ -1,7 +1,7 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// A mathmatical evaluation.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Evaluation {
     /// The left hand side of the evaluation.
     pub left: Expr,
@@ -36,7 +36,8 @@ impl ParseVisitor for Evaluation {
 }
 
 /// The various evaluation operations supported in gml.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, serde::Serialize)]
+#[serde(tag = "type", content = "token", rename_all = "snake_case")]
 pub enum EvaluationOp {
     /// +
     Plus(Token),

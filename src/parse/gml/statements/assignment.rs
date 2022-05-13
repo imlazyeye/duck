@@ -1,7 +1,7 @@
 use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind, Token};
 
 /// Representation of an assignment statement in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Assignment {
     /// The left hand side of the assignment, aka the target.
     pub left: Expr,
@@ -36,7 +36,8 @@ impl ParseVisitor for Assignment {
 }
 
 /// The various assignment operations supported in gml.
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone, serde::Serialize)]
+#[serde(tag = "type", content = "token", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)]
 pub enum AssignmentOp {
     /// =, :=

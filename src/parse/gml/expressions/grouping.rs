@@ -1,11 +1,12 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Span, Stmt, Token, TokenKind};
 
 /// Representation of a grouping in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Grouping {
     /// The inner expression contained by this grouping.
     pub inner: Expr,
     /// The parentehsis tokens used in this grouping.
+    #[serde(skip)]
     pub tokens: (Token, Token),
 }
 impl Grouping {

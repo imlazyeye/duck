@@ -2,9 +2,12 @@ use clap::Parser;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use colored::Colorize;
 use duck::{
+    driver,
     lint::{collection::*, Lint, LintLevelSetting},
+    parse::Ast,
     Config, Duck,
 };
+use hashbrown::HashMap;
 use num_format::{Locale, ToFormattedString};
 use std::path::{Path, PathBuf};
 
@@ -21,20 +24,19 @@ async fn main() {
             allow_errors,
             allow_duck_errors,
             color,
-        } => run_lint(path, allow_warnings, allow_errors, allow_duck_errors, color).await,
+        } => run(path, allow_warnings, allow_errors, allow_duck_errors, color).await,
         Commands::NewConfig { template } => new_config(template.unwrap_or(ConfigTemplate::Default)),
-        Commands::Explain { lint_name } => explain_lint(lint_name),
+        Commands::Explain { lint_name } => explain(lint_name),
+        Commands::Emit {
+            path,
+            output_path,
+            format,
+        } => emit(path, output_path, format).await.map(|_| 0).unwrap_or(1),
     };
     std::process::exit(status_code);
 }
 
-async fn run_lint(
-    path: Option<PathBuf>,
-    allow_warnings: bool,
-    allow_denials: bool,
-    allow_errors: bool,
-    color: bool,
-) -> i32 {
+async fn run(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bool, allow_errors: bool, color: bool) -> i32 {
     // Force colors?
     if color {
         std::env::set_var("CLICOLOR_FORCE", "1");
@@ -117,7 +119,7 @@ fn new_config(template: ConfigTemplate) -> i32 {
     0
 }
 
-fn explain_lint(name: String) -> i32 {
+fn explain(name: String) -> i32 {
     let current_directory = std::env::current_dir().expect("Cannot access the current directory!");
     let (duck, _) = create_duck(&current_directory);
     let (message, default_level) = match name.as_str() {
@@ -244,6 +246,33 @@ fn explain_lint(name: String) -> i32 {
         }
     );
     0
+}
+
+async fn emit(path: Option<PathBuf>, output_path: PathBuf, format: Option<EmitFormat>) -> Result<(), ()> {
+    let mut emit: HashMap<String, Ast> = HashMap::default();
+    if let Some(path) = path.as_ref().filter(|v| v.extension().map_or(false, |v| v == "gml")) {
+        let file_data = std::fs::read_to_string(path).unwrap();
+        let ast = driver::parse_gml(Box::leak(Box::from(file_data)), &0).unwrap();
+        emit.insert(path.canonicalize().unwrap().to_str().unwrap().into(), ast);
+    } else {
+        let current_directory =
+            path.unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
+        let (path_receiver, _) = driver::start_gml_discovery(&current_directory);
+        let (mut file_receiver, file_handle) = driver::start_file_load(path_receiver);
+        let (_, library, _) = file_handle.await.unwrap();
+        while let Some((file_id, data)) = file_receiver.recv().await {
+            let file = library.get(file_id).expect("Failed to find a file in the library!");
+            if let Ok(ast) = driver::parse_gml(data, &file_id) {
+                emit.insert(file.name().clone(), ast);
+            }
+        }
+    };
+    let output_data = match format.unwrap_or(EmitFormat::Json) {
+        EmitFormat::Json => serde_json::to_string_pretty(&emit).unwrap(),
+        EmitFormat::Yaml => serde_yaml::to_string(&emit).unwrap(),
+    };
+    std::fs::write(output_path, output_data).unwrap();
+    Ok(())
 }
 
 fn create_duck(current_directory: &Path) -> (Duck, ConfigUsage) {

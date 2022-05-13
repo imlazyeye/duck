@@ -1,7 +1,7 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of a postfix operation in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Postfix {
     /// The left hand side of the postfix operation.
     pub left: Expr,
@@ -32,7 +32,8 @@ impl ParseVisitor for Postfix {
 }
 
 /// The various postfix operations supported in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(tag = "type", content = "token", rename_all = "snake_case")]
 pub enum PostfixOp {
     /// ++
     Increment(Token),

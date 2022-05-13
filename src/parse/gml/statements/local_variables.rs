@@ -2,7 +2,7 @@ use crate::parse::{Expr, IntoStmt, Field, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a local variable declaration. Due to gml's syntax, this can include multiple
 /// definitions!
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct LocalVariables {
     /// The various declarations in this series.
     pub declarations: Vec<Field>,

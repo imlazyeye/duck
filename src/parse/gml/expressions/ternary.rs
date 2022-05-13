@@ -1,7 +1,7 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of a ternary evaluation in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Ternary {
     /// The left hand side of the evaluation.
     pub condition: Expr,

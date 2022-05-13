@@ -1,7 +1,7 @@
 use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a do/until loop in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct DoUntil {
     /// The body of the loop.
     pub body: Stmt,

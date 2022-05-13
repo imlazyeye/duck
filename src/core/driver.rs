@@ -179,7 +179,7 @@ fn run_late_lint_on_expr<T: Lint + LateExprPass>(expr: &Expr, config: &Config, r
 pub fn start_gml_discovery(directory: &Path) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
     /// Filters DirEntry's for gml files.
     async fn filter(entry: DirEntry) -> Filtering {
-        if let Some(true) = entry.path().file_name().map(|f| !f.to_string_lossy().ends_with(".gml")) {
+        if entry.file_name().to_str().map_or(false, |f| !f.contains(".gml")) {
             Filtering::Ignore
         } else {
             Filtering::Continue
@@ -229,7 +229,7 @@ pub fn start_file_load(
                 Ok(gml) => {
                     let gml: &'static str = Box::leak(Box::new(gml));
                     lines += gml.lines().count();
-                    let file_id = files.add(path.to_str().unwrap().to_string(), gml);
+                    let file_id = files.add(path.canonicalize().unwrap().to_str().unwrap().to_string(), gml);
                     file_sender.send((file_id, gml)).await.unwrap();
                 }
                 Err(io_error) => io_errors.push(io_error),

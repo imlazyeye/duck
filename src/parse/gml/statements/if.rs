@@ -3,7 +3,7 @@ use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 /// Representation of an if statement in gml.
 ///
 /// I'm aware that its absolutely chaotic that I named this thing `If`.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct If {
     /// The condition this if statement is checking for.
     pub condition: Expr,
@@ -20,6 +20,7 @@ pub struct If {
     /// }
     /// ```
     /// The above is valid gml. The keyword does absolutely nothing.
+    #[serde(skip)]
     pub uses_then_keyword: bool,
 }
 impl If {

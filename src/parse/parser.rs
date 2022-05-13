@@ -1198,7 +1198,7 @@ impl Parser {
 
 /// A start and end cursor measured in characters, used for expressing small sections of source
 /// code.
-#[derive(Debug, PartialEq, Default, Copy, Clone)]
+#[derive(Debug, PartialEq, Default, Copy, Clone, serde::Serialize)]
 pub struct Span(usize, usize);
 impl Span {
     /// Creates a new span.
@@ -1229,5 +1229,5 @@ impl From<Span> for Range<usize> {
 }
 
 /// A location for something in gml, combining a span and a file id.
-#[derive(Debug, PartialEq, Default, Copy, Clone)]
+#[derive(Debug, PartialEq, Default, Copy, Clone, serde::Serialize)]
 pub struct Location(pub FileId, pub Span);

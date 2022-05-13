@@ -1,7 +1,7 @@
 use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a repeat loop in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Repeat {
     /// The expression dictating the amount of ticks.
     pub tick_counts: Expr,

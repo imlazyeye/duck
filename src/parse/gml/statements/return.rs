@@ -1,7 +1,7 @@
 use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// A return statement, with an optional return value.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Return {
     /// The value, if any, that this statement returns.
     pub value: Option<Expr>,

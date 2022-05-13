@@ -1,7 +1,7 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 
 /// Representation of an assignment expression in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Call {
     /// The leftside of the call (the value being invoked).
     pub left: Expr,
