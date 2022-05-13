@@ -2,6 +2,8 @@
 
 ![GitHub branch checks state](https://img.shields.io/github/workflow/status/imlazyeye/duck/duck%20Test?label=test)
 ![GitHub](https://img.shields.io/badge/license-MIT-green)
+![experimental](https://img.shields.io/badge/stability-experimental-important)
+
 
 ## ⚠️ duck is not yet released and is unstable! An announcement will be made when 0.1.0 is released. ⚠️
 
