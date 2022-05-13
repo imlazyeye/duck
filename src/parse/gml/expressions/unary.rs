@@ -1,7 +1,7 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt, Token};
 
 /// Representation of a unary operation in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Unary {
     /// The unary operator.
     pub op: UnaryOp,
@@ -32,7 +32,8 @@ impl ParseVisitor for Unary {
 }
 
 /// The various unary operations supported in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(tag = "type", content = "token", rename_all = "snake_case")]
 pub enum UnaryOp {
     /// ++
     Increment(Token),

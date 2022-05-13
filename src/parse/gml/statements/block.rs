@@ -4,11 +4,12 @@ use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind, Token};
 ///
 /// Currently only describes blocks of statements that are
 /// surrounded in braces, but its definition may be expanded in the future.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Block {
     /// The statements contained in this block.
     pub body: Vec<Stmt>,
     /// The delimiter style of this block.
+    #[serde(skip)]
     pub delimiters: Option<(Token, Token)>,
 }
 impl Block {

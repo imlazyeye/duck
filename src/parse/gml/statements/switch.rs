@@ -1,7 +1,7 @@
 use crate::parse::{Access, Expr, ExprKind, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a gml switch statement.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Switch {
     /// The value this switch statement is matching over.
     pub matching_value: Expr,
@@ -119,7 +119,7 @@ impl ParseVisitor for Switch {
 /// bodies should be made into `Block`s. While its not of huge concern right
 /// now, it will be an issue when static analyisis is added, as case bodies won't
 /// properly create a new scope.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct SwitchCase(Expr, Vec<Stmt>);
 impl SwitchCase {
     /// Creates a new GmlSwitchCase with the given identity and body.

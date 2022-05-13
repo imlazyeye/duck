@@ -3,22 +3,26 @@ use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Stmt};
 use super::Identifier;
 
 /// Representation of a access in gml, such as an array lookup, or dot-notation.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum Access {
     /// Accessing the global scope via `global.`.
     Global {
         /// The value being extracted from the global scope.
+        #[serde(flatten)]
         right: Identifier,
     },
     /// Accessing the current scope via `self`. (This would be called `Self`, but its reserved by
     /// rust.)
     Identity {
         /// The value being extracted from the local scope.
+        #[serde(flatten)]
         right: Identifier,
     },
     /// Accessing the scope above the current one via `other`.
     Other {
         /// The value being extracted from the other scope.
+        #[serde(flatten)]
         right: Identifier,
     },
     /// Dot access with any struct or object.
@@ -26,6 +30,7 @@ pub enum Access {
         /// The value being accessed.
         left: Expr,
         /// The value being extracted from the leftside value.
+        #[serde(flatten)]
         right: Identifier,
     },
     /// Array access. The bool at the end represents if the `@` accessor is present, which denotes

@@ -3,7 +3,8 @@ use crate::{parse::*, FileId};
 use itertools::Itertools;
 
 /// A singular gml statement.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(tag = "expr_kind", rename_all = "snake_case")]
 pub enum ExprKind {
     /// Declaration of a function.
     Function(Function),
@@ -114,11 +115,16 @@ impl ExprKind {
 impl IntoExpr for ExprKind {}
 
 /// A wrapper around an [ExprType], containing additional information discovered while parsing.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct Expr {
+    #[serde(flatten)]
     expr_type: Box<ExprKind>,
+    #[serde(skip)]
     id: ExprId,
+    #[serde(skip)]
     location: Location,
+    #[serde(skip_serializing_if = "Option::is_none")]
     tag: Option<Tag>,
 }
 impl Expr {
@@ -364,7 +370,7 @@ pub trait IntoExpr: Sized + Into<ExprKind> {
 }
 
 /// A unique id that each [Expr] has.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default, serde::Serialize)]
 pub struct ExprId(u64);
 impl ExprId {
     /// Creates a new, random ExprId.

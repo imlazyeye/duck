@@ -10,7 +10,7 @@ use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtKind};
 /// This is a perfectly valid macro in gml since their bodies are just pasted over their references
 /// early in the compilation process. In the future, we may add macro unfolding to the parsing
 /// process, but for now, they exist in this form mostly just to inform us of their existence.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Macro {
     /// The name this macro was declared with.
     pub name: Identifier,

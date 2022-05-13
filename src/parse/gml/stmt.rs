@@ -5,7 +5,8 @@ use crate::{parse::*, FileId};
 use super::{Assignment, Return, Throw};
 
 /// A singular gml statement.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(tag = "stmt_kind", rename_all = "snake_case")]
 pub enum StmtKind {
     /// Declaration of an enum.
     Enum(Enum),
@@ -190,11 +191,16 @@ impl StmtKind {
 }
 
 /// A wrapper around a Stmt, containing additional information discovered while parsing.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct Stmt {
+    #[serde(flatten)]
     stmt_type: Box<StmtKind>,
+    #[serde(skip)]
     id: StmtId,
+    #[serde(skip)]
     location: Location,
+    #[serde(skip_serializing_if = "Option::is_none")]
     tag: Option<Tag>,
 }
 impl Stmt {
@@ -333,7 +339,7 @@ pub trait IntoStmt: Sized + Into<StmtKind> {
 }
 
 /// A unique id that each [Stmt] has.
-#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default, serde::Serialize)]
 pub struct StmtId(u64);
 impl StmtId {
     /// Creates a new, random StmtId.

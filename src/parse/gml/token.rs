@@ -1,13 +1,11 @@
 #![allow(missing_docs)]
-
+use super::{AssignmentOp, EqualityOp, EvaluationOp, Literal, LogicalOp, PostfixOp, UnaryOp};
+use crate::parse::Span;
 use std::fmt::Display;
 
-use crate::parse::Span;
-
-use super::{AssignmentOp, EqualityOp, EvaluationOp, Literal, LogicalOp, PostfixOp, UnaryOp};
-
 /// A combination of a TokenType and the Span it originates from.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
+#[serde(into = "String")]
 pub struct Token {
     pub token_type: TokenKind,
     pub span: Span,
@@ -127,9 +125,14 @@ impl Display for Token {
         f.pad(&self.token_type.to_string())
     }
 }
+impl From<Token> for String {
+    fn from(val: Token) -> Self {
+        val.to_string()
+    }
+}
 
 /// An individual token of gml.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Clone, Copy, serde::Serialize)]
 pub enum TokenKind {
     Switch,
     Case,

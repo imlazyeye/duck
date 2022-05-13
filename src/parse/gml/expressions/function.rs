@@ -3,7 +3,7 @@ use crate::parse::{Expr, ExprKind, IntoExpr, Field, ParseVisitor, Stmt, StmtKind
 use super::Identifier;
 
 /// Representation of function declaration in gml.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Function {
     /// The name, if any, of this function. Anonymous functions do not have names.
     pub name: Option<Identifier>,
@@ -108,7 +108,7 @@ impl ParseVisitor for Function {
 }
 
 /// Representation of a constructor's behavior in a function declaration.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub enum Constructor {
     /// A constructor that inherits from the nested call.
     WithInheritance(Expr),

@@ -1,11 +1,12 @@
 use crate::parse::{Expr, ExprKind, IntoExpr, ParseVisitor, Span, Stmt};
 
 /// Representation of an identifier in gml, which could be any variable.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Identifier {
     /// The name of this identifier
     pub lexeme: String,
     /// The span that came from the original token
+    #[serde(skip)]
     pub span: Span,
 }
 impl Identifier {

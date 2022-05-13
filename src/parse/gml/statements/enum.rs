@@ -1,9 +1,11 @@
 use crate::parse::{Expr, Identifier, IntoStmt, Field, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of an enum.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub struct Enum {
     /// The name of the enum.
+    #[serde(flatten)]
     pub name: Identifier,
     /// The OptionalInitilization's this enum contains.
     pub members: Vec<Field>,
