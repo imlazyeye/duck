@@ -1,33 +1,29 @@
 use super::{Expr, Identifier, Stmt};
 
-/// Assignment.
-/// Representation of an optional initilization, such as local variables, enum fields, and function
-/// parameters. Will either contain an Expr with an Identifier, or a Stmt with an
+/// Representation of a field, such as local variables, enum fields, and function
+/// parameters, which can be optionally initialized. Will either contain an Expr with an Identifier,
+/// or a Stmt with an Assignment.
 #[derive(Debug, PartialEq, Clone)]
-pub enum OptionalInitilization {
+pub enum Field {
     /// Uninitialized definition, containing only their name as an identifier as an
     /// expression.
     Uninitialized(Expr),
     /// Initialized definitions containing their full assignment statement.
     Initialized(Stmt),
 }
-impl OptionalInitilization {
+impl Field {
     /// Retrieves the ExpresionBox that contains this definitions name.
     pub fn name_expr(&self) -> &Expr {
         match self {
-            OptionalInitilization::Uninitialized(expr) => expr,
-            OptionalInitilization::Initialized(stmt) => {
-                &stmt.kind().as_assignment().unwrap_or_else(|| unreachable!()).left
-            }
+            Field::Uninitialized(expr) => expr,
+            Field::Initialized(stmt) => &stmt.kind().as_assignment().unwrap_or_else(|| unreachable!()).left,
         }
     }
     /// Retrieves the identifier that contains this definitions name.
     pub fn name_identifier(&self) -> &Identifier {
         match self {
-            OptionalInitilization::Uninitialized(expr) => {
-                expr.kind().as_identifier().unwrap_or_else(|| unreachable!())
-            }
-            OptionalInitilization::Initialized(stmt) => stmt
+            Field::Uninitialized(expr) => expr.kind().as_identifier().unwrap_or_else(|| unreachable!()),
+            Field::Initialized(stmt) => stmt
                 .kind()
                 .as_assignment()
                 .unwrap_or_else(|| unreachable!())
@@ -44,21 +40,17 @@ impl OptionalInitilization {
     /// Retrieves the right-side expression in the assignment, if there is any assignment
     pub fn assignment_value(&self) -> Option<&Expr> {
         match self {
-            OptionalInitilization::Uninitialized(_) => None,
-            OptionalInitilization::Initialized(stmt) => {
-                Some(&stmt.kind().as_assignment().unwrap_or_else(|| unreachable!()).right)
-            }
+            Field::Uninitialized(_) => None,
+            Field::Initialized(stmt) => Some(&stmt.kind().as_assignment().unwrap_or_else(|| unreachable!()).right),
         }
     }
 }
 
-impl std::fmt::Display for OptionalInitilization {
+impl std::fmt::Display for Field {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OptionalInitilization::Uninitialized(_) => f.pad(self.name()),
-            OptionalInitilization::Initialized(_) => {
-                f.pad(&format!("{} = {}", self.name(), self.assignment_value().unwrap()))
-            }
+            Field::Uninitialized(_) => f.pad(self.name()),
+            Field::Initialized(_) => f.pad(&format!("{} = {}", self.name(), self.assignment_value().unwrap())),
         }
     }
 }

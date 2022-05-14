@@ -159,12 +159,12 @@ impl Parser {
                 let left = self.new_expr(name, span);
                 let enum_member = if let Some(equal) = self.match_take(TokenKind::Equal) {
                     let right = self.expr()?;
-                    OptionalInitilization::Initialized(self.new_stmt(
+                    Field::Initialized(self.new_stmt(
                         Assignment::new(left, AssignmentOp::Identity(equal), right),
                         member_start,
                     ))
                 } else {
-                    OptionalInitilization::Uninitialized(left)
+                    Field::Uninitialized(left)
                 };
                 members.push(enum_member);
                 self.match_take(TokenKind::Comma);
@@ -388,11 +388,11 @@ impl Parser {
             let left = self.new_expr(name, span);
             let local_variable = if let Some(equal) = self.match_take(TokenKind::Equal) {
                 let right = self.expr()?;
-                OptionalInitilization::Initialized(
+                Field::Initialized(
                     self.new_stmt(Assignment::new(left, AssignmentOp::Identity(equal), right), start),
                 )
             } else {
-                OptionalInitilization::Uninitialized(left)
+                Field::Uninitialized(left)
             };
             declarations.push(local_variable);
             if self.match_take(TokenKind::Comma).is_none() {
@@ -687,11 +687,11 @@ impl Parser {
                         let name = self.new_expr(name, Span::new(parameter_start, end));
                         if let Some(token) = self.match_take(TokenKind::Equal) {
                             let assignment = Assignment::new(name, AssignmentOp::Identity(token), self.expr()?);
-                            parameters.push(OptionalInitilization::Initialized(
+                            parameters.push(Field::Initialized(
                                 self.new_stmt(assignment, parameter_start),
                             ));
                         } else {
-                            parameters.push(OptionalInitilization::Uninitialized(name));
+                            parameters.push(Field::Uninitialized(name));
                         };
                         self.match_take(TokenKind::Comma);
                     }

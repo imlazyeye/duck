@@ -20,8 +20,8 @@ stmt_test!(
     Enum::new_with_members(
         Identifier::lazy("Foo"),
         vec![
-            OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
-            OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
         ],
     )
 );
@@ -32,8 +32,8 @@ stmt_test!(
     Enum::new_with_members(
         Identifier::lazy("Foo"),
         vec![
-            OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
-            OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
         ],
     )
 );
@@ -44,7 +44,7 @@ stmt_test!(
     Enum::new_with_members(
         Identifier::lazy("Foo"),
         vec![
-            OptionalInitilization::Initialized(
+            Field::Initialized(
                 Assignment::new(
                     Identifier::lazy("Bar").into_expr_lazy(),
                     AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -63,8 +63,8 @@ stmt_test!(
     Enum::new_with_members(
         Identifier::lazy("Foo"),
         vec![
-            OptionalInitilization::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
-            OptionalInitilization::Initialized(
+            Field::Uninitialized(Identifier::lazy("Bar").into_expr_lazy()),
+            Field::Initialized(
                 Assignment::new(
                     Identifier::lazy("Baz").into_expr_lazy(),
                     AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -97,7 +97,7 @@ stmt_test!(globalvar, "globalvar foo;", Globalvar::new(Identifier::lazy("foo")))
 stmt_test!(
     local_variable,
     "var i;",
-    LocalVariables::new(vec![OptionalInitilization::Uninitialized(
+    LocalVariables::new(vec![Field::Uninitialized(
         Identifier::lazy("i").into_expr_lazy(),
     )])
 );
@@ -105,7 +105,7 @@ stmt_test!(
 stmt_test!(
     local_variable_with_value,
     "var i = 0;",
-    LocalVariables::new(vec![OptionalInitilization::Initialized(
+    LocalVariables::new(vec![Field::Initialized(
         Assignment::new(
             Identifier::lazy("i").into_expr_lazy(),
             AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -119,8 +119,8 @@ stmt_test!(
     local_variable_series,
     "var i, j = 0, h;",
     LocalVariables::new(vec![
-        OptionalInitilization::Uninitialized(Identifier::lazy("i").into_expr_lazy()),
-        OptionalInitilization::Initialized(
+        Field::Uninitialized(Identifier::lazy("i").into_expr_lazy()),
+        Field::Initialized(
             Assignment::new(
                 Identifier::lazy("j").into_expr_lazy(),
                 AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -135,7 +135,7 @@ stmt_test!(
 stmt_test!(
     local_variable_trailling_comma,
     "var i = 0,",
-    LocalVariables::new(vec![OptionalInitilization::Initialized(
+    LocalVariables::new(vec![Field::Initialized(
         Assignment::new(
             Identifier::lazy("i").into_expr_lazy(),
             AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -149,7 +149,7 @@ stmt_test!(
     local_variable_series_ending_without_marker,
     "{ var i = 0 j = 0 }",
     Block::lazy(vec![
-        LocalVariables::new(vec![OptionalInitilization::Initialized(
+        LocalVariables::new(vec![Field::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
                 AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -192,7 +192,7 @@ stmt_test!(
     for_loop,
     "for (var i = 0; i < 1; i++) {}",
     For::new(
-        LocalVariables::new(vec![OptionalInitilization::Initialized(
+        LocalVariables::new(vec![Field::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
                 AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),

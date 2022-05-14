@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Expr, ExprKind, Function, OptionalInitilization},
+    parse::{Expr, ExprKind, Function, Field},
     Config, FileId,
 };
 
@@ -28,8 +28,8 @@ impl EarlyExprPass for TooManyArguments {
             if parameters.len() > config.max_arguments {
                 let start = parameters.first().unwrap().name_expr().span().start();
                 let end = match parameters.last().unwrap() {
-                    OptionalInitilization::Uninitialized(expr) => expr.span().end(),
-                    OptionalInitilization::Initialized(stmt) => stmt.span().end(),
+                    Field::Uninitialized(expr) => expr.span().end(),
+                    Field::Initialized(stmt) => stmt.span().end(),
                 };
                 reports.push(
                     Self::diagnostic(config)

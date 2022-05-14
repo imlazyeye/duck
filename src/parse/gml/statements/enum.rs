@@ -1,4 +1,4 @@
-use crate::parse::{Expr, Identifier, IntoStmt, OptionalInitilization, ParseVisitor, Stmt, StmtKind};
+use crate::parse::{Expr, Identifier, IntoStmt, Field, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of an enum.
 #[derive(Debug, PartialEq, Clone)]
@@ -6,7 +6,7 @@ pub struct Enum {
     /// The name of the enum.
     pub name: Identifier,
     /// The OptionalInitilization's this enum contains.
-    pub members: Vec<OptionalInitilization>,
+    pub members: Vec<Field>,
 }
 impl Enum {
     /// Creates a new, empty enum with the given name.
@@ -15,7 +15,7 @@ impl Enum {
     }
 
     /// Creates a new enum with the given name and members.
-    pub fn new_with_members(name: Identifier, members: Vec<OptionalInitilization>) -> Self {
+    pub fn new_with_members(name: Identifier, members: Vec<Field>) -> Self {
         Self { name, members }
     }
 
@@ -38,32 +38,32 @@ impl ParseVisitor for Enum {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         for member in self.members.iter() {
             match member {
-                OptionalInitilization::Uninitialized(expr) => visitor(expr),
-                OptionalInitilization::Initialized(_) => {}
+                Field::Uninitialized(expr) => visitor(expr),
+                Field::Initialized(_) => {}
             }
         }
     }
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
         for member in self.members.iter_mut() {
             match member {
-                OptionalInitilization::Uninitialized(expr) => visitor(expr),
-                OptionalInitilization::Initialized(_) => {}
+                Field::Uninitialized(expr) => visitor(expr),
+                Field::Initialized(_) => {}
             }
         }
     }
     fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
         for member in self.members.iter() {
             match member {
-                OptionalInitilization::Uninitialized(_) => {}
-                OptionalInitilization::Initialized(stmt) => visitor(stmt),
+                Field::Uninitialized(_) => {}
+                Field::Initialized(stmt) => visitor(stmt),
             }
         }
     }
     fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, mut visitor: S) {
         for member in self.members.iter_mut() {
             match member {
-                OptionalInitilization::Uninitialized(_) => {}
-                OptionalInitilization::Initialized(stmt) => visitor(stmt),
+                Field::Uninitialized(_) => {}
+                Field::Initialized(stmt) => visitor(stmt),
             }
         }
     }

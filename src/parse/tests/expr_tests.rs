@@ -32,8 +32,8 @@ expr_test!(
     Function::new(
         Identifier::lazy("foo"),
         vec![
-            OptionalInitilization::Uninitialized(Identifier::lazy("bar").into_expr_lazy()),
-            OptionalInitilization::Uninitialized(Identifier::lazy("baz").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("bar").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("baz").into_expr_lazy()),
         ],
         Block::lazy(vec![]).into_stmt_lazy(),
     )
@@ -45,7 +45,7 @@ expr_test!(
     Function::new(
         Identifier::lazy("foo"),
         vec![
-            OptionalInitilization::Initialized(
+            Field::Initialized(
                 Assignment::new(
                     Identifier::lazy("bar").into_expr_lazy(),
                     AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
