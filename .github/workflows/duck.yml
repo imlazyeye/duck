@@ -24,13 +24,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2.3.3
 
-      # Run
-      # - name: Set LD_LIBRARY_PATH (Linux)
-      #   run: |
-      #     SYSROOT=$(rustc --print sysroot)
-      #     echo "LD_LIBRARY_PATH=${SYSROOT}/lib${LD_LIBRARY_PATH+:${LD_LIBRARY_PATH}}" >> $GITHUB_ENV
+      - uses: testspace-com/setup-testspace@v1
+        with:
+          domain: ${{ github.repository_owner }}
+
       - name: Build
         run: cargo build --release
 
       - name: Test
         run: cargo test -- --format=terse
+
+      - name: Push result to Testspace server
+        run: |
+          testspace ./results/*.xml coverage.xml
+        if: always()
