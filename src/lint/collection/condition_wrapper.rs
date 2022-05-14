@@ -60,7 +60,7 @@ impl EarlyStmtPass for ConditionWrapper {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match stmt.kind() {
             StmtKind::Switch(Switch {
-                matching_value: expr, ..
+                identity: expr, ..
             })
             | StmtKind::If(If { condition: expr, .. })
             | StmtKind::DoUntil(DoUntil { condition: expr, .. })

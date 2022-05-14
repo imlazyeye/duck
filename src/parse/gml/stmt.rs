@@ -298,7 +298,7 @@ impl std::fmt::Display for Stmt {
                 i.condition,
                 i.else_stmt.as_ref().map(|e| format!(" else {e}")).unwrap_or_default()
             )),
-            StmtKind::Switch(switch) => f.pad(&format!("switch {} {{ ... }}", switch.matching_value)),
+            StmtKind::Switch(switch) => f.pad(&format!("switch {} {{ ... }}", switch.identity)),
             StmtKind::Block(_) => f.pad("{ ... }"),
             StmtKind::Return(ret) => f.pad(&format!(
                 "return{};",

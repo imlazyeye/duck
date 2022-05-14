@@ -71,7 +71,7 @@ expr_test!(
     Function::new_constructor(
         Some(Identifier::lazy("foo")),
         vec![],
-        Constructor::WithoutInheritance,
+        Constructor { inheritance: None },
         Block::lazy(vec![]).into_stmt_lazy(),
     )
 );
@@ -82,7 +82,9 @@ expr_test!(
     Function::new_constructor(
         Some(Identifier::lazy("foo")),
         vec![],
-        Constructor::WithInheritance(Call::new(Identifier::lazy("bar").into_expr_lazy(), vec![]).into_expr_lazy()),
+        Constructor {
+            inheritance: Some(Call::new(Identifier::lazy("bar").into_expr_lazy(), vec![]).into_expr_lazy())
+        },
         Block::lazy(vec![]).into_stmt_lazy(),
     )
 );

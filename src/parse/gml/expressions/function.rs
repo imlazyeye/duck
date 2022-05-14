@@ -6,6 +6,7 @@ use super::Identifier;
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Function {
     /// The name, if any, of this function. Anonymous functions do not have names.
+    #[serde(flatten)]
     pub name: Option<Identifier>,
     /// The parameters of this function.
     pub parameters: Vec<Field>,
@@ -72,8 +73,8 @@ impl ParseVisitor for Function {
                 Field::Initialized(_) => {}
             }
         }
-        if let Some(Constructor::WithInheritance(inheritance_call)) = &self.constructor {
-            visitor(inheritance_call);
+        if let Some(Constructor { inheritance: Some(call) }) = &self.constructor {
+            visitor(call);
         }
     }
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
@@ -83,8 +84,8 @@ impl ParseVisitor for Function {
                 Field::Initialized(_) => {}
             }
         }
-        if let Some(Constructor::WithInheritance(inheritance_call)) = &mut self.constructor {
-            visitor(inheritance_call);
+        if let Some(Constructor { inheritance: Some(call) }) = &mut self.constructor {
+            visitor(call);
         }
     }
     fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
@@ -109,9 +110,7 @@ impl ParseVisitor for Function {
 
 /// Representation of a constructor's behavior in a function declaration.
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
-pub enum Constructor {
-    /// A constructor that inherits from the nested call.
-    WithInheritance(Expr),
-    /// A constructor that does not inherit from another constructor.
-    WithoutInheritance,
+pub struct Constructor {
+    /// The inheritance call this constructor has, if any.
+    pub inheritance: Option<Expr>,
 }

@@ -261,8 +261,10 @@ impl std::fmt::Display for Expr {
                 ..
             }) => {
                 let constructor_str = match constructor {
-                    Some(Constructor::WithInheritance(call)) => format!(": {call} constructor"),
-                    Some(Constructor::WithoutInheritance) => "constructor".into(),
+                    Some(Constructor {
+                        inheritance: Some(expr),
+                    }) => format!(": {expr} constructor"),
+                    Some(_) => "constructor".into(),
                     None => "".into(),
                 };
                 let param_str = parameters.iter().join(", ");

@@ -4,7 +4,7 @@ use crate::parse::{Access, Expr, ExprKind, IntoStmt, ParseVisitor, Stmt, StmtKin
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Switch {
     /// The value this switch statement is matching over.
-    pub matching_value: Expr,
+    pub identity: Expr,
     /// The various cases in this switch statement.
     pub cases: Vec<SwitchCase>,
     /// The default case body, if any.
@@ -13,9 +13,9 @@ pub struct Switch {
 impl Switch {
     /// Creates a new switch with the provided matching value, cases, and
     /// optionally a default case.
-    pub fn new(matching_value: Expr, cases: Vec<SwitchCase>, default_case: Option<Vec<Stmt>>) -> Self {
+    pub fn new(identity: Expr, cases: Vec<SwitchCase>, default_case: Option<Vec<Stmt>>) -> Self {
         Self {
-            matching_value,
+            identity,
             cases,
             default_case,
         }
@@ -51,7 +51,7 @@ impl Switch {
 
     /// Get a reference to the switch's matching value. Ie: foo in `switch foo`
     pub fn matching_value(&self) -> &Expr {
-        &self.matching_value
+        &self.identity
     }
 
     /// Get a reference to the switch's cases.
@@ -72,20 +72,20 @@ impl From<Switch> for StmtKind {
 impl IntoStmt for Switch {}
 impl ParseVisitor for Switch {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
-        visitor(&self.matching_value);
+        visitor(&self.identity);
         for case in self.cases.iter() {
-            visitor(&case.0);
+            visitor(&case.identity);
         }
     }
     fn visit_child_exprs_mut<E: FnMut(&mut Expr)>(&mut self, mut visitor: E) {
-        visitor(&mut self.matching_value);
+        visitor(&mut self.identity);
         for case in self.cases.iter_mut() {
-            visitor(&mut case.0);
+            visitor(&mut case.identity);
         }
     }
     fn visit_child_stmts<S: FnMut(&Stmt)>(&self, mut visitor: S) {
         for case in self.cases.iter() {
-            for stmt in case.1.iter() {
+            for stmt in case.body.iter() {
                 visitor(stmt);
             }
         }
@@ -97,7 +97,7 @@ impl ParseVisitor for Switch {
     }
     fn visit_child_stmts_mut<S: FnMut(&mut Stmt)>(&mut self, mut visitor: S) {
         for case in self.cases.iter_mut() {
-            for stmt in case.1.iter_mut() {
+            for stmt in case.body.iter_mut() {
                 visitor(stmt);
             }
         }
@@ -109,35 +109,25 @@ impl ParseVisitor for Switch {
     }
 }
 
-/// Representation of a single switch case in a [GmlSwitch].
-///
-/// FIXME: Case bodies are currently a Vec<Stmt> which is essentially
-/// a [Stmt::Block]. I originally chose to do this because I was concerned
-/// that lints would want to safely assume that a `Block` meant something with
-/// curly braces, but I now believe that `Blocks` should instead be better
-/// equipped to express whether or not they contain curly braces, and that case
-/// bodies should be made into `Block`s. While its not of huge concern right
-/// now, it will be an issue when static analyisis is added, as case bodies won't
-/// properly create a new scope.
+/// Representation of a single switch case.
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
-pub struct SwitchCase(Expr, Vec<Stmt>);
+pub struct SwitchCase {
+    identity: Expr,
+    body: Vec<Stmt>,
+}
 impl SwitchCase {
     /// Creates a new GmlSwitchCase with the given identity and body.
     pub fn new(identity: Expr, body: Vec<Stmt>) -> Self {
-        Self(identity, body)
+        Self { identity, body }
     }
 
     /// Returns a reference to the case's identity.
     pub fn identity(&self) -> &Expr {
-        &self.0
+        &self.identity
     }
 
     /// Returns an iterator over the body of the case.
-    ///
-    /// NOTE: In the future, case bodies may be changed into a
-    /// `Stmt::Block`. When this happens, this function may be changed or
-    /// removed.
     pub fn iter_body_statements(&self) -> impl Iterator<Item = &Stmt> {
-        self.1.iter()
+        self.body.iter()
     }
 }

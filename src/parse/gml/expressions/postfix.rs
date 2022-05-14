@@ -33,7 +33,7 @@ impl ParseVisitor for Postfix {
 
 /// The various postfix operations supported in gml.
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
-#[serde(tag = "type", content = "token", rename_all = "snake_case")]
+#[serde(tag = "op", content = "token", rename_all = "snake_case")]
 pub enum PostfixOp {
     /// ++
     Increment(Token),

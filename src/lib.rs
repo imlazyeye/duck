@@ -107,12 +107,12 @@ pub mod parse {
             pub use with::*;
         }
         mod expr;
-        mod optional_initialization;
+        mod field;
         mod stmt;
         mod token;
         pub use expr::*;
         pub use expressions::*;
-        pub use optional_initialization::*;
+        pub use field::*;
         pub use statements::*;
         pub use stmt::*;
         pub use token::*;
