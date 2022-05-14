@@ -198,7 +198,7 @@ impl Parser {
         let tick = self.stmt()?;
         self.match_take(TokenKind::RightParenthesis);
         let body = self.stmt()?;
-        Ok(self.new_stmt(ForLoop::new(initializer, condition, tick, body), start))
+        Ok(self.new_stmt(For::new(initializer, condition, tick, body), start))
     }
 
     fn with(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
@@ -206,7 +206,7 @@ impl Parser {
         self.require(TokenKind::With)?;
         let condition = self.expr()?;
         let body = self.stmt()?;
-        Ok(self.new_stmt(WithLoop::new(condition, body), start))
+        Ok(self.new_stmt(With::new(condition, body), start))
     }
 
     fn repeat(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
@@ -214,7 +214,7 @@ impl Parser {
         self.require(TokenKind::Repeat)?;
         let condition = self.expr()?;
         let body = self.stmt()?;
-        Ok(self.new_stmt(RepeatLoop::new(condition, body), start))
+        Ok(self.new_stmt(Repeat::new(condition, body), start))
     }
 
     fn do_until(&mut self) -> Result<Stmt, Diagnostic<FileId>> {
@@ -414,7 +414,7 @@ impl Parser {
             }
         }
         self.match_take_repeating(TokenKind::SemiColon);
-        Ok(self.new_stmt(LocalVariableSeries::new(declarations), start))
+        Ok(self.new_stmt(LocalVariables::new(declarations), start))
     }
 
     fn assignment(&mut self) -> Result<Stmt, Diagnostic<FileId>> {

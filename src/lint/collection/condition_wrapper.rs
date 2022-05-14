@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
-    parse::{DoUntil, Expr, ExprKind, If, RepeatLoop, Stmt, StmtKind, Switch, Ternary, WhileLoop, WithLoop},
+    parse::{DoUntil, Expr, ExprKind, If, Repeat, Stmt, StmtKind, Switch, Ternary, While, With},
     Config, FileId,
 };
 
@@ -64,9 +64,9 @@ impl EarlyStmtPass for ConditionWrapper {
             })
             | StmtKind::If(If { condition: expr, .. })
             | StmtKind::DoUntil(DoUntil { condition: expr, .. })
-            | StmtKind::WhileLoop(WhileLoop { condition: expr, .. })
-            | StmtKind::WithLoop(WithLoop { identity: expr, .. })
-            | StmtKind::RepeatLoop(RepeatLoop { tick_counts: expr, .. }) => Self::test(expr, config, reports),
+            | StmtKind::WhileLoop(While { condition: expr, .. })
+            | StmtKind::WithLoop(With { identity: expr, .. })
+            | StmtKind::RepeatLoop(Repeat { tick_counts: expr, .. }) => Self::test(expr, config, reports),
             _ => {}
         };
     }

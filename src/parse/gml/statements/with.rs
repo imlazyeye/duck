@@ -2,25 +2,25 @@ use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a with loop in gml.
 #[derive(Debug, PartialEq, Clone)]
-pub struct WithLoop {
+pub struct With {
     /// The expression representing the symbol being iterated over.
     pub identity: Expr,
     /// The body of the loop.
     pub body: Stmt,
 }
-impl WithLoop {
+impl With {
     /// Creates a new with loop.
     pub fn new(identity: Expr, body: Stmt) -> Self {
         Self { identity, body }
     }
 }
-impl From<WithLoop> for StmtKind {
-    fn from(with_loop: WithLoop) -> Self {
+impl From<With> for StmtKind {
+    fn from(with_loop: With) -> Self {
         Self::WithLoop(with_loop)
     }
 }
-impl IntoStmt for WithLoop {}
-impl ParseVisitor for WithLoop {
+impl IntoStmt for With {}
+impl ParseVisitor for With {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         visitor(&self.identity);
     }

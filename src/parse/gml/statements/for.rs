@@ -2,7 +2,7 @@ use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a for loop in gml.
 #[derive(Debug, PartialEq, Clone)]
-pub struct ForLoop {
+pub struct For {
     /// The initializing statement in the for loop.
     pub initializer: Stmt,
     /// The condition checked each tick in the loop.
@@ -12,7 +12,7 @@ pub struct ForLoop {
     /// The body of the for loop.
     pub body: Stmt,
 }
-impl ForLoop {
+impl For {
     /// Creates a new for loop.
     pub fn new(initializer: Stmt, condition: Expr, iterator: Stmt, body: Stmt) -> Self {
         Self {
@@ -23,13 +23,13 @@ impl ForLoop {
         }
     }
 }
-impl From<ForLoop> for StmtKind {
-    fn from(for_loop: ForLoop) -> Self {
+impl From<For> for StmtKind {
+    fn from(for_loop: For) -> Self {
         Self::ForLoop(for_loop)
     }
 }
-impl IntoStmt for ForLoop {}
-impl ParseVisitor for ForLoop {
+impl IntoStmt for For {}
+impl ParseVisitor for For {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         visitor(&self.condition);
     }

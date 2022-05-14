@@ -2,25 +2,25 @@ use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a while loop in gml.
 #[derive(Debug, PartialEq, Clone)]
-pub struct WhileLoop {
+pub struct While {
     /// The condition of this loop.
     pub condition: Expr,
     /// The body of the loop.
     pub body: Stmt,
 }
-impl WhileLoop {
+impl While {
     /// Creates a new while loop.
     pub fn new(condition: Expr, body: Stmt) -> Self {
         Self { condition, body }
     }
 }
-impl From<WhileLoop> for StmtKind {
-    fn from(while_loop: WhileLoop) -> Self {
+impl From<While> for StmtKind {
+    fn from(while_loop: While) -> Self {
         Self::WhileLoop(while_loop)
     }
 }
-impl IntoStmt for WhileLoop {}
-impl ParseVisitor for WhileLoop {
+impl IntoStmt for While {}
+impl ParseVisitor for While {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         visitor(&self.condition);
     }

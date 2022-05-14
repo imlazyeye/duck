@@ -97,7 +97,7 @@ stmt_test!(globalvar, "globalvar foo;", Globalvar::new(Identifier::lazy("foo")))
 stmt_test!(
     local_variable,
     "var i;",
-    LocalVariableSeries::new(vec![OptionalInitilization::Uninitialized(
+    LocalVariables::new(vec![OptionalInitilization::Uninitialized(
         Identifier::lazy("i").into_expr_lazy(),
     )])
 );
@@ -105,7 +105,7 @@ stmt_test!(
 stmt_test!(
     local_variable_with_value,
     "var i = 0;",
-    LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
+    LocalVariables::new(vec![OptionalInitilization::Initialized(
         Assignment::new(
             Identifier::lazy("i").into_expr_lazy(),
             AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -118,7 +118,7 @@ stmt_test!(
 stmt_test!(
     local_variable_series,
     "var i, j = 0, h;",
-    LocalVariableSeries::new(vec![
+    LocalVariables::new(vec![
         OptionalInitilization::Uninitialized(Identifier::lazy("i").into_expr_lazy()),
         OptionalInitilization::Initialized(
             Assignment::new(
@@ -135,7 +135,7 @@ stmt_test!(
 stmt_test!(
     local_variable_trailling_comma,
     "var i = 0,",
-    LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
+    LocalVariables::new(vec![OptionalInitilization::Initialized(
         Assignment::new(
             Identifier::lazy("i").into_expr_lazy(),
             AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -149,7 +149,7 @@ stmt_test!(
     local_variable_series_ending_without_marker,
     "{ var i = 0 j = 0 }",
     Block::lazy(vec![
-        LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
+        LocalVariables::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
                 AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -191,8 +191,8 @@ stmt_test!(
 stmt_test!(
     for_loop,
     "for (var i = 0; i < 1; i++) {}",
-    ForLoop::new(
-        LocalVariableSeries::new(vec![OptionalInitilization::Initialized(
+    For::new(
+        LocalVariables::new(vec![OptionalInitilization::Initialized(
             Assignment::new(
                 Identifier::lazy("i").into_expr_lazy(),
                 AssignmentOp::Identity(Token::lazy(TokenKind::Equal)),
@@ -222,7 +222,7 @@ stmt_test!(
 stmt_test!(
     with,
     "with foo {}",
-    WithLoop::new(
+    With::new(
         Identifier::lazy("foo").into_expr_lazy(),
         Block::lazy(vec![]).into_stmt_lazy(),
     )
@@ -231,7 +231,7 @@ stmt_test!(
 stmt_test!(
     repeat,
     "repeat 1 {}",
-    RepeatLoop::new(
+    Repeat::new(
         Literal::Real(1.0).into_expr_lazy(),
         Block::lazy(vec![]).into_stmt_lazy(),
     )

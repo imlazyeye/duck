@@ -1,7 +1,7 @@
 use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
-        Access, Expr, ExprKind, Function, Globalvar, Identifier, Literal, LocalVariableSeries, Macro, Stmt, StmtKind,
+        Access, Expr, ExprKind, Function, Globalvar, Identifier, Literal, LocalVariables, Macro, Stmt, StmtKind,
     },
     Casing, Config, FileId,
 };
@@ -113,7 +113,7 @@ impl EarlyStmtPass for CasingRules {
             StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
                 Self::check_for(name, config.casing_rules.global_rule, stmt.file_id(), config, reports)
             }
-            StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) => {
+            StmtKind::LocalVariableSeries(LocalVariables { declarations }) => {
                 for member in declarations.iter() {
                     Self::check_for(
                         member.name_identifier(),

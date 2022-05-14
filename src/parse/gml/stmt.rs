@@ -14,19 +14,19 @@ pub enum StmtKind {
     /// Declaration of a globalvar.
     GlobalvarDeclaration(Globalvar),
     /// Declaration of one or more local variables.
-    LocalVariableSeries(LocalVariableSeries),
+    LocalVariableSeries(LocalVariables),
     /// Declaration of a try / catch call.
     TryCatch(TryCatch),
     /// A for loop.
-    ForLoop(ForLoop),
+    ForLoop(For),
     /// A with loop.
-    WithLoop(WithLoop),
+    WithLoop(With),
     /// A repeat loop.
-    RepeatLoop(RepeatLoop),
+    RepeatLoop(Repeat),
     /// A do until loop.
     DoUntil(DoUntil),
     /// A while loop.
-    WhileLoop(WhileLoop),
+    WhileLoop(While),
     /// An if statement.
     If(If),
     /// A switch statement.

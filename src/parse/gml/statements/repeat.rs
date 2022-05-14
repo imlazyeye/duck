@@ -2,25 +2,25 @@ use crate::parse::{Expr, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a repeat loop in gml.
 #[derive(Debug, PartialEq, Clone)]
-pub struct RepeatLoop {
+pub struct Repeat {
     /// The expression dictating the amount of ticks.
     pub tick_counts: Expr,
     /// The body of the loop.
     pub body: Stmt,
 }
-impl RepeatLoop {
+impl Repeat {
     /// Creates a new repeat loop.
     pub fn new(tick_counts: Expr, body: Stmt) -> Self {
         Self { tick_counts, body }
     }
 }
-impl From<RepeatLoop> for StmtKind {
-    fn from(repeat_loop: RepeatLoop) -> Self {
+impl From<Repeat> for StmtKind {
+    fn from(repeat_loop: Repeat) -> Self {
         Self::RepeatLoop(repeat_loop)
     }
 }
-impl IntoStmt for RepeatLoop {}
-impl ParseVisitor for RepeatLoop {
+impl IntoStmt for Repeat {}
+impl ParseVisitor for Repeat {
     fn visit_child_exprs<E: FnMut(&Expr)>(&self, mut visitor: E) {
         visitor(&self.tick_counts);
     }
