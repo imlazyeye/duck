@@ -44,7 +44,7 @@ impl<'s> Session<'s> {
                     right.unify_ty(Ty::Real, self)?;
                 }
             },
-            StmtKind::LocalVariableSeries(LocalVariableSeries { declarations }) => {
+            StmtKind::LocalVariables(LocalVariables { declarations }) => {
                 for initializer in declarations.iter() {
                     // To enable shadowing, we first remove any old field for this name
                     self.local_mut().fields.remove(initializer.name());
@@ -57,9 +57,7 @@ impl<'s> Session<'s> {
                     };
                 }
             }
-            StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
-                self.adt_mut(&Var::GlobalAdt).write_unitialized(&name.lexeme)?
-            }
+            StmtKind::Globalvar(Globalvar { name }) => self.adt_mut(&Var::GlobalAdt).write_unitialized(&name.lexeme)?,
             StmtKind::Return(Return { value }) => {
                 if let Some(value) = value {
                     Unification::var_var(Var::Return, value.query(self)?, self)?;
@@ -67,7 +65,7 @@ impl<'s> Session<'s> {
                     self.subs.register(Var::Return, Ty::Undefined)?;
                 }
             }
-            StmtKind::WithLoop(WithLoop {
+            StmtKind::With(With {
                 body,
                 identity: _identity,
             }) => {
@@ -84,11 +82,11 @@ impl<'s> Session<'s> {
                 // };
                 self.visit_stmt(body)?;
             }
-            StmtKind::RepeatLoop(RepeatLoop { tick_counts, body }) => {
+            StmtKind::Repeat(Repeat { tick_counts, body }) => {
                 self.visit_stmt(body)?;
                 tick_counts.unify_ty(Ty::Real, self)?;
             }
-            StmtKind::ForLoop(ForLoop {
+            StmtKind::For(For {
                 condition,
                 initializer,
                 iterator,
@@ -99,7 +97,7 @@ impl<'s> Session<'s> {
                 self.visit_stmt(body)?;
                 condition.unify_ty(Ty::Bool, self)?;
             }
-            StmtKind::DoUntil(DoUntil { condition, body }) | StmtKind::WhileLoop(WhileLoop { condition, body }) => {
+            StmtKind::DoUntil(DoUntil { condition, body }) | StmtKind::While(While { condition, body }) => {
                 self.visit_stmt(body)?;
                 condition.unify_ty(Ty::Bool, self)?;
             }
