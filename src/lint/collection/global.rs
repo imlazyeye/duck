@@ -37,7 +37,7 @@ impl EarlyStmtPass for Global {
                     );
                 }
             }
-            StmtKind::GlobalvarDeclaration(Globalvar { .. }) => {
+            StmtKind::Globalvar(Globalvar { .. }) => {
                 reports.push(
                     Self::diagnostic(config)
                         .with_message("Use of global variable")

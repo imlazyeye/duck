@@ -16,7 +16,7 @@ impl Repeat {
 }
 impl From<Repeat> for StmtKind {
     fn from(repeat_loop: Repeat) -> Self {
-        Self::RepeatLoop(repeat_loop)
+        Self::Repeat(repeat_loop)
     }
 }
 impl IntoStmt for Repeat {}

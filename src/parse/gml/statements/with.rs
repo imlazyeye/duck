@@ -16,7 +16,7 @@ impl With {
 }
 impl From<With> for StmtKind {
     fn from(with_loop: With) -> Self {
-        Self::WithLoop(with_loop)
+        Self::With(with_loop)
     }
 }
 impl IntoStmt for With {}

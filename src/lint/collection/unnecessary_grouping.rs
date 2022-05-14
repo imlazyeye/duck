@@ -64,11 +64,11 @@ impl EarlyStmtPass for UnnecessaryGrouping {
         match stmt.kind() {
             // These are a style preference, which instead is linted by `condition_wrapper`.
             StmtKind::TryCatch(_)
-            | StmtKind::ForLoop(_)
-            | StmtKind::WithLoop(_)
-            | StmtKind::RepeatLoop(_)
+            | StmtKind::For(_)
+            | StmtKind::With(_)
+            | StmtKind::Repeat(_)
             | StmtKind::DoUntil(_)
-            | StmtKind::WhileLoop(_)
+            | StmtKind::While(_)
             | StmtKind::If(_)
             | StmtKind::Switch(_) => {}
 

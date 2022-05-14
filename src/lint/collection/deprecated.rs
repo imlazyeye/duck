@@ -24,7 +24,7 @@ impl Lint for Deprecated {
 
 impl EarlyStmtPass for Deprecated {
     fn visit_stmt_early(stmt: &Stmt, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
-        if let StmtKind::GlobalvarDeclaration(Globalvar { name }) = stmt.kind() {
+        if let StmtKind::Globalvar(Globalvar { name }) = stmt.kind() {
             reports.push(
                 Self::diagnostic(config)
                     .with_message("Use of `globalvar`")

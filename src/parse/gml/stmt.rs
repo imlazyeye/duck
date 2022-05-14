@@ -12,21 +12,21 @@ pub enum StmtKind {
     /// Declaration of a macro.
     Macro(Macro),
     /// Declaration of a globalvar.
-    GlobalvarDeclaration(Globalvar),
+    Globalvar(Globalvar),
     /// Declaration of one or more local variables.
-    LocalVariableSeries(LocalVariables),
+    LocalVariables(LocalVariables),
     /// Declaration of a try / catch call.
     TryCatch(TryCatch),
     /// A for loop.
-    ForLoop(For),
+    For(For),
     /// A with loop.
-    WithLoop(With),
+    With(With),
     /// A repeat loop.
-    RepeatLoop(Repeat),
+    Repeat(Repeat),
     /// A do until loop.
     DoUntil(DoUntil),
     /// A while loop.
-    WhileLoop(While),
+    While(While),
     /// An if statement.
     If(If),
     /// A switch statement.
@@ -64,14 +64,14 @@ impl ParseVisitor for StmtKind {
         match self {
             StmtKind::Enum(inner) => inner.visit_child_exprs(visitor),
             StmtKind::Macro(inner) => inner.visit_child_exprs(visitor),
-            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_exprs(visitor),
-            StmtKind::LocalVariableSeries(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Globalvar(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::LocalVariables(inner) => inner.visit_child_exprs(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_exprs(visitor),
-            StmtKind::ForLoop(inner) => inner.visit_child_exprs(visitor),
-            StmtKind::WithLoop(inner) => inner.visit_child_exprs(visitor),
-            StmtKind::RepeatLoop(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::For(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::With(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::Repeat(inner) => inner.visit_child_exprs(visitor),
             StmtKind::DoUntil(inner) => inner.visit_child_exprs(visitor),
-            StmtKind::WhileLoop(inner) => inner.visit_child_exprs(visitor),
+            StmtKind::While(inner) => inner.visit_child_exprs(visitor),
             StmtKind::If(inner) => inner.visit_child_exprs(visitor),
             StmtKind::Switch(inner) => inner.visit_child_exprs(visitor),
             StmtKind::Block(inner) => inner.visit_child_exprs(visitor),
@@ -90,14 +90,14 @@ impl ParseVisitor for StmtKind {
         match self {
             StmtKind::Enum(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::Macro(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtKind::LocalVariableSeries(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Globalvar(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::LocalVariables(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtKind::ForLoop(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtKind::WithLoop(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtKind::RepeatLoop(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::For(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::With(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::Repeat(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::DoUntil(inner) => inner.visit_child_exprs_mut(visitor),
-            StmtKind::WhileLoop(inner) => inner.visit_child_exprs_mut(visitor),
+            StmtKind::While(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::If(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::Switch(inner) => inner.visit_child_exprs_mut(visitor),
             StmtKind::Block(inner) => inner.visit_child_exprs_mut(visitor),
@@ -117,14 +117,14 @@ impl ParseVisitor for StmtKind {
         match self {
             StmtKind::Enum(inner) => inner.visit_child_stmts(visitor),
             StmtKind::Macro(inner) => inner.visit_child_stmts(visitor),
-            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_stmts(visitor),
-            StmtKind::LocalVariableSeries(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Globalvar(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::LocalVariables(inner) => inner.visit_child_stmts(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_stmts(visitor),
-            StmtKind::ForLoop(inner) => inner.visit_child_stmts(visitor),
-            StmtKind::WithLoop(inner) => inner.visit_child_stmts(visitor),
-            StmtKind::RepeatLoop(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::For(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::With(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::Repeat(inner) => inner.visit_child_stmts(visitor),
             StmtKind::DoUntil(inner) => inner.visit_child_stmts(visitor),
-            StmtKind::WhileLoop(inner) => inner.visit_child_stmts(visitor),
+            StmtKind::While(inner) => inner.visit_child_stmts(visitor),
             StmtKind::If(inner) => inner.visit_child_stmts(visitor),
             StmtKind::Switch(inner) => inner.visit_child_stmts(visitor),
             StmtKind::Block(inner) => inner.visit_child_stmts(visitor),
@@ -144,14 +144,14 @@ impl ParseVisitor for StmtKind {
         match self {
             StmtKind::Enum(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::Macro(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtKind::GlobalvarDeclaration(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtKind::LocalVariableSeries(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Globalvar(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::LocalVariables(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::TryCatch(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtKind::ForLoop(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtKind::WithLoop(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtKind::RepeatLoop(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::For(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::With(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::Repeat(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::DoUntil(inner) => inner.visit_child_stmts_mut(visitor),
-            StmtKind::WhileLoop(inner) => inner.visit_child_stmts_mut(visitor),
+            StmtKind::While(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::If(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::Switch(inner) => inner.visit_child_stmts_mut(visitor),
             StmtKind::Block(inner) => inner.visit_child_stmts_mut(visitor),
@@ -257,8 +257,8 @@ impl std::fmt::Display for Stmt {
                 mac.name,
                 mac.body
             )),
-            StmtKind::GlobalvarDeclaration(globalvar) => f.pad(&format!("globalvar {};", globalvar.name)),
-            StmtKind::LocalVariableSeries(series) => f.pad(&format!(
+            StmtKind::Globalvar(globalvar) => f.pad(&format!("globalvar {};", globalvar.name)),
+            StmtKind::LocalVariables(series) => f.pad(&format!(
                 "var {};",
                 series
                     .declarations
@@ -279,14 +279,14 @@ impl std::fmt::Display for Stmt {
                     .map(|_| " finally {{ ... }}".to_string())
                     .unwrap_or_default()
             )),
-            StmtKind::ForLoop(fo) => f.pad(&format!(
+            StmtKind::For(fo) => f.pad(&format!(
                 "for ({} {} {}) {{ ... }}",
                 fo.initializer, fo.condition, fo.iterator
             )),
-            StmtKind::WithLoop(with) => f.pad(&format!("with {} {{ ... }}", with.identity)),
-            StmtKind::RepeatLoop(repeat) => f.pad(&format!("repeat {} {{ ... }}", repeat.tick_counts)),
+            StmtKind::With(with) => f.pad(&format!("with {} {{ ... }}", with.identity)),
+            StmtKind::Repeat(repeat) => f.pad(&format!("repeat {} {{ ... }}", repeat.tick_counts)),
             StmtKind::DoUntil(do_until) => f.pad(&format!("do {{{}}} until {};", do_until.body, do_until.condition)),
-            StmtKind::WhileLoop(whi) => f.pad(&format!("while {} {{ ... }}", whi.condition)),
+            StmtKind::While(whi) => f.pad(&format!("while {} {{ ... }}", whi.condition)),
             StmtKind::If(i) => f.pad(&format!(
                 "if {} {{ ... }}{}",
                 i.condition,

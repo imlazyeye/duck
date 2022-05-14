@@ -110,10 +110,10 @@ impl EarlyStmtPass for CasingRules {
             StmtKind::Macro(Macro { name, .. }) => {
                 Self::check_for(name, config.casing_rules.macro_rule, stmt.file_id(), config, reports)
             }
-            StmtKind::GlobalvarDeclaration(Globalvar { name }) => {
+            StmtKind::Globalvar(Globalvar { name }) => {
                 Self::check_for(name, config.casing_rules.global_rule, stmt.file_id(), config, reports)
             }
-            StmtKind::LocalVariableSeries(LocalVariables { declarations }) => {
+            StmtKind::LocalVariables(LocalVariables { declarations }) => {
                 for member in declarations.iter() {
                     Self::check_for(
                         member.name_identifier(),

@@ -53,7 +53,7 @@ expr_test!(
                 )
                 .into_stmt_lazy(),
             ),
-            OptionalInitilization::Uninitialized(Identifier::lazy("baz").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("baz").into_expr_lazy()),
         ],
         Block::lazy(vec![]).into_stmt_lazy(),
     )

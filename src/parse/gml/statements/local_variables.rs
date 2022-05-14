@@ -15,7 +15,7 @@ impl LocalVariables {
 }
 impl From<LocalVariables> for StmtKind {
     fn from(series: LocalVariables) -> Self {
-        Self::LocalVariableSeries(series)
+        Self::LocalVariables(series)
     }
 }
 impl IntoStmt for LocalVariables {}

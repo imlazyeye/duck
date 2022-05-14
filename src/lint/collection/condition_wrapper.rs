@@ -64,9 +64,9 @@ impl EarlyStmtPass for ConditionWrapper {
             })
             | StmtKind::If(If { condition: expr, .. })
             | StmtKind::DoUntil(DoUntil { condition: expr, .. })
-            | StmtKind::WhileLoop(While { condition: expr, .. })
-            | StmtKind::WithLoop(With { identity: expr, .. })
-            | StmtKind::RepeatLoop(Repeat { tick_counts: expr, .. }) => Self::test(expr, config, reports),
+            | StmtKind::While(While { condition: expr, .. })
+            | StmtKind::With(With { identity: expr, .. })
+            | StmtKind::Repeat(Repeat { tick_counts: expr, .. }) => Self::test(expr, config, reports),
             _ => {}
         };
     }

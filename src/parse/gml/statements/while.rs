@@ -16,7 +16,7 @@ impl While {
 }
 impl From<While> for StmtKind {
     fn from(while_loop: While) -> Self {
-        Self::WhileLoop(while_loop)
+        Self::While(while_loop)
     }
 }
 impl IntoStmt for While {}

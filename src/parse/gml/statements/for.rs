@@ -25,7 +25,7 @@ impl For {
 }
 impl From<For> for StmtKind {
     fn from(for_loop: For) -> Self {
-        Self::ForLoop(for_loop)
+        Self::For(for_loop)
     }
 }
 impl IntoStmt for For {}

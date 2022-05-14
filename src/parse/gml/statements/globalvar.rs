@@ -14,7 +14,7 @@ impl Globalvar {
 }
 impl From<Globalvar> for StmtKind {
     fn from(glob: Globalvar) -> Self {
-        Self::GlobalvarDeclaration(glob)
+        Self::Globalvar(glob)
     }
 }
 impl IntoStmt for Globalvar {}

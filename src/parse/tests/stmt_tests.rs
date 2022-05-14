@@ -52,7 +52,7 @@ stmt_test!(
                 )
                 .into_stmt_lazy(),
             ),
-            OptionalInitilization::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
+            Field::Uninitialized(Identifier::lazy("Baz").into_expr_lazy()),
         ],
     )
 );
@@ -128,7 +128,7 @@ stmt_test!(
             )
             .into_stmt_lazy(),
         ),
-        OptionalInitilization::Uninitialized(Identifier::lazy("h").into_expr_lazy()),
+        Field::Uninitialized(Identifier::lazy("h").into_expr_lazy()),
     ])
 );
 
