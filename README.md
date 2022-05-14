@@ -1,6 +1,6 @@
 # duck
 
-![GitHub branch checks state](https://img.shields.io/github/workflow/status/imlazyeye/duck/duck%20Test?label=test)
+![tests](https://img.shields.io/testspace/tests/imlazyeye/imlazyeye:duck/main)
 ![GitHub](https://img.shields.io/badge/license-MIT-green)
 ![experimental](https://img.shields.io/badge/stability-experimental-important)
 

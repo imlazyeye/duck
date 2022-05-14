@@ -29,8 +29,8 @@ jobs:
           domain: ${{ github.repository_owner }}
 
       - name: Test
-        run: cargo test -- --format=terse
+        run: cargo test -- -Z unstable-options --format junit --report-time > results.xml
 
       - name: Push result to Testspace server
-        run: testspace test*.xml
+        run: testspace results.xml
         if: always()
