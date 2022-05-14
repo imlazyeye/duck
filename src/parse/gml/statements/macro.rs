@@ -13,6 +13,7 @@ use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtKind};
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Macro {
     /// The name this macro was declared with.
+    #[serde(flatten)]
     pub name: Identifier,
     /// The config (if any) the macro is bound to.
     pub config: Option<String>,

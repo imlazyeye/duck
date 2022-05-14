@@ -4,6 +4,7 @@ use crate::parse::{Expr, Identifier, IntoStmt, ParseVisitor, Stmt, StmtKind};
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
 pub struct Globalvar {
     /// The name of the declared globalvar.
+    #[serde(flatten)]
     pub name: Identifier,
 }
 impl Globalvar {
