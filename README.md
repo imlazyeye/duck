@@ -16,28 +16,24 @@ duck is also extremely fast. It currently can fully process a 250,000 line proje
 
 ## Table of Contents
 
-- [Features](#features)
-  - [Type Checking](#type-checking)
-  - [Lints](#lints)
-  - [Customization](#customization)
+- [Type Checking](#type-checking)
+- [Lints](#lints)
+- [Customization](#customization)
 - [Instalation](#instalation)
-- [Configuration](#configuration)
 - [Usage](#usage)
 - [Support and Requests](#support-and-requests)
 
-## Features
-
-### Type Checking
+## Type Checking
 
 duck's most powerful feature is its ability to type-check GML without compromising on the language's flexibility. This feature is currently in development and is not enabled on releases. Developers can enable type analysis by enabling the `solve` feature. More information coming soon!
 
-### Lints
+## Lints
 
 duck comes with a variety of lints that offer nuanced feedback about your code, ranging from offering stylistic feedback to encouraging better code patterns. 
 
 duck currently supports [36 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
 
-### Customization
+## Customization
 
 duck can use a configuration file per-project to change how it behaves. The most basic adjustment you can make is overriding the default "level" of any lint.
 
@@ -54,7 +50,7 @@ Some lints come with customizable behavior. `english_flavor_violation`, for exam
 
 You can read more about these customization features and how to set them up [here](CONFIGURATION.md).
 
-#### Tags
+### Tags
 
 duck supports parsing for arbitrary tags in the codebase written with the following syntax:
 
@@ -80,10 +76,6 @@ Tags are a great way to enable lints on things you don't want to _fully_ ban, bu
 
 The latest release can be found [here](https://github.com/imlazyeye/duck/releases). Rust users can also install with cargo: `cargo install duck`.
 
-## Configuration
-
-You can learn how to customize duck's behavior [here](CONFIGURATION.md).
-
 ## Usage
 
 To run duck, simply use the `run` command!
@@ -98,6 +90,6 @@ There are a few different options you can use, as well as other commands. Enter 
 
 Please [open an issue](https://github.com/imlazyeye/duck/issues) if you encounter any problems with duck, or if you have any feature requests you would like to make!
 
-### Footnotes
+#### Footnotes
 
 - _Benchmark was run on an MacBook Pro 2021 running an M1 Max with 32 GB of memory._
