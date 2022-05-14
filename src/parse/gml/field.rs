@@ -4,7 +4,7 @@ use super::{Expr, Identifier, Stmt};
 /// parameters, which can be optionally initialized. Will either contain an Expr with an Identifier,
 /// or a Stmt with an Assignment.
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "field", content = "value", rename_all = "snake_case")]
 pub enum Field {
     /// Uninitialized definition, containing only their name as an identifier as an
     /// expression.

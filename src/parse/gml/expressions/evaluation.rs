@@ -37,7 +37,7 @@ impl ParseVisitor for Evaluation {
 
 /// The various evaluation operations supported in gml.
 #[derive(Debug, PartialEq, Copy, Clone, serde::Serialize)]
-#[serde(tag = "type", content = "token", rename_all = "snake_case")]
+#[serde(tag = "op", content = "token", rename_all = "snake_case")]
 pub enum EvaluationOp {
     /// +
     Plus(Token),

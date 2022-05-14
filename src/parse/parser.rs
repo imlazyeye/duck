@@ -388,9 +388,7 @@ impl Parser {
             let left = self.new_expr(name, span);
             let local_variable = if let Some(equal) = self.match_take(TokenKind::Equal) {
                 let right = self.expr()?;
-                Field::Initialized(
-                    self.new_stmt(Assignment::new(left, AssignmentOp::Identity(equal), right), start),
-                )
+                Field::Initialized(self.new_stmt(Assignment::new(left, AssignmentOp::Identity(equal), right), start))
             } else {
                 Field::Uninitialized(left)
             };
@@ -687,9 +685,7 @@ impl Parser {
                         let name = self.new_expr(name, Span::new(parameter_start, end));
                         if let Some(token) = self.match_take(TokenKind::Equal) {
                             let assignment = Assignment::new(name, AssignmentOp::Identity(token), self.expr()?);
-                            parameters.push(Field::Initialized(
-                                self.new_stmt(assignment, parameter_start),
-                            ));
+                            parameters.push(Field::Initialized(self.new_stmt(assignment, parameter_start)));
                         } else {
                             parameters.push(Field::Uninitialized(name));
                         };
@@ -705,10 +701,9 @@ impl Parser {
                 None
             };
             let constructor = if self.match_take(TokenKind::Constructor).is_some() {
-                match inheritance {
-                    Some((_, inheritance)) => Some(Constructor::WithInheritance(inheritance)),
-                    None => Some(Constructor::WithoutInheritance),
-                }
+                Some(Constructor {
+                    inheritance: inheritance.map(|(_, v)| v),
+                })
             } else {
                 if let Some((colon, inheritance)) = inheritance {
                     return Err(Diagnostic::error()

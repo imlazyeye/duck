@@ -4,7 +4,7 @@ use super::Identifier;
 
 /// Representation of a access in gml, such as an array lookup, or dot-notation.
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
-#[serde(rename_all = "snake_case", tag = "type")]
+#[serde(rename_all = "snake_case", tag = "access")]
 pub enum Access {
     /// Accessing the global scope via `global.`.
     Global {

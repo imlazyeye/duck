@@ -6,7 +6,7 @@ use super::Identifier;
 
 /// Representation of a literal in gml, aka a constant compile-time value.
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case", tag = "literal", content = "value")]
 pub enum Literal {
     /// true
     True,
