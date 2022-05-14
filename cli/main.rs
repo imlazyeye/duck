@@ -272,6 +272,10 @@ async fn emit(path: Option<PathBuf>, output_path: PathBuf, format: Option<EmitFo
         EmitFormat::Yaml => serde_yaml::to_string(&emit).unwrap(),
     };
     std::fs::write(output_path, output_data).unwrap();
+    println!(
+        "{}: duck is not yet stabalized, and the format produced by this command may change without announcement. Until things are more settled, you can find an overview written in JSON of the types this command produces here: https://github.com/imlazyeye/duck/pull/1#issuecomment-1126736509",
+        "WARNING".bright_yellow().bold(),
+    );
     Ok(())
 }
 
