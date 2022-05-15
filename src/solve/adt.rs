@@ -6,6 +6,7 @@ use hashbrown::HashMap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Adt {
+    pub id: AdtId,
     pub fields: HashMap<String, Field>,
     pub bounties: HashMap<String, Bounty>,
     pub state: AdtState,
@@ -13,6 +14,7 @@ pub struct Adt {
 impl Adt {
     pub fn new(state: AdtState, fields: Vec<(Identifier, Ty)>) -> Self {
         Self {
+            id: AdtId::new(),
             fields: fields
                 .into_iter()
                 // .chain([(Identifier::lazy("self"), Ty::Identity)].into_iter())
@@ -76,7 +78,7 @@ impl Adt {
         self.update(name, ty, false, false)
     }
 
-    fn update(&mut self, name: &str, mut ty: Ty, resolved: bool, constant: bool) -> Result<Substitution, TypeError> {
+    fn update(&mut self, name: &str, mut ty: Ty, is_write: bool, constant: bool) -> Result<Substitution, TypeError> {
         println!(
             "{}       {name}: {}",
             "UPDATE".bright_cyan(),
@@ -91,7 +93,7 @@ impl Adt {
                     Field {
                         value: FieldValue::Initialized(ty),
                         constant,
-                        resolved,
+                        resolved: is_write,
                     },
                 );
                 Ok(Substitution::None)
@@ -104,7 +106,7 @@ impl Adt {
             // if self.id == Var::GlobalAdt && matches!((&field.ty, &ty), (Ty::Func(_), Ty::Func(_))) {
             //     return duck_error!("cannot declare a global function more than once");
             // }
-            if !field.resolved && resolved {
+            if !field.resolved && is_write {
                 field.resolved = true;
             }
             if field.value == FieldValue::Uninitialized {
@@ -114,6 +116,16 @@ impl Adt {
                 Unification::unify(field.value.ty_mut().unwrap(), &mut ty)
             }
         }
+    }
+}
+
+/// A unique id that each [Adt] has.
+#[derive(Debug, Hash, PartialEq, Eq, Clone, Copy, Default)]
+pub struct AdtId(u64);
+impl AdtId {
+    /// Creates a new, random ExprId.
+    pub fn new() -> Self {
+        Self(rand::random())
     }
 }
 

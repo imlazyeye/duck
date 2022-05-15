@@ -187,9 +187,15 @@ impl Expr {
                     Ok(Ty::Bool)
                 }
                 ExprKind::Evaluation(eval) => {
-                    eval.left.unify_ty(Ty::Real, sess)?;
-                    eval.right.unify_ty(Ty::Real, sess)?;
-                    Ok(Ty::Real)
+                    if let EvaluationOp::Plus(_) = eval.op {
+                        let var = eval.right.query(sess)?;
+                        eval.left.unify_ty(Ty::Var(var), sess)?;
+                        Ok(Ty::Var(var))
+                    } else {
+                        eval.right.unify_ty(Ty::Real, sess)?;
+                        eval.left.unify_ty(Ty::Real, sess)?;
+                        Ok(Ty::Real)
+                    }
                 }
                 ExprKind::NullCoalecence(null) => {
                     let ty = Ty::Var(null.right.query(sess)?);
@@ -311,16 +317,19 @@ impl Expr {
                     // (just to reduce operations, no functional difference)
                     Ok(ty)
                 }
-                ExprKind::Identifier(iden) => {
-                    let id = if sess.local().contains(&iden.lexeme) {
-                        *sess.local_var()
-                    } else if sess.adt(&Var::GlobalAdt).contains(&iden.lexeme) {
-                        Var::GlobalAdt
-                    } else {
-                        *sess.identity_var()
-                    };
-                    handle_adt(my_var, sess, &id, iden)
-                }
+                ExprKind::Identifier(iden) => match iden.lexeme.as_str() {
+                    "self" => Ok(Ty::Identity),
+                    name => {
+                        let id = if sess.local().contains(name) {
+                            *sess.local_var()
+                        } else if sess.adt(&Var::GlobalAdt).contains(name) {
+                            Var::GlobalAdt
+                        } else {
+                            *sess.identity_var()
+                        };
+                        handle_adt(my_var, sess, &id, iden)
+                    }
+                },
             }?;
 
             sess.subs.register(my_var, ty)?;
@@ -376,7 +385,6 @@ impl<'s> Session<'s> {
                 panic!("i don't know what to do here: {}", Printer::ty(&inheritance_call))
             }
         }
-
         self.process_statements(function.body_stmts())?;
         self.pop_local();
         self.subs.remove(&Var::Return);
@@ -388,7 +396,7 @@ impl<'s> Session<'s> {
             }),
             parameters,
             minimum_arguments,
-            return_type: Box::new(Ty::Identity),
+            return_type: Box::new(Ty::Var(*self.identity_var())),
         });
 
         if let Some(name) = &function.name {

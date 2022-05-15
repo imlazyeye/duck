@@ -78,7 +78,7 @@ macro_rules! global_test {
 }
 
 #[macro_export]
-macro_rules! instance_test {
+macro_rules! identity_test {
     ($name:ident, $($src:expr => $should_be:expr), * $(,)?) => {
         #[cfg(test)]
         #[test]
@@ -86,7 +86,7 @@ macro_rules! instance_test {
             let mut subs = crate::solve::Subs::default();
             let mut session = crate::solve::Session::new(&mut subs);
             let var = crate::solve::Var::Generated(rand::random());
-            let adt = crate::solve::adt_prefabs::object_adt().adt().clone();
+            let adt = crate::solve::Adt::new(AdtState::Extendable, vec![]);
             session.subs.register(var, crate::solve::Ty::Adt(adt));
             session.push_identity(var);
             $({
@@ -101,7 +101,7 @@ macro_rules! instance_test {
             let mut subs = crate::solve::Subs::default();
             let mut session = crate::solve::Session::new(&mut subs);
             let var = crate::solve::Var::Generated(rand::random());
-            let adt = crate::solve::adt_prefabs::object_adt().adt().clone();
+            let adt = crate::solve::Adt::new(AdtState::Extendable, vec![]);
             session.subs.register(var, crate::solve::Ty::Adt(adt)).unwrap();
             session.push_identity(var);
             crate::solve::tests::test_utils::harness_session($preamble, &mut session).unwrap();
