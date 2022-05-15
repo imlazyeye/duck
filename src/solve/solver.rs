@@ -22,7 +22,7 @@ impl<'s> Session<'s> {
             local: vec![],
         };
         session.subs.0.insert(Var::GlobalAdt, global_adt());
-        session.identity.push(Var::GlobalAdt);
+        session.push_identity(Var::GlobalAdt);
         session.enter_new_local(vec![]);
         session
     }

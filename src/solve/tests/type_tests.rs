@@ -1,5 +1,5 @@
 use super::*;
-use crate::{adt, array, function, global_test, instance_test, option, solve::*, test_failure, test_success};
+use crate::{adt, array, function, global_test, identity_test, option, solve::*, test_failure, test_success};
 use Ty::*;
 
 // Basic expressions
@@ -51,8 +51,7 @@ global_test!(
     "1 div 1" => Real,
 );
 global_test!(logical, "true && false" => Bool);
-// this will require unions
-// test_type!(add_strings, "\"foo\" + \"foo\"" => Str);
+global_test!(add_strings, "\"foo\" + \"foo\"" => Str);
 test_failure!(subtract_strings, "var a = \"foo\" - \"foo\"");
 test_failure!(invalid_equality, "var a = 0 == true;");
 
@@ -79,6 +78,7 @@ test_success!(
 global_test!(local_var, "var a = 0", "a" => Real);
 global_test!(assign_to_null_var, "var a; a = 0;", "a" => Real);
 global_test!(shadowing, "var a = 0; var a = true;", "a" => Bool);
+identity_test!(local_trump_instance, "var x = true;", "x" => Bool);
 test_failure!(undefined_variable, "var a = b;");
 test_failure!(read_variable_before_declaration, "var a = b, b = 0;");
 
@@ -162,7 +162,7 @@ global_test!(
     "foo.bar()" => Real,
 );
 global_test!(
-    infinite_cycle,
+    struct_infinite_cycle,
     "var foo = { a: 0 };
     foo.bar = foo;",
     "foo.bar.a" => Real
@@ -179,6 +179,7 @@ global_test!(
     "foo()" => Real
 );
 test_failure!(invalid_default_argument, "function foo(x=0, y) {}");
+identity_test!(parameter_trump_instance, "function foo(x) { return !x }", "foo" => function!((Bool) => Bool));
 global_test!(return_nothing, "function foo() {};", "foo()" => Undefined,);
 global_test!(return_constant, "function foo() { return 0; };", "foo()" => Real);
 global_test!(
@@ -256,7 +257,7 @@ global_test!(
     }",
     "foo" => function!(() => function!(() => Real))
 );
-instance_test!(
+identity_test!(
     return_self,
     "function foo() constructor {
         function bar() { 
@@ -278,12 +279,12 @@ global_test!(
         }
     }" => function!(() => option!(Real))
 );
-instance_test!(
+identity_test!(
     self_as_argument,
     "function echo(x) { return x; }",
     "echo(self)" => Identity,
 );
-instance_test!(
+identity_test!(
     self_in_call_pattern,
     "function foo(a) {
         return a.x;
@@ -346,29 +347,29 @@ test_failure!(extra_argument, "var a = function() {}, b = a(0);");
 test_failure!(contrasting_returns, "function() { return 0; return true; }");
 
 // Self
-instance_test!(self_assignment_no_keyword, "foo = 0;", "foo" => Real);
-instance_test!(self_assignment_with_keyword, "self.foo = 0;", "self.foo" => Real);
-instance_test!(
+identity_test!(self_assignment_no_keyword, "foo = 0;", "foo" => Real);
+identity_test!(self_assignment_with_keyword, "self.foo = 0;", "self.foo" => Real);
+identity_test!(
     function_write_constant_to_self,
     "self.a = 0;
     function bar() { self.a = 0; }",
     "bar" => function!(() => Undefined),
 );
-instance_test!(
+identity_test!(
     function_write_parameter_to_self,
     "self.a = 0;
     function bar(x) { self.a = x + 1; }",
     "bar" => function!((Real) => Undefined),
 );
-instance_test!(function_self_extention, "function foo() { self.a = 0; }", "a" => Real,);
-instance_test!(
+identity_test!(function_self_extention, "function foo() { self.a = 0; }", "a" => Real,);
+identity_test!(
     function_self_extention_nested,
     "function foo() {
         function bar() { self.a = 0; }
     }",
     "a" => Real,
 );
-instance_test!(
+identity_test!(
     bound_scope_in_struct,
     "var foo = {
         bar: 0,
@@ -378,7 +379,7 @@ instance_test!(
     };",
     "foo.fizz()" => Real,
 );
-instance_test!(
+identity_test!(
     obj_setter,
     "self.x = 0;
     self.y = 0;
@@ -393,7 +394,7 @@ test_success!(
     "var a = [true, false, true];
     array_insert(a, true, 0);"
 );
-instance_test!(
+identity_test!(
     option_field,
     "self.a = undefined;
     self.b = 0;
@@ -404,10 +405,17 @@ instance_test!(
     "a" => option!(Real),
     "b" => option!(Real),
 );
+identity_test!(
+    self_infinite_cycle,
+    "self.a = 0;
+    self.b = self;",
+    "self.b.a" => Real
+);
+test_failure!(overwrite_self, "self = 0;");
 
 // Constructors
 global_test!(
-    constructor,
+    empty_constructor,
     "function foo() constructor {}",
     "new foo()" => adt!()
 );
@@ -495,14 +503,11 @@ global_test!(
 );
 global_test!(
     alias_function,
-    "function foo() constructor {
-        self.x = 0;
-    }
-    function bar() {
-        var new_struct = new foo();
-        return new_struct;
+    "function foo() constructor {}
+    var bar = function() {
+        return new foo();
     }",
-    "bar()" => adt!(foo: function!(() => Identity), x: Real,)
+    "bar()" => adt!(foo: function!(() => Identity))
 );
 global_test!(
     clone,
@@ -532,13 +537,13 @@ test_failure!(
 );
 
 // Out of order
-instance_test!(
+identity_test!(
     function_read_self_out_of_order,
     "function bar() { return self.a; }
     self.a = 0;",
     "bar" => function!(() => Real),
 );
-instance_test!(
+identity_test!(
     function_write_self_out_of_order,
     "function bar(x) { self.a = x; }
     self.a = 0;",
@@ -560,7 +565,7 @@ global_test!(
     }",
     "wrapper()" => Real,
 );
-instance_test!(
+identity_test!(
     self_as_argument_out_of_order,
     "self.x = 0;
     function bar() { fizz(self) }

@@ -26,6 +26,10 @@ impl Ty {
             Ty::Func(func) => {
                 func.parameters().iter().any(|v| v.contains(other, subs)) || func.return_type().contains(other, subs)
             }
+            Ty::Adt(adt) => adt
+                .fields
+                .iter()
+                .any(|(_, v)| v.value.ty().map_or(false, |v| v.contains(other, subs))),
             Ty::Option(inner) => inner.contains(other, subs),
             _ => false,
         }
@@ -53,6 +57,30 @@ impl Ty {
                     *self = replace;
                 }
             }
+        }
+    }
+
+    pub fn sanatize(&mut self, adt_id: AdtId) {
+        match self {
+            Ty::Array(inner) => inner.sanatize(adt_id),
+            Ty::Adt(adt) => {
+                if adt.id == adt_id {
+                    println!("sanitizing!");
+                    *self = Ty::Identity;
+                } else {
+                    adt.fields.iter_mut().for_each(|(_, v)| {
+                        if let Some(v) = v.value.ty_mut() {
+                            v.sanatize(adt_id)
+                        }
+                    })
+                }
+            }
+            Ty::Func(func) => {
+                func.parameters_mut().iter_mut().for_each(|v| v.sanatize(adt_id));
+                func.return_type_mut().sanatize(adt_id)
+            }
+            Ty::Option(inner) => inner.sanatize(adt_id),
+            _ => {}
         }
     }
 
@@ -126,6 +154,7 @@ impl Def {
                 }
                 Ty::Array(inner) => Ty::Array(Box::new(checkout_ty(&inner, map))),
                 Ty::Adt(adt) => Ty::Adt(Adt {
+                    id: AdtId::new(),
                     fields: adt
                         .fields
                         .iter()
