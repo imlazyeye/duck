@@ -3,6 +3,7 @@
 ![tests](https://img.shields.io/testspace/tests/imlazyeye/imlazyeye:duck/main)
 ![GitHub](https://img.shields.io/badge/license-MIT-green)
 ![experimental](https://img.shields.io/badge/stability-experimental-important)
+![gm_version](https://img.shields.io/badge/GM%20Runtime-2022.3.0.497-blue)
 
 ## ⚠️ duck is not yet released and is unstable! An announcement will be made when 0.1.0 is released.
 
