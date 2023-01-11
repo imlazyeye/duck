@@ -32,6 +32,7 @@ Below are all of the lints currently supported in duck.
 | single_equals_comparison | LintLevel::Warn | The single-equals token can be used for both assignments and equalities in gml. This is atypical of most languages, and can lead to inconsistancies or bugs in projects.
 | single_switch_case | LintLevel::Warn | Switch statements that only match on a single element can be reduced to an `if` statement.
 | suspicious_constant_usage | LintLevel::Deny | Using a constant outside of equalities and direct assignments is likely unintended or misunderstood code.
+| switch_without_case | LintLevel::Warn | A switch statement is unncessary if it contains now cases.
 | todo | LintLevel::Allow | Todo markers are useful for work-in-progress code, but often are not intended to be permanently in place.
 | too_many_arguments | LintLevel::Warn | Functions with lots of parameters quickly become confusing and indicate a need for structural change.
 | try_catch | LintLevel::Allow | GML's try/catch will collect all errors as opposed to the precise ones wanted, allowing them to accidently catch errors that should not be surpressed.

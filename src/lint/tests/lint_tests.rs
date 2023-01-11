@@ -123,7 +123,7 @@ fn casing_rules() {
 }
 
 #[test]
-fn collapsable_if() {
+fn collapsible_if() {
     harness_lint::<CollapsableIf>(
         "
             if foo {

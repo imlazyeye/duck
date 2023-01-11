@@ -41,14 +41,17 @@ impl EarlyExprPass for UnnecessaryGrouping {
     fn visit_expr_early(expr: &Expr, config: &crate::Config, reports: &mut Vec<Diagnostic<FileId>>) {
         match expr.kind() {
             // These are the blessed expressions that utilize groupings in meaningful ways
-            ExprKind::Logical(_) | ExprKind::Equality(_) | ExprKind::Evaluation(_) | ExprKind::Unary(_) => {}
+            ExprKind::Logical(_)
+            | ExprKind::Equality(_)
+            | ExprKind::Evaluation(_)
+            | ExprKind::Unary(_)
+            | ExprKind::NullCoalecence(_) => {}
 
             // This is style preference, which instead is linted by `condition_wrapper`.
             ExprKind::Ternary(_) => {}
 
             // These should not directly own groupings
             ExprKind::Function(_)
-            | ExprKind::NullCoalecence(_)
             | ExprKind::Postfix(_)
             | ExprKind::Access(_)
             | ExprKind::Call(_)

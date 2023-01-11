@@ -55,6 +55,8 @@ mod single_switch_case;
 pub use single_switch_case::SingleSwitchCase;
 mod suspicious_constant_usage;
 pub use suspicious_constant_usage::SuspicousConstantUsage;
+mod switch_without_case;
+pub use switch_without_case::SwitchWithoutCase;
 mod todo;
 pub use todo::Todo;
 mod too_many_arguments;

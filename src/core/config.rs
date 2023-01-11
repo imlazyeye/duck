@@ -112,6 +112,7 @@ impl Config {
                 ("single_equals_comparison".into(), LintLevel::Warn),
                 ("single_switch_case".into(), LintLevel::Warn),
                 ("suspicious_constant_usage".into(), LintLevel::Deny),
+                ("switch_without_case".into(), LintLevel::Warn),
                 ("todo".into(), LintLevel::Allow),
                 ("too_many_arguments".into(), LintLevel::Warn),
                 ("try_catch".into(), LintLevel::Allow),

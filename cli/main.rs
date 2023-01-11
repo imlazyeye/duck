@@ -197,6 +197,10 @@ fn explain(name: String) -> i32 {
             SuspicousConstantUsage::explanation().to_string(),
             SuspicousConstantUsage::default_level(),
         ),
+        "switch_without_case" => (
+            SwitchWithoutCase::explanation().to_string(),
+            SwitchWithoutCase::default_level(),
+        ),
         "todo" => (Todo::explanation().to_string(), Todo::default_level()),
         "too_many_arguments" => (
             TooManyArguments::explanation().to_string(),
