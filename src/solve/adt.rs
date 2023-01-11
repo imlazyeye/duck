@@ -45,10 +45,6 @@ impl Adt {
         self.fields.get_mut(key).map(|f| &mut f.value).and_then(|v| v.ty_mut())
     }
 
-    pub fn set_state(&mut self, state: AdtState) {
-        self.state = state;
-    }
-
     pub fn write_constant(&mut self, name: &str, ty: Ty) -> Result<Substitution, TypeError> {
         self.update(name, ty, true, true)
     }

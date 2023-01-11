@@ -529,6 +529,18 @@ global_test!(
     }",
     "alias()" => adt!(con: function!(() => Identity), clone: function!(() => Identity),)
 );
+identity_test!(
+    simple_identity_sanitization,
+    "function foo() {
+        return bar();
+    }
+    
+    function bar() {
+        return self;
+    }",
+    "foo()" => Identity,
+    "bar()" => Identity,
+);
 test_failure!(
     constructor_extention,
     "function foo() constructor {}

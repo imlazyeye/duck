@@ -3,8 +3,7 @@ use duck::Config;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
-#[clap(name = "duck")]
-#[clap(bin_name = "duck")]
+#[clap(author, version, about = "A fast and flexible linter for GML. 🦆")]
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,

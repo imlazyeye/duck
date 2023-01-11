@@ -3,9 +3,11 @@ name = "duck"
 version = "0.0.0"
 authors = ["Gabriel Weiner <imlazyeye@gmail.com"]
 edition = "2021"
-license = "MIT OR Apache-2.0"
+license = "MIT/Apache-2.0"
+homepage = "http://duck.rs"
 repository = "https://github.com/imlazyeye/duck"
 description = "A fast and flexible linter for GML. 🦆"
+categories = ["linter", "analyzer"]
 
 [lib]
 name = "duck"
@@ -31,7 +33,7 @@ pretty_assertions = "1.1"
 unicode-segmentation = "1.9"
 bimap = "0.6"
 once_cell = "1.9"
-clap = { version = "3.1.1", features = ["derive"] }
+clap = { version = "3.1.15", features = ["derive", "cargo", "unicode"] }
 async-walkdir = "0.2"
 itertools = "0.10"
 tokio = { version = "1.17.0", features = ["full"] }

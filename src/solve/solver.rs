@@ -35,17 +35,6 @@ impl<'s> Session<'s> {
             .map(|v| v.clone().normalized(self).into())
             .ok_or_else(|| duck_error_unwrapped!("could not find a value for `{name}`"))
     }
-
-    pub fn get_normalized_mut(&mut self, mut var: Var) -> Option<&mut Ty> {
-        while let Some(ty) = self.subs.get(&var) {
-            if let Ty::Var(v) = ty {
-                var = *v
-            } else {
-                return self.subs.get_mut(&var);
-            }
-        }
-        None
-    }
 }
 
 // Stack
@@ -142,10 +131,22 @@ pub enum Var {
     Generated(u64),
 }
 
+impl Var {
+    pub fn lower(&mut self, subs: &Subs) {
+        while let Some(var) = subs
+            .get(self)
+            .and_then(|ty| if let Ty::Var(v) = ty { Some(v) } else { None })
+        {
+            *self = *var;
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Subs(HashMap<Var, Ty>);
 impl Subs {
     pub fn register(&mut self, var: Var, mut ty: Ty) -> Result<(), TypeError> {
+        // todo: lower?
         let ty = if let Some(mut previous_ty) = self.remove(&var) {
             Unification::unify(&mut previous_ty, &mut ty)?.commit(self)?;
             previous_ty
@@ -177,10 +178,15 @@ impl Subs {
 }
 
 impl<'s> Session<'s> {
-    pub fn checkout<R, F: FnOnce(&mut Ty) -> Result<R, TypeError>>(&mut self, var: &Var, f: F) -> Result<R, TypeError> {
-        let mut ty = self.subs.remove(var).unwrap_or(Ty::Var(*var)).normalized(self).into();
+    pub fn checkout<R, F: FnOnce(&mut Ty) -> Result<R, TypeError>>(
+        &mut self,
+        mut var: Var,
+        f: F,
+    ) -> Result<R, TypeError> {
+        var.lower(self.subs);
+        let mut ty = self.subs.remove(&var).unwrap_or(Ty::Var(var)).normalized(self).into();
         let result = f(&mut ty);
-        self.subs.register(*var, ty)?;
+        self.subs.register(var, ty)?;
         result
     }
 }

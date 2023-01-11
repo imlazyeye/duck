@@ -232,20 +232,8 @@ impl Expr {
                         handle_adt(my_var, sess, &id, right)
                     }
                     Access::Dot { left, right } => {
-                        // If we can find an adt on the left, we will read/write to it. Otherwise, we'll infer a new
-                        // one.
-                        let adt_var = left.query(sess)?;
-                        let adt_ty = sess.get_normalized_mut(adt_var); // TODO: prob bad?
-                        if let Some(Ty::Adt(adt)) = adt_ty {
-                            if adt.state == AdtState::Inferred {
-                                adt.write(&right.lexeme, Ty::Var(my_var))?.commit(sess.subs)?;
-                            } else {
-                                adt.read(&right.lexeme, Ty::Var(my_var))?.commit(sess.subs)?;
-                            };
-                        } else {
-                            let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(my_var))]);
-                            left.unify_ty(Ty::Adt(adt), sess)?;
-                        };
+                        let adt = Adt::new(AdtState::Inferred, vec![(right.clone(), Ty::Var(my_var))]);
+                        left.unify_ty(Ty::Adt(adt), sess)?;
                         Ok(Ty::Var(my_var))
                     }
                     Access::Array {
@@ -396,7 +384,7 @@ impl<'s> Session<'s> {
             }),
             parameters,
             minimum_arguments,
-            return_type: Box::new(Ty::Var(*self.identity_var())),
+            return_type: Box::new(Ty::Identity), // return_type: Box::new(Ty::Var(*self.identity_var())),
         });
 
         if let Some(name) = &function.name {

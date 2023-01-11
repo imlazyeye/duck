@@ -5,14 +5,13 @@ pub struct Unification;
 impl Unification {
     pub fn var_var(lhs: Var, rhs: Var, session: &mut Session) -> Result<(), TypeError> {
         session
-            .checkout(&rhs, |rhs_ty| Unification::unify(&mut Ty::Var(lhs), rhs_ty))?
+            .checkout(rhs, |rhs_ty| Unification::unify(&mut Ty::Var(lhs), rhs_ty))?
             .commit(session.subs)
     }
 
     pub fn var_ty(var: Var, ty: &mut Ty, session: &mut Session) -> Result<(), TypeError> {
-        // let mut ty = ty.normalized(session).into();
         session
-            .checkout(&var, |var_ty| Unification::unify(var_ty, ty))?
+            .checkout(var, |var_ty| Unification::unify(var_ty, ty))?
             .commit(session.subs)
     }
 
