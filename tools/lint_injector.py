@@ -96,13 +96,13 @@ opreations = [
         'name': 'late expr',
         'tag': 'visits_expr_late',
         'function_name': 'run_late_lint_on_expr',
-        'args': 'expr, config, reports, global_scope'
+        'args': 'expr, config, reports'
     },
     {
         'name': 'late stmt',
         'tag': 'visits_stmt_late',
         'function_name': 'run_late_lint_on_stmt',
-        'args': 'stmt, config, reports, global_scope'
+        'args': 'stmt, config, reports'
     }
 ]
 
