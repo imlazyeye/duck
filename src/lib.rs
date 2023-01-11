@@ -92,18 +92,18 @@ pub mod parse {
             pub use block::*;
             pub use delete::*;
             pub use do_until::*;
-            pub use globalvar::*;
-            pub use local_variables::*;
             pub use r#enum::*;
             pub use r#for::*;
+            pub use globalvar::*;
             pub use r#if::*;
+            pub use local_variables::*;
             pub use r#macro::*;
-            pub use r#return::*;
-            pub use r#while::*;
             pub use repeat::*;
+            pub use r#return::*;
             pub use switch::*;
             pub use throw::*;
             pub use try_catch::*;
+            pub use r#while::*;
             pub use with::*;
         }
         mod expr;

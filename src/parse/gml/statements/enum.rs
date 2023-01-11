@@ -1,4 +1,4 @@
-use crate::parse::{Expr, Identifier, IntoStmt, Field, ParseVisitor, Stmt, StmtKind};
+use crate::parse::{Expr, Field, Identifier, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of an enum.
 #[derive(Debug, PartialEq, Clone, serde::Serialize)]

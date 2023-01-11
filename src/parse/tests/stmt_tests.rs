@@ -97,9 +97,7 @@ stmt_test!(globalvar, "globalvar foo;", Globalvar::new(Identifier::lazy("foo")))
 stmt_test!(
     local_variable,
     "var i;",
-    LocalVariables::new(vec![Field::Uninitialized(
-        Identifier::lazy("i").into_expr_lazy(),
-    )])
+    LocalVariables::new(vec![Field::Uninitialized(Identifier::lazy("i").into_expr_lazy(),)])
 );
 
 stmt_test!(

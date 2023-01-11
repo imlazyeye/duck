@@ -1,4 +1,4 @@
-use crate::parse::{Expr, ExprKind, IntoExpr, Field, ParseVisitor, Stmt, StmtKind};
+use crate::parse::{Expr, ExprKind, Field, IntoExpr, ParseVisitor, Stmt, StmtKind};
 
 use super::Identifier;
 
@@ -73,7 +73,10 @@ impl ParseVisitor for Function {
                 Field::Initialized(_) => {}
             }
         }
-        if let Some(Constructor { inheritance: Some(call) }) = &self.constructor {
+        if let Some(Constructor {
+            inheritance: Some(call),
+        }) = &self.constructor
+        {
             visitor(call);
         }
     }
@@ -84,7 +87,10 @@ impl ParseVisitor for Function {
                 Field::Initialized(_) => {}
             }
         }
-        if let Some(Constructor { inheritance: Some(call) }) = &mut self.constructor {
+        if let Some(Constructor {
+            inheritance: Some(call),
+        }) = &mut self.constructor
+        {
             visitor(call);
         }
     }

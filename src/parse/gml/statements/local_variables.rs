@@ -1,4 +1,4 @@
-use crate::parse::{Expr, IntoStmt, Field, ParseVisitor, Stmt, StmtKind};
+use crate::parse::{Expr, Field, IntoStmt, ParseVisitor, Stmt, StmtKind};
 
 /// Representation of a local variable declaration. Due to gml's syntax, this can include multiple
 /// definitions!

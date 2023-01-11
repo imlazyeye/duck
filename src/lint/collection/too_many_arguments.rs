@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
     lint::{EarlyExprPass, Lint, LintLevel},
-    parse::{Expr, ExprKind, Function, Field},
+    parse::{Expr, ExprKind, Field, Function},
     Config, FileId,
 };
 
