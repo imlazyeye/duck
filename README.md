@@ -32,7 +32,7 @@ duck's most powerful feature is its ability to type-check GML without compromisi
 
 duck comes with a variety of lints that offer nuanced feedback about your code, ranging from offering stylistic feedback to encouraging better code patterns. 
 
-duck currently supports [37 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
+duck currently supports [38 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
 
 ## Customization
 

@@ -49,6 +49,11 @@ pub struct Config {
     /// a future update.
     #[serde(default)]
     pub casing_rules: CasingRules,
+    /// The preferences for the `non_simplified_expression` lint to define whether
+    /// or not different evaluation expressions are allowed to contain non-simplified
+    /// math.
+    #[serde(default)]
+    pub simplification_rules: SimplificationRules,
     /// Manual definitions for any lint's lint level. The key is the lint's tag.
     ///
     /// FIXME: We do not currently validate that all entries are valid lint
@@ -75,6 +80,7 @@ impl Default for Config {
             prefer_not_keyword: false,
             casing_rules: Default::default(),
             lint_levels: Default::default(),
+            simplification_rules: Default::default(),
         }
     }
 }
@@ -105,6 +111,7 @@ impl Config {
                 ("mod_preference".into(), LintLevel::Allow),
                 ("multi_var_declaration".into(), LintLevel::Allow),
                 ("non_constant_default_parameter".into(), LintLevel::Warn),
+                ("non_simplified_expression".into(), LintLevel::Warn),
                 ("not_preference".into(), LintLevel::Allow),
                 ("or_preference".into(), LintLevel::Allow),
                 ("room_goto".into(), LintLevel::Allow),
@@ -222,6 +229,32 @@ impl Default for CasingRules {
             global_rule: Casing::Snake,
             local_var_rule: Casing::Snake,
             struct_field: Casing::Snake,
+        }
+    }
+}
+
+/// Contains preferences for the `non_simplified_expression` lint.
+#[derive(Debug, PartialEq, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SimplificationRules {
+    /// Whether ot not to permit non-simplified addition (1 + 1)
+    pub check_addition: bool,
+    /// Whether ot not to permit non-simplified subtraction (1 - 1)
+    pub check_subtraction: bool,
+    /// Whether ot not to permit non-simplified multiplication (1 * 1)
+    pub check_multiplication: bool,
+    /// Whether ot not to permit non-simplified division (1 / 1)
+    pub check_division: bool,
+    /// Whether ot not to permit non-simplified bitwise (1 | 1)
+    pub check_bitwise: bool,
+}
+impl Default for SimplificationRules {
+    fn default() -> Self {
+        Self {
+            check_addition: true,
+            check_subtraction: true,
+            check_multiplication: false,
+            check_division: false,
+            check_bitwise: false,
         }
     }
 }

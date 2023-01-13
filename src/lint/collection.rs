@@ -41,6 +41,8 @@ mod multi_var_declaration;
 pub use multi_var_declaration::MultiVarDeclaration;
 mod non_constant_default_parameter;
 pub use non_constant_default_parameter::NonConstantDefaultParameter;
+mod non_simplified_expression;
+pub use non_simplified_expression::NonSimplifiedExpression;
 mod not_preference;
 pub use not_preference::NotPreference;
 mod or_preference;

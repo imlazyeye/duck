@@ -326,6 +326,32 @@ fn non_constant_default_parameter() {
 }
 
 #[test]
+fn non_simplified_expression() {
+    harness_lint::<NonSimplifiedExpression>(
+        r#"
+            // Based on default lint preferences
+            var a = 1 + 1;
+            var b = 1 - 1;
+            var c = "a" + "b";
+            var d = 1 * 1;
+            var e = 1 / 1;
+            var f = 1 mod 1;
+            var g = 1 div 1;
+            var h = 1 | 1;
+            var i = 1 & 1;
+            var j = 1 << 1;
+            var k = 1 >> 1;
+
+            // Now test for positives when groups are involved
+            var a = (1) + 1;
+            var b = (1) + (1);
+            var c = ((1)) + (((1)));
+        "#,
+        6,
+    )
+}
+
+#[test]
 fn not_preference() {
     harness_lint::<NotPreference>(
         "

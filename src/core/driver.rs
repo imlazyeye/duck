@@ -80,6 +80,7 @@ pub fn process_expr_early(expr: &mut Expr, reports: &mut Vec<Diagnostic<FileId>>
     run_early_lint_on_expr::<InvalidComparison>(expr, config, reports);
     run_early_lint_on_expr::<InvalidEquality>(expr, config, reports);
     run_early_lint_on_expr::<ModPreference>(expr, config, reports);
+    run_early_lint_on_expr::<NonSimplifiedExpression>(expr, config, reports);
     run_early_lint_on_expr::<NotPreference>(expr, config, reports);
     run_early_lint_on_expr::<OrPreference>(expr, config, reports);
     run_early_lint_on_expr::<RoomGoto>(expr, config, reports);

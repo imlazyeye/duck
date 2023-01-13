@@ -178,6 +178,10 @@ fn explain(name: String) -> i32 {
             NonConstantDefaultParameter::explanation().to_string(),
             NonConstantDefaultParameter::default_level(),
         ),
+        "non_simplified_expression" => (
+            NonSimplifiedExpression::explanation().to_string(),
+            NonSimplifiedExpression::default_level(),
+        ),
         "not_preference" => (NotPreference::explanation().to_string(), NotPreference::default_level()),
         "or_preference" => (OrPreference::explanation().to_string(), OrPreference::default_level()),
         "room_goto" => (RoomGoto::explanation().to_string(), RoomGoto::default_level()),
