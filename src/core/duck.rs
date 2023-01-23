@@ -205,19 +205,6 @@ impl<'a> Files<'a> for GmlLibrary {
     }
 }
 
-#[cfg(not(test))]
-impl Drop for GmlLibrary {
-    fn drop(&mut self) {
-        for file in self.files.iter_mut() {
-            // SAFETY: Now, at the end of our lifespan, we restore all of our static references to the gml so
-            // they are properly dropped.
-            unsafe {
-                drop(Box::from_raw(&mut file.source()));
-            }
-        }
-    }
-}
-
 /// A wrapper around `usize`, which `codespan-reporting` uses as an id for files. Just used to help
 /// with readability. The returned data from successful parses.
 pub type FileId = usize;
