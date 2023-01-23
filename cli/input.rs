@@ -34,6 +34,11 @@ pub enum Commands {
         /// If provided, will force color output instead of deferring.
         #[clap(long)]
         color: bool,
+
+        /// File paths to ignore relative to the project directory. These are combined with any
+        /// that are listed in your config.
+        #[clap(long, multiple_values = true)]
+        ignored_file_paths: Vec<String>,
     },
     /// Creates a new configuration file in the current directory.
     NewConfig {

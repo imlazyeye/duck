@@ -64,6 +64,9 @@ pub struct Config {
     /// Lint::default_level()...
     #[serde(default)]
     pub lint_levels: HashMap<String, LintLevel>,
+    /// File paths that duck should ignore.
+    #[serde(default)]
+    pub ignored_file_paths: Vec<String>,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -81,6 +84,7 @@ impl Default for Config {
             casing_rules: Default::default(),
             lint_levels: Default::default(),
             simplification_rules: Default::default(),
+            ignored_file_paths: Default::default(),
         }
     }
 }

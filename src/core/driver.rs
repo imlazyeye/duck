@@ -178,7 +178,10 @@ fn run_late_lint_on_expr<T: Lint + LateExprPass>(expr: &Expr, config: &Config, r
 ///
 /// ### Panics
 /// Panics if the receiver for the sender closes. This should not be possible!
-pub fn start_gml_discovery(directory: &Path) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
+pub fn start_gml_discovery(
+    directory: &Path,
+    files_to_ignore: Vec<String>,
+) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
     /// Filters DirEntry's for gml files.
     async fn filter(entry: DirEntry) -> Filtering {
         if entry.file_name().to_str().map_or(false, |f| !f.contains(".gml")) {
@@ -187,6 +190,12 @@ pub fn start_gml_discovery(directory: &Path) -> (Receiver<PathBuf>, JoinHandle<V
             Filtering::Continue
         }
     }
+
+    let files_to_ignore: Vec<PathBuf> = files_to_ignore
+        .iter()
+        .map(PathBuf::from)
+        .map(|v| directory.join(v).canonicalize().unwrap())
+        .collect();
 
     let mut io_errors = vec![];
     let mut walker = WalkDir::new(directory.join("objects"))
@@ -197,9 +206,16 @@ pub fn start_gml_discovery(directory: &Path) -> (Receiver<PathBuf>, JoinHandle<V
     let handle = tokio::task::spawn(async move {
         loop {
             match walker.next().await {
-                Some(Ok(entry)) => path_sender.send(entry.path()).await.unwrap(),
+                Some(Ok(entry))
+                    if !files_to_ignore
+                        .iter()
+                        .any(|v| v == &entry.path().canonicalize().unwrap()) =>
+                {
+                    path_sender.send(entry.path()).await.unwrap()
+                }
                 Some(Err(e)) => io_errors.push(e),
                 None => break,
+                _ => {}
             }
         }
         io_errors

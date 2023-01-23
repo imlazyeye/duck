@@ -24,7 +24,18 @@ async fn main() {
             allow_errors,
             allow_duck_errors,
             color,
-        } => run(path, allow_warnings, allow_errors, allow_duck_errors, color).await,
+            ignored_file_paths,
+        } => {
+            run(
+                path,
+                allow_warnings,
+                allow_errors,
+                allow_duck_errors,
+                color,
+                ignored_file_paths,
+            )
+            .await
+        }
         Commands::NewConfig { template } => new_config(template.unwrap_or(ConfigTemplate::Default)),
         Commands::Explain { lint_name } => explain(lint_name),
         Commands::Emit {
@@ -36,7 +47,14 @@ async fn main() {
     std::process::exit(status_code);
 }
 
-async fn run(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bool, allow_errors: bool, color: bool) -> i32 {
+async fn run(
+    path: Option<PathBuf>,
+    allow_warnings: bool,
+    allow_denials: bool,
+    allow_errors: bool,
+    color: bool,
+    mut ignored_file_paths: Vec<String>,
+) -> i32 {
     // Force colors?
     if color {
         std::env::set_var("CLICOLOR_FORCE", "1");
@@ -46,7 +64,8 @@ async fn run(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bool, a
     let timer = std::time::Instant::now();
     let current_directory =
         path.unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
-    let (duck, config_usage) = create_duck(&current_directory);
+    let (mut duck, config_usage) = create_duck(&current_directory);
+    duck.config_mut().ignored_file_paths.append(&mut ignored_file_paths);
     let run_summary = duck.run(&current_directory).await.unwrap();
     let total_duration = timer.elapsed();
 
@@ -87,7 +106,7 @@ async fn run(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bool, a
             println!("{error}");
         })
     }
-    println!("{seperation_string}\n");
+    println!("{seperation_string}");
     match config_usage {
         ConfigUsage::None => println!("{}", "note: You are not using a configuration file, which is highly recommended! Use `duck new-config` to generate one.\n".bright_black().bold()),
         ConfigUsage::Failed(error) => println!("{}: Your config was not used in this run, as duck encountered the following error while being parsed: {:?}\n", "error".bright_red().bold(), error),
@@ -95,14 +114,11 @@ async fn run(path: Option<PathBuf>, allow_warnings: bool, allow_denials: bool, a
     }
 
     // Return the status code
-    if (!allow_warnings && run_summary.warning_count() != 0)
-        || (!allow_denials && run_summary.denial_count() != 0)
-        || (!allow_errors && (!run_summary.io_errors().is_empty()))
-    {
-        1
-    } else {
-        0
-    }
+    i32::from(
+        (!allow_warnings && run_summary.warning_count() != 0)
+            || (!allow_denials && run_summary.denial_count() != 0)
+            || (!allow_errors && (!run_summary.io_errors().is_empty())),
+    )
 }
 
 fn new_config(template: ConfigTemplate) -> i32 {
@@ -265,7 +281,7 @@ async fn emit(path: Option<PathBuf>, output_path: PathBuf, format: Option<EmitFo
     } else {
         let current_directory =
             path.unwrap_or_else(|| std::env::current_dir().expect("Cannot access the current directory!"));
-        let (path_receiver, _) = driver::start_gml_discovery(&current_directory);
+        let (path_receiver, _) = driver::start_gml_discovery(&current_directory, vec![]);
         let (mut file_receiver, file_handle) = driver::start_file_load(path_receiver);
         let (_, library, _) = file_handle.await.unwrap();
         while let Some((file_id, data)) = file_receiver.recv().await {

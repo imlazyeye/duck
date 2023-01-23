@@ -60,7 +60,8 @@ impl Duck {
     pub async fn run(&self, project_directory: &Path) -> Result<RunSummary, tokio::task::JoinError> {
         // Load everything in and await through the early pass...
         let config_arc = Arc::new(self.config.clone()); // TODO: this clone sucks
-        let (path_receiver, walker_handle) = driver::start_gml_discovery(project_directory);
+        let (path_receiver, walker_handle) =
+            driver::start_gml_discovery(project_directory, self.config().ignored_file_paths.clone());
         let (file_receiver, file_handle) = driver::start_file_load(path_receiver);
         let (parse_receiver, parse_handle) = driver::start_parse(file_receiver);
         let (stmt_receiever, report_sender, report_receiver, _) =
@@ -93,6 +94,11 @@ impl Duck {
     /// Get a reference to the duck's config.
     pub fn config(&self) -> &Config {
         &self.config
+    }
+
+    /// Gets a mutable reference to duck's config.
+    pub fn config_mut(&mut self) -> &mut Config {
+        &mut self.config
     }
 }
 
