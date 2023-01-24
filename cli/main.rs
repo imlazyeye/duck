@@ -24,6 +24,7 @@ async fn main() {
             allow_errors,
             allow_duck_errors,
             color,
+            brief,
             ignored_file_paths,
         } => {
             run(
@@ -32,6 +33,7 @@ async fn main() {
                 allow_errors,
                 allow_duck_errors,
                 color,
+                brief,
                 ignored_file_paths,
             )
             .await
@@ -53,6 +55,7 @@ async fn run(
     allow_denials: bool,
     allow_errors: bool,
     color: bool,
+    brief: bool,
     mut ignored_file_paths: Vec<String>,
 ) -> i32 {
     // Force colors?
@@ -77,26 +80,36 @@ async fn run(
     }
 
     let seperation_string = String::from_utf8(vec![b'-'; 50]).unwrap();
-    println!("{seperation_string}");
-    println!(
-        "  {}",
-        format!(
-            "🦆 <( Found {} errors and {} warnings! )",
-            (run_summary.denial_count()).to_string().bright_red().bold(),
-            run_summary.warning_count().to_string().yellow().bold(),
-        )
-        .bold()
-    );
-    println!(
-        "  {}",
-        format!(
-            "Ran on {} lines in {:.2}s.",
-            run_summary.lines_parsed().to_formatted_string(&Locale::en),
-            total_duration.as_secs_f32(),
-        )
-        .italic()
-        .bright_black()
-    );
+    let denial_count = run_summary.denial_count();
+    let warning_count = run_summary.warning_count();
+    if !brief {
+        println!("{seperation_string}");
+    }
+    if !brief || denial_count + warning_count > 0 {
+        println!(
+            "  {}",
+            format!(
+                "🦆 <( Found {} error{} and {} warning{}! )",
+                denial_count.to_string().bright_red().bold(),
+                if denial_count == 1 { "" } else { "s" },
+                warning_count.to_string().yellow().bold(),
+                if warning_count == 1 { "" } else { "s" }
+            )
+            .bold()
+        );
+    }
+    if !brief {
+        println!(
+            "  {}",
+            format!(
+                "Ran on {} lines in {:.2}s.",
+                run_summary.lines_parsed().to_formatted_string(&Locale::en),
+                total_duration.as_secs_f32(),
+            )
+            .italic()
+            .bright_black()
+        );
+    }
     if !run_summary.io_errors().is_empty() {
         println!(
             "{}: The following errors occured while trying to read your project's files...\n",
@@ -106,7 +119,9 @@ async fn run(
             println!("{error}");
         })
     }
-    println!("{seperation_string}");
+    if !brief {
+        println!("{seperation_string}");
+    }
     match config_usage {
         ConfigUsage::None => println!("{}", "note: You are not using a configuration file, which is highly recommended! Use `duck new-config` to generate one.\n".bright_black().bold()),
         ConfigUsage::Failed(error) => println!("{}: Your config was not used in this run, as duck encountered the following error while being parsed: {:?}\n", "error".bright_red().bold(), error),

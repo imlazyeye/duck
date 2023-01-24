@@ -35,6 +35,10 @@ pub enum Commands {
         #[clap(long)]
         color: bool,
 
+        /// Shortens summary message and omits it if no warnings or errors were found.
+        #[clap(long)]
+        brief: bool,
+
         /// File paths to ignore relative to the project directory. These are combined with any
         /// that are listed in your config.
         #[clap(long, multiple_values = true)]
