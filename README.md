@@ -5,7 +5,7 @@
 ![experimental](https://img.shields.io/badge/stability-experimental-important)
 ![gm_version](https://img.shields.io/badge/GM%20Runtime-2022.3.0.497-blue)
 
-## ⚠️ duck is not yet released and is unstable! An announcement will be made when 0.1.0 is released.
+## ⚠️ duck is not yet released and is unstable! An announcement will be made when 0.1.0 is released
 
 A fast and flexible analyzer for GML ([GameMaker Language](https://manual.yoyogames.com/#t=Content.html)).
 
@@ -17,20 +17,16 @@ duck is also extremely fast. It currently can fully process a 250,000 line proje
 
 ## Table of Contents
 
-- [Type Checking](#type-checking)
 - [Lints](#lints)
 - [Customization](#customization)
-- [Instalation](#instalation)
+- [Type Checking](#type-checking)
+- [Installation](#installation)
 - [Usage](#usage)
 - [Support and Requests](#support-and-requests)
 
-## Type Checking
-
-duck's most powerful feature is its ability to type-check GML without compromising on the language's flexibility. This feature is currently in development and is not enabled on releases. Developers can enable type analysis by enabling the `solve` feature. More information coming soon!
-
 ## Lints
 
-duck comes with a variety of lints that offer nuanced feedback about your code, ranging from offering stylistic feedback to encouraging better code patterns. 
+duck comes with a variety of lints that offer nuanced feedback about your code, ranging from offering stylistic feedback to encouraging better code patterns.
 
 duck currently supports [38 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
 
@@ -64,7 +60,7 @@ Developers can use duck as a library to fetch all expressions / statements that 
 
 These allow for developers to create their own tools for gml while using duck to handle their parsing.
 
-Additionally, duck supports `allow`, `warn` and `deny` tags to customize linting rules on a case by case basis. For example, while I may want `globalvar` to be banned from my codebase, I might have one or two excpetions You can tag the specific occurance of the usage to acknowledge (and ignore) the lint.
+Additionally, duck supports `allow`, `warn` and `deny` tags to customize linting rules on a case by case basis. For example, while I may want `globalvar` to be banned from my codebase, I might have one or two exceptions You can tag the specific occurrence of the usage to acknowledge (and ignore) the lint.
 
 ```js
 // #[allow(deprecated)]
@@ -73,7 +69,11 @@ globalvar my_globalvar;
 
 Tags are a great way to enable lints on things you don't want to _fully_ ban, but want to keep a close eye on.
 
-## Instalation
+## Type Checking
+
+duck has made significant progress in adding type checker that works completely off of inference, but development has halted on this feature due to the scoping patterns that are allowed in GameMaker. The feature will only be enabled if it can achieve meaningful analysis on any GML code, not requiring users to abandon certain patterns and practices. You can see what the analyzer is currently capable of by reading its tests in `src/solve/tests/type_tests.rs`.
+
+## Installation
 
 The latest release can be found [here](https://github.com/imlazyeye/duck/releases). Rust users can also install with cargo: `cargo install duck`.
 
@@ -81,7 +81,7 @@ The latest release can be found [here](https://github.com/imlazyeye/duck/release
 
 To run duck, simply use the `run` command!
 
-```
+```bash
 duck run
 ```
 
