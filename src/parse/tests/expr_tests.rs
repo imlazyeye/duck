@@ -649,6 +649,15 @@ expr_test!(
 );
 
 expr_test!(
+    shorthand_struct,
+    "{ foo, fizz }",
+    ExprKind::Literal(Literal::Struct(vec![
+        (Identifier::lazy("foo"), Identifier::lazy("foo").into_expr_lazy()),
+        (Identifier::lazy("fizz"), Identifier::lazy("fizz").into_expr_lazy()),
+    ]))
+);
+
+expr_test!(
     array_access,
     "foo[bar]",
     Access::Array {

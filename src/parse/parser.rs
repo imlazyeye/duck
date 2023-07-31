@@ -764,8 +764,12 @@ impl Parser {
                     break Ok(self.new_expr(literal, Span::new(start, token.span.end())));
                 } else {
                     let name = self.require_identifier()?;
-                    self.require(TokenKind::Colon)?;
-                    elements.push((name, self.expr()?));
+                    let value = if self.match_take(TokenKind::Colon).is_some() {
+                        self.expr()?
+                    } else {
+                        self.new_expr(name.clone(), name.span)
+                    };
+                    elements.push((name, value));
                     if self.match_take(TokenKind::Comma).is_none() {
                         let token = self.require_possibilities(&[TokenKind::RightBrace, TokenKind::End])?;
                         let literal = Literal::Struct(elements);
@@ -1018,7 +1022,6 @@ impl Parser {
         ]))
     }
 }
-
 // Lexing tools
 impl Parser {
     /// Consumes and returns the next token if it is the given type.
