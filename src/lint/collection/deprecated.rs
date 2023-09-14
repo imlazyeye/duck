@@ -70,5 +70,9 @@ fn gm_deprecated_functions() -> &'static [&'static str] {
         "array_length_2d",
         "array_length_2d",
         "buffer_surface_copy",
+        "variable_struct_get",
+        "variable_struct_set",
+        "variable_struct_get_names",
+        "variable_struct_names_count",
     ]
 }
