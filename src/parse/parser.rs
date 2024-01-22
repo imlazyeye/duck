@@ -194,7 +194,7 @@ impl Parser {
         self.match_take(TokenKind::LeftParenthesis);
         let initializer = self.stmt()?;
         let condition = self.expr()?;
-        self.match_take_repeating(TokenKind::SemiColon);
+        self.require(TokenKind::SemiColon)?;
         let tick = self.stmt()?;
         self.match_take(TokenKind::RightParenthesis);
         let body = self.stmt()?;
