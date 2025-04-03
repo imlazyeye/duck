@@ -232,7 +232,7 @@ impl Parser {
         self.require(TokenKind::While)?;
         let condition = self.expr()?;
         let body = self.stmt()?;
-        Ok(self.new_stmt(If::new(condition, body), start))
+        Ok(self.new_stmt(While::new(condition, body), start))
     }
 
     fn if_stmt(&mut self) -> Result<Stmt, Diagnostic<FileId>> {

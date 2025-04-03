@@ -259,7 +259,7 @@ stmt_test!(
 stmt_test!(
     while_loop,
     "while foo == 1 { foo += 1; }",
-    If::new(
+    While::new(
         Equality::new(
             Identifier::lazy("foo").into_expr_lazy(),
             EqualityOp::Equal(Token::lazy(TokenKind::DoubleEqual)),

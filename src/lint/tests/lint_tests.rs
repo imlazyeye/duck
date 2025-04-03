@@ -149,6 +149,14 @@ fn collapsible_if() {
         ",
         0,
     );
+    harness_lint::<CollapsableIf>(
+        "
+            if foo {
+                while bar() {}
+            }
+        ",
+        0
+    );
 }
 
 #[test]
