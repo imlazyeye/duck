@@ -545,6 +545,16 @@ fn unused_parameter() {
     );
     harness_lint::<UnusedParameter>(
         "
+            function foo(foo) { 
+                function bar(foo) {
+                    baz = foo;
+                }
+            }
+        ",
+        1,
+    );
+    harness_lint::<UnusedParameter>(
+        "
             function foo(_foo) {}
         ",
         0,

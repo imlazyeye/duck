@@ -76,8 +76,15 @@ fn find_stmt(stmt: &Stmt, parameters_to_remove: &mut Vec<&Identifier>) {
 }
 
 fn find_expr(expr: &Expr, parameters_to_remove: &mut Vec<&Identifier>) {
-    if let ExprKind::Identifier(identifier) = expr.kind() {
-        parameters_to_remove.retain(|p| p.lexeme != identifier.lexeme);
+    match expr.kind() {
+        ExprKind::Identifier(identifier) => {
+            parameters_to_remove.retain(|p| p.lexeme != identifier.lexeme);
+        }
+        ExprKind::Function(_) => {
+            // ignore this new scope!
+            return;
+        }
+        _ => {}
     }
 
     expr.visit_child_exprs(|e| find_expr(e, parameters_to_remove));
