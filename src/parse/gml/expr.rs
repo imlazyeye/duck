@@ -1,5 +1,5 @@
 use super::{IntoStmt, StmtKind};
-use crate::{parse::*, FileId};
+use crate::{FileId, parse::*};
 use itertools::Itertools;
 
 /// A singular gml statement.

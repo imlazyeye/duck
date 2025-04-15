@@ -1,12 +1,12 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
+    FileId,
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
         Assignment, AssignmentOp, Equality, EqualityOp, Evaluation, EvaluationOp, Expr, ExprKind, Literal, Logical,
         LogicalOp, Stmt, StmtKind,
     },
-    FileId,
 };
 
 #[derive(Debug, PartialEq)]

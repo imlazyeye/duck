@@ -1,9 +1,9 @@
 use crate::parse::{
-    lexer::{Lexer, MISC_GML_CONSTANTS, MISC_GML_VARIABLES},
     TokenKind,
+    lexer::{Lexer, MISC_GML_CONSTANTS, MISC_GML_VARIABLES},
 };
-use pretty_assertions::assert_eq;
 use TokenKind::*;
+use pretty_assertions::assert_eq;
 macro_rules! token_test {
      ($name:ident: $src:expr => $($should_be:expr), * $(,)?) => {
         #[cfg(test)]

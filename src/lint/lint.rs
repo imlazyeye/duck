@@ -1,6 +1,6 @@
 use crate::{
-    parse::{Expr, Stmt},
     Config, FileId,
+    parse::{Expr, Stmt},
 };
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use colored::Colorize;

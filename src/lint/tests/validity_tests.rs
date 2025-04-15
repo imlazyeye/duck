@@ -1,8 +1,8 @@
 use crate::{
     lint::{
+        Lint,
         collection::{InvalidAssignment, InvalidComparison, InvalidEquality},
         tests::lint_tests::harness_lint,
-        Lint,
     },
     parse::Parser,
 };

@@ -2,7 +2,7 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use colored::Colorize;
 use itertools::Itertools;
 
-use crate::{parse::*, FileId};
+use crate::{FileId, parse::*};
 use std::{iter::Peekable, ops::Range};
 
 /// Recursively decsends Gml source, incremently returning various statements

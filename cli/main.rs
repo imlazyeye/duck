@@ -2,10 +2,9 @@ use clap::Parser;
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use colored::Colorize;
 use duck::{
-    driver,
-    lint::{collection::*, Lint, LintLevelSetting},
+    Config, Duck, driver,
+    lint::{Lint, LintLevelSetting, collection::*},
     parse::Ast,
-    Config, Duck,
 };
 use hashbrown::HashMap;
 use num_format::{Locale, ToFormattedString};

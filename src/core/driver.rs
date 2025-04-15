@@ -1,7 +1,7 @@
 use crate::{
+    Config, FileId, GmlLibrary,
     lint::{collection::*, *},
     parse::{Ast, Expr, ParseVisitor, Parser, Stmt},
-    Config, FileId, GmlLibrary,
 };
 use async_walkdir::{DirEntry, Filtering, WalkDir};
 use codespan_reporting::diagnostic::Diagnostic;
@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 use tokio::{
-    sync::mpsc::{channel, Receiver, Sender},
+    sync::mpsc::{Receiver, Sender, channel},
     task::JoinHandle,
 };
 

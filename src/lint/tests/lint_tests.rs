@@ -1,8 +1,7 @@
 use crate::{
-    driver,
-    lint::{collection::*, Lint, LintLevel},
+    Config, GmlLibrary, driver,
+    lint::{Lint, LintLevel, collection::*},
     parse::*,
-    Config, GmlLibrary,
 };
 use codespan_reporting::term::termcolor::{ColorChoice, StandardStream};
 use pretty_assertions::assert_eq;
@@ -155,7 +154,7 @@ fn collapsible_if() {
                 while bar() {}
             }
         ",
-        0
+        0,
     );
 }
 

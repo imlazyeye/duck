@@ -1,7 +1,7 @@
 use crate::{
+    FileId,
     lint::{EarlyExprPass, Lint, LintLevel},
     parse::{Evaluation, EvaluationOp, Expr, ExprKind, Grouping, Literal},
-    FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 

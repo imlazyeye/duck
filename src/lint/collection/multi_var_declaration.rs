@@ -1,9 +1,9 @@
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 
 use crate::{
+    FileId,
     lint::{EarlyStmtPass, Lint, LintLevel},
     parse::{LocalVariables, Stmt, StmtKind},
-    FileId,
 };
 
 #[derive(Debug, PartialEq)]

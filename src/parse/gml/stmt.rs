@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use crate::{parse::*, FileId};
+use crate::{FileId, parse::*};
 
 use super::{Assignment, Return, Throw};
 

@@ -3,9 +3,9 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use once_cell::sync::Lazy;
 
 use crate::{
+    EnglishFlavor, FileId,
     lint::{EarlyExprPass, Lint, LintLevel},
     parse::{Call, Expr, ExprKind},
-    EnglishFlavor, FileId,
 };
 
 #[derive(Debug, PartialEq)]

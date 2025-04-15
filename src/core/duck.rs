@@ -1,4 +1,4 @@
-use crate::{lint::LintLevel, Config};
+use crate::{Config, lint::LintLevel};
 use codespan_reporting::{
     diagnostic::Diagnostic,
     files::{Error, Files, SimpleFile},

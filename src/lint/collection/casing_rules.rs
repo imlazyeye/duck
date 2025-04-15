@@ -1,7 +1,7 @@
 use crate::{
+    Casing, Config, FileId,
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{Access, Expr, ExprKind, Function, Globalvar, Identifier, Literal, LocalVariables, Macro, Stmt, StmtKind},
-    Casing, Config, FileId,
 };
 use codespan_reporting::diagnostic::{Diagnostic, Label};
 

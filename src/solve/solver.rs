@@ -1,8 +1,7 @@
 use super::*;
 use crate::{
-    duck_error_unwrapped,
+    FileId, duck_error_unwrapped,
     parse::{ExprId, Identifier},
-    FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
 use hashbrown::HashMap;

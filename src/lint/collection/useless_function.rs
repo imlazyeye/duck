@@ -2,9 +2,9 @@ use codespan_reporting::diagnostic::{Diagnostic, Label};
 use colored::Colorize;
 
 use crate::{
+    Config, FileId,
     lint::{EarlyStmtPass, Lint, LintLevel},
     parse::{ExprKind, Function, Stmt, StmtKind},
-    Config, FileId,
 };
 
 #[derive(Debug, PartialEq)]

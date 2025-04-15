@@ -1,7 +1,7 @@
 use crate::{
+    FileId,
     lint::{LateStmtPass, Lint, LintLevel},
     parse::Stmt,
-    FileId,
 };
 use codespan_reporting::diagnostic::Diagnostic;
 
