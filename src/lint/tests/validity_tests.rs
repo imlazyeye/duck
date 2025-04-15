@@ -9,20 +9,12 @@ use crate::{
 
 fn harness_valid(source: &'static str) {
     let parser = Parser::new_with_default_ids(source, 0).into_ast();
-    assert!(
-        parser.map_or(false, |v| v.stmts().len() == 1),
-        "`{}` was invalid!",
-        source
-    )
+    assert!(parser.is_ok_and(|v| v.stmts().len() == 1), "`{}` was invalid!", source)
 }
 
 fn harness_valid_but_linted<T: Lint>(source: &'static str) {
     let parser = Parser::new_with_default_ids(source, 0).into_ast();
-    assert!(
-        parser.map_or(false, |v| v.stmts().len() == 1),
-        "`{}` was invalid!",
-        source
-    );
+    assert!(parser.is_ok_and(|v| v.stmts().len() == 1), "`{}` was invalid!", source);
     harness_lint::<T>(source, 1);
 }
 

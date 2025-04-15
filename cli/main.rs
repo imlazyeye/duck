@@ -288,7 +288,7 @@ fn explain(name: String) -> i32 {
 
 async fn emit(path: Option<PathBuf>, output_path: PathBuf, format: Option<EmitFormat>) -> Result<(), ()> {
     let mut emit: HashMap<String, Ast> = HashMap::default();
-    if let Some(path) = path.as_ref().filter(|v| v.extension().map_or(false, |v| v == "gml")) {
+    if let Some(path) = path.as_ref().filter(|v| v.extension().is_some_and(|v| v == "gml")) {
         let file_data = std::fs::read_to_string(path).unwrap();
         let ast = driver::parse_gml(Box::leak(Box::from(file_data)), &0).unwrap();
         emit.insert(path.canonicalize().unwrap().to_str().unwrap().into(), ast);

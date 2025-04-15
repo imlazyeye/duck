@@ -9,7 +9,7 @@
 
 //! Utilities for parsing and linting Gml.
 
-#[cfg(solve)]
+#[cfg(feature = "solve")]
 #[macro_use]
 extern crate lazy_static;
 
@@ -134,7 +134,7 @@ pub mod parse {
 /// Operations to perform static analysis on GML.
 #[allow(missing_docs)]
 #[allow(clippy::unimplemented)]
-#[cfg(solve)]
+#[cfg(feature = "solve")]
 pub mod solve {
     mod adt;
     mod adt_prefabs;

@@ -5,7 +5,7 @@ use crate::{
     lint::{EarlyExprPass, EarlyStmtPass, Lint, LintLevel},
     parse::{
         Assignment, AssignmentOp, Equality, EqualityOp, Evaluation, EvaluationOp, Expr, ExprKind, Literal, Logical,
-        LogicalOp, Stmt, StmtKind,
+        Stmt, StmtKind,
     },
 };
 
@@ -51,11 +51,9 @@ impl EarlyExprPass for SuspicousConstantUsage {
                     }
                 }
             }
-            ExprKind::Logical(Logical {
-                op: operator, right, ..
-            }) => {
+            ExprKind::Logical(Logical { op: _, right, .. }) => {
                 if let Some(literal) = right.kind().as_literal() {
-                    if literal_is_suspicous(literal, OpWrapper::Logical(*operator)) {
+                    if literal_is_suspicous(literal, OpWrapper::Logical) {
                         Self::report_expr(right, config, reports);
                     }
                 }
@@ -128,7 +126,7 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OpWrapper) -> bool
                                 | EvaluationOp::BitShiftLeft(_)
                                 | EvaluationOp::BitShiftRight(_)
                         ),
-                        OpWrapper::Logical(_) => true,
+                        OpWrapper::Logical => true,
                         OpWrapper::Equality(_) => true,
                     }
                 }
@@ -144,6 +142,6 @@ fn literal_is_suspicous(literal: &Literal, operation_wrapper: OpWrapper) -> bool
 enum OpWrapper {
     Assignment(AssignmentOp),
     Evaluation(EvaluationOp),
-    Logical(LogicalOp),
+    Logical,
     Equality(EqualityOp),
 }

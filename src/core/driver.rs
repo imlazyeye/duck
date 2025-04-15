@@ -134,7 +134,7 @@ fn run_early_lint_on_stmt<T: Lint + EarlyStmtPass>(
     config: &Config,
     reports: &mut Vec<Diagnostic<FileId>>,
 ) {
-    if stmt.tag().map_or(true, |tag| !tag.eq(&("allow", Some(T::tag()))))
+    if stmt.tag().is_none_or(|tag| !tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_stmt_early(stmt, config, reports);
@@ -147,7 +147,7 @@ fn run_early_lint_on_expr<T: Lint + EarlyExprPass>(
     config: &Config,
     reports: &mut Vec<Diagnostic<FileId>>,
 ) {
-    if expr.tag().map_or(true, |tag| !tag.eq(&("allow", Some(T::tag()))))
+    if expr.tag().is_none_or(|tag| !tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_expr_early(expr, config, reports);
@@ -156,7 +156,7 @@ fn run_early_lint_on_expr<T: Lint + EarlyExprPass>(
 
 /// Performs a given [LateStmtPass] on a statement.
 fn run_late_lint_on_stmt<T: Lint + LateStmtPass>(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-    if stmt.tag().map_or(true, |tag| !tag.eq(&("allow", Some(T::tag()))))
+    if stmt.tag().is_none_or(|tag| !tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_stmt_late(stmt, config, reports);
@@ -165,7 +165,7 @@ fn run_late_lint_on_stmt<T: Lint + LateStmtPass>(stmt: &Stmt, config: &Config, r
 
 /// Performs a given [LateExprPass] on a statement.
 fn run_late_lint_on_expr<T: Lint + LateExprPass>(expr: &Expr, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
-    if expr.tag().map_or(true, |tag| !tag.eq(&("allow", Some(T::tag()))))
+    if expr.tag().is_none_or(|tag| !tag.eq(&("allow", Some(T::tag()))))
         && *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow
     {
         T::visit_expr_late(expr, config, reports);
@@ -184,7 +184,7 @@ pub fn start_gml_discovery(
 ) -> (Receiver<PathBuf>, JoinHandle<Vec<std::io::Error>>) {
     /// Filters DirEntry's for gml files.
     async fn filter(entry: DirEntry) -> Filtering {
-        if entry.file_name().to_str().map_or(false, |f| !f.contains(".gml")) {
+        if entry.file_name().to_str().is_some_and(|f| !f.contains(".gml")) {
             Filtering::Ignore
         } else {
             Filtering::Continue

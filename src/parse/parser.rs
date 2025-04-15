@@ -1206,6 +1206,7 @@ impl Span {
     }
 
     #[cfg(test)]
+    /// Creates a new span.
     pub fn new(_: usize, _: usize) -> Self {
         Self(0, 0)
     }

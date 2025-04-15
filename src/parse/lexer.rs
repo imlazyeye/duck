@@ -26,7 +26,7 @@ impl Lexer {
             let token_type = match chr {
                 id if id.is_whitespace() => return self.lex(),
                 '.' => {
-                    if self.peek().map_or(false, |c| matches!(c, '0'..='9')) {
+                    if self.peek().is_some_and(|c| c.is_ascii_digit()) {
                         let lexeme = self.construct_number(start_index);
                         Some(TokenKind::Real(lexeme.parse().unwrap()))
                     } else {
@@ -391,7 +391,7 @@ impl Lexer {
 
     /// Consumes the rest of the line into the string.
     fn consume_rest_of_line(&mut self, start_pos: usize) -> &'static str {
-        while self.peek().map_or(false, |chr| chr != '\r' && chr != '\n') {
+        while self.peek().is_some_and(|chr| chr != '\r' && chr != '\n') {
             self.take().unwrap();
         }
         &self.source[start_pos..self.next_char_boundary]
@@ -399,7 +399,7 @@ impl Lexer {
 
     /// Consumes until reaching the given character, pausing before taking it.
     fn consume_until(&mut self, start_pos: usize, c: char) -> &'static str {
-        while self.peek().map_or(false, |chr| chr != c) {
+        while self.peek().is_some_and(|chr| chr != c) {
             self.take().unwrap();
         }
         &self.source[start_pos..self.next_char_boundary]
@@ -407,7 +407,7 @@ impl Lexer {
 
     /// Discards the remainder of the line.
     fn discard_rest_of_line(&mut self) {
-        while self.peek().map_or(false, |chr| chr != '\r' && chr != '\n') {
+        while self.peek().is_some_and(|chr| chr != '\r' && chr != '\n') {
             self.take();
         }
     }
@@ -446,12 +446,12 @@ impl Lexer {
     /// Will keep eating characters into the given string until it reaches a
     /// character that can't be used in an identifier.
     fn construct_number(&mut self, start_pos: usize) -> &'static str {
-        while self.peek().map_or(false, |chr| chr.is_numeric()) {
+        while self.peek().is_some_and(|chr| chr.is_numeric()) {
             self.take().unwrap();
         }
         // Floats!
         if self.match_take('.') {
-            while self.peek().map_or(false, |chr| chr.is_numeric()) {
+            while self.peek().is_some_and(|chr| chr.is_numeric()) {
                 self.take().unwrap();
             }
         }
