@@ -11,7 +11,7 @@ use crate::{
 pub struct UnusedParameter;
 impl Lint for UnusedParameter {
     fn explanation() -> &'static str {
-        "Functions with lots of parameters quickly become confusing and indicate a need for structural change."
+        "Parameters that are never referenced are often a canary towards a larger bug."
     }
 
     fn default_level() -> LintLevel {
