@@ -69,6 +69,8 @@ mod unassigned_constructor;
 pub use unassigned_constructor::UnassignedConstructor;
 mod unnecessary_grouping;
 pub use unnecessary_grouping::UnnecessaryGrouping;
+mod unused_parameter;
+pub use unused_parameter::UnusedParameter;
 mod useless_function;
 pub use useless_function::UselessFunction;
 mod var_prefix_violation;

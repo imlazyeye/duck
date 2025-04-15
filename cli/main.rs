@@ -249,6 +249,10 @@ fn explain(name: String) -> i32 {
             UnnecessaryGrouping::explanation().to_string(),
             UnnecessaryGrouping::default_level(),
         ),
+        "unused_parameter" => (
+            UnusedParameter::explanation().to_string(),
+            UnusedParameter::default_level(),
+        ),
         "useless_function" => (
             UselessFunction::explanation().to_string(),
             UselessFunction::default_level(),

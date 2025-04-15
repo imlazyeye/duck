@@ -129,6 +129,7 @@ impl Config {
                 ("try_catch".into(), LintLevel::Allow),
                 ("unassigned_constructor".into(), LintLevel::Warn),
                 ("unnecessary_grouping".into(), LintLevel::Warn),
+                ("unused_parameter".into(), LintLevel::Warn),
                 ("useless_function".into(), LintLevel::Deny),
                 ("var_prefix_violation".into(), LintLevel::Allow),
                 ("with_loop".into(), LintLevel::Allow),

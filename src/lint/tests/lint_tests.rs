@@ -320,13 +320,13 @@ fn multi_var_declaration() {
 fn non_constant_default_parameter() {
     harness_lint::<NonConstantDefaultParameter>(
         "
-            function(foo=Bar.Buzz) {}
+            function(_foo=Bar.Buzz) {}
         ",
         0,
     );
     harness_lint::<NonConstantDefaultParameter>(
         "
-            function(foo=bar) {} // shouldn't fire
+            function(_foo=bar) {} // shouldn't fire
         ",
         0,
     );
@@ -459,13 +459,13 @@ fn todo() {
 fn too_many_arguments() {
     harness_lint::<TooManyArguments>(
         "
-            function(a, b, c, d, e, f, g, h, i, j, j) {}
+            function(_a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _j) {}
         ",
         1,
     );
     harness_lint::<TooManyArguments>(
         "
-            function(a) {}
+            function(_a) {}
         ",
         0,
     );
@@ -530,6 +530,45 @@ fn unnecessary_grouping() {
             foo = 1 == (true);
             foo = (1 + 1) / 2;
             foo = ((1 + 1) / 2) - 1;
+        ",
+        0,
+    );
+}
+
+#[test]
+fn unused_parameter() {
+    harness_lint::<UnusedParameter>(
+        "
+            function(foo) {}
+        ",
+        1,
+    );
+    harness_lint::<UnusedParameter>(
+        "
+            function foo(_foo) {}
+        ",
+        0,
+    );
+    harness_lint::<UnusedParameter>(
+        "
+            function foo(foo) : bar(foo) constructor {}
+        ",
+        0,
+    );
+    harness_lint::<UnusedParameter>(
+        r#"
+            function(bb) {
+                var me = bb.get("me");
+                me.complete_pathfind();
+
+                return Status.Ok;
+            }
+        "#,
+        0,
+    );
+    harness_lint::<UnusedParameter>(
+        "
+            function foo(foo) { return foo; }
         ",
         0,
     );

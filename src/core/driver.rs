@@ -90,6 +90,7 @@ pub fn process_expr_early(expr: &mut Expr, reports: &mut Vec<Diagnostic<FileId>>
     run_early_lint_on_expr::<Todo>(expr, config, reports);
     run_early_lint_on_expr::<TooManyArguments>(expr, config, reports);
     run_early_lint_on_expr::<UnnecessaryGrouping>(expr, config, reports);
+    run_early_lint_on_expr::<UnusedParameter>(expr, config, reports);
     // @end early expr calls. Do not remove this comment!
 
     // Recurse...
