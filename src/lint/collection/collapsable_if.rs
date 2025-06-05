@@ -26,25 +26,32 @@ impl EarlyStmtPass for CollapsableIf {
     fn visit_stmt_early(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
         if let StmtKind::If(If {
             body: first_body,
-            else_stmt: None,
+            else_stmt,
             ..
         }) = stmt.kind()
         {
-            if let Some(block) = first_body.kind().as_block().filter(|block| block.body.len() == 1) {
-                let nested_stmt = block.body.first().unwrap();
-                if let StmtKind::If(If { else_stmt: None, .. }) = nested_stmt.kind() {
-                    reports.push(
-                        Self::diagnostic(config)
-                            .with_message("Collapsable if statement")
-                            .with_labels(vec![
-                                Label::secondary(nested_stmt.file_id(), nested_stmt.span())
-                                    .with_message("nested if statement"),
-                                Label::primary(stmt.file_id(), stmt.span())
-                                    .with_message("this can be combined with the nested if statement"),
-                            ]),
-                    )
-                }
+            if let Some(else_stmt) = else_stmt {
+                inner(else_stmt, config, reports);
+            } else {
+                inner(first_body, config, reports);
             }
+        }
+    }
+}
+
+fn inner(stmt: &Stmt, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+    if let Some(block) = stmt.kind().as_block().filter(|block| block.body.len() == 1) {
+        let nested_stmt = block.body.first().unwrap();
+        if let StmtKind::If(If { else_stmt: None, .. }) = nested_stmt.kind() {
+            reports.push(
+                CollapsableIf::diagnostic(config)
+                    .with_message("Collapsable if statement")
+                    .with_labels(vec![
+                        Label::secondary(nested_stmt.file_id(), nested_stmt.span()).with_message("nested if statement"),
+                        Label::primary(stmt.file_id(), stmt.span())
+                            .with_message("this can be combined with the nested if statement"),
+                    ]),
+            )
         }
     }
 }

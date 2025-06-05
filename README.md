@@ -28,7 +28,7 @@ duck is also extremely fast. It currently can fully process a 250,000 line proje
 
 duck comes with a variety of lints that offer nuanced feedback about your code, ranging from offering stylistic feedback to encouraging better code patterns.
 
-duck currently supports [39 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
+duck currently supports [40 lints](LINTS.md). You can use `duck explain <LINT_NAME>` to learn more about each lint as you encounter them.
 
 ## Customization
 

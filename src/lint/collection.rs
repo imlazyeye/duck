@@ -69,6 +69,8 @@ mod unassigned_constructor;
 pub use unassigned_constructor::UnassignedConstructor;
 mod unnecessary_grouping;
 pub use unnecessary_grouping::UnnecessaryGrouping;
+mod unused_local_variable;
+pub use unused_local_variable::UnusedLocalVariable;
 mod unused_parameter;
 pub use unused_parameter::UnusedParameter;
 mod useless_function;

@@ -1,6 +1,6 @@
 use crate::{
     Config, FileId,
-    parse::{Expr, Stmt},
+    parse::{Ast, Expr, Stmt},
 };
 use codespan_reporting::diagnostic::{Diagnostic, Severity};
 use colored::Colorize;
@@ -40,6 +40,12 @@ pub trait Lint {
             format!("duck explain {}", Self::tag()).bold(),
         )])
     }
+}
+
+/// Lints who run a pass on an entire Ast.
+pub trait AstPass {
+    /// Runs on the Ast in the Ast pass.
+    fn visit_ast(ast: &Ast, config: &Config, reports: &mut Vec<Diagnostic<FileId>>);
 }
 
 /// Lints who run an early pass on statements (before type information has been

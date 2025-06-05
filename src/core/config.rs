@@ -129,6 +129,7 @@ impl Config {
                 ("try_catch".into(), LintLevel::Allow),
                 ("unassigned_constructor".into(), LintLevel::Warn),
                 ("unnecessary_grouping".into(), LintLevel::Warn),
+                ("unused_local_variable".into(), LintLevel::Warn),
                 ("unused_parameter".into(), LintLevel::Warn),
                 ("useless_function".into(), LintLevel::Deny),
                 ("var_prefix_violation".into(), LintLevel::Allow),
@@ -283,6 +284,9 @@ impl Casing {
     /// Returns none if the string already matches the casing, otherwise returns a string with the
     /// desired appearance.
     pub fn test(&self, lexeme: &str) -> Option<String> {
+        if lexeme.len() <= 1 {
+            return None;
+        }
         let mut output = match self {
             Casing::Any => return None,
             Casing::Snake => lexeme.to_snake_case(),

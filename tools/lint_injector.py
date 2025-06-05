@@ -28,6 +28,7 @@ for root, dirs, files in os.walk('src/lint/collection/'):
             'visits_stmt_early': 'impl EarlyStmtPass' in lint_file,
             'visits_expr_late': 'impl LateExprPass' in lint_file,
             'visits_stmt_late': 'impl LateStmtPass' in lint_file,
+            'visits_ast': 'impl AstPass' in lint_file,
         })
 
 # Sort them alphabetically
@@ -103,6 +104,12 @@ opreations = [
         'tag': 'visits_stmt_late',
         'function_name': 'run_late_lint_on_stmt',
         'args': 'stmt, config, reports'
+    },
+    {
+        'name': 'ast',
+        'tag': 'visits_ast',
+        'function_name': 'run_lint_on_ast',
+        'args': 'ast, config, reports'
     }
 ]
 

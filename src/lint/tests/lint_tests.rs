@@ -19,6 +19,7 @@ pub(super) fn harness_lint<T: Lint>(source: &'static str, expected_number: usize
     let file_id = library.add("test.gml".into(), source);
     let mut ast = Parser::new_with_default_ids(source, file_id).into_ast().unwrap();
     let mut reports = vec![];
+    driver::process_ast(&ast, &mut reports, &config);
     for stmt in ast.stmts_mut() {
         driver::process_stmt_early(stmt, &mut reports, &config);
     }
@@ -127,6 +128,14 @@ fn collapsible_if() {
         "
             if foo {
                 if bar {}
+            }
+        ",
+        1,
+    );
+    harness_lint::<CollapsableIf>(
+        "
+            if foo {} else {
+                if foo {}
             }
         ",
         1,
@@ -619,5 +628,53 @@ fn with_loop() {
             with foo {}
         ",
         1,
+    );
+}
+
+#[test]
+fn unused_local_variable() {
+    harness_lint::<crate::lint::collection::UnusedLocalVariable>(
+        "
+            var bar = 0;
+        ",
+        1,
+    );
+    harness_lint::<crate::lint::collection::UnusedLocalVariable>(
+        "
+            var bar = 0;
+            bar = 1; // there's a universe where I don't allow this, but not now
+        ",
+        0,
+    );
+    harness_lint::<crate::lint::collection::UnusedLocalVariable>(
+        "
+            var bar = 0;
+            var foo = bar;
+            foo = 1;
+        ",
+        0,
+    );
+    harness_lint::<crate::lint::collection::UnusedLocalVariable>(
+        "
+            var foo = 0;
+            function bar() {
+                baz = foo;
+            }
+        ",
+        1,
+    );
+    harness_lint::<crate::lint::collection::UnusedLocalVariable>(
+        "
+            function bar() {
+                var foo = 0;
+            }
+        ",
+        1,
+    );
+    harness_lint::<crate::lint::collection::UnusedLocalVariable>(
+        "
+            for (var i = 0, c = something; i < c; i++) {}
+        ",
+        0,
     );
 }

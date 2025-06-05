@@ -25,13 +25,23 @@ pub fn parse_gml(source_code: &'static str, file_id: &FileId) -> Result<Ast, Dia
     Parser::new(source_code, *file_id).into_ast()
 }
 
+/// Runs an [Ast] through its pass, running any lint that implements [AstPass].
+///
+/// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
+/// more information.
+pub fn process_ast(ast: &Ast, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
+    // @ast calls. Do not remove this comment!
+    run_lint_on_ast::<UnusedLocalVariable>(ast, config, reports);
+    // @end ast calls. Do not remove this comment!
+}
+
 /// Runs a [Stmt] through the early pass, running any lint that
 /// implements [EarlyStmtPass], as well as collecting information
 /// into the provided [GlobalScopeBuilder].
 ///
 /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
 /// more information.
-pub fn process_stmt_early(stmt: &mut Stmt, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
+pub fn process_stmt_early(stmt: &Stmt, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
     // @early stmt calls. Do not remove this comment!
     run_early_lint_on_stmt::<CasingRules>(stmt, config, reports);
     run_early_lint_on_stmt::<CollapsableIf>(stmt, config, reports);
@@ -54,9 +64,9 @@ pub fn process_stmt_early(stmt: &mut Stmt, reports: &mut Vec<Diagnostic<FileId>>
     // @end early stmt calls. Do not remove this comment!
 
     // Recurse...
-    let stmt = stmt.kind_mut();
-    stmt.visit_child_stmts_mut(|stmt| process_stmt_early(stmt, reports, config));
-    stmt.visit_child_exprs_mut(|expr| process_expr_early(expr, reports, config));
+    let stmt = stmt.kind();
+    stmt.visit_child_stmts(|stmt| process_stmt_early(stmt, reports, config));
+    stmt.visit_child_exprs(|expr| process_expr_early(expr, reports, config));
 }
 
 /// Runs an expression through the early pass, running any lint that
@@ -65,7 +75,7 @@ pub fn process_stmt_early(stmt: &mut Stmt, reports: &mut Vec<Diagnostic<FileId>>
 ///
 /// NOTE: This function is largely auto-generated! See `CONTRIBUTING.md` for
 /// more information.
-pub fn process_expr_early(expr: &mut Expr, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
+pub fn process_expr_early(expr: &Expr, reports: &mut Vec<Diagnostic<FileId>>, config: &Config) {
     // @early expr calls. Do not remove this comment!
     run_early_lint_on_expr::<AccessorAlternative>(expr, config, reports);
     run_early_lint_on_expr::<AndPreference>(expr, config, reports);
@@ -94,8 +104,8 @@ pub fn process_expr_early(expr: &mut Expr, reports: &mut Vec<Diagnostic<FileId>>
     // @end early expr calls. Do not remove this comment!
 
     // Recurse...
-    expr.visit_child_stmts_mut(|stmt| process_stmt_early(stmt, reports, config));
-    expr.visit_child_exprs_mut(|expr| process_expr_early(expr, reports, config));
+    expr.visit_child_stmts(|stmt| process_stmt_early(stmt, reports, config));
+    expr.visit_child_exprs(|expr| process_expr_early(expr, reports, config));
 }
 
 /// Runs a [Stmt] through the late pass, running any lint that
@@ -127,6 +137,13 @@ fn process_expr_late(expr: &Expr, reports: &mut Vec<Diagnostic<FileId>>, config:
     // Recurse...
     expr.visit_child_stmts(|stmt| process_stmt_late(stmt, reports, config));
     expr.visit_child_exprs(|expr| process_expr_late(expr, reports, config));
+}
+
+/// Performs a lint on an Ast
+fn run_lint_on_ast<T: Lint + AstPass>(ast: &Ast, config: &Config, reports: &mut Vec<Diagnostic<FileId>>) {
+    if *config.get_lint_level_setting(T::tag(), T::default_level()) != LintLevel::Allow {
+        T::visit_ast(ast, config, reports);
+    }
 }
 
 /// Performs a given [EarlyStmtPass] on a statement.
@@ -304,9 +321,12 @@ pub fn start_early_pass(
     let handle = tokio::task::spawn(async move {
         while let Some(ast) = ast_receiever.recv().await {
             let config = config.clone();
-            for mut stmt in ast.unpack() {
+            let mut reports = vec![];
+            process_ast(&ast, &mut reports, config.as_ref());
+            sender.send(reports).await.unwrap();
+            for stmt in ast.unpack() {
                 let mut reports = vec![];
-                process_stmt_early(&mut stmt, &mut reports, config.as_ref());
+                process_stmt_early(&stmt, &mut reports, config.as_ref());
                 stmt_sender.send(stmt).await.unwrap();
                 sender.send(reports).await.unwrap();
             }
